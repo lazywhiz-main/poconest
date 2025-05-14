@@ -1,0 +1,347 @@
+import React, { Suspense, useMemo, useState, useCallback, useEffect } from 'react';
+import { View, StyleSheet, ActivityIndicator, Text, useWindowDimensions, Platform, TouchableOpacity } from 'react-native';
+import { SpaceNavigator } from './navigation';
+import { useNestSpace } from './contexts/NestSpaceContext';
+import { SpaceType } from './types/nestSpace.types';
+
+// 空間コンポーネントの遅延ロード
+const ChatSpace = React.lazy(() => import('../chat-space/components/ChatSpace'));
+const BoardSpace = React.lazy(() => import('../board-space/components/BoardSpace'));
+const AnalysisSpace = React.lazy(() => import('../analysis-space/components/AnalysisSpace'));
+const ZoomSpace = React.lazy(() => import('../zoom-space/components/ZoomSpace'));
+
+// エラーバウンダリーコンポーネント
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode; fallback: React.ReactNode }, 
+  { hasError: boolean }
+> {
+  constructor(props: { children: React.ReactNode; fallback: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('NestSpace Error Boundary caught an error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback;
+    }
+
+    return this.props.children;
+  }
+}
+
+// ローディングプレースホルダー
+const SpacePlaceholder: React.FC<{ spaceName: string }> = ({ spaceName }) => (
+  <View style={styles.placeholderContainer}>
+    <ActivityIndicator size="large" color="#4a6da7" />
+    <Text style={styles.placeholderText}>{spaceName}空間を読み込み中...</Text>
+  </View>
+);
+
+// エラーフォールバック
+const ErrorFallback: React.FC<{ spaceName: string; onRetry: () => void }> = ({ spaceName, onRetry }) => (
+  <View style={styles.errorContainer}>
+    <Text style={styles.errorTitle}>読み込みエラー</Text>
+    <Text style={styles.errorText}>{spaceName}空間の読み込み中にエラーが発生しました。</Text>
+    <TouchableOpacity style={styles.retryButton} onPress={onRetry}>
+      <Text style={styles.retryButtonText}>再試行</Text>
+    </TouchableOpacity>
+  </View>
+);
+
+// バックグラウンドプリローディング用の状態
+interface PreloadState {
+  chat: boolean;
+  board: boolean;
+  analysis: boolean;
+  zoom: boolean;
+}
+
+/**
+ * NEST空間コンテナコンポーネント
+ * 各機能空間のレンダリングと最適化を担当
+ */
+const NestSpaceContainer: React.FC = () => {
+  const { width, height } = useWindowDimensions();
+  const nestSpace = useNestSpace();
+  const activeSpaceType = nestSpace.spaceState.activeSpaceType;
+  
+  // リサイズ検出のための状態
+  const [deviceClass, setDeviceClass] = useState<'mobile' | 'tablet' | 'desktop'>(
+    width < 768 ? 'mobile' : width < 1024 ? 'tablet' : 'desktop'
+  );
+  
+  // プリロード状態の管理
+  const [preloaded, setPreloaded] = useState<PreloadState>({
+    chat: activeSpaceType === SpaceType.CHAT,
+    board: activeSpaceType === SpaceType.BOARD,
+    analysis: activeSpaceType === SpaceType.ANALYSIS,
+    zoom: activeSpaceType === SpaceType.ZOOM,
+  });
+  
+  // エラーリトライのための状態
+  const [retryKey, setRetryKey] = useState(0);
+  
+  // 再試行ハンドラー
+  const handleRetry = useCallback(() => {
+    setRetryKey(prev => prev + 1);
+  }, []);
+  
+  // 画面サイズの変更を検出
+  useEffect(() => {
+    const newDeviceClass = width < 768 ? 'mobile' : width < 1024 ? 'tablet' : 'desktop';
+    if (deviceClass !== newDeviceClass) {
+      setDeviceClass(newDeviceClass);
+    }
+  }, [width, deviceClass]);
+  
+  // バックグラウンドでのプリロード
+  useEffect(() => {
+    // 現在の空間は既にロード済みなのでスキップ
+    if (activeSpaceType === SpaceType.CHAT && !preloaded.chat) {
+      setPreloaded(prev => ({ ...prev, chat: true }));
+    } else if (activeSpaceType === SpaceType.BOARD && !preloaded.board) {
+      setPreloaded(prev => ({ ...prev, board: true }));
+    } else if (activeSpaceType === SpaceType.ANALYSIS && !preloaded.analysis) {
+      setPreloaded(prev => ({ ...prev, analysis: true }));
+    } else if (activeSpaceType === SpaceType.ZOOM && !preloaded.zoom) {
+      setPreloaded(prev => ({ ...prev, zoom: true }));
+    }
+    
+    // 後でアクセスしそうな空間をプリロード
+    const timer = setTimeout(() => {
+      // デスクトップとタブレットではすべての空間をプリロード
+      if (deviceClass !== 'mobile') {
+        setPreloaded({
+          chat: true,
+          board: true,
+          analysis: true,
+          zoom: true
+        });
+      } else {
+        // モバイルでは関連性の高い空間のみプリロード
+        if (activeSpaceType === SpaceType.CHAT && !preloaded.board) {
+          setPreloaded(prev => ({ ...prev, board: true }));
+        } else if (activeSpaceType === SpaceType.BOARD && !preloaded.chat) {
+          setPreloaded(prev => ({ ...prev, chat: true }));
+        }
+      }
+    }, 2000);
+    
+    return () => clearTimeout(timer);
+  }, [activeSpaceType, deviceClass, preloaded]);
+  
+  // メモ化されたコンテンツレンダリング
+  const renderContent = useMemo(() => {
+    // アクティブな空間に応じてコンポーネントを選択
+    const getSpaceComponent = () => {
+      switch (activeSpaceType) {
+        case SpaceType.CHAT:
+          return (
+            <Suspense fallback={<SpacePlaceholder spaceName="チャット" />}>
+              <ErrorBoundary
+                fallback={<ErrorFallback spaceName="チャット" onRetry={handleRetry} />}
+              >
+                <ChatSpace key={`chat-${retryKey}`} />
+              </ErrorBoundary>
+            </Suspense>
+          );
+        case SpaceType.BOARD:
+          return (
+            <Suspense fallback={<SpacePlaceholder spaceName="ボード" />}>
+              <ErrorBoundary
+                fallback={<ErrorFallback spaceName="ボード" onRetry={handleRetry} />}
+              >
+                <BoardSpace key={`board-${retryKey}`} />
+              </ErrorBoundary>
+            </Suspense>
+          );
+        case SpaceType.ANALYSIS:
+          return (
+            <Suspense fallback={<SpacePlaceholder spaceName="分析" />}>
+              <ErrorBoundary
+                fallback={<ErrorFallback spaceName="分析" onRetry={handleRetry} />}
+              >
+                <AnalysisSpace key={`analysis-${retryKey}`} />
+              </ErrorBoundary>
+            </Suspense>
+          );
+        case SpaceType.ZOOM:
+          return (
+            <Suspense fallback={<SpacePlaceholder spaceName="Zoom" />}>
+              <ErrorBoundary
+                fallback={<ErrorFallback spaceName="Zoom" onRetry={handleRetry} />}
+              >
+                <ZoomSpace key={`zoom-${retryKey}`} />
+              </ErrorBoundary>
+            </Suspense>
+          );
+        default:
+          return (
+            <View style={styles.placeholderContainer}>
+              <Text style={styles.placeholderText}>サポートされていない空間タイプです</Text>
+            </View>
+          );
+      }
+    };
+    
+    return (
+      <View style={styles.contentContainer}>
+        {getSpaceComponent()}
+        
+        {/* 分割表示の場合のセカンダリコンテンツ */}
+        {nestSpace.spaceState.splitView?.enabled && (
+          <View style={styles.splitViewContainer}>
+            {/* セカンダリコンテンツのレンダリング（未実装） */}
+          </View>
+        )}
+      </View>
+    );
+  }, [activeSpaceType, retryKey, handleRetry, nestSpace.spaceState.splitView?.enabled]);
+  
+  // プリロードコンポーネント（バックグラウンドで読み込んでおく）
+  const preloadComponents = useMemo(() => {
+    return (
+      <View style={styles.preloadContainer}>
+        {preloaded.chat && activeSpaceType !== SpaceType.CHAT && (
+          <React.Suspense fallback={null}>
+            <View style={{ display: 'none' }}>
+              <ChatSpace key="preload-chat" />
+            </View>
+          </React.Suspense>
+        )}
+        {preloaded.board && activeSpaceType !== SpaceType.BOARD && (
+          <React.Suspense fallback={null}>
+            <View style={{ display: 'none' }}>
+              <BoardSpace key="preload-board" />
+            </View>
+          </React.Suspense>
+        )}
+        {preloaded.analysis && activeSpaceType !== SpaceType.ANALYSIS && (
+          <React.Suspense fallback={null}>
+            <View style={{ display: 'none' }}>
+              <AnalysisSpace key="preload-analysis" />
+            </View>
+          </React.Suspense>
+        )}
+        {preloaded.zoom && activeSpaceType !== SpaceType.ZOOM && (
+          <React.Suspense fallback={null}>
+            <View style={{ display: 'none' }}>
+              <ZoomSpace key="preload-zoom" />
+            </View>
+          </React.Suspense>
+        )}
+      </View>
+    );
+  }, [preloaded, activeSpaceType]);
+  
+  return (
+    <View style={styles.container}>
+      {/* メインコンテンツ */}
+      {renderContent}
+      
+      {/* ナビゲーション */}
+      <View style={styles.navigationContainer}>
+        <SpaceNavigator 
+          initialSpace={activeSpaceType}
+          showBreadcrumbs={deviceClass !== 'mobile'}
+          enableSwipeNavigation={deviceClass === 'mobile'}
+        />
+      </View>
+      
+      {/* プリロードされたコンポーネント（非表示） */}
+      {Platform.OS === 'web' && preloadComponents}
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+  },
+  contentContainer: {
+    flex: 1,
+    position: 'relative',
+  },
+  navigationContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+  },
+  placeholderContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+  },
+  placeholderText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#757575',
+    textAlign: 'center',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    padding: 20,
+  },
+  errorTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#d32f2f',
+    marginBottom: 8,
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#757575',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  retryButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: '#4a6da7',
+    borderRadius: 4,
+  },
+  retryButtonText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#ffffff',
+  },
+  splitViewContainer: {
+    position: 'absolute',
+    right: 16,
+    bottom: 80,
+    width: 320,
+    height: 240,
+    backgroundColor: '#ffffff',
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
+    zIndex: 10,
+  },
+  preloadContainer: {
+    position: 'absolute',
+    width: 0,
+    height: 0,
+    opacity: 0,
+    overflow: 'hidden',
+  },
+});
+
+export default NestSpaceContainer; 
