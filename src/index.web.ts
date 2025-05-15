@@ -1,19 +1,19 @@
 import { createRoot } from 'react-dom/client';
 import React from 'react';
-import App from './App';
-import { setupVectorIconsForWeb } from './utils/iconSetup';
+import App from './App'; // Re-enable App import
+import { setupVectorIconsForWeb } from './utils/iconSetup'; // Re-enable
 
-// Set up Vector Icons for web
-setupVectorIconsForWeb();
+setupVectorIconsForWeb(); // Re-enable
 
-// Initialize the app on web
+// const TestApp = () => { ... }; // TestApp commented out or removed
+
 const rootElement = document.getElementById('root');
 if (!rootElement) throw new Error('Failed to find the root element');
 
 const root = createRoot(rootElement);
-root.render(React.createElement(App));
+root.render(React.createElement(App)); // Render App again
 
-// Handle global styling for React Native Web
+// Re-enable global styles 
 const styleSheet = document.createElement('style');
 styleSheet.type = 'text/css';
 styleSheet.textContent = `
@@ -36,6 +36,4 @@ styleSheet.textContent = `
     }
   }
 `;
-
-// Add the stylesheet to the document head
 document.head.appendChild(styleSheet); 

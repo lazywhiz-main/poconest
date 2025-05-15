@@ -313,8 +313,8 @@ const AppContent: React.FC = () => {
         onClose={() => setIsCreateNestModalVisible(false)}
         onSubmit={handleCreateNestSubmit}
       />
-      <BoardProvider>
-        <ChatProvider>
+      {/* <BoardProvider> */}
+      {/*   <ChatProvider> */}
           <View style={styles.container}>
             {selectedNest && (
               <>
@@ -337,8 +337,8 @@ const AppContent: React.FC = () => {
               </>
             )}
           </View>
-        </ChatProvider>
-      </BoardProvider>
+      {/*   </ChatProvider> */}
+      {/* </BoardProvider> */}
     </>
   );
 };

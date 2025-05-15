@@ -1,36 +1,28 @@
+// vite.config.ts
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import { createRequire } from 'module';
 import tsconfigPaths from 'vite-tsconfig-paths';
 
-// Not all React Native packages are compatible with Vite. 
-// This rewrites imports for React Native Web compatibility
 const require = createRequire(import.meta.url);
 const reactNativeWeb = require.resolve('react-native-web');
 
-// Vector Iconsを特別に処理
-// const VECTOR_ICON_REGEX = /react-native-vector-icons[/\\].*/; // Commented out
+const VECTOR_ICON_REGEX = /react-native-vector-icons[/\\].*/;
 
 export default defineConfig({
   plugins: [
     react({
       babel: {
-        plugins: [
-          // 必要に応じてBabelプラグインを追加
-        ]
+        plugins: []
       },
-      // JSXがあるコードをトランスパイルするのを助ける
       jsxRuntime: 'automatic'
     }),
     tsconfigPaths(),
-    // Vector Iconsの特別処理用プラグイン (Commented out)
-    /* 
     {
       name: 'vector-icons-resolver',
       resolveId(id) {
         if (VECTOR_ICON_REGEX.test(id)) {
-          // Vector Icons関連のインポートを自前のシム実装にリダイレクト
           if (id.includes('/MaterialIcons')) {
             return path.resolve(__dirname, './src/utils/vector-icons/MaterialIcons.js');
           }
@@ -43,24 +35,21 @@ export default defineConfig({
           if (id.includes('/lib/NativeRNVectorIcons')) {
             return path.resolve(__dirname, './src/utils/vector-icons/NativeRNVectorIconsShim.js');
           }
-          // その他のVector Iconsのインポートはすべてdummy.jsにリダイレクト
           return path.resolve(__dirname, './src/utils/vector-icons/index.js');
         }
       }
     }
-    */
   ],
   resolve: {
     alias: {
-      'react-native': reactNativeWeb, // ★ Re-enabled
-      'react-native/Libraries/Components/View/ViewStylePropTypes': 'react-native-web/dist/exports/View/ViewStylePropTypes', // ★ Re-enabled
-      'react-native/Libraries/EventEmitter/RCTDeviceEventEmitter': 'react-native-web/dist/vendor/react-native/NativeEventEmitter/RCTDeviceEventEmitter', // ★ Re-enabled
-      'react-native/Libraries/vendor/emitter/EventEmitter': 'react-native-web/dist/vendor/react-native/emitter/EventEmitter', // ★ Re-enabled
-      'react-native/Libraries/EventEmitter/NativeEventEmitter': 'react-native-web/dist/vendor/react-native/NativeEventEmitter', // ★ Re-enabled
-      'react-native/Libraries/Utilities/codegenNativeComponent': 'react-native-web/dist/cjs/exports/createElement', // ★ Re-enabled
-      'react-native/Libraries/Utilities': 'react-native-web/dist/vendor/react-native/Utilities', // ★ Re-enabled
-      'react-native/Libraries': 'react-native-web/dist/vendor/react-native', // ★ Re-enabled
-      
+      'react-native': reactNativeWeb,
+      'react-native/Libraries/Components/View/ViewStylePropTypes': 'react-native-web/dist/exports/View/ViewStylePropTypes',
+      'react-native/Libraries/EventEmitter/RCTDeviceEventEmitter': 'react-native-web/dist/vendor/react-native/NativeEventEmitter/RCTDeviceEventEmitter',
+      'react-native/Libraries/vendor/emitter/EventEmitter': 'react-native-web/dist/vendor/react-native/emitter/EventEmitter',
+      'react-native/Libraries/EventEmitter/NativeEventEmitter': 'react-native-web/dist/vendor/react-native/NativeEventEmitter',
+      'react-native/Libraries/Utilities/codegenNativeComponent': 'react-native-web/dist/cjs/exports/createElement',
+      'react-native/Libraries/Utilities': 'react-native-web/dist/vendor/react-native/Utilities',
+      'react-native/Libraries': 'react-native-web/dist/vendor/react-native',
       '@': path.resolve(__dirname, './src'),
       '@components': path.resolve(__dirname, './src/components'),
       '@screens': path.resolve(__dirname, './src/screens'),
@@ -74,14 +63,12 @@ export default defineConfig({
       '@assets': path.resolve(__dirname, './src/assets'),
       '@platform': path.resolve(__dirname, './src/platform'),
       '@features': path.resolve(__dirname, './src/features'),
-      // 'react-native-vector-icons': path.resolve(__dirname, './src/utils/vector-icons'), // Already commented out
+      'react-native-vector-icons': path.resolve(__dirname, './src/utils/vector-icons'),
     },
     extensions: ['.web.tsx', '.web.ts', '.tsx', '.ts', '.web.jsx', '.web.js', '.jsx', '.js']
   },
-  // Configure Tauri-specific build settings
   build: {
     outDir: 'dist',
-    // Tauri uses vite's development server
     target: 'esnext', 
     minify: !process.env.TAURI_DEBUG ? 'esbuild' : false,
     sourcemap: !!process.env.TAURI_DEBUG,
@@ -93,41 +80,38 @@ export default defineConfig({
     esbuildOptions: {
       resolveExtensions: ['.js', '.jsx', '.ts', '.tsx'],
       loader: {
-        '.js': 'jsx', // 全てのJSファイルをJSXとして処理
+        '.js': 'jsx',
       },
       define: {
         global: 'globalThis',
       },
-      // ビルド時の特別な処理
-      // plugins: [ // Commented out vector-icons specific esbuild plugin
-      //   {
-      //     name: 'jsx-in-node_modules',
-      //     setup(build) {
-      //       // node_modules 内のJSXを含むファイルを処理
-      //       build.onLoad({ filter: /node_modules[/\\]react-native-vector-icons[/\\].*\.js$/ }, async (args) => {
-      //         return {
-      //           loader: 'jsx',
-      //           contents: 'export default {};', // ダミーエクスポート
-      //         };
-      //       });
-      //     },
-      //   },
-      // ],
+      plugins: [
+        {
+          name: 'jsx-in-node_modules',
+          setup(build) {
+            build.onLoad({ filter: /node_modules[/\\]react-native-vector-icons[/\\].*\.js$/ }, async (args) => {
+              return {
+                loader: 'jsx',
+                contents: 'export default {};',
+              };
+            });
+          },
+        },
+      ],
     },
     include: [
       'react-dom',
       'react-native-web',
     ],
-    // exclude: ['react-native-vector-icons'], // Commented out
+    exclude: ['react-native-vector-icons'],
   },
-  // Handle module type issues
   server: {
+    hmr: false,
     fs: {
-      // Allow serving files from one level up to the project root
       allow: ['..'],
     },
     watch: {
       ignored: ['**/node_modules/**'],
     },
   },
-}); 
+});
