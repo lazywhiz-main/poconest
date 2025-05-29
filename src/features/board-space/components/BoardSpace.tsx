@@ -1163,43 +1163,6 @@ const BoardSpace: React.FC<BoardSpaceProps> = ({ nestId }) => {
   if (typeof window !== 'undefined' && SortableBoardColumn) {
     return (
       <div style={{ background: '#f7f8fa', minHeight: '100vh', padding: 0 }}>
-        {/* 空間ヘッダー（チャット空間を完全トレース） */}
-        <div style={{
-          width: '100%',
-          background: theme.colors.spaces.board.primary,
-          borderTopLeftRadius: 20,
-          borderTopRightRadius: 20,
-          height: 64,
-          display: 'flex',
-          alignItems: 'center',
-          padding: '0 32px',
-          boxSizing: 'border-box',
-          boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontSize: 16, fontWeight: 600, color: 'white', letterSpacing: 0.5, display: 'flex', alignItems: 'center' }}>
-              <span style={{ fontSize: 20, marginRight: 12 }}>🗂️</span>ボード空間
-            </span>
-          </div>
-          <input
-            type="text"
-            placeholder="カードを検索..."
-            value={searchQuery}
-            onChange={e => { setSearchQuery(e.target.value); searchCards(e.target.value); }}
-            style={{
-              height: 40,
-              borderRadius: 10,
-              border: '1px solid #e0e0e0',
-              padding: '0 16px',
-              fontSize: 15,
-              background: '#f7f8fa',
-              width: 280,
-              maxWidth: '100%',
-              boxShadow: '0 1px 4px rgba(0,0,0,0.03)',
-              marginLeft: 'auto',
-            }}
-          />
-        </div>
         {/* タブUI */}
         <div style={{
           width: '100%',
@@ -1207,7 +1170,7 @@ const BoardSpace: React.FC<BoardSpaceProps> = ({ nestId }) => {
           borderBottomLeftRadius: 0,
           borderBottomRightRadius: 0,
           boxShadow: '0 2px 12px rgba(0,0,0,0.02)',
-          padding: '0 32px',
+          padding: '16px 32px',
           boxSizing: 'border-box',
         }}>
           {renderTabs()}
