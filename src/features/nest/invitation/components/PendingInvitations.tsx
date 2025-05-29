@@ -13,23 +13,25 @@ import {
 import { BRAND_COLORS } from '@constants/Colors';
 import { SPACING, FONT_SIZE, BORDER_RADIUS, COMPONENT_STYLES } from '@constants/Styles';
 import responsive from '@utils/responsive';
-import { useNest } from '../../../contexts/NestContext';
-import invitationService from '../services/invitationService';
+import { useNest } from '@features/nest/contexts/NestContext';
+import { cancelInvitation, resendInvitation, getPendingInvitations } from '../services/invitationService';
+
+console.log('PendingInvitations component loaded');
 
 // 招待の型定義
 interface Invitation {
   id: string;
   nest_id: string;
-  email: string;
+  invited_email: string;
   invited_by: string;
   created_at: string;
-  expires_at?: string;
+  expires_at: string;
   token: string;
   is_accepted: boolean;
   invited_users?: {
     id: string;
     display_name: string;
-    avatar_url?: string;
+    avatar_url: string;
   };
 }
 
@@ -53,6 +55,7 @@ const PendingInvitations: React.FC<PendingInvitationsProps> = ({
   
   // 招待リストの取得
   const fetchInvitations = async () => {
+    console.log('[PendingInvitations] fetchInvitations called, currentNest:', currentNest);
     if (!currentNest) {
       setInvitations([]);
       setLoading(false);
@@ -63,13 +66,19 @@ const PendingInvitations: React.FC<PendingInvitationsProps> = ({
     setError(null);
     
     try {
-      const result = await invitationService.getPendingInvitations(currentNest.id);
+      const result = await getPendingInvitations(currentNest.id);
       
       if (result.error) {
         setError(result.error.message);
         setInvitations([]);
       } else {
-        setInvitations(result.invitations || []);
+        console.log('[PendingInvitations] fetch result.invitations:', result.invitations);
+        setInvitations(
+          (result.invitations || []).map((inv: any) => ({
+            ...inv,
+            invited_users: Array.isArray(inv.invited_users) ? inv.invited_users[0] : inv.invited_users
+          }))
+        );
       }
     } catch (err: any) {
       console.error('Error fetching invitations:', err);
@@ -82,6 +91,7 @@ const PendingInvitations: React.FC<PendingInvitationsProps> = ({
   
   // NESTが変更されたら招待リストを更新
   useEffect(() => {
+    console.log('[PendingInvitations] useEffect currentNest:', currentNest);
     fetchInvitations();
   }, [currentNest]);
   
@@ -90,11 +100,11 @@ const PendingInvitations: React.FC<PendingInvitationsProps> = ({
     // 確認ダイアログを表示
     const confirmCancel = () => {
       if (Platform.OS === 'web') {
-        return window.confirm(`${invitation.email}への招待をキャンセルしますか？`);
+        return window.confirm(`${invitation.invited_email}への招待をキャンセルしますか？`);
       } else {
         Alert.alert(
           '招待のキャンセル',
-          `${invitation.email}への招待をキャンセルしますか？`,
+          `${invitation.invited_email}への招待をキャンセルしますか？`,
           [
             { text: 'キャンセル', style: 'cancel' },
             { 
@@ -121,7 +131,7 @@ const PendingInvitations: React.FC<PendingInvitationsProps> = ({
     setActionLoading(prev => ({ ...prev, [invitation.id]: 'cancel' }));
     
     try {
-      const result = await invitationService.cancelInvitation(invitation.id);
+      const result = await cancelInvitation(invitation.id);
       
       if (result.error) {
         setError(result.error.message);
@@ -158,7 +168,7 @@ const PendingInvitations: React.FC<PendingInvitationsProps> = ({
     setActionLoading(prev => ({ ...prev, [invitation.id]: 'resend' }));
     
     try {
-      const result = await invitationService.resendInvitation(invitation.id);
+      const result = await resendInvitation(invitation.id);
       
       if (result.error) {
         setError(result.error.message);
@@ -169,10 +179,10 @@ const PendingInvitations: React.FC<PendingInvitationsProps> = ({
       } else {
         // 成功したらメッセージを表示
         if (Platform.OS !== 'web') {
-          Alert.alert('成功', `${invitation.email}に招待が再送信されました`);
+          Alert.alert('成功', `${invitation.invited_email}に招待が再送信されました`);
         } else {
           // Webの場合は一時的なメッセージ表示などを実装可能
-          alert(`${invitation.email}に招待が再送信されました`);
+          alert(`${invitation.invited_email}に招待が再送信されました`);
         }
         
         // 再読み込み
@@ -232,13 +242,14 @@ const PendingInvitations: React.FC<PendingInvitationsProps> = ({
   
   // リストアイテムのレンダリング
   const renderInvitationItem = ({ item }: { item: Invitation }) => {
+    console.log('[PendingInvitations] render item:', item);
     const isActionInProgress = !!actionLoading[item.id];
     const actionType = actionLoading[item.id];
     
     return (
       <View style={styles.itemContainer}>
         <View style={styles.itemContent}>
-          <Text style={styles.emailText}>{item.email}</Text>
+          <Text style={styles.emailText}>{item.invited_email}</Text>
           <Text style={styles.dateText}>
             招待日: {formatCreatedAt(item.created_at)}
           </Text>

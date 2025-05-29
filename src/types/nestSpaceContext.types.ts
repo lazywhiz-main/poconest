@@ -54,4 +54,5 @@ export interface NestSpaceContextType extends NestSpaceState {
   updatePresence: (presence: MemberPresence) => void;
   canPerformAction: (action: SpaceActionType) => boolean;
   loadSpaceContainer: (containerId: string) => Promise<void>;
+  currentNestId: string | null;
 } 

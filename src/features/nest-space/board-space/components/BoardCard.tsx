@@ -151,6 +151,11 @@ const BoardCard: React.FC<BoardCardProps> = ({
       <View style={styles.cardFooter}>
         <View style={styles.sourceInfo}>
           <Text style={styles.sourceIcon}>{getSourceIcon()}</Text>
+          {card.sources?.map((source, index) => (
+            <View key={source.id} style={styles.sourceBadge}>
+              <Text style={styles.sourceLabel}>{source.label}</Text>
+            </View>
+          ))}
           <Text style={styles.cardDate}>
             {formatDate(card.updated_at)}
           </Text>
@@ -162,9 +167,9 @@ const BoardCard: React.FC<BoardCardProps> = ({
               <Text style={styles.tagText}>{tag}</Text>
             </View>
           ))}
-          {!isExpanded && card.tags?.length > 2 && (
+          {!isExpanded && (card.tags?.length ?? 0) > 2 && (
             <View style={styles.tag}>
-              <Text style={styles.tagText}>+{card.tags.length - 2}</Text>
+              <Text style={styles.tagText}>+{(card.tags?.length ?? 0) - 2}</Text>
             </View>
           )}
         </View>
@@ -353,6 +358,17 @@ const styles = StyleSheet.create({
   deleteText: {
     color: '#E53935',
     fontSize: 14,
+  },
+  sourceBadge: {
+    backgroundColor: 'rgba(74, 109, 167, 0.1)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginRight: 8,
+  },
+  sourceLabel: {
+    fontSize: 11,
+    color: '#4a6da7',
   },
 });
 

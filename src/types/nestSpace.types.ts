@@ -1,7 +1,7 @@
 export enum SpaceType {
   CHAT = 'chat',
   BOARD = 'board',
-  ZOOM = 'zoom',
+  MEETING = 'meeting',
   ANALYSIS = 'analysis',
   USER_PROFILE = 'user_profile',
 }
@@ -12,6 +12,8 @@ export enum LayoutType {
   DESKTOP = 'desktop',
 }
 
+// 以下の型定義は src/features/nest-space/types/nestSpace.types.ts に移動済み
+/*
 export interface SpacePersonalization {
   userId: string;
   theme?: 'light' | 'dark' | 'system';
@@ -51,11 +53,11 @@ export interface NestSpace {
   icon?: string;
   description?: string;
   parentId?: string;
-  children?: string[]; // Array of child space IDs
-  content?: any; // Content type will depend on the space type
+  children?: string[];
+  content?: any;
   metadata: SpaceMetadata;
   personalization?: SpacePersonalization[];
-  members?: string[]; // Array of member user IDs
+  members?: string[];
   activeMembers?: MemberPresence[];
 }
 
@@ -88,17 +90,17 @@ export interface NestSpaceNavigationState {
   currentLayout: LayoutType;
 }
 
-// Nest（巣）の型定義
 export interface Nest {
   id: string;
   name: string;
   description?: string;
-  owner_id: string;                // サンプルデータに合わせて変更
-  members?: string[];              // オプショナルに変更
-  is_active?: boolean;             // 追加
-  created_at: string;              // Date型からstringに変更
-  updated_at: string;              // Date型からstringに変更
+  owner_id: string;
+  members?: string[];
+  is_active?: boolean;
+  created_at: string;
+  updated_at: string;
   color?: string;
   icon?: string;
-  space_ids: string[];             // spaceIds -> space_idsに変更
-} 
+  space_ids: string[];
+}
+*/ 

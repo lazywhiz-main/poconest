@@ -21,6 +21,12 @@ export interface Card {
   sourceType?: 'chat' | 'zoom' | 'manual' | 'ai';
   sourceId?: string;
   metadata?: Record<string, any>;
+  sources?: {
+    id: string;
+    type: string;
+    label: string;
+    meta?: Record<string, any>;
+  }[];
 }
 
 // Board view settings

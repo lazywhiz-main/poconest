@@ -7,7 +7,8 @@ import {
   Keyboard, 
   Platform, 
   Animated,
-  KeyboardEvent 
+  KeyboardEvent,
+  Text
 } from 'react-native';
 import { COLORS, SPACING } from '@constants/config';
 
@@ -141,9 +142,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
           disabled={!message.trim() || disabled}
           accessibilityLabel="送信"
         >
-          <View style={styles.sendButtonIcon}>
-            <View style={styles.sendIconTriangle} />
-          </View>
+          <Text style={styles.sendButtonText}>送信</Text>
         </TouchableOpacity>
       </Animated.View>
     </View>
@@ -152,6 +151,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
 const styles = StyleSheet.create({
   container: {
+    width: '100%',
+    alignSelf: 'stretch',
     padding: SPACING.sm,
     borderTopWidth: 1,
     borderTopColor: COLORS.lightGray,
@@ -160,9 +161,12 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
+    width: '100%',
+    alignSelf: 'stretch',
   },
   input: {
     flex: 1,
+    width: '100%',
     borderWidth: 1,
     borderColor: COLORS.lightGray,
     borderRadius: 20,
@@ -178,10 +182,7 @@ const styles = StyleSheet.create({
     }),
   },
   sendButton: {
-    position: 'absolute',
-    right: 4,
-    bottom: 4,
-    width: 36,
+    width: 60,
     height: 36,
     borderRadius: 18,
     backgroundColor: COLORS.primary,
@@ -193,24 +194,10 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  sendButtonIcon: {
-    width: 16,
-    height: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  sendIconTriangle: {
-    width: 0,
-    height: 0,
-    backgroundColor: 'transparent',
-    borderStyle: 'solid',
-    borderLeftWidth: 8,
-    borderRightWidth: 8,
-    borderBottomWidth: 12,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-    borderBottomColor: COLORS.white,
-    transform: [{ rotate: '90deg' }],
+  sendButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 

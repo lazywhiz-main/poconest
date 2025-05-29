@@ -12,7 +12,7 @@ import {
   Clipboard
 } from 'react-native';
 import { useNest } from '../contexts/NestContext';
-import { COLORS, SPACING } from '@constants/config';
+import theme from '../../../styles/theme';
 
 interface InvitationFormProps {
   nestId: string;
@@ -123,7 +123,7 @@ const InvitationForm: React.FC<InvitationFormProps> = ({ nestId }) => {
           value={email}
           onChangeText={setEmail}
           placeholder="メールアドレスを入力"
-          placeholderTextColor={COLORS.gray}
+          placeholderTextColor={theme.colors.text.disabled}
           keyboardType="email-address"
           autoCapitalize="none"
           editable={!inviteLoading}
@@ -141,7 +141,7 @@ const InvitationForm: React.FC<InvitationFormProps> = ({ nestId }) => {
           accessibilityHint="入力したメールアドレスに招待を送ります"
         >
           {inviteLoading ? (
-            <ActivityIndicator size="small" color={COLORS.white} />
+            <ActivityIndicator size="small" color={theme.colors.background.paper} />
           ) : (
             <Text style={styles.inviteButtonText}>招待</Text>
           )}
@@ -157,7 +157,7 @@ const InvitationForm: React.FC<InvitationFormProps> = ({ nestId }) => {
         </View>
         
         {loading ? (
-          <ActivityIndicator style={styles.loader} color={COLORS.primary} />
+          <ActivityIndicator style={styles.loader} color={theme.colors.primary} />
         ) : filteredInvitations.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>保留中の招待はありません</Text>
@@ -167,10 +167,11 @@ const InvitationForm: React.FC<InvitationFormProps> = ({ nestId }) => {
             data={filteredInvitations}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
+              (() => { console.log('[InvitationForm] renderItem item:', item); return null; })() ||
               <View style={styles.invitationItem}>
                 <View style={styles.invitationInfo}>
                   <Text style={styles.invitationEmail} numberOfLines={1}>
-                    {item.email}
+                    {item.invited_email}
                   </Text>
                   <Text style={styles.invitationDate}>
                     送信日: {formatDate(item.created_at)}
@@ -179,15 +180,20 @@ const InvitationForm: React.FC<InvitationFormProps> = ({ nestId }) => {
                 </View>
                 
                 <View style={styles.invitationActions}>
-                  {Platform.OS === 'web' && (
+                  {/* 招待リンク常時表示・コピー */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={{ fontSize: 12, color: theme.colors.text.disabled, marginRight: 4 }}>リンク:</Text>
+                    <Text style={{ fontSize: 12, color: theme.colors.primary, maxWidth: 120 }} numberOfLines={1} ellipsizeMode="middle">
+                      https://poconest.app/invite/{item.token}
+                    </Text>
                     <TouchableOpacity
                       style={styles.invitationAction}
                       onPress={() => handleCopyInviteLink(item.token)}
                       accessibilityLabel="招待リンクをコピー"
                     >
-                      <Text style={styles.actionIcon}>📋</Text>
+                      <Text style={[styles.actionIcon, { color: theme.colors.accent }]}>📋</Text>
                     </TouchableOpacity>
-                  )}
+                  </View>
                   
                   <TouchableOpacity
                     style={styles.invitationAction}
@@ -217,80 +223,77 @@ const InvitationForm: React.FC<InvitationFormProps> = ({ nestId }) => {
 
 const styles = StyleSheet.create({
   container: {
-    padding: SPACING.md,
+    backgroundColor: theme.colors.background.paper,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.lg,
+    ...theme.shadows.sm,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: SPACING.md,
-    color: COLORS.text,
+    fontSize: theme.fontSizes.lg,
+    fontWeight: theme.fontWeights.bold as any,
+    color: theme.colors.text.primary,
+    marginBottom: theme.spacing.md,
   },
   formContainer: {
     flexDirection: 'row',
-    marginBottom: SPACING.lg,
+    alignItems: 'center',
+    marginBottom: theme.spacing.md,
   },
   input: {
     flex: 1,
-    backgroundColor: COLORS.white,
-    borderRadius: 8,
-    padding: SPACING.md,
-    fontSize: 16,
-    color: COLORS.text,
+    backgroundColor: theme.colors.background.paper,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.sm,
+    fontSize: theme.fontSizes.md,
+    color: theme.colors.text.primary,
     borderWidth: 1,
-    borderColor: COLORS.lightGray,
-    marginRight: SPACING.sm,
+    borderColor: theme.colors.divider,
   },
   inviteButton: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.sm,
+    backgroundColor: theme.colors.action,
+    borderRadius: theme.borderRadius.md,
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.lg,
+    marginLeft: theme.spacing.sm,
+    ...theme.shadows.sm,
   },
   inviteButtonText: {
-    color: COLORS.white,
-    fontSize: 16,
-    fontWeight: '600',
+    color: theme.colors.background.paper,
+    fontWeight: theme.fontWeights.bold as any,
+    fontSize: theme.fontSizes.md,
   },
   disabledButton: {
     opacity: 0.5,
   },
   pendingInvitationsContainer: {
-    flex: 1,
+    marginTop: theme.spacing.md,
   },
   pendingHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SPACING.sm,
+    justifyContent: 'space-between',
+    marginBottom: theme.spacing.sm,
   },
   pendingTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.text,
+    fontSize: theme.fontSizes.md,
+    fontWeight: theme.fontWeights.bold as any,
+    color: theme.colors.text.primary,
   },
   keyboard: {
-    fontSize: 12,
-    color: COLORS.gray,
-    fontStyle: 'italic',
+    fontSize: theme.fontSizes.xs,
+    color: theme.colors.text.disabled,
   },
   loader: {
-    marginVertical: SPACING.lg,
+    marginTop: 8,
   },
   emptyContainer: {
-    padding: SPACING.lg,
-    backgroundColor: COLORS.white,
-    borderRadius: 8,
     alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.lightGray,
-    borderStyle: 'dashed',
+    padding: 16,
   },
   emptyText: {
+    color: theme.colors.text.disabled,
     fontSize: 14,
-    color: COLORS.gray,
   },
   invitationsList: {
     maxHeight: 300,
@@ -298,41 +301,51 @@ const styles = StyleSheet.create({
   invitationItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.white,
-    borderRadius: 8,
-    padding: SPACING.md,
-    marginBottom: SPACING.sm,
-    borderWidth: 1,
-    borderColor: COLORS.lightGray,
+    justifyContent: 'space-between',
+    backgroundColor: theme.colors.background.default,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
   },
   invitationInfo: {
     flex: 1,
   },
   invitationEmail: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: COLORS.text,
-    marginBottom: 4,
+    fontWeight: theme.fontWeights.bold as any,
+    color: theme.colors.text.primary,
+    fontSize: 15,
   },
   invitationDate: {
+    color: theme.colors.text.disabled,
     fontSize: 12,
-    color: COLORS.gray,
   },
   invitationActions: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginLeft: 8,
   },
   invitationAction: {
-    padding: SPACING.sm,
-    marginLeft: SPACING.xs,
-    borderRadius: 4,
-    backgroundColor: 'transparent',
+    marginLeft: 8,
+    padding: 4,
+    borderRadius: theme.borderRadius.sm,
+    backgroundColor: theme.colors.background.paper,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Platform.select({
+      web: {
+        boxShadow: '0 1px 4px rgba(20,184,166,0.04)',
+      },
+      default: {
+        elevation: 1,
+      }
+    }),
   },
   actionIcon: {
-    fontSize: 16,
+    fontSize: 18,
+    color: theme.colors.text.disabled,
   },
   cancelAction: {
-    backgroundColor: COLORS.error + '20', // 透明度20%
+    backgroundColor: theme.colors.status.error + '20', // 透明度20%
   },
 });
 

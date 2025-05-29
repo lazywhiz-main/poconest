@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useNest } from '../../../contexts/NestContext';
 import invitationService from '../services/invitationService';
+console.log('[InviteForm] invitationService:', invitationService);
 import { COLORS, BRAND_COLORS } from '@constants/Colors';
 import Styles, { SPACING, FONT_SIZE, BORDER_RADIUS, SHADOW, COMPONENT_STYLES } from '@constants/Styles';
 import responsive from '@utils/responsive';
@@ -32,6 +33,9 @@ const InviteForm: React.FC<InviteFormProps> = ({ onInviteSent }) => {
   
   // メール招待送信処理
   const handleSendInvitation = async () => {
+    console.log('[InviteForm] handleSendInvitation called', email, currentNest?.id);
+    console.log('[InviteForm] invitationService:', invitationService);
+    console.log('[InviteForm] invitationService.inviteMemberByEmail:', invitationService.inviteMemberByEmail);
     if (!email || !email.includes('@')) {
       setError('有効なメールアドレスを入力してください');
       return;

@@ -3,14 +3,15 @@ import { Dimensions, Platform } from 'react-native';
 
 // Import types from our type definitions
 import {
-  SpaceType,
   LayoutType,
   SpaceState,
   SpaceNavigationAction,
   MemberPresence,
   SpaceMetadata,
   SpacePersonalization,
-  NestSpaceContextType
+  NestSpaceContextType,
+  SpaceType,
+  Nest
 } from '../types/nestSpace.types';
 
 // Import space-related components once implemented
@@ -18,20 +19,16 @@ import {
 // import { useAuth } from '@contexts/AuthContext';
 
 // Temporary mock for the Nest context (replace with actual implementation)
-type MockNest = { 
-  id: string;
-  name: string;
-  description?: string;
-  owner_id: string;
-  color?: string;
-};
-
-const mockNest: MockNest = {
+const mockNest: Nest = {
   id: 'mock-nest-id',
   name: 'Mock NEST',
   description: 'テスト用NEST',
   owner_id: 'user-1',
   color: '#3498db',
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+  space_ids: [],
+  is_active: true
 };
 
 const mockUser = {
@@ -60,32 +57,23 @@ const defaultSpaces: SpaceMetadata[] = [
     hasUnread: false,
   },
   {
-    id: 'zoom-space',
-    type: SpaceType.ZOOM,
-    title: 'Zoom',
+    id: 'meeting-space',
+    type: SpaceType.MEETING,
+    title: 'ミーティング',
     icon: 'videocam-outline',
     color: '#9b59b6',
     badge: 0,
     hasUnread: false,
   },
   {
-    id: 'insights-space',
-    type: SpaceType.INSIGHTS,
+    id: 'analysis-space',
+    type: SpaceType.ANALYSIS,
     title: '分析',
     icon: 'bar-chart-outline',
     color: '#f39c12',
     badge: 0,
     hasUnread: false,
-  },
-  {
-    id: 'settings-space',
-    type: SpaceType.SETTINGS,
-    title: '設定',
-    icon: 'settings-outline',
-    color: '#7f8c8d',
-    badge: 0,
-    hasUnread: false,
-  },
+  }
 ];
 
 // 画面サイズに基づいたレイアウトタイプを決定
@@ -212,6 +200,64 @@ const spaceReducer = (state: SpaceState, action: SpaceNavigationAction): SpaceSt
 
 // コンテキストの作成
 const NestSpaceContext = createContext<NestSpaceContextType | undefined>(undefined);
+
+// --- 型定義のローカル化 ---
+// export type SpaceNavigationAction =
+//   | { type: 'NAVIGATE_TO_SPACE'; payload: SpaceType }
+//   | { type: 'TOGGLE_SIDEBAR' }
+//   | { type: 'SET_LAYOUT_TYPE'; payload: LayoutType }
+//   | { type: 'UPDATE_MEMBER_PRESENCE'; payload: MemberPresence }
+//   | { type: 'UPDATE_PERSONALIZATION'; payload: Partial<SpacePersonalization> }
+//   | { type: 'ENABLE_SPLIT_VIEW'; payload: { primary: SpaceType; secondary: SpaceType; ratio?: number } }
+//   | { type: 'DISABLE_SPLIT_VIEW' }
+//   | { type: 'SET_SPLIT_RATIO'; payload: number };
+// 
+// export interface SpaceState {
+//   activeSpaceType: SpaceType;
+//   lastActiveSpace?: { [nestId: string]: SpaceType };
+//   availableSpaces: SpaceMetadata[];
+//   layoutType: LayoutType;
+//   sidebarOpen: boolean;
+//   loading: boolean;
+//   memberPresence: MemberPresence[];
+//   personalization: SpacePersonalization;
+//   splitView?: {
+//     enabled: boolean;
+//     primarySpace?: SpaceType;
+//     secondarySpace?: SpaceType;
+//     splitRatio?: number;
+//   };
+// }
+// 
+// export interface NestSpaceContextType {
+//   currentNest: any;
+//   nestMembers: MemberPresence[];
+//   spaceState: SpaceState;
+//   dispatch: React.Dispatch<SpaceNavigationAction>;
+//   navigateToSpace: (spaceType: SpaceType) => void;
+//   toggleSidebar: () => void;
+//   updatePresence: (presenceData: Partial<MemberPresence>) => void;
+//   updatePersonalization: (settings: Partial<SpacePersonalization>) => void;
+//   enableSplitView: (primary: SpaceType, secondary: SpaceType, ratio?: number) => void;
+//   disableSplitView: () => void;
+//   setSplitRatio: (ratio: number) => void;
+//   isSpaceActive: (spaceType: SpaceType) => boolean;
+//   getSpaceMetadata: (spaceType: SpaceType) => SpaceMetadata | undefined;
+//   getMemberPresence: (userId: string) => MemberPresence | undefined;
+// }
+// 
+// export interface MemberPresence {
+//   userId: string;
+//   displayName: string;
+//   avatarUrl?: string;
+//   online: boolean;
+//   lastSeen?: number;
+//   currentSpace?: SpaceType;
+//   currentItemId?: string;
+//   action?: 'viewing' | 'editing' | 'idle';
+//   device?: 'mobile' | 'tablet' | 'desktop';
+//   cursorPosition?: { x: number; y: number };
+// }
 
 /**
  * NEST空間プロバイダーコンポーネント
@@ -355,12 +401,12 @@ export const NestSpaceProvider: React.FC<{ children: React.ReactNode }> = ({
   
   // 空間メタデータを取得
   const getSpaceMetadata = useCallback((spaceType: SpaceType): SpaceMetadata | undefined => {
-    return spaceState.availableSpaces.find((space) => space.type === spaceType);
+    return spaceState.availableSpaces.find((space: SpaceMetadata) => space.type === spaceType);
   }, [spaceState.availableSpaces]);
   
   // メンバーのプレゼンス情報を取得
   const getMemberPresence = useCallback((userId: string): MemberPresence | undefined => {
-    return spaceState.memberPresence.find((member) => member.userId === userId);
+    return spaceState.memberPresence.find((member: MemberPresence) => member.userId === userId);
   }, [spaceState.memberPresence]);
   
   // コンテキスト値

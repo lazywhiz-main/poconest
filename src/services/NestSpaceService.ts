@@ -98,7 +98,7 @@ export class NestSpaceService {
       
       // ネスト内の全スペースを取得
       const { data: spaces, error: spacesError } = await supabase
-        .from('nest_spaces')
+        .from('spaces')
         .select(`
           id,
           name,
@@ -179,7 +179,7 @@ export class NestSpaceService {
     try {
       // 既存のスペースを確認
       const { data: existingSpaces, error: checkError } = await supabase
-        .from('nest_spaces')
+        .from('spaces')
         .select('type')
         .eq('nest_id', containerId);
       
@@ -214,7 +214,7 @@ export class NestSpaceService {
       
       if (spacesToCreate.length > 0) {
         const { error: insertError } = await supabase
-          .from('nest_spaces')
+          .from('spaces')
           .insert(spacesToCreate);
         
         if (insertError) throw insertError;
@@ -319,7 +319,7 @@ export class NestSpaceService {
   async createNestSpace(nestId: string, space: Partial<NestSpace>, userId: string): Promise<NestSpace> {
     try {
       const { data, error } = await supabase
-        .from('nest_spaces')
+        .from('spaces')
         .insert({
           nest_id: nestId,
           name: space.name,

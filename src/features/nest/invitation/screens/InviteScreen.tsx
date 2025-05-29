@@ -7,7 +7,9 @@ import {
   useWindowDimensions,
   KeyboardAvoidingView,
   Platform,
-  TouchableOpacity
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator
 } from 'react-native';
 import { BRAND_COLORS } from '@constants/Colors';
 import { SPACING, FONT_SIZE, COMPONENT_STYLES } from '@constants/Styles';
@@ -15,14 +17,19 @@ import responsive from '@utils/responsive';
 import InviteForm from '../components/InviteForm';
 import InviteLink from '../components/InviteLink';
 import PendingInvitations from '../components/PendingInvitations';
-import { useNest } from '../../../contexts/NestContext';
+import { useNest } from '@features/nest/contexts/NestContext';
+import { useNavigation } from '@react-navigation/native';
+import { acceptInviteByEmail } from '../services/invitationService';
 
 // タブの種類
 type TabType = 'email' | 'link' | 'pending';
 
 const InviteScreen: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<TabType>('email');
   const { currentNest } = useNest();
+  const [activeTab, setActiveTab] = useState<TabType>('email');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const navigation = useNavigation();
   const { width, height } = useWindowDimensions();
   
   // 画面サイズからレイアウトを判断
@@ -33,39 +40,38 @@ const InviteScreen: React.FC = () => {
   const renderTabContent = () => {
     switch (activeTab) {
       case 'email':
-        return <InviteForm onInviteSent={handleInviteSent} />;
+        return <InviteForm onInviteSent={() => setError(null)} />;
       case 'link':
-        return <InviteLink onLinkGenerated={handleLinkGenerated} />;
+        return <InviteLink onLinkGenerated={() => setError(null)} />;
       case 'pending':
         return (
-          <PendingInvitations 
+          <PendingInvitations
             onInvitationCanceled={handleInvitationCanceled}
             onInvitationResent={handleInvitationResent}
           />
         );
       default:
-        return <InviteForm onInviteSent={handleInviteSent} />;
+        return null;
     }
   };
   
   // タブボタン
-  const TabButton = ({ label, type, count }: { label: string; type: TabType; count?: number }) => (
+  const TabButton = ({ label, type, active, onPress }: { label: string; type: TabType; active: boolean; onPress: () => void }) => (
     <TouchableOpacity
       style={[
         styles.tabButton,
-        activeTab === type && styles.activeTabButton
+        active && styles.activeTabButton
       ]}
-      onPress={() => setActiveTab(type)}
+      onPress={onPress}
       accessibilityRole="tab"
       accessibilityLabel={label}
-      accessibilityState={{ selected: activeTab === type }}
+      accessibilityState={{ selected: active }}
     >
       <Text style={[
         styles.tabButtonText,
-        activeTab === type && styles.activeTabButtonText
+        active && styles.activeTabButtonText
       ]}>
         {label}
-        {count !== undefined && count > 0 && ` (${count})`}
       </Text>
     </TouchableOpacity>
   );
@@ -82,15 +88,58 @@ const InviteScreen: React.FC = () => {
   };
   
   const handleInvitationCanceled = () => {
-    // 招待キャンセル後の処理（必要であれば）
-    console.log('Invitation canceled');
+    // 招待キャンセル後の処理
+    setError(null);
+    // 保留中の招待リストを更新
+    if (activeTab === 'pending') {
+      // 必要に応じてリストを更新
+    }
   };
   
   const handleInvitationResent = () => {
-    // 招待再送信後の処理（必要であれば）
-    console.log('Invitation resent');
+    // 招待再送信後の処理
+    setError(null);
+    // 成功メッセージを表示
+    Alert.alert('成功', '招待を再送信しました');
   };
-  
+
+  const handleInvitationAccepted = async (token: string) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const { error, nestId, nestName } = await acceptInviteByEmail(token);
+      
+      if (error) {
+        setError(error.message);
+        Alert.alert('エラー', error.message);
+        return;
+      }
+
+      // 成功メッセージを表示
+      Alert.alert(
+        '成功',
+        `${nestName || 'NEST'}に参加しました！`,
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              // NESTの詳細画面に遷移
+              if (nestId) {
+                navigation.navigate('NestDetail', { nestId });
+              }
+            }
+          }
+        ]
+      );
+    } catch (err: any) {
+      setError(err.message || '招待の承諾中にエラーが発生しました');
+      Alert.alert('エラー', err.message || '招待の承諾中にエラーが発生しました');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -113,14 +162,41 @@ const InviteScreen: React.FC = () => {
           </Text>
         </View>
         
+        {error && (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
+        
         <View style={styles.tabsContainer}>
-          <TabButton label="メールで招待" type="email" />
-          <TabButton label="招待リンク" type="link" />
-          <TabButton label="保留中の招待" type="pending" />
+          <TabButton 
+            label="メールで招待" 
+            type="email" 
+            active={activeTab === 'email'}
+            onPress={() => setActiveTab('email')}
+          />
+          <TabButton 
+            label="招待リンク" 
+            type="link"
+            active={activeTab === 'link'}
+            onPress={() => setActiveTab('link')}
+          />
+          <TabButton 
+            label="保留中の招待" 
+            type="pending"
+            active={activeTab === 'pending'}
+            onPress={() => setActiveTab('pending')}
+          />
         </View>
         
         <View style={styles.contentContainer}>
-          {renderTabContent()}
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={BRAND_COLORS.primary} />
+            </View>
+          ) : (
+            renderTabContent()
+          )}
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -186,6 +262,22 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     flex: 1,
+  },
+  errorContainer: {
+    backgroundColor: BRAND_COLORS.error + '20',
+    padding: SPACING.md,
+    borderRadius: COMPONENT_STYLES.BORDER_RADIUS.md,
+    marginBottom: SPACING.md,
+  },
+  errorText: {
+    color: BRAND_COLORS.error,
+    fontSize: FONT_SIZE.sm,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.xl,
   },
 });
 

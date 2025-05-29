@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 import { v4 as uuidv4 } from 'uuid';
 import { chatService } from '../services/ChatService';
 import { supabase } from '../services/supabase/client';
+import { useNest } from '../features/nest/contexts/NestContext';
 
 // チャットメッセージの型定義
 export interface ChatUser {
@@ -52,6 +53,8 @@ interface ChatContextProps {
   isExtractingInsights: boolean;
   createChatRoom: (spaceId: string, name: string, description?: string) => Promise<void>;
   getChatRoomsBySpaceId: (spaceId: string) => Promise<ChatRoom[]>;
+  isChatRoomsLoaded: boolean;
+  deleteChatRoom: (roomId: string) => Promise<void>;
 }
 
 // コンテキストの作成
@@ -76,26 +79,36 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [chatRooms, setChatRooms] = useState<ChatRoom[]>([]);
   const [messages, setMessages] = useState<Record<string, UIMessage[]>>({});
   const [activeChatRoomId, setActiveChatRoomId] = useState<string | null>(null);
-  const [isPocoTyping, setIsPocoTyping] = useState(false);
+  const [isChatRoomsLoaded, setIsChatRoomsLoaded] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
   const [conversationSummary, setConversationSummary] = useState('');
   const [isExtractingInsights, setIsExtractingInsights] = useState(false);
   const [subscriptions, setSubscriptions] = useState<Record<string, () => void>>({});
+  const [isPocoTyping, setIsPocoTyping] = useState(false);
+  const { currentNest } = useNest();
 
   // 初期化時にチャットルーム一覧を取得
   useEffect(() => {
     const fetchChatRooms = async () => {
       try {
-        const rooms = await chatService.getChatRooms();
+        console.log('ChatContext: fetchChatRooms started for NEST:', currentNest?.id);
+        if (!currentNest?.id) {
+          setChatRooms([]);
+          setIsChatRoomsLoaded(true);
+          return;
+        }
+        const rooms = await chatService.getChatRooms(currentNest.id);
+        console.log('ChatContext: fetchChatRooms result:', rooms);
         setChatRooms(rooms);
-        
-        // 最初のルームをアクティブに設定
+        setIsChatRoomsLoaded(true);
         if (rooms.length > 0 && !activeChatRoomId) {
           setActiveChatRoomId(rooms[0].id);
+        } else if (rooms.length === 0) {
+          setActiveChatRoomId(null);
         }
       } catch (error) {
-        console.error('チャットルーム取得エラー:', error);
+        setIsChatRoomsLoaded(true);
       }
     };
     
@@ -114,16 +127,18 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         authListener.subscription.unsubscribe();
       }
     };
-  }, []);
+  }, [currentNest?.id]);
   
   // アクティブなチャットルームが変更されたらメッセージを取得
   useEffect(() => {
-    if (!activeChatRoomId) return;
+    if (!activeChatRoomId || !currentNest?.id) return;
     
     const fetchMessages = async () => {
       setLoadingMessages(true);
       try {
+        console.log('ChatContext: fetchMessages started for room:', activeChatRoomId);
         const msgs = await chatService.getChatMessages(activeChatRoomId);
+        console.log('ChatContext: fetchMessages result:', msgs);
         setMessages(prev => ({ ...prev, [activeChatRoomId]: msgs }));
       } catch (error) {
         console.error('メッセージ取得エラー:', error);
@@ -180,7 +195,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         subscriptions[activeChatRoomId]();
       }
     };
-  }, [activeChatRoomId]);
+  }, [activeChatRoomId, currentNest?.id]);
 
   // チャットルームを選択
   const setActiveChatRoom = (id: string) => {
@@ -402,6 +417,18 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // この実装ではコンポーネント側で処理することにする
   };
 
+  // チャットルームを削除
+  const deleteChatRoom = async (roomId: string): Promise<void> => {
+    try {
+      await chatService.deleteChatRoom(roomId);
+      setChatRooms(prev => prev.filter(room => room.id !== roomId));
+      // アクティブチャットルームが削除された場合はnullに
+      setActiveChatRoomId(prev => (prev === roomId ? null : prev));
+    } catch (error) {
+      console.error('チャットルーム削除エラー:', error);
+    }
+  };
+
   // プロバイダーの値を設定
   const value = {
     chatRooms,
@@ -418,6 +445,8 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     isExtractingInsights,
     createChatRoom,
     getChatRoomsBySpaceId,
+    isChatRoomsLoaded,
+    deleteChatRoom,
   };
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;

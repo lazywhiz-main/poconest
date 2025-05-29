@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 // 招待メンバーのメールアドレスによる招待
 export const inviteMemberByEmail = async (nestId: string, email: string) => {
+  console.log('[inviteMemberByEmail] 実際に呼ばれた', nestId, email);
   try {
     // 認証チェック
     const { data: { user } } = await supabase.auth.getUser();
@@ -10,6 +11,7 @@ export const inviteMemberByEmail = async (nestId: string, email: string) => {
       return { error: { message: '認証されていません' } };
     }
 
+    console.log('[inviteMemberByEmail] user:', user);
     // 現在のユーザーがNESTのメンバーか確認
     const { data: currentMember, error: memberError } = await supabase
       .from('nest_members')
@@ -17,8 +19,9 @@ export const inviteMemberByEmail = async (nestId: string, email: string) => {
       .eq('nest_id', nestId)
       .eq('user_id', user.id)
       .single();
-
+    console.log('[inviteMemberByEmail] currentMember:', currentMember, 'memberError:', memberError);
     if (memberError || !currentMember) {
+      console.log('[inviteMemberByEmail] NESTのメンバーでないためreturn');
       return { error: { message: 'NESTのメンバーではないため、招待を行う権限がありません' } };
     }
 
@@ -35,7 +38,9 @@ export const inviteMemberByEmail = async (nestId: string, email: string) => {
       (nestSettings?.privacy_settings?.inviteRestriction === 'members' && 
       currentMember.role !== 'restricted');
 
+    console.log('[inviteMemberByEmail] canInvite:', canInvite);
     if (!canInvite) {
+      console.log('[inviteMemberByEmail] 招待権限なしreturn');
       return { error: { message: '招待を行う権限がありません' } };
     }
 
@@ -45,30 +50,36 @@ export const inviteMemberByEmail = async (nestId: string, email: string) => {
       .select('id, display_name')
       .eq('email', email)
       .maybeSingle();
+    console.log('[inviteMemberByEmail] existingUser:', existingUser);
 
     // 既に招待されているか確認
     const { data: existingInvitation } = await supabase
       .from('nest_invitations')
       .select('id')
-      .eq('email', email)
+      .eq('invited_email', email)
       .eq('nest_id', nestId)
       .eq('is_accepted', false)
       .maybeSingle();
+    console.log('[inviteMemberByEmail] existingInvitation:', existingInvitation);
 
     if (existingInvitation) {
+      console.log('[inviteMemberByEmail] 既に招待済みreturn');
       return { error: { message: 'このメールアドレスには既に招待を送信済みです' } };
     }
 
     // 既にメンバーか確認
+    let existingMember = null;
     if (existingUser) {
-      const { data: existingMember } = await supabase
+      const { data: _existingMember } = await supabase
         .from('nest_members')
         .select('user_id')
         .eq('nest_id', nestId)
         .eq('user_id', existingUser.id)
         .maybeSingle();
-
+      existingMember = _existingMember;
+      console.log('[inviteMemberByEmail] existingMember:', existingMember);
       if (existingMember) {
+        console.log('[inviteMemberByEmail] 既にメンバーreturn');
         return { error: { message: 'このユーザーは既にメンバーです' } };
       }
     }
@@ -82,13 +93,13 @@ export const inviteMemberByEmail = async (nestId: string, email: string) => {
       .from('nest_invitations')
       .insert({
         nest_id: nestId,
-        email,
+        invited_email: email,
         invited_by: user.id,
         token,
         expires_at: expiresAt,
         is_accepted: false
       })
-      .select('id, nest_id, token, email, invited_by, created_at, expires_at')
+      .select('id, nest_id, token, invited_email, invited_by, created_at, expires_at')
       .single();
 
     if (invitationError) {
@@ -102,7 +113,7 @@ export const inviteMemberByEmail = async (nestId: string, email: string) => {
       .eq('id', nestId)
       .single();
 
-    // 通知を送信（既存ユーザーの場合はアプリ内通知、新規ユーザーの場合はメール）
+    // 通知を送信（既存ユーザーの場合はアプリ内通知）
     if (existingUser) {
       await supabase.from('notifications').insert({
         user_id: existingUser.id,
@@ -116,24 +127,19 @@ export const inviteMemberByEmail = async (nestId: string, email: string) => {
         },
         is_read: false
       });
-    } else {
-      // メール送信処理（Supabase Edge Functionsなどを使用）
-      // ここではモック処理
-      console.log(`[MOCK] 招待メールを送信: ${email}, トークン: ${token}`);
-      
-      // Supabase Edge Functions呼び出し例
-      /*
-      await supabase.functions.invoke('send-invitation-email', {
-        body: {
-          email,
-          nestId: nestId,
-          nestName: nest?.name,
-          inviterEmail: user.email,
-          token
-        }
-      });
-      */
     }
+    // 既存ユーザーかどうかに関係なくメール送信Edge Functionを呼び出す
+    console.log('[inviteMemberByEmail] send-invitation呼び出し直前', { email, nestName: nest?.name, inviterEmail: user.email, inviteLink: `https://poconest.app/invite/${token}` });
+    const { data: mailData, error: mailError } = await supabase.functions.invoke('send-invitation', {
+      body: {
+        email,
+        nestName: nest?.name,
+        inviterEmail: user.email,
+        inviteLink: `https://poconest.app/invite/${token}`
+      }
+    });
+    console.log('[inviteMemberByEmail] send-invitationレスポンス', { mailData, mailError });
+    // エラー時はログのみ（招待自体は作成済みなのでスローしない）
 
     return { 
       success: true, 
@@ -143,7 +149,7 @@ export const inviteMemberByEmail = async (nestId: string, email: string) => {
       }
     };
   } catch (error: any) {
-    console.error('Error inviting member:', error);
+    console.error('[inviteMemberByEmail] 例外:', error);
     return { error: { message: error.message || '招待処理中にエラーが発生しました' } };
   }
 };
@@ -156,7 +162,7 @@ export const getPendingInvitations = async (nestId: string) => {
       .select(`
         id, 
         nest_id, 
-        email, 
+        invited_email, 
         invited_by, 
         created_at, 
         expires_at, 
@@ -195,7 +201,16 @@ export const cancelInvitation = async (invitationId: string) => {
     // 招待情報を取得
     const { data: invitation, error: getError } = await supabase
       .from('nest_invitations')
-      .select('nest_id, invited_by')
+      .select(`
+        nest_id, 
+        invited_by,
+        invited_email,
+        nests:nest_id (
+          id,
+          name,
+          owner_id
+        )
+      `)
       .eq('id', invitationId)
       .single();
 
@@ -230,6 +245,34 @@ export const cancelInvitation = async (invitationId: string) => {
       return { error: { message: '招待のキャンセルに失敗しました' } };
     }
 
+    // 招待者に通知を送信
+    let ownerId = '';
+    if (Array.isArray(invitation.nests)) {
+      ownerId = invitation.nests[0]?.owner_id || '';
+    } else if (invitation.nests && typeof invitation.nests === 'object' && 'owner_id' in invitation.nests && typeof (invitation.nests as any).owner_id === 'string') {
+      ownerId = (invitation.nests as any).owner_id;
+    }
+
+    let nestName = '';
+    if (Array.isArray(invitation.nests)) {
+      nestName = invitation.nests[0]?.name || '';
+    } else if (invitation.nests && typeof invitation.nests === 'object' && 'name' in invitation.nests && typeof (invitation.nests as any).name === 'string') {
+      nestName = (invitation.nests as any).name;
+    }
+
+    await supabase.from('notifications').insert({
+      user_id: ownerId,
+      type: 'invitation_canceled',
+      title: '招待がキャンセルされました',
+      content: `${invitation.invited_email}への招待がキャンセルされました`,
+      data: {
+        nest_id: invitation.nest_id,
+        nest_name: nestName,
+        invited_email: invitation.invited_email
+      },
+      is_read: false
+    });
+
     return { success: true };
   } catch (error: any) {
     console.error('Error canceling invitation:', error);
@@ -252,7 +295,7 @@ export const resendInvitation = async (invitationId: string) => {
       .select(`
         id, 
         nest_id, 
-        email, 
+        invited_email, 
         token,
         nests:nest_id (
           id,
@@ -279,22 +322,26 @@ export const resendInvitation = async (invitationId: string) => {
       return { error: { message: '招待の更新に失敗しました' } };
     }
 
-    // メール再送信処理（Supabase Edge Functionsなどを使用）
-    // ここではモック処理
-    console.log(`[MOCK] 招待メールを再送信: ${invitation.email}, トークン: ${invitation.token}`);
-
-    // Supabase Edge Functions呼び出し例
-    /*
-    await supabase.functions.invoke('send-invitation-email', {
+    // メール再送信処理（Supabase Edge Functionsを使用）
+    const inviteLink = `https://poconest.app/invite/${invitation.token}`;
+    let nestName = '';
+    if (Array.isArray(invitation.nests)) {
+      nestName = (invitation.nests[0] && typeof invitation.nests[0].name === 'string') ? invitation.nests[0].name : '';
+    } else if (invitation.nests && typeof invitation.nests === 'object' && 'name' in invitation.nests && typeof (invitation.nests as any).name === 'string') {
+      nestName = (invitation.nests as any).name;
+    }
+    const { data: mailData, error: mailError } = await supabase.functions.invoke('send-invitation', {
       body: {
-        email: invitation.email,
-        nestId: invitation.nest_id,
-        nestName: invitation.nests?.name,
+        email: invitation.invited_email,
+        nestName,
         inviterEmail: user.email,
-        token: invitation.token
+        inviteLink
       }
     });
-    */
+    if (mailError) {
+      console.error('[resendInvitation] send-invitationエラー:', mailError);
+      return { error: { message: 'メールの再送信に失敗しました' } };
+    }
 
     return { success: true };
   } catch (error: any) {
@@ -445,11 +492,23 @@ export const acceptInviteByLink = async (token: string) => {
     }
 
     // 所有者に通知
+    let ownerId = '';
+    if (Array.isArray(inviteLink.nests)) {
+      ownerId = inviteLink.nests[0]?.owner_id || '';
+    } else if (inviteLink.nests && typeof inviteLink.nests === 'object' && 'owner_id' in inviteLink.nests && typeof (inviteLink.nests as any).owner_id === 'string') {
+      ownerId = (inviteLink.nests as any).owner_id;
+    }
+    let inviteNestName = '';
+    if (Array.isArray(inviteLink.nests)) {
+      inviteNestName = inviteLink.nests[0]?.name || '';
+    } else if (inviteLink.nests && typeof inviteLink.nests === 'object' && 'name' in inviteLink.nests && typeof (inviteLink.nests as any).name === 'string') {
+      inviteNestName = (inviteLink.nests as any).name;
+    }
     await supabase.from('notifications').insert({
-      user_id: inviteLink.nests.owner_id,
+      user_id: ownerId,
       type: 'nest_member_joined',
       title: 'NESTに新しいメンバーが参加しました',
-      content: `${user.email}が${inviteLink.nests.name || 'NEST'}に参加しました`,
+      content: `${user.email}が${inviteNestName || 'NEST'}に参加しました`,
       data: {
         nest_id: inviteLink.nest_id,
         user_id: user.id
@@ -460,7 +519,7 @@ export const acceptInviteByLink = async (token: string) => {
     return {
       success: true,
       nestId: inviteLink.nest_id,
-      nestName: inviteLink.nests.name
+      nestName: inviteNestName
     };
   } catch (error: any) {
     console.error('Error accepting invite by link:', error);
@@ -483,7 +542,8 @@ export const acceptInviteByEmail = async (token: string) => {
       .select(`
         id, 
         nest_id, 
-        email,
+        invited_email,
+        invited_by,
         nests:nest_id (
           id,
           name,
@@ -499,8 +559,20 @@ export const acceptInviteByEmail = async (token: string) => {
     }
 
     // メールアドレスの確認
-    if (invitation.email !== user.email) {
+    if (invitation.invited_email !== user.email) {
       return { error: { message: 'この招待は別のメールアドレス宛てです' } };
+    }
+
+    // 既にメンバーでないかチェック
+    const { data: existingMember } = await supabase
+      .from('nest_members')
+      .select('id')
+      .eq('nest_id', invitation.nest_id)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (existingMember) {
+      return { error: { message: 'あなたは既にこのNESTのメンバーです' } };
     }
 
     // メンバーとして追加
@@ -530,15 +602,59 @@ export const acceptInviteByEmail = async (token: string) => {
       return { error: { message: '招待の更新に失敗しました' } };
     }
 
-    // 所有者に通知
+    // 所有者と招待者に通知
+    let ownerId = '';
+    if (Array.isArray(invitation.nests)) {
+      ownerId = invitation.nests[0]?.owner_id || '';
+    } else if (invitation.nests && typeof invitation.nests === 'object' && 'owner_id' in invitation.nests && typeof (invitation.nests as any).owner_id === 'string') {
+      ownerId = (invitation.nests as any).owner_id;
+    }
+
+    let nestName = '';
+    if (Array.isArray(invitation.nests)) {
+      nestName = invitation.nests[0]?.name || '';
+    } else if (invitation.nests && typeof invitation.nests === 'object' && 'name' in invitation.nests && typeof (invitation.nests as any).name === 'string') {
+      nestName = (invitation.nests as any).name;
+    }
+
+    // 所有者への通知
+    if (ownerId && ownerId !== user.id) {
+      await supabase.from('notifications').insert({
+        user_id: ownerId,
+        type: 'nest_member_joined',
+        title: 'NESTに新しいメンバーが参加しました',
+        content: `${user.email}が${nestName || 'NEST'}に参加しました`,
+        data: {
+          nest_id: invitation.nest_id,
+          user_id: user.id
+        },
+        is_read: false
+      });
+    }
+
+    // 招待者への通知（招待者が所有者と異なる場合）
+    if (invitation.invited_by && invitation.invited_by !== ownerId && invitation.invited_by !== user.id) {
+      await supabase.from('notifications').insert({
+        user_id: invitation.invited_by,
+        type: 'invitation_accepted',
+        title: '招待が承諾されました',
+        content: `${user.email}が${nestName || 'NEST'}への招待を承諾しました`,
+        data: {
+          nest_id: invitation.nest_id,
+          user_id: user.id
+        },
+        is_read: false
+      });
+    }
+
+    // 新規メンバーへのウェルカムメッセージ
     await supabase.from('notifications').insert({
-      user_id: invitation.nests.owner_id,
-      type: 'nest_member_joined',
-      title: 'NESTに新しいメンバーが参加しました',
-      content: `${user.email}が${invitation.nests.name || 'NEST'}に参加しました`,
+      user_id: user.id,
+      type: 'welcome_to_nest',
+      title: `${nestName || 'NEST'}へようこそ！`,
+      content: `${nestName || 'NEST'}に参加しました。メンバーと交流を始めましょう。`,
       data: {
-        nest_id: invitation.nest_id,
-        user_id: user.id
+        nest_id: invitation.nest_id
       },
       is_read: false
     });
@@ -546,7 +662,7 @@ export const acceptInviteByEmail = async (token: string) => {
     return {
       success: true,
       nestId: invitation.nest_id,
-      nestName: invitation.nests.name
+      nestName: nestName
     };
   } catch (error: any) {
     console.error('Error accepting invite by email:', error);

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, SafeAreaView, Platform } from 'react-native';
+import { View, StyleSheet, SafeAreaView, Platform, useWindowDimensions } from 'react-native';
 import AppNavigation from '../navigation/AppNavigation';
 import { SpaceType } from '../../types/nestSpace.types';
 import theme from '../../styles/theme';
@@ -23,10 +23,11 @@ const AppLayout: React.FC<AppLayoutProps> = ({
   onSelectSpace,
   unreadCounts,
 }) => {
-  const isDesktop = Platform.OS === 'web';
+  const { width } = useWindowDimensions();
+  // 600px未満ならモバイル扱い
+  const isMobile = width < 600;
   
-  // モバイルレイアウト（ボトムナビゲーション）
-  if (!isDesktop) {
+  if (isMobile) {
     return (
       <SafeAreaView style={styles.container}>
         {/* コンテンツエリア */}
@@ -81,7 +82,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   navCardDesktop: {
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.background.paper,
     borderRadius: 16,
     overflow: 'hidden',
     shadowColor: '#000',
@@ -92,7 +93,7 @@ const styles = StyleSheet.create({
   },
   contentCardDesktop: {
     flex: 1,
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.background.paper,
     borderRadius: 16,
     overflow: 'hidden',
     shadowColor: '#000',
@@ -103,7 +104,7 @@ const styles = StyleSheet.create({
   },
   contentCardMobile: {
     flex: 1,
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.background.paper,
     borderRadius: 16,
     marginBottom: 12,
     overflow: 'hidden',
@@ -116,7 +117,7 @@ const styles = StyleSheet.create({
   navCardMobile: {
     borderRadius: 16,
     overflow: 'hidden',
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.background.paper,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,

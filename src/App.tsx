@@ -1,16 +1,27 @@
 import React, { createContext, useContext, useReducer, useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, Platform } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '@contexts/AuthContext';
 import { NestProvider, useNest, SAMPLE_NESTS, Nest as ImportedNestType } from './features/nest/contexts/NestContext';
 import { NestSpaceProvider, useNestSpace } from '@contexts/NestSpaceContext';
 import { ChatProvider } from '@contexts/ChatContext';
-import { SafeAreaProvider } from '@platform/web/SafeAreaProvider';
 import NestSpaceIntegrationDemo from './features/nest-space/demo/NestSpaceIntegrationDemo';
 import NestSelector from './features/nest/components/NestSelector';
 import CreateNestModal from './features/nest/components/CreateNestModal';
 import LoginScreen from '@screens/auth/LoginScreen';
 import theme from './styles/theme';
 import { BoardProvider } from './features/board-space/contexts/BoardContext';
+import CreateTestNestScreen from './features/nest/screens/CreateTestNestScreen';
+import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
+import NestSettingsScreen from './features/nest/screens/NestSettingsScreen';
+
+// Webではreact-native-screensを無効化
+if (typeof window !== 'undefined') {
+  // @ts-ignore
+  globalThis.__REACT_NATIVE_SCREENS_DISABLE_WARNINGS = true;
+  // @ts-ignore
+  globalThis.__REACT_NATIVE_SCREENS_DISABLE = true;
+}
 
 // Type alias for clarity within App.tsx, using the context's definition
 type Nest = ImportedNestType;
@@ -97,34 +108,44 @@ const getIconPath = (name: string) => {
 const NestHeader: React.FC<{
   selectedNest: Nest;
   onNestSelect: () => void;
-}> = ({ selectedNest, onNestSelect }) => {
+  onOpenSettings: () => void;
+}> = ({ selectedNest, onNestSelect, onOpenSettings }) => {
   const [darkMode, setDarkMode] = useState(false);
-  
+  const buttonRef = React.useRef<any>(null);
+
+  const handleNestSelect = () => {
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      onNestSelect();
+    } else {
+      onNestSelect();
+    }
+  };
+
   return (
     <View style={styles.nestHeader}>
+      <Icon name="gear" size={32} color="#FFF" style={styles.nestHeaderIcon} />
       <TouchableOpacity 
         style={styles.nestSelector}
-        onPress={onNestSelect}
+        onPress={handleNestSelect}
+        ref={buttonRef}
       >
-        <View style={styles.nestIconContainer}>
-          <Icon name="nest" size={20} color="white" />
-        </View>
         <Text style={styles.nestName}>{selectedNest.name}</Text>
-        <Icon name="chevron-down" size={16} color="white" style={styles.chevronIcon} />
+        <Icon name="chevron-down" size={16} color="#FFF" style={styles.chevronIcon} />
       </TouchableOpacity>
       
       <View style={styles.headerActions}>
         <TouchableOpacity 
           style={styles.actionButton}
-          onPress={() => console.log('Settings')}  
+          onPress={onOpenSettings}
         >
-          <Icon name="gear" size={18} color="white" />
+          <Icon name="gear" size={18} color="#FFF" />
         </TouchableOpacity>
         <TouchableOpacity 
           style={styles.actionButton}
           onPress={() => setDarkMode(!darkMode)}
         >
-          <Icon name={darkMode ? 'light' : 'dark'} size={18} color="white" />
+          <Icon name={darkMode ? 'light' : 'dark'} size={18} color="#FFF" />
         </TouchableOpacity>
       </View>
     </View>
@@ -142,6 +163,21 @@ const NestSelectorModal: React.FC<{
   onCreateNewNest: () => void;
   nests: Nest[];
 }> = ({ visible, onClose, onSelectNest, currentNestId, onCreateNewNest, nests }) => {
+  // Web用のスタイルは直接オブジェクトで定義
+  const webDropdownStyle: React.CSSProperties = {
+    position: 'fixed',
+    top: '20%',
+    left: '50%',
+    transform: 'translateX(-150px)', // width: 300px の半分
+    width: 300,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+    overflow: 'hidden',
+    paddingTop: 16,
+    paddingBottom: 16,
+    zIndex: 1000,
+  };
   return (
     <Modal
       visible={visible}
@@ -155,47 +191,89 @@ const NestSelectorModal: React.FC<{
         onPress={onClose}
       >
         <View style={styles.modalContainer}>
-          <TouchableOpacity 
-            style={styles.nestDropdown}
-            activeOpacity={1}
-            onPress={(e) => e.stopPropagation()}
-          >
-            <Text style={styles.dropdownTitle}>巣を切り替え</Text>
-            
-            {nests.map(nest => (
-              <TouchableOpacity
-                key={nest.id}
-                style={styles.nestOption}
+          {Platform.OS === 'web' ? (
+            <div style={webDropdownStyle}>
+              <TouchableOpacity 
+                style={{}}
+                activeOpacity={1}
+                onPress={(e) => e.stopPropagation && e.stopPropagation()}
+              >
+                <Text style={styles.dropdownTitle}>巣を切り替え</Text>
+                {nests.map(nest => (
+                  <TouchableOpacity
+                    key={nest.id}
+                    style={styles.nestOption}
+                    onPress={() => {
+                      onSelectNest(nest);
+                      onClose();
+                    }}
+                  >
+                    <View style={styles.nestOptionIcon}>
+                      <Text style={styles.nestOptionIconText}>{nest.icon || '🏠'}</Text>
+                    </View>
+                    <View style={styles.nestOptionContent}>
+                      <Text style={styles.nestOptionName}>{nest.name}</Text>
+                      {nest.description && (
+                        <Text style={styles.nestOptionDescription}>{nest.description}</Text>
+                      )}
+                    </View>
+                    {nest.id === currentNestId && (
+                      <Text style={styles.checkmark}>✓</Text>
+                    )}
+                  </TouchableOpacity>
+                ))}
+                <TouchableOpacity 
+                  style={styles.createNestOption} 
+                  onPress={() => {
+                    onClose();
+                    onCreateNewNest();
+                  }}
+                >
+                  <Text style={styles.createNestText}>+ 新しい巣を作成</Text>
+                </TouchableOpacity>
+              </TouchableOpacity>
+            </div>
+          ) : (
+            <TouchableOpacity 
+              style={styles.rnDropdownStyle}
+              activeOpacity={1}
+              onPress={(e) => e.stopPropagation && e.stopPropagation()}
+            >
+              <Text style={styles.dropdownTitle}>巣を切り替え</Text>
+              {nests.map(nest => (
+                <TouchableOpacity
+                  key={nest.id}
+                  style={styles.nestOption}
+                  onPress={() => {
+                    onSelectNest(nest);
+                    onClose();
+                  }}
+                >
+                  <View style={styles.nestOptionIcon}>
+                    <Text style={styles.nestOptionIconText}>{nest.icon || '🏠'}</Text>
+                  </View>
+                  <View style={styles.nestOptionContent}>
+                    <Text style={styles.nestOptionName}>{nest.name}</Text>
+                    {nest.description && (
+                      <Text style={styles.nestOptionDescription}>{nest.description}</Text>
+                    )}
+                  </View>
+                  {nest.id === currentNestId && (
+                    <Text style={styles.checkmark}>✓</Text>
+                  )}
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity 
+                style={styles.createNestOption} 
                 onPress={() => {
-                  onSelectNest(nest);
                   onClose();
+                  onCreateNewNest();
                 }}
               >
-                <View style={styles.nestOptionIcon}>
-                  <Text style={styles.nestOptionIconText}>{nest.icon || '🏠'}</Text>
-                </View>
-                <View style={styles.nestOptionContent}>
-                  <Text style={styles.nestOptionName}>{nest.name}</Text>
-                  {nest.description && (
-                    <Text style={styles.nestOptionDescription}>{nest.description}</Text>
-                  )}
-                </View>
-                {nest.id === currentNestId && (
-                  <Text style={styles.checkmark}>✓</Text>
-                )}
+                <Text style={styles.createNestText}>+ 新しい巣を作成</Text>
               </TouchableOpacity>
-            ))}
-            
-            <TouchableOpacity 
-              style={styles.createNestOption} 
-              onPress={() => {
-                onClose();
-                onCreateNewNest();
-              }}
-            >
-              <Text style={styles.createNestText}>+ 新しい巣を作成</Text>
             </TouchableOpacity>
-          </TouchableOpacity>
+          )}
         </View>
       </TouchableOpacity>
     </Modal>
@@ -211,7 +289,7 @@ const AppContent: React.FC = () => {
   const auth = useAuth();
   
   const nestContextValue = useNest();
-  const { createNest, refreshData, userNests, selectNest: selectNestFromContext, currentNest } = nestContextValue;
+  const { createNest, refreshData, userNests, setCurrentNestById, currentNest } = nestContextValue;
 
   const nestSpace = useNestSpace();
 
@@ -219,6 +297,9 @@ const AppContent: React.FC = () => {
   const [initializing, setInitializing] = useState(true);
   const [nestSelectorVisible, setNestSelectorVisible] = useState(false);
   const [isCreateNestModalVisible, setIsCreateNestModalVisible] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+
+  const navigate = useNavigate();
 
   useEffect(() => {
     console.log('AppContent initializeSelectedNest EFFECT RUNNING - auth.isAuthenticated:', auth.isAuthenticated, 'userNests.length:', userNests.length, 'currentNest:', currentNest ? currentNest.id : null);
@@ -232,7 +313,7 @@ const AppContent: React.FC = () => {
           : userNests[0];
         if (nestToSelect) {
           setSelectedNest(nestToSelect);
-          selectNestFromContext(nestToSelect.id);
+          setCurrentNestById(nestToSelect.id);
         }
       } else if (!auth.isAuthenticated) {
         setSelectedNest(null);
@@ -241,7 +322,7 @@ const AppContent: React.FC = () => {
       setInitializing(false);
     };
     initializeSelectedNest();
-  }, [auth.isAuthenticated, userNests, currentNest, selectNestFromContext]);
+  }, [auth.isAuthenticated, userNests, currentNest, setCurrentNestById]);
 
   useEffect(() => {
     console.log('AppContent isCreateNestModalVisible CHANGED to:', isCreateNestModalVisible);
@@ -262,10 +343,15 @@ const AppContent: React.FC = () => {
     if (newNest) {
       console.log('Nest created successfully:', newNest);
       await refreshData(); 
-      selectNestFromContext(newNest.id); 
+      setCurrentNestById(newNest.id); 
       setIsCreateNestModalVisible(false); 
     }
   };
+
+  // Add effect to reset modal state when selectedNest changes
+  useEffect(() => {
+    setIsCreateNestModalVisible(false);
+  }, [selectedNest]);
 
   if (auth.loading || initializing) {
     return (
@@ -281,16 +367,8 @@ const AppContent: React.FC = () => {
   }
 
   if (!selectedNest && userNests.length === 0) {
-    console.log('Nest選択画面を表示します (初回またはNestなし)');
-    return (
-      <NestSelector
-        onSelectNest={(nest: ImportedNestType) => {
-          setSelectedNest(nest);
-          selectNestFromContext(nest.id);
-        }}
-        onCreateNest={handleOpenCreateNestModal}
-      />
-    );
+    console.log('NESTが一つも紐づいていないのでTest_NEST作成ページを表示します');
+    return <CreateTestNestScreen />;
   }
   
   if (!selectedNest && userNests.length > 0 && !initializing) {
@@ -299,7 +377,8 @@ const AppContent: React.FC = () => {
         <NestSelector
           onSelectNest={(nest: ImportedNestType) => {
             setSelectedNest(nest);
-            selectNestFromContext(nest.id);
+            setCurrentNestById(nest.id);
+            setIsCreateNestModalVisible(false); // Reset modal state
           }}
           onCreateNest={handleOpenCreateNestModal}
         />
@@ -307,58 +386,236 @@ const AppContent: React.FC = () => {
   }
 
   return (
-    <>
+    <SafeAreaProvider>
       <CreateNestModal
         visible={isCreateNestModalVisible}
         onClose={() => setIsCreateNestModalVisible(false)}
         onSubmit={handleCreateNestSubmit}
       />
-      {/* <BoardProvider> */}
-      {/*   <ChatProvider> */}
-          <View style={styles.container}>
-            {selectedNest && (
-              <>
-                <NestHeader 
-                  selectedNest={selectedNest}
-                  onNestSelect={() => setNestSelectorVisible(true)}
-                />
-                <NestSpaceIntegrationDemo />
-                <NestSelectorModal 
-                  visible={nestSelectorVisible}
-                  onClose={() => setNestSelectorVisible(false)}
-                  onSelectNest={(nest) => {
-                    setSelectedNest(nest);
-                    selectNestFromContext(nest.id);
-                  }}
-                  currentNestId={selectedNest.id}
-                  onCreateNewNest={handleOpenCreateNestModal}
-                  nests={userNests}
-                />
-              </>
-            )}
+      {currentNest && (
+        <BoardProvider key={currentNest.id} currentNestId={currentNest.id}>
+          <ChatProvider>
+            <View style={styles.container}>
+              {selectedNest && (
+                <>
+                  <NestHeader 
+                    selectedNest={selectedNest}
+                    onNestSelect={() => {
+                      setNestSelectorVisible(true);
+                    }}
+                    onOpenSettings={() => {
+                      if (selectedNest) {
+                        navigate(`/nest-settings?nestId=${selectedNest.id}`);
+                      }
+                    }}
+                  />
+                  <NestSpaceIntegrationDemo />
+                  <NestSelectorModal 
+                    visible={nestSelectorVisible}
+                    onClose={() => setNestSelectorVisible(false)}
+                    onSelectNest={(nest) => {
+                      setSelectedNest(nest);
+                      setCurrentNestById(nest.id);
+                      setIsCreateNestModalVisible(false);
+                    }}
+                    currentNestId={selectedNest.id}
+                    onCreateNewNest={handleOpenCreateNestModal}
+                    nests={userNests}
+                  />
+                </>
+              )}
+            </View>
+          </ChatProvider>
+        </BoardProvider>
+      )}
+
+      <Modal
+        visible={showSettingsModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowSettingsModal(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.15)', justifyContent: 'center', alignItems: 'center' }}>
+          <View style={{ backgroundColor: '#fff', borderRadius: 12, width: 600, maxWidth: '95%', maxHeight: '90%' }}>
+            <NestSettingsScreen
+              nestId={selectedNest?.id}
+              onBack={() => setShowSettingsModal(false)}
+            />
           </View>
-      {/*   </ChatProvider> */}
-      {/* </BoardProvider> */}
-    </>
+        </View>
+      </Modal>
+    </SafeAreaProvider>
   );
 };
 
-/**
- * アプリケーションのルートコンポーネント
- * グローバルなプロバイダーとレイアウトを設定
- */
+// --- 画面コンポーネント ---
+const NestTopScreen: React.FC = () => {
+  const params = new URLSearchParams(window.location.search);
+  const nestId = params.get('nestId');
+  const { userNests, currentNest, setCurrentNestById } = useNest();
+  const { user } = useAuth();
+  const [nestSelectorVisible, setNestSelectorVisible] = useState(false);
+  const navigate = useNavigate();
+
+  // NEST情報を取得
+  const nest = userNests.find(n => n.id === nestId) || currentNest;
+
+  // NESTが選択されていない場合は選択
+  useEffect(() => {
+    if (nestId && !currentNest) {
+      setCurrentNestById(nestId);
+    }
+  }, [nestId, currentNest, setCurrentNestById]);
+
+  if (!nest) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>NEST情報を読み込み中...</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <NestHeader 
+        selectedNest={nest}
+        onNestSelect={() => {
+          setNestSelectorVisible(true);
+        }}
+        onOpenSettings={() => {
+          if (nest) {
+            navigate(`/nest-settings?nestId=${nest.id}`);
+          }
+        }}
+      />
+      <NestSpaceIntegrationDemo />
+      <NestSelectorModal 
+        visible={nestSelectorVisible}
+        onClose={() => setNestSelectorVisible(false)}
+        onSelectNest={(selected) => {
+          setCurrentNestById(selected.id);
+          setNestSelectorVisible(false);
+        }}
+        currentNestId={nest.id}
+        onCreateNewNest={() => {}}
+        nests={userNests}
+      />
+    </View>
+  );
+};
+
+const NestSelectorScreenWrapper: React.FC = (props: any) => {
+  const navigate = useNavigate();
+  const { setCurrentNestById } = useNest();
+
+  return (
+    <NestSelector
+      {...props}
+      onCreateNest={() => navigate('/create-nest')}
+      onSelectNest={(nest) => {
+        setCurrentNestById(nest.id); // Providerの状態を更新
+        navigate(`/nest-top?nestId=${nest.id}`);
+      }}
+    />
+  );
+};
+
+const CreateTestNestScreenWrapper: React.FC = (props: any) => {
+  const navigate = useNavigate();
+  return (
+    <CreateTestNestScreen
+      {...props}
+      onCreated={(nestId: string) => navigate(`/nest-top?nestId=${nestId}`)}
+    />
+  );
+};
+
+const NestSettingsScreenWrapper: React.FC = () => {
+  const params = new URLSearchParams(window.location.search);
+  const nestId = params.get('nestId');
+  const { userNests } = useNest();
+
+  if (!nestId) {
+    return <View><Text>nestIdが指定されていません</Text></View>;
+  }
+  if (!userNests || userNests.length === 0) {
+    return <View><Text>巣情報を読み込み中...</Text></View>;
+  }
+  const nest = userNests.find(n => n.id === nestId);
+  if (!nest) {
+    return <View><Text>該当する巣が見つかりません</Text></View>;
+  }
+  return <NestSettingsScreen nestId={nestId} />;
+};
+
+const AuthGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isAuthenticated, loading } = useAuth();
+  if (loading) return null; // ローディング中は何も表示しない
+  if (!isAuthenticated) return <LoginScreen />;
+  return <>{children}</>;
+};
+
 const App: React.FC = () => {
   return (
-    <SafeAreaProvider>
-      <AuthProvider>
-        <NestProvider>
-          <NestSpaceProvider>
-            <AppContent />
-          </NestSpaceProvider>
-        </NestProvider>
-      </AuthProvider>
-    </SafeAreaProvider>
+    <AuthProvider>
+      <NestProvider>
+        <NestSpaceProvider>
+          <ChatProvider>
+            <AppWithNest />
+          </ChatProvider>
+        </NestSpaceProvider>
+      </NestProvider>
+    </AuthProvider>
   );
+};
+
+const AppWithNest: React.FC = () => {
+  const { currentNest } = useNest();
+  if (currentNest) {
+    return (
+      <BoardProvider key={currentNest.id} currentNestId={currentNest.id}>
+        <Router>
+          <Routes>
+            <Route path="/login" element={<LoginScreen />} />
+            <Route
+              path="/*"
+              element={
+                <AuthGuard>
+                  <Routes>
+                    <Route path="/" element={<NestSelectorScreenWrapper />} />
+                    <Route path="/create-nest" element={<CreateTestNestScreenWrapper />} />
+                    <Route path="/nest-top" element={<NestTopScreen />} />
+                    <Route path="/nest-settings" element={<NestSettingsScreenWrapper />} />
+                  </Routes>
+                </AuthGuard>
+              }
+            />
+          </Routes>
+        </Router>
+      </BoardProvider>
+    );
+  } else {
+    return (
+      <Router>
+        <Routes>
+          <Route path="/login" element={<LoginScreen />} />
+          <Route
+            path="/*"
+            element={
+              <AuthGuard>
+                <Routes>
+                  <Route path="/" element={<NestSelectorScreenWrapper />} />
+                  <Route path="/create-nest" element={<CreateTestNestScreenWrapper />} />
+                  <Route path="/nest-top" element={<NestTopScreen />} />
+                  <Route path="/nest-settings" element={<NestSettingsScreenWrapper />} />
+                </Routes>
+              </AuthGuard>
+            }
+          />
+        </Routes>
+      </Router>
+    );
+  }
 };
 
 const styles = StyleSheet.create({
@@ -379,13 +636,10 @@ const styles = StyleSheet.create({
     fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
   },
   nestHeader: {
-    backgroundColor: theme.colors.primary, // 薄いグレー
-    padding: 16,
+    backgroundColor: theme.colors.primaryDark,
+    padding: 12,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.08)',
   },
   nestSelector: {
     flexDirection: 'row',
@@ -404,8 +658,11 @@ const styles = StyleSheet.create({
   nestName: {
     fontSize: 18,
     fontWeight: '600',
-    color: theme.colors.text.primary, // 濃い色のテキスト
+    color: '#FFF',
     fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
+  },
+  nestHeaderIcon: {
+    marginRight: 12,
   },
   chevronIcon: {
     marginLeft: 6,
@@ -510,6 +767,79 @@ const styles = StyleSheet.create({
   },
   iconText: {
     fontSize: 16,
+  },
+  nestHeaderContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+  },
+  nestHeaderInfo: {
+    marginLeft: 12,
+  },
+  nestDescription: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 4,
+  },
+  nestContent: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  welcomeSection: {
+    padding: 24,
+    backgroundColor: '#f8f9fa',
+  },
+  welcomeTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: theme.colors.text.primary,
+    marginBottom: 8,
+  },
+  welcomeSubtitle: {
+    fontSize: 16,
+    color: theme.colors.text.secondary,
+  },
+  spacesSection: {
+    padding: 24,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: theme.colors.text.primary,
+    marginBottom: 16,
+  },
+  spacesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginHorizontal: -8,
+  },
+  spaceCard: {
+    width: '50%',
+    padding: 8,
+  },
+  spaceIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#f0f4f8',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  spaceName: {
+    fontSize: 14,
+    color: theme.colors.text.primary,
+  },
+  rnDropdownStyle: {
+    position: 'absolute',
+    top: '20%',
+    left: '10%',
+    width: 300,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    overflow: 'hidden',
+    paddingVertical: 16,
+    zIndex: 1000,
   },
 });
 

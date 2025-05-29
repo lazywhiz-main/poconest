@@ -2,25 +2,13 @@
  * NEST空間の型定義
  */
 
-// Note: Update imports to relative paths to prevent linting errors
-// Actual paths will need to be adjusted when integrating with the real codebase
-// Replace with proper import path once component is integrated
-type Nest = {
-  id: string;
-  name: string;
-  description?: string;
-  owner_id: string;
-  color?: string;
-  // その他の必要なプロパティ
-};
-
 /**
  * 空間タイプの定義
  */
 export enum SpaceType {
   CHAT = 'chat',           // チャット空間
   BOARD = 'board',         // ボード空間
-  ZOOM = 'zoom',           // Zoom連携空間
+  MEETING = 'meeting',     // ミーティング空間
   ANALYSIS = 'analysis',   // 分析空間
   USER_PROFILE = 'user_profile',   // ユーザープロフィール空間
 }
@@ -32,6 +20,23 @@ export enum LayoutType {
   MOBILE = 'mobile',       // モバイル（タブバー + スワイプ）
   TABLET = 'tablet',       // タブレット（サイドナビ + タブ）
   DESKTOP = 'desktop',     // デスクトップ（サイドナビ + マルチペイン）
+}
+
+/**
+ * NEST（巣）の型定義
+ */
+export interface Nest {
+  id: string;
+  name: string;
+  description?: string;
+  owner_id: string;
+  members?: string[];
+  is_active?: boolean;
+  created_at: string;
+  updated_at: string;
+  color?: string;
+  icon?: string;
+  space_ids: string[];
 }
 
 /**

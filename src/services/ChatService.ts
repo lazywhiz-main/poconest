@@ -11,17 +11,22 @@ export class ChatService {
   /**
    * チャットルーム一覧を取得
    */
-  async getChatRooms(): Promise<ChatRoom[]> {
+  async getChatRooms(nestId?: string): Promise<ChatRoom[]> {
     try {
+      console.log('ChatService: getChatRooms started for NEST:', nestId);
       // Supabaseからチャットルームを取得
       const { data: spaces, error: spacesError } = await supabase
         .from('spaces')
         .select('id, name, description, nest_id, created_at')
-        .eq('type', 'chat');
+        .eq('type', 'chat')
+        .eq('nest_id', nestId); // Add NEST ID filter
         
       if (spacesError) throw spacesError;
       
+      console.log('ChatService: spaces fetched:', spaces);
+      
       if (!spaces || spaces.length === 0) {
+        console.log('ChatService: No spaces found for NEST:', nestId);
         return [];
       }
       
@@ -78,7 +83,7 @@ export class ChatService {
       );
     } catch (error) {
       console.error('チャットルームの取得に失敗しました:', error);
-      return this.getMockChatRooms(); // エラー時はモックデータを返す
+      return []; // エラー時は空配列を返す
     }
   }
   
@@ -87,6 +92,7 @@ export class ChatService {
    */
   async getChatMessages(roomId: string): Promise<UIMessage[]> {
     try {
+      console.log('ChatService: getChatMessages started for room:', roomId);
       // Supabaseからメッセージを取得
       const { data, error } = await supabase
         .from('chat_messages')
@@ -98,15 +104,17 @@ export class ChatService {
           created_at,
           updated_at,
           is_read,
-          read_by,
-          users!sender_id(id, display_name)
+          read_by
         `)
         .eq('chat_id', roomId)
         .order('created_at', { ascending: true });
       
       if (error) throw error;
       
+      console.log('ChatService: messages fetched:', data);
+      
       if (!data || data.length === 0) {
+        console.log('ChatService: No messages found for room:', roomId);
         return [];
       }
       
@@ -114,18 +122,26 @@ export class ChatService {
       const { data: userData } = await supabase.auth.getUser();
       const currentUserId = userData.user?.id || '';
       
+      // sender_id一覧をユニーク抽出
+      const senderIds = [...new Set(data.map(msg => msg.sender_id))];
+      // usersテーブルから一括取得
+      const { data: usersData, error: usersError } = await supabase
+        .from('users')
+        .select('id, display_name, avatar_url')
+        .in('id', senderIds);
+      if (usersError) throw usersError;
+      type UserRow = { id: string; display_name: string; avatar_url?: string | null };
+      const userMap = Object.fromEntries(((usersData as UserRow[]) || []).map(u => [u.id, u]));
       // UIMessage形式に変換
       const messages: UIMessage[] = data.map(msg => {
         const isSelf = msg.sender_id === currentUserId;
-        // usersは外部テーブル参照の結果、配列ではなくオブジェクト
-        const userInfo = msg.users as unknown as { id: string, display_name: string };
-        
+        const userInfo = userMap[msg.sender_id];
         const sender: ChatUser = {
           id: msg.sender_id,
           name: userInfo?.display_name || 'ユーザー',
+          avatarUrl: userInfo?.avatar_url ?? undefined,
           isBot: false,
         };
-        
         return {
           id: msg.id,
           chatId: msg.chat_id,
@@ -264,7 +280,7 @@ export class ChatService {
           // ユーザー情報を取得
           const { data: userData, error: userError } = await supabase
             .from('users')
-            .select('display_name')
+            .select('display_name, avatar_url')
             .eq('id', msg.sender_id)
             .single();
           
@@ -273,6 +289,7 @@ export class ChatService {
           const sender: ChatUser = {
             id: msg.sender_id,
             name: userData?.display_name || 'ユーザー',
+            avatarUrl: userData?.avatar_url ?? undefined,
             isBot: false,
           };
           
@@ -394,6 +411,22 @@ export class ChatService {
     } catch (error) {
       console.error(`空間のチャットルーム取得に失敗しました (${spaceId}):`, error);
       return [];
+    }
+  }
+  
+  /**
+   * チャットルームを削除
+   */
+  async deleteChatRoom(roomId: string): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('chat_rooms')
+        .delete()
+        .eq('id', roomId);
+      if (error) throw error;
+    } catch (error) {
+      console.error('チャットルーム削除エラー:', error);
+      throw error;
     }
   }
   

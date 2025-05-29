@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
-import { useNestSpace } from '../../contexts/_NestSpaceContext';
+import { useNestSpace } from '@contexts/NestSpaceContext';
 import { SpaceType } from '../../types/nestSpace.types';
 import ChatSpace from '../components/ChatSpace';
 
@@ -35,6 +35,7 @@ const ChatSpaceScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: 'pink',
   },
 });
 

@@ -8,7 +8,7 @@ import {
   useWindowDimensions
 } from 'react-native';
 import { useChatSpace } from '../hooks/useChatSpace';
-import { useNestSpace } from '../../contexts/_NestSpaceContext';
+import { useNestSpace } from '@contexts/NestSpaceContext';
 import ChatHeader from './ChatHeader';
 import ThreadView from './ThreadView';
 import ChatSpaceSettings from './ChatSpaceSettings';
@@ -110,100 +110,57 @@ const ChatSpace: React.FC = () => {
     replyToMessage("", false);
   };
 
+  console.log('DUMMY LAYOUT!');
+
   return (
-    <View style={styles.container}>
-      {/* Chat header */}
-      <ChatHeader
-        onToggleThreadView={handleToggleThreadView}
-        onToggleSettings={handleToggleSettings}
-      />
-      
-      {/* Main content area */}
-      <KeyboardAvoidingView
-        style={styles.content}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
-      >
-        <View style={styles.chatLayout}>
-          {/* Chat room list sidebar */}
-          {shouldShowSidebar && (
-            <View style={[
-              styles.sidebar,
-              isSidebarOverlay && styles.overlaySidebar
-            ]}>
-              <ChatRoomList 
-                chatRooms={chatRooms}
-                activeChatRoomId={activeChatRoomId}
-                onSelectChatRoom={handleSelectChatRoom}
-                onClose={isMobile ? toggleChatList : undefined}
-              />
-            </View>
-          )}
-          
-          {/* Main chat area */}
-          {(!isMobile || !showChatList) && (
-            <View style={styles.chatArea}>
-              {activeChatRoomId ? (
-                <>
-                  {/* Message list */}
-                  <View style={styles.messageContainer}>
-                    <MessageList 
-                      messages={activeThread ? threadMessages : currentMessages}
-                      isTyping={isPocoTyping}
-                      loading={false}
-                      onSaveMessage={handleSaveMessage}
-                    />
-                  </View>
-                  
-                  {/* Chat input */}
-                  <ChatInput 
-                    onSend={handleSendMessage}
-                    disabled={isPocoTyping}
-                  />
-                </>
-              ) : (
-                <View style={styles.emptyChatMessage}>
-                  <Text style={styles.emptyChatText}>チャットルームを選択してください</Text>
-                </View>
-              )}
-            </View>
-          )}
-          
-          {/* Thread panel (side panel for thread view) */}
-          {shouldShowThreadPanel && (
-            <View style={styles.threadPanel}>
-              <ThreadView onClose={handleToggleThreadView} />
-            </View>
-          )}
+    <View style={{ flex: 1, flexDirection: 'row' }}>
+      {/* サイドバー */}
+      <View style={{ width: 80, backgroundColor: 'red' }} />
+      {/* チャット空間全体 */}
+      <View style={{ flex: 1, flexDirection: 'column' }}>
+        {/* チャット空間ヘッダー */}
+        <View style={{ height: 60, backgroundColor: 'orange' }} />
+        {/* 下部（スレッドリスト＋メッセージエリア） */}
+        <View style={{ flex: 1, flexDirection: 'row' }}>
+          {/* スレッドリスト */}
+          <View style={{ width: 200, backgroundColor: 'blue' }} />
+          {/* メッセージエリア */}
+          <View style={{ flex: 1, flexDirection: 'column' }}>
+            {/* メッセージヘッダー */}
+            <View style={{ height: 48, backgroundColor: 'green' }} />
+            {/* メッセージ表示 */}
+            <View style={{ flex: 1, backgroundColor: 'yellow' }} />
+            {/* メッセージ入力＋送信 */}
+            <View style={{ height: 56, backgroundColor: 'purple' }} />
+          </View>
         </View>
-      </KeyboardAvoidingView>
-      
-      {/* Settings modal */}
-      <ChatSpaceSettings 
-        visible={showSettings}
-        onClose={handleToggleSettings}
-      />
+      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
+  keyboardAvoidingView: {
+    flex: 1,
+    display: 'flex',
+  },
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#FFFFFF',
+    display: 'flex',
   },
-  content: {
-    flex: 1,
-  },
-  chatLayout: {
+  layoutRow: {
     flex: 1,
     flexDirection: 'row',
+    minHeight: 0,
+    display: 'flex',
   },
   sidebar: {
     width: 280,
     backgroundColor: '#FFFFFF',
     borderRightWidth: 1,
     borderRightColor: '#E0E0E0',
+    display: 'flex',
   },
   overlaySidebar: {
     position: 'absolute',
@@ -217,18 +174,33 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3,
   },
-  chatArea: {
+  mainArea: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#fff',
+    minWidth: 0,
+    minHeight: 0,
+    display: 'flex',
+  },
+  messageArea: {
+    flex: 1,
+    minHeight: 0,
+    minWidth: 0,
+    display: 'flex',
+  },
+  inputArea: {
+    width: '100%',
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+    padding: 8,
+    flexShrink: 0,
   },
   threadPanel: {
     width: 320,
     backgroundColor: '#FFFFFF',
     borderLeftWidth: 1,
     borderLeftColor: '#E0E0E0',
-  },
-  messageContainer: {
-    flex: 1,
+    display: 'flex',
   },
   emptyChatMessage: {
     flex: 1,

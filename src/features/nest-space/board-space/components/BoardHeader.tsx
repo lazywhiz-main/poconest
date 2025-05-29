@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { useBoardSpace } from '../hooks/useBoardSpace';
 import { useCardNavigation } from '../hooks/useCardNavigation';
-import { useNestSpace } from '../../contexts/_NestSpaceContext';
+import { useNestSpace } from '@contexts/NestSpaceContext';
 import { BoardColumnType } from '../../../../types/board';
 
 // Placeholder for icons - in a real implementation, you'd import from a library
@@ -211,14 +211,25 @@ const BoardHeader: React.FC<BoardHeaderProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#F5F5F5',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 0,
+    paddingHorizontal: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#E0E0E0',
+    backgroundColor: '#F5F5F5',
+    height: 56,
+    minHeight: 56,
+    maxHeight: 56,
   },
   columnTabs: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingTop: 8,
+    alignItems: 'center',
+    height: '100%',
+    paddingHorizontal: 0,
+    paddingTop: 0,
+    marginRight: 16,
   },
   columnTab: {
     paddingHorizontal: 16,
@@ -249,14 +260,15 @@ const styles = StyleSheet.create({
   },
   controls: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    height: '100%',
+    paddingHorizontal: 0,
+    paddingVertical: 0,
   },
   controlButtons: {
     flexDirection: 'row',
     alignItems: 'center',
+    height: '100%',
   },
   controlButton: {
     width: 36,
@@ -269,15 +281,21 @@ const styles = StyleSheet.create({
   },
   searchContainer: {
     flexDirection: 'row',
-    flex: 1,
+    alignItems: 'center',
     backgroundColor: '#FFF',
     borderRadius: 4,
     paddingHorizontal: 8,
-    alignItems: 'center',
+    height: 36,
+    marginVertical: 0,
   },
   searchInput: {
     flex: 1,
-    height: 36,
+    height: 32,
+    fontSize: 16,
+    paddingVertical: 0,
+    paddingHorizontal: 8,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
     ...Platform.select({
       web: {
         outlineStyle: 'none',

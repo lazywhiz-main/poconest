@@ -19,20 +19,96 @@ import {
   NestSpaceActionType, 
   NestSpaceState, 
 } from './nestSpaceUtils'; 
-import { NestSpaceContextType } from '../types/nestSpaceContext.types';
+import { NestSpaceContextType, SpaceType, LayoutType, SpaceNavigationAction, SpaceState, MemberPresence, SpaceMetadata } from '../features/nest-space/types/nestSpace.types';
+import { supabase } from '@services/supabase';
 
 const NestSpaceContext = createContext<NestSpaceContextType | undefined>(undefined);
 
 export const NestSpaceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   console.log('[NestSpaceProvider] Rendering with Stage 1 logic (reducer + initial state)');
-  const [state, dispatch] = useReducer(nestSpaceReducer, initialState); // ★ Restore reducer and initial state
-  const { user } = useAuth(); // Keep for now, might be needed by some basic state logic
-  // const [isInitialized, setIsInitialized] = useState(false); // Keep commented for now
+  const [state, dispatch] = useReducer(nestSpaceReducer, initialState);
+  const { user } = useAuth();
 
-  // All complex useCallback functions (updatePresence, loadMockData, loadSpaceContainer, etc.) remain commented out or minimal
+  // --- 追加: spaces取得用state ---
+  const [spaces, setSpaces] = useState<Record<string, any>>({});
+  const [spacesLoading, setSpacesLoading] = useState(false);
+  const [spacesError, setSpacesError] = useState<string | null>(null);
+
+  // --- 追加: currentNestIdの取得（仮: localStorageから取得） ---
+  const [currentNestId, setCurrentNestId] = useState<string | null>(null);
+  useEffect(() => {
+    const id = localStorage.getItem('currentNestId');
+    setCurrentNestId(id);
+  }, []);
+
+  // --- 追加: currentNestの取得 ---
+  const [currentNest, setCurrentNest] = useState<any>(null);
+  useEffect(() => {
+    if (!currentNestId) return;
+    supabase
+      .from('nests')
+      .select('*')
+      .eq('id', currentNestId)
+      .single()
+      .then(({ data, error }) => {
+        if (!error && data) {
+          setCurrentNest(data);
+        } else {
+          setCurrentNest(null);
+        }
+      });
+  }, [currentNestId]);
+
+  // --- 追加: spaces取得ロジック ---
+  useEffect(() => {
+    if (!currentNestId) return;
+    setSpacesLoading(true);
+    setSpacesError(null);
+    supabase
+      .from('spaces')
+      .select('*')
+      .eq('nest_id', currentNestId)
+      .then(({ data, error }) => {
+        if (error) {
+          setSpacesError(error.message);
+          setSpaces({});
+        } else {
+          // NestSpace型に変換し、Record<string, NestSpace>にまとめる
+          const record: Record<string, any> = {};
+          (data || []).forEach((s: any) => {
+            record[s.id] = {
+              id: s.id,
+              name: s.name,
+              type: s.type as SpaceType,
+              icon: s.icon,
+              description: s.description,
+              content: {}, // TODO: 空間タイプごとに初期化
+              metadata: {
+                createdAt: new Date(s.created_at),
+                createdBy: s.created_by || '',
+                updatedAt: new Date(s.updated_at),
+                updatedBy: s.updated_by || '',
+                viewCount: 0,
+                version: 1,
+              },
+              personalization: [],
+              members: [],
+              activeMembers: [],
+            };
+          });
+          setSpaces(record);
+        }
+        setSpacesLoading(false);
+      });
+  }, [currentNestId]);
+
+  // --- 今後の拡張設計コメント ---
+  // 例: chat空間が作られた時は、chat_roomsテーブルに#generalルームを自動生成するなど
+  // ここでspacesのtypeを見て、必要な初期データを各テーブルにinsertするロジックを追加予定
+
+  // --- 既存のモック関数群 ---
   const navigateToSpace = (spaceId: string) => console.log('navigateToSpace called with', spaceId);
   const goBack = () => console.log('goBack called');
-  // Add other functions as minimal mocks if NestSpaceContextType requires them
   const addSpace = (space: any) => console.log('addSpace called with', space);
   const updateSpace = (id: string, updates: any) => console.log('updateSpace called', id, updates);
   const removeSpace = (id: string) => console.log('removeSpace called', id);
@@ -41,31 +117,72 @@ export const NestSpaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const canPerformAction = (action: any): boolean => { console.log('canPerformAction called', action); return false; };
   const loadSpaceContainer = async (containerId: string): Promise<void> => { console.log('loadSpaceContainer called', containerId); };
 
-  // useEffects remain commented out for now
-  /*
-  useEffect(() => { ... initializeSpaces ... }, []);
-  useEffect(() => { ... handleDimensionsChange ... }, []);
-  */
+  // --- 必要なコールバックを追加 ---
+  const spaceState: SpaceState = {
+    activeSpaceType: state.navigation.activeSpaceId as SpaceType,
+    availableSpaces: [], // TODO: 必要に応じてstateから取得
+    layoutType: state.navigation.currentLayout as LayoutType,
+    sidebarOpen: false, // TODO: 必要に応じてstateから取得
+    loading: state.isLoading,
+    memberPresence: [], // TODO: 必要に応じてstateから取得
+    personalization: {}, // TODO: 必要に応じてstateから取得
+    splitView: undefined, // TODO: 必要に応じてstateから取得
+  };
+  const dispatchAction = dispatch as React.Dispatch<SpaceNavigationAction>;
 
-  // Provide a value that matches NestSpaceContextType as much as possible with mocks
+  const toggleSidebar = useCallback(() => {
+    dispatchAction({ type: 'TOGGLE_SIDEBAR' });
+  }, [dispatchAction]);
+
+  const updatePersonalization = useCallback((settings: Partial<any>) => {
+    dispatchAction({ type: 'UPDATE_PERSONALIZATION', payload: settings });
+  }, [dispatchAction]);
+
+  const enableSplitView = useCallback((primary: SpaceType, secondary: SpaceType, ratio?: number) => {
+    dispatchAction({ type: 'ENABLE_SPLIT_VIEW', payload: { primary, secondary, ratio } });
+  }, [dispatchAction]);
+
+  const disableSplitView = useCallback(() => {
+    dispatchAction({ type: 'DISABLE_SPLIT_VIEW' });
+  }, [dispatchAction]);
+
+  const setSplitRatio = useCallback((ratio: number) => {
+    dispatchAction({ type: 'SET_SPLIT_RATIO', payload: ratio });
+  }, [dispatchAction]);
+
+  const isSpaceActive = useCallback((spaceType: SpaceType): boolean => {
+    if (spaceState.splitView?.enabled) {
+      return (
+        spaceType === spaceState.splitView.primarySpace ||
+        spaceType === spaceState.splitView.secondarySpace
+      );
+    }
+    return spaceType === spaceState.activeSpaceType;
+  }, [spaceState]);
+
+  const getSpaceMetadata = useCallback((spaceType: SpaceType): SpaceMetadata | undefined => {
+    return spaceState.availableSpaces.find(space => space.type === spaceType);
+  }, [spaceState.availableSpaces]);
+
+  const getMemberPresence = useCallback((userId: string): MemberPresence | undefined => {
+    return spaceState.memberPresence.find(member => member.userId === userId);
+  }, [spaceState.memberPresence]);
+
   const contextValue: NestSpaceContextType = {
-    ...state, // Spread the current state from useReducer
-    navigateToSpace,
-    goBack,
-    addSpace,
-    updateSpace,
-    removeSpace,
-    toggleSplitView,
-    updatePresence,
-    canPerformAction,
-    loadSpaceContainer,
-    // Ensure all properties of NestSpaceContextType are present, even if mocked
-    // container: state.container, // already in ...state
-    // spaces: state.spaces, // already in ...state
-    // navigation: state.navigation, // already in ...state
-    // currentUserRole: state.currentUserRole, // already in ...state
-    // isLoading: state.isLoading, // already in ...state
-    // error: state.error, // already in ...state
+    currentNest,
+    nestMembers: spaceState.memberPresence,
+    spaceState,
+    dispatch: dispatchAction,
+    navigateToSpace: (spaceType) => dispatchAction({ type: 'NAVIGATE_TO_SPACE', payload: spaceType }),
+    toggleSidebar,
+    updatePresence: (presenceData) => dispatchAction({ type: 'UPDATE_MEMBER_PRESENCE', payload: presenceData as MemberPresence }),
+    updatePersonalization,
+    enableSplitView,
+    disableSplitView,
+    setSplitRatio,
+    isSpaceActive,
+    getSpaceMetadata,
+    getMemberPresence,
   };
 
   return (

@@ -1,6 +1,22 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Message } from '../types/chat';
-import { aiAnalysisService, AIInsight } from '../services/AIAnalysisService';
+import { supabase } from '../services/supabase/client';
+
+interface AIInsight {
+  id: string;
+  title: string;
+  content: string;
+  tags: string[];
+  column_type: string;
+  metadata?: Record<string, any>;
+  related_card_ids?: string[];
+}
+
+interface AnalysisError {
+  type: 'API_ERROR' | 'PARSE_ERROR' | 'VALIDATION_ERROR' | 'NETWORK_ERROR';
+  message: string;
+  details?: any;
+}
 
 interface UseAutoInsightExtractionProps {
   channelId?: string;
@@ -8,6 +24,34 @@ interface UseAutoInsightExtractionProps {
   enabled?: boolean;
   analysisThreshold?: number;
   onNewInsightsGenerated?: (insights: AIInsight[]) => void;
+  onError?: (error: AnalysisError) => void;
+}
+
+// Markdown→Insight配列パース関数
+function parseInsightsFromMarkdown(markdown: string): AIInsight[] {
+  if (!markdown) return [];
+  // --- 区切りで分割
+  const blocks = markdown.split(/^---$/m).map(b => b.trim()).filter(Boolean);
+  return blocks.map((block, i) => {
+    // タイトル抽出
+    const titleMatch = block.match(/^## (.+)/m);
+    const title = titleMatch ? titleMatch[1].trim() : `Insight ${i+1}`;
+    // タグ抽出
+    const tagsMatch = block.match(/### タグ\n([\s\S]+?)(?=\n|$)/);
+    const tags = tagsMatch ? tagsMatch[1].split(',').map(t => t.trim()).filter(Boolean) : [];
+    // コンテキスト抽出
+    const contentMatch = block.match(/### コンテキスト\n([\s\S]+?)(?=### タグ|$)/);
+    let content = contentMatch ? contentMatch[1].trim() : '';
+    // 見出しレベル調整
+    content = content.replace(/^#### /gm, '### ');
+    return {
+      id: `insight-${Date.now()}-${i}`,
+      title,
+      content,
+      tags,
+      column_type: 'inbox',
+    };
+  });
 }
 
 /**
@@ -21,6 +65,7 @@ export const useAutoInsightExtraction = ({
   enabled = true,
   analysisThreshold = 5, // 分析を開始するためのメッセージ数の閾値
   onNewInsightsGenerated,
+  onError,
 }: UseAutoInsightExtractionProps) => {
   const [insights, setInsights] = useState<AIInsight[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -29,6 +74,7 @@ export const useAutoInsightExtraction = ({
     totalAnalyses: 0,
     totalInsightsGenerated: 0,
     averageProcessingTime: 0,
+    lastError: null as AnalysisError | null,
   });
 
   // 分析を実行するか判断する
@@ -41,79 +87,125 @@ export const useAutoInsightExtraction = ({
   }, [enabled, channelId, messages, lastAnalyzedMessageCount, analysisThreshold]);
 
   // 洞察抽出の実行
-  const runAnalysis = useCallback(() => {
-    if (isAnalyzing || !shouldAnalyze()) return;
-    
+  const runAnalysis = useCallback(async (force = false) => {
+    console.log('[useAutoInsightExtraction] runAnalysis called', { force, isAnalyzing, shouldAnalyze: shouldAnalyze() });
+    if (isAnalyzing) return;
+    if (!force && !shouldAnalyze()) return;
     setIsAnalyzing(true);
     
-    // 分析対象のメッセージを取得（すべてのメッセージまたは最新の一部）
-    const messagesToAnalyze = messages.slice(-30); // 最新30メッセージのみ分析
+    const startTime = Date.now();
+    const messagesToAnalyze = messages.slice(-30);
+    console.log('[useAutoInsightExtraction] messagesToAnalyze:', messagesToAnalyze);
+    console.log('[useAutoInsightExtraction] mapped for API:', messagesToAnalyze.map(m => ({
+      text: m.text,
+      userName: m.userName || 'User',
+      timestamp: m.timestamp || ''
+    })));
     
-    // AIサービスを呼び出して分析
-    aiAnalysisService.requestAnalysis(
-      messagesToAnalyze,
-      channelId,
-      (result) => {
-        if (result.insights.length > 0) {
-          // 新しい洞察を追加
-          setInsights(prevInsights => {
-            // 重複を避けるために既存のIDを取得
-            const existingIds = new Set(prevInsights.map(i => i.id));
-            
-            // 重複しない新しい洞察のみをフィルター
-            const newInsights = result.insights.filter(i => !existingIds.has(i.id));
-            
-            // コールバックがあれば呼び出す
-            if (newInsights.length > 0 && onNewInsightsGenerated) {
-              onNewInsightsGenerated(newInsights);
-            }
-            
-            // 洞察を統合して返す
-            return [...prevInsights, ...newInsights];
-          });
-          
-          // 統計情報の更新
-          setAnalysisStats(prev => {
-            const newTotalAnalyses = prev.totalAnalyses + 1;
-            const newTotalInsights = prev.totalInsightsGenerated + result.insights.length;
-            
-            // 加重平均で処理時間を計算
-            const newAvgTime = 
-              (prev.averageProcessingTime * prev.totalAnalyses + result.processingTime) / 
-              newTotalAnalyses;
-            
-            return {
-              totalAnalyses: newTotalAnalyses,
-              totalInsightsGenerated: newTotalInsights,
-              averageProcessingTime: newAvgTime,
-            };
-          });
-        }
-        
-        // 分析完了
-        setLastAnalyzedMessageCount(messages.length);
-        setIsAnalyzing(false);
+    try {
+      // Edge Function呼び出し
+      const { data, error } = await supabase.functions.invoke('analyze-chat', {
+        body: {
+          messages: messagesToAnalyze.map(m => ({
+            text: m.text,
+            userName: m.userName || 'User',
+            timestamp: m.timestamp || ''
+          })),
+          board_id: channelId,
+          created_by: 'ai',
+        },
+      });
+
+      if (error) {
+        throw {
+          type: 'API_ERROR',
+          message: 'AI分析APIでエラーが発生しました',
+          details: error
+        };
       }
-    );
+
+      if (!data || !data.markdown) {
+        throw {
+          type: 'VALIDATION_ERROR',
+          message: 'AI分析の結果が不正な形式です',
+          details: data
+        };
+      }
+
+      console.log('[useAutoInsightExtraction] API data:', data);
+      console.log('[useAutoInsightExtraction] API markdown:', data.markdown);
+
+      const newInsights = parseInsightsFromMarkdown(data.markdown);
+      console.log('[useAutoInsightExtraction] parsed newInsights:', newInsights);
+
+      if (newInsights.length === 0) {
+        throw {
+          type: 'PARSE_ERROR',
+          message: '分析結果から洞察を抽出できませんでした',
+          details: { markdown: data.markdown }
+        };
+      }
+
+      if (newInsights.length > 0) {
+        setInsights(prevInsights => {
+          const existingIds = new Set(prevInsights.map(i => i.id));
+          const filtered = newInsights.filter(i => !existingIds.has(i.id));
+          if (filtered.length > 0 && onNewInsightsGenerated) {
+            onNewInsightsGenerated(filtered);
+          }
+          return [...prevInsights, ...filtered];
+        });
+
+        const processingTime = Date.now() - startTime;
+        setAnalysisStats(prev => ({
+          ...prev,
+          totalAnalyses: prev.totalAnalyses + 1,
+          totalInsightsGenerated: prev.totalInsightsGenerated + newInsights.length,
+          averageProcessingTime: (prev.averageProcessingTime * prev.totalAnalyses + processingTime) / (prev.totalAnalyses + 1),
+          lastError: null
+        }));
+      }
+      setLastAnalyzedMessageCount(messages.length);
+    } catch (e) {
+      const error = e as AnalysisError;
+      console.error('AI抽出エラー:', error);
+      setAnalysisStats(prev => ({
+        ...prev,
+        lastError: error
+      }));
+      if (onError) {
+        onError(error);
+      }
+    } finally {
+      setIsAnalyzing(false);
+    }
   }, [
     isAnalyzing, 
     shouldAnalyze, 
     messages, 
     channelId, 
-    onNewInsightsGenerated
+    onNewInsightsGenerated,
+    onError,
+    analysisStats.totalInsightsGenerated
   ]);
 
   // メッセージの変更を監視して自動分析を実行
-  useEffect(() => {
-    if (shouldAnalyze()) {
-      runAnalysis();
-    }
-  }, [messages, shouldAnalyze, runAnalysis]);
+  // useEffect(() => {
+  //   if (shouldAnalyze()) {
+  //     runAnalysis();
+  //   }
+  // }, [messages, shouldAnalyze, runAnalysis]);
 
   // 分析を手動でトリガーする関数
-  const triggerAnalysis = useCallback(() => {
-    runAnalysis();
-  }, [runAnalysis]);
+  const triggerAnalysis = useCallback(async () => {
+    console.log('[useAutoInsightExtraction] triggerAnalysis called', { isAnalyzing, channelId, messagesLength: messages.length, analysisThreshold });
+    if (isAnalyzing) return '分析中です';
+    if (!channelId) return 'チャネルが未選択です';
+    if (messages.length === 0) return 'メッセージがありません';
+    if (messages.length < analysisThreshold) return `メッセージが${analysisThreshold}件未満のため分析できません`;
+    await runAnalysis(true);
+    return null;
+  }, [isAnalyzing, channelId, messages, analysisThreshold, runAnalysis]);
 
   // 特定の洞察の詳細を取得
   const getInsightById = useCallback((insightId: string) => {
@@ -123,9 +215,9 @@ export const useAutoInsightExtraction = ({
   // 特定のチャネルに関連する洞察をフィルタリング
   const getInsightsByChannelId = useCallback((targetChannelId: string) => {
     return insights.filter(insight => 
-      insight.relatedItems?.channelId === targetChannelId
+      insight.column_type === 'inbox' && targetChannelId === channelId
     );
-  }, [insights]);
+  }, [insights, channelId]);
 
   return {
     insights,
@@ -134,5 +226,6 @@ export const useAutoInsightExtraction = ({
     triggerAnalysis,
     getInsightById,
     getInsightsByChannelId,
+    lastError: analysisStats.lastError,
   };
 }; 

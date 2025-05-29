@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, useWindowDimensions, ViewStyle } from 'react-native';
 import { SpaceNavigator } from './navigation';
-import { useNestSpace } from './contexts/_NestSpaceContext';
-import { SpaceType } from './types/nestSpace.types';
+import { useNestSpace } from '@contexts/NestSpaceContext';
+import { SpaceType } from '../../types/nestSpace.types';
 
 // PiP (Picture-in-Picture) 表示用のコンポーネント
 const PictureInPicture: React.FC<{

@@ -3,6 +3,7 @@ import { supabase } from '@services/supabase';
 import { useAuth } from '@contexts/AuthContext';
 import { v4 as uuidv4 } from 'uuid';
 import { Nest as ImportedNestType } from '../../../types/nestSpace.types';
+import { sendInvitationEmail } from '@services/emailService';
 
 // 型定義
 export interface Nest {
@@ -35,7 +36,7 @@ export interface NestMember {
 export interface NestInvitation {
   id: string;
   nest_id: string;
-  email: string;
+  invited_email: string;
   invited_by: string;
   created_at: string;
   expires_at?: string;
@@ -157,7 +158,7 @@ export function NestProvider({ children }: { children: React.ReactNode }) {
         .from('nest_members')
         .select(`
           nest_id,
-          nests:nest_id (
+          nests!nest_members_nest_id_fkey (
             id, 
             name, 
             description, 
@@ -248,15 +249,14 @@ export function NestProvider({ children }: { children: React.ReactNode }) {
 
   // 保留中の招待を取得
   const fetchPendingInvitations = useCallback(async () => {
-    if (!user?.email) return [];
-    
+    if (!currentNest?.id) return [];
     try {
       const { data, error } = await supabase
         .from('nest_invitations')
         .select(`
           id, 
           nest_id, 
-          email, 
+          invited_email, 
           invited_by, 
           created_at, 
           expires_at, 
@@ -273,19 +273,16 @@ export function NestProvider({ children }: { children: React.ReactNode }) {
             avatar_url
           )
         `)
-        .eq('email', user.email)
+        .eq('nest_id', currentNest.id)
         .eq('is_accepted', false)
-        .or('expires_at.is.null,expires_at.gt.now()');
-        
+        .order('created_at', { ascending: false });
       if (error) throw error;
-      
-      // 明示的に型キャスト
       return data as unknown as NestInvitation[];
     } catch (error) {
       console.error('Error fetching pending invitations:', error);
       return [];
     }
-  }, [user?.email]);
+  }, [currentNest?.id]);
 
   // データの初期化
   const initializeNestData = useCallback(async () => {
@@ -420,7 +417,7 @@ export function NestProvider({ children }: { children: React.ReactNode }) {
           role: 'owner',
           joined_at: new Date().toISOString()
         });
-        
+      
       if (memberError) throw memberError;
       
       // 3. デフォルト設定を作成
@@ -434,10 +431,33 @@ export function NestProvider({ children }: { children: React.ReactNode }) {
             memberListVisibility: 'members_only'
           }
         });
-        
-      if (settingsError) throw settingsError;
       
-      // 4. データをリフレッシュ
+      if (settingsError) throw settingsError;
+
+      // 4. デフォルトSpace（chat, board, meeting, analysis）を作成
+      const defaultSpaces = [
+        { type: 'chat', name: 'チャット', icon: '💬' },
+        { type: 'board', name: 'ボード', icon: '📋' },
+        { type: 'meeting', name: 'ミーティング', icon: '📅' },
+        { type: 'analysis', name: '分析', icon: '📊' },
+      ];
+      const now = new Date().toISOString();
+      const spacesToInsert = defaultSpaces.map(s => ({
+        nest_id: newNest.id,
+        type: s.type,
+        name: s.name,
+        icon: s.icon,
+        created_at: now,
+        updated_at: now,
+        is_active: true,
+      }));
+      const { data: insertedSpaces, error: spacesError } = await supabase
+        .from('spaces')
+        .insert(spacesToInsert)
+        .select();
+      if (spacesError) throw spacesError;
+      
+      // 5. データをリフレッシュ
       await refreshData();
       
       return { error: null, nest: newNest as Nest };
@@ -481,11 +501,23 @@ export function NestProvider({ children }: { children: React.ReactNode }) {
   // メンバーの招待
   const inviteMember = async (nestId: string, email: string) => {
     setError(null);
-    
     try {
       if (!user) throw new Error('認証されていません');
       if (!email || !email.includes('@')) throw new Error('有効なメールアドレスを入力してください');
-      
+      console.log('inviteMember: user.id =', user.id, 'nestId =', nestId);
+      // 追加: supabase.auth.getUser()とsupabase.auth.getSession()の値を出力
+      try {
+        supabase.auth.getUser().then(res => {
+          console.log('[inviteMember] supabase.auth.getUser():', res);
+        });
+      } catch (e) {
+        console.log('[inviteMember] supabase.auth.* logging error:', e);
+      }
+      // 追加: supabase.auth.getSession()のaccess_token（JWT）を出力
+      supabase.auth.getSession().then(res => {
+        const token = res.data?.session?.access_token;
+        console.log('[inviteMember] JWT access_token:', token);
+      });
       // 1. 権限チェック
       const nest = userNests.find(n => n.id === nestId);
       if (!nest) throw new Error('Nestが見つかりません');
@@ -505,12 +537,13 @@ export function NestProvider({ children }: { children: React.ReactNode }) {
         .select('id, display_name')
         .eq('email', email)
         .maybeSingle();
-        
+      console.log('[inviteMember] email:', email, 'existingUser:', existingUser);
+      
       // 3. 既に招待されているか確認
       const { data: existingInvitation } = await supabase
         .from('nest_invitations')
         .select('id')
-        .eq('email', email)
+        .eq('invited_email', email)
         .eq('nest_id', nestId)
         .eq('is_accepted', false)
         .maybeSingle();
@@ -532,17 +565,21 @@ export function NestProvider({ children }: { children: React.ReactNode }) {
       // 5. 招待トークンを生成
       const token = uuidv4();
       
-      // 6. 招待レコードを作成
+      // 6. 招待レコードを作成の直前で値をログ出力
+      const insertValues = {
+        nest_id: nestId,
+        invited_email: email,
+        invited_by: user.id,
+        token,
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        is_accepted: false,
+        status: 'pending',
+        target_user_id: existingUser?.id || null,
+      };
+      console.log('[inviteMember] insert values:', insertValues);
       const { data, error } = await supabase
         .from('nest_invitations')
-        .insert({
-          nest_id: nestId,
-          email,
-          invited_by: user.id,
-          token,
-          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-          is_accepted: false
-        })
+        .insert(insertValues)
         .select()
         .single();
         
@@ -563,8 +600,18 @@ export function NestProvider({ children }: { children: React.ReactNode }) {
           is_read: false
         });
       } else {
-        // メール送信はサーバー側で実装（ここではローカルに通知のみ）
-        console.log(`招待メールを送信: ${email}, トークン: ${token}`);
+        // Edge Function経由でメール送信
+        const inviteLink = `https://poconest.app/invite/${token}`;
+        const { success, error: mailError } = await sendInvitationEmail({
+          email,
+          nestName: nest.name,
+          inviterEmail: user.email || '',
+          inviteLink,
+        });
+        if (!success) {
+          console.error('Failed to send invitation email:', mailError);
+          // 必要に応じてエラーハンドリング
+        }
       }
       
       // 8. 保留中の招待を更新
@@ -590,7 +637,7 @@ export function NestProvider({ children }: { children: React.ReactNode }) {
       // 1. 招待を検索
       const { data: invitation, error: findError } = await supabase
         .from('nest_invitations')
-        .select('id, nest_id, email')
+        .select('id, nest_id, invited_email')
         .eq('token', token)
         .eq('is_accepted', false)
         .single();
@@ -598,7 +645,7 @@ export function NestProvider({ children }: { children: React.ReactNode }) {
       if (findError) throw new Error('有効な招待が見つかりません');
       
       // 2. メールアドレスの確認
-      if (invitation.email !== user.email) {
+      if (invitation.invited_email !== user.email) {
         throw new Error('この招待は別のメールアドレス宛てです');
       }
       
@@ -710,7 +757,7 @@ export function NestProvider({ children }: { children: React.ReactNode }) {
       // 1. 招待情報を取得
       const { data: invitation, error: findError } = await supabase
         .from('nest_invitations')
-        .select('id, nest_id, email, token')
+        .select('id, nest_id, invited_email, token')
         .eq('id', invitationId)
         .single();
         
@@ -727,7 +774,7 @@ export function NestProvider({ children }: { children: React.ReactNode }) {
       if (updateError) throw updateError;
       
       // 3. メール再送信（現実装ではログ出力のみ）
-      console.log(`招待メールを再送信: ${invitation.email}, トークン: ${invitation.token}`);
+      console.log(`招待メールを再送信: ${invitation.invited_email}, トークン: ${invitation.token}`);
       
       return { error: null };
     } catch (err: any) {

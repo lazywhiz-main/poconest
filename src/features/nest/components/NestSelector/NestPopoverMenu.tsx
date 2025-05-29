@@ -61,9 +61,14 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white,
     borderRadius: 8,
     maxHeight: 300,
-    minWidth: 220,
+    width: 320,
     borderWidth: 1,
     borderColor: COLORS.lightGray,
+    position: 'absolute',
+    top: 16,
+    left: 16,
+    alignSelf: 'flex-start',
+    zIndex: 999,
     ...Platform.select({
       web: {
         boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',

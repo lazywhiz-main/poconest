@@ -86,7 +86,7 @@ const getIconPath = (name: string) => {
 const icons = {
   [SpaceType.CHAT]: 'chat',
   [SpaceType.BOARD]: 'board',
-  [SpaceType.ZOOM]: 'zoom',
+  [SpaceType.MEETING]: 'meeting',
   [SpaceType.ANALYSIS]: 'analytics',
   [SpaceType.USER_PROFILE]: 'profile',
 };
@@ -95,7 +95,7 @@ const icons = {
 const spaceNames = {
   [SpaceType.CHAT]: 'チャット',
   [SpaceType.BOARD]: 'ボード',
-  [SpaceType.ZOOM]: 'Zoom',
+  [SpaceType.MEETING]: 'ミーティング',
   [SpaceType.ANALYSIS]: '分析',
   [SpaceType.USER_PROFILE]: 'プロフィール',
 };
@@ -104,7 +104,7 @@ const spaceNames = {
 const spaceColors = {
   [SpaceType.CHAT]: theme.colors.spaces.chat.primary,      // コーラル
   [SpaceType.BOARD]: theme.colors.spaces.board.primary,    // 黄色
-  [SpaceType.ZOOM]: theme.colors.spaces.zoom.primary,      // ミント
+  [SpaceType.MEETING]: theme.colors.spaces.meeting.primary,      // ミント
   [SpaceType.ANALYSIS]: theme.colors.spaces.analysis.primary,  // ディープグリーン
   [SpaceType.USER_PROFILE]: theme.colors.spaces.settings.primary, // 濃いグレー
 };
@@ -175,8 +175,8 @@ const AppNavigation: React.FC<AppNavigationProps> = ({
             </View>
           )}
         </View>
-        
-        {(isMobile || isExpanded) && (
+        {/* ラベルはモバイル時は非表示 */}
+        {(!isMobile && isExpanded) && (
           <Text 
             style={[
               styles.navLabel, 
@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
   bottomNavContainer: {
     flexDirection: 'row',
     height: 60,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.background.paper,
     borderTopWidth: 1,
     borderTopColor: theme.colors.divider,
     justifyContent: 'space-around',
@@ -243,7 +243,7 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.xs,
   },
   bottomNavItemActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: theme.colors.background.paper,
     borderTopWidth: 3,
   },
   bottomNavLabel: {

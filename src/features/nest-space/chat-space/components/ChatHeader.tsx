@@ -7,7 +7,7 @@ import {
   TextInput,
   Platform
 } from 'react-native';
-import { useNestSpace } from '../../contexts/_NestSpaceContext';
+import { useNestSpace } from '@contexts/NestSpaceContext';
 import { useChatSpace } from '../hooks/useChatSpace';
 import { useThreadNavigation } from '../hooks/useThreadNavigation';
 import { LayoutType, SpaceType } from '../../types/nestSpace.types';
@@ -160,6 +160,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E0E0E0',
     backgroundColor: '#F5F5F5',
+    height: 56,
+    minHeight: 56,
+    maxHeight: 56,
   },
   leftSection: {
     flexDirection: 'row',

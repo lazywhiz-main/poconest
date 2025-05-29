@@ -113,6 +113,13 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onSave }) => {
 
   return (
     <View style={styles.container}>
+      {/* ユーザー名とタイムスタンプをバブルの上に表示 */}
+      <View style={styles.metaRow}>
+        <Text style={styles.username}>{message.sender.name}</Text>
+        <Text style={styles.timestamp}>
+          {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </Text>
+      </View>
       <Animated.View
         style={[
           styles.messageContainer,
@@ -124,16 +131,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onSave }) => {
           styles.messageWrapper,
           isUserMessage ? styles.userMessageWrapper : styles.botMessageWrapper
         ]}>
-          {/* 左側のタイムスタンプ（ユーザーメッセージの場合に表示） */}
-          {isUserMessage && (
-            <View style={styles.leftTimestampContainer}>
-              <Text style={[styles.timestamp, styles.userTimestamp]}>
-                {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </Text>
-            </View>
-          )}
-
-          {/* メッセージバブル */}
+          {/* メッセージバブル本体のみ */}
           <TouchableOpacity 
             style={[
               styles.bubble,
@@ -144,18 +142,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onSave }) => {
           >
             <Text style={styles.messageText}>{message.content}</Text>
           </TouchableOpacity>
-
-          {/* 右側のタイムスタンプ（ボットメッセージの場合に表示） */}
-          {!isUserMessage && (
-            <View style={styles.rightTimestampContainer}>
-              <Text style={[styles.timestamp, styles.botTimestamp]}>
-                {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </Text>
-            </View>
-          )}
         </View>
       </Animated.View>
-
       {/* アクションボタン */}
       {showActions && (
         <TouchableOpacity 
@@ -245,6 +233,19 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: '500',
     fontSize: 12,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 2,
+    paddingHorizontal: 8,
+  },
+  username: {
+    fontSize: 12,
+    color: COLORS.lightText,
+    fontWeight: 'bold',
+    marginRight: 8,
   },
 });
 

@@ -1,9 +1,11 @@
 import { useCallback, useState, useEffect, useMemo } from 'react';
-import { useBoard } from '@contexts/BoardContext';
-import { useNestSpace } from '../../contexts/_NestSpaceContext';
+import { useBoardContext } from '../../../board-space/contexts/BoardContext';
+import { useNestSpace } from '../../contexts/_NestSpaceContext.tsx';
 import { SpaceType } from '../../types/nestSpace.types';
 import { BoardColumnType, Card, BoardViewSettings } from '../../../../types/board';
 import { useChatSpace } from '../../chat-space/hooks/useChatSpace';
+import { getCardSources } from '../../../../services/BoardService';
+import type { BoardItem } from '../../../board-space/contexts/BoardContext';
 
 export interface BoardFilter {
   tags?: string[];
@@ -52,23 +54,17 @@ export interface CardRelationship {
 
 export const useBoardSpace = () => {
   // Access the main board context and nest space context
-  const { 
-    cards, 
-    activeColumn: contextActiveColumn, 
-    setActiveColumn: setContextActiveColumn,
-    getCardsByColumn,
-    addCard,
+  const {
+    state,
+    dispatch,
+    addCards,
     updateCard,
     deleteCard,
-    moveCard,
-    promoteCardToInsight,
-    promoteInsightToTheme,
-    findRelatedCards,
-  } = useBoard();
+    getCardsByColumn,
+    // ... other context methods
+  } = useBoardContext();
   
   const { isSpaceActive, navigateToSpace } = useNestSpace();
-  
-  // Access chat context for integration
   const { chatSpaceState, chatRooms, messages } = useChatSpace();
   
   // Board space specific state
@@ -101,30 +97,51 @@ export const useBoardSpace = () => {
   
   // Sync active column with the main board context
   useEffect(() => {
-    if (contextActiveColumn !== boardSpaceState.activeColumn) {
-      setContextActiveColumn(boardSpaceState.activeColumn);
+    if (state.filter.columns[0] !== boardSpaceState.activeColumn) {
+      dispatch({ type: 'UPDATE_FILTER', payload: { columns: [state.filter.columns[0] || BoardColumnType.INBOX] } });
     }
-  }, [boardSpaceState.activeColumn, contextActiveColumn, setContextActiveColumn]);
+  }, [state.filter.columns, dispatch, boardSpaceState.activeColumn]);
   
   // Set the active column
   const setActiveColumn = useCallback((column: BoardColumnType) => {
-    setBoardSpaceState(prev => ({
-      ...prev,
-      activeColumn: column,
-      selectedCardIds: [],
-      isSelectionMode: false
-    }));
-  }, []);
+    dispatch({ type: 'UPDATE_FILTER', payload: { columns: [column] } });
+  }, [dispatch]);
+  
+  // Get cards for a specific column
+  const getCardsByColumnLocal = useCallback((column: BoardColumnType): BoardItem[] => {
+    return state.cards.filter((card: BoardItem) => card.column_type === column);
+  }, [state.cards]);
+
+  // Load card sources
+  const loadCardSources = useCallback(async (cardId: string) => {
+    const { data: sources, error } = await getCardSources(cardId);
+    if (error) {
+      console.error('Failed to load card sources:', error);
+      return;
+    }
+    if (sources) {
+      updateCard({ id: cardId, metadata: { ...(state.cards.find(c => c.id === cardId)?.metadata || {}), sources } });
+    }
+  }, [updateCard, state.cards]);
+
+  // Load sources for all cards
+  useEffect(() => {
+    state.cards.forEach((card: BoardItem) => {
+      if (card.source && !(card.metadata && card.metadata.sources)) {
+        loadCardSources(card.id);
+      }
+    });
+  }, [state.cards, loadCardSources]);
   
   // Get currently displayed cards based on active column and filters
   const filteredCards = useMemo(() => {
-    const columnCards = getCardsByColumn(boardSpaceState.activeColumn);
+    const columnCards = getCardsByColumnLocal(boardSpaceState.activeColumn);
     
     // Apply filters
-    return columnCards.filter(card => {
+    return columnCards.filter((card: BoardItem) => {
       // Tag filter
       if (boardSpaceState.filters.tags && boardSpaceState.filters.tags.length > 0) {
-        if (!card.tags || !card.tags.some(tag => boardSpaceState.filters.tags?.includes(tag))) {
+        if (!card.tags || !card.tags.some((tag: string) => boardSpaceState.filters.tags?.includes(tag))) {
           return false;
         }
       }
@@ -133,8 +150,8 @@ export const useBoardSpace = () => {
       if (boardSpaceState.filters.search) {
         const searchTerm = boardSpaceState.filters.search.toLowerCase();
         if (!card.title.toLowerCase().includes(searchTerm) &&
-            !card.description.toLowerCase().includes(searchTerm) &&
-            !(card.tags && card.tags.some(tag => tag.toLowerCase().includes(searchTerm)))) {
+            !card.content.toLowerCase().includes(searchTerm) &&
+            !(card.tags && card.tags.some((tag: string) => tag.toLowerCase().includes(searchTerm)))) {
           return false;
         }
       }
@@ -157,7 +174,7 @@ export const useBoardSpace = () => {
       
       return true;
     });
-  }, [boardSpaceState.activeColumn, boardSpaceState.filters, getCardsByColumn]);
+  }, [state.cards, boardSpaceState.activeColumn, boardSpaceState.filters, getCardsByColumnLocal]);
   
   // Sort filtered cards based on sort settings
   const sortedCards = useMemo(() => {
@@ -183,7 +200,7 @@ export const useBoardSpace = () => {
           comparison = a.title.localeCompare(b.title);
           break;
         default:
-          comparison = a.order - b.order;
+          comparison = a.order_index - b.order_index;
       }
       
       // Apply sort direction
@@ -303,7 +320,7 @@ export const useBoardSpace = () => {
     const mockSuggestions: AICardSuggestion[] = [
       {
         id: '1',
-        type: 'tag',
+        type: 'tag' as const,
         description: 'これらのカードに "プロジェクト計画" タグを追加することを推奨します',
         affectedCardIds: sortedCards.slice(0, 3).map(card => card.id),
         suggestedAction: 'タグ "プロジェクト計画" を追加',
@@ -312,7 +329,7 @@ export const useBoardSpace = () => {
       },
       {
         id: '2',
-        type: 'cluster',
+        type: 'cluster' as const,
         description: 'これらのカードは関連性が高いため、新しいグループを作成することを推奨します',
         affectedCardIds: sortedCards.slice(2, 5).map(card => card.id),
         suggestedAction: '新しいグループを作成',
@@ -321,7 +338,7 @@ export const useBoardSpace = () => {
       },
       {
         id: '3',
-        type: 'promote',
+        type: 'promote' as const,
         description: 'このカードは重要な情報を含んでいるため、Insightsに昇格させることを推奨します',
         affectedCardIds: [sortedCards[0]?.id].filter(Boolean),
         suggestedAction: 'Insightsに昇格',
@@ -369,7 +386,7 @@ export const useBoardSpace = () => {
             
             // Update each affected card with the new tag
             for (const cardId of suggestion.affectedCardIds) {
-              const card = cards.find(c => c.id === cardId);
+              const card = state.cards.find(c => c.id === cardId);
               if (card) {
                 const currentTags = card.tags || [];
                 if (!currentTags.includes(tag)) {
@@ -385,7 +402,7 @@ export const useBoardSpace = () => {
         case 'promote':
           // Promote each card to insights
           for (const cardId of suggestion.affectedCardIds) {
-            await promoteCardToInsight(cardId);
+            // await dispatch({ type: 'PROMOTE_CARD_TO_INSIGHT', payload: { cardId } });
           }
           break;
           
@@ -406,7 +423,7 @@ export const useBoardSpace = () => {
       console.error('Error applying AI suggestion:', error);
       return false;
     }
-  }, [boardSpaceState.aiSuggestions, cards, dismissAISuggestion, promoteCardToInsight, updateCard]);
+  }, [state.cards, dispatch, dismissAISuggestion]);
   
   // Create a card from a chat message
   const createCardFromChatMessage = useCallback(async (messageId: string, chatRoomId: string) => {
@@ -420,66 +437,67 @@ export const useBoardSpace = () => {
       
       // Create a new card from the message
       const now = new Date().toISOString();
-      const newCardData = {
+      const newCard: BoardItem = {
+        id: '', // サーバー側で付与される場合は空文字
+        nest_id: '', // 必要に応じてセット
         title: message.content.length > 50 
           ? `${message.content.substring(0, 47)}...` 
           : message.content,
-        description: message.content,
-        column: BoardColumnType.INBOX,
-        user_id: message.sender.id,
+        content: message.content,
+        column_type: BoardColumnType.INBOX,
+        created_by: message.sender.id,
+        created_at: now,
+        updated_at: now,
+        order_index: 0,
         tags: ['チャット', chatRoom?.name || 'メッセージ'],
-        order: 0,
-        sourceType: 'chat' as const,
-        sourceId: chatRoomId,
+        is_archived: false,
         metadata: {
           messageId,
           senderName: message.sender.name,
           messageTimestamp: message.created_at,
           isFromChat: true
-        }
+        },
+        source: 'chat',
+        source_message_id: chatRoomId,
       };
       
-      const newCard = await addCard(newCardData);
+      await addCards([newCard]);
       return newCard;
     } catch (error) {
       console.error('Error creating card from chat message:', error);
       return null;
     }
-  }, [addCard, chatRooms, messages]);
+  }, [addCards, chatRooms, messages]);
   
   // Find cards related to a specific chat message
   const findCardsFromChatMessage = useCallback((messageId: string, chatRoomId: string) => {
-    return cards.filter(card => 
-      card.sourceType === 'chat' && 
-      card.sourceId === chatRoomId && 
+    return state.cards.filter((card: BoardItem) => 
+      card.source === 'chat' && 
+      card.source_message_id === chatRoomId && 
       card.metadata?.messageId === messageId
     );
-  }, [cards]);
+  }, [state.cards]);
   
   // Find chat messages related to a specific card
   const findChatMessagesFromCard = useCallback((cardId: string) => {
-    const card = cards.find(c => c.id === cardId);
-    if (!card || card.sourceType !== 'chat' || !card.sourceId || !card.metadata?.messageId) {
+    const card = state.cards.find((c: BoardItem) => c.id === cardId);
+    if (!card || card.source !== 'chat' || !card.source_message_id || !card.metadata?.messageId) {
       return [];
     }
-    
-    const chatId = card.sourceId;
+    const chatId = card.source_message_id;
     const messageId = card.metadata.messageId;
-    
     if (!messages[chatId]) return [];
-    
     return messages[chatId].filter(message => message.id === messageId);
-  }, [cards, messages]);
+  }, [state.cards, messages]);
   
   // Build the network graph data based on card relationships
   const getNetworkGraphData = useCallback(() => {
     const nodes = sortedCards.map(card => ({
       id: card.id,
       label: card.title,
-      column: card.column,
+      column: card.column_type,
       tags: card.tags || [],
       created: card.created_at,
-      sourceType: card.sourceType
     }));
     
     // Get relationships between cards
@@ -497,7 +515,7 @@ export const useBoardSpace = () => {
     
     // Add relationships from cards in the same theme
     sortedCards.forEach(card => {
-      if (card.column === BoardColumnType.THEMES && card.metadata?.relatedInsightIds) {
+      if (card.column_type === BoardColumnType.THEMES && card.metadata?.relatedInsightIds) {
         const relatedIds = card.metadata.relatedInsightIds as string[];
         relatedIds.forEach(relatedId => {
           if (!edges.some(e => (e.from === card.id && e.to === relatedId) || (e.from === relatedId && e.to === card.id))) {
@@ -515,13 +533,33 @@ export const useBoardSpace = () => {
     return { nodes, edges };
   }, [sortedCards, relationships]);
   
+  // BoardCard用の型変換（BoardItem→Card）
+  const convertToCard = (item: BoardItem): Card => ({
+    id: item.id,
+    title: item.title,
+    description: item.content,
+    column: item.column_type,
+    created_at: item.created_at,
+    updated_at: item.updated_at,
+    created_by: item.created_by,
+    updated_by: item.updated_by,
+    tags: item.tags,
+    order: item.order_index,
+    sourceId: item.source_message_id,
+    metadata: item.metadata,
+    sources: item.metadata?.sources,
+  });
+
+  // BoardCardで使うカードリスト
+  const boardCards = filteredCards.map(convertToCard);
+
   return {
     // External board context
-    allCards: cards,
+    allCards: state.cards,
     
     // Board space specific state and filtered data
     boardSpaceState,
-    filteredCards: sortedCards,
+    filteredCards: boardCards,
     
     // Column and filtering functions
     setActiveColumn,
@@ -554,12 +592,10 @@ export const useBoardSpace = () => {
     getNetworkGraphData,
     
     // Basic card operations (passed through from board context)
-    addCard,
     updateCard,
     deleteCard,
-    moveCard,
-    promoteCardToInsight,
-    promoteInsightToTheme,
-    findRelatedCards
+    getCardsByColumn,
+    addCards,
+    dispatch
   };
 }; 

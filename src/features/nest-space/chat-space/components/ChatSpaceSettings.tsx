@@ -9,7 +9,7 @@ import {
   Modal
 } from 'react-native';
 import { useChatSpace } from '../hooks/useChatSpace';
-import { useNestSpace } from '../../contexts/_NestSpaceContext';
+import { useNestSpace } from '@contexts/NestSpaceContext';
 import { SpacePersonalization } from '../../types/nestSpace.types';
 
 interface SettingsSectionProps {

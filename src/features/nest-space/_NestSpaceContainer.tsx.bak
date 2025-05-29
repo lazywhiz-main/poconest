@@ -2,7 +2,7 @@ import React, { Suspense, useMemo, useState, useCallback, useEffect } from 'reac
 import { View, StyleSheet, ActivityIndicator, Text, useWindowDimensions, Platform, TouchableOpacity } from 'react-native';
 import { SpaceNavigator } from './navigation';
 import { useNestSpace } from './contexts/NestSpaceContext';
-import { SpaceType } from './types/nestSpace.types';
+import { SpaceType } from '../../types/nestSpace.types';
 
 // 空間コンポーネントの遅延ロード
 const ChatSpace = React.lazy(() => import('../chat-space/components/ChatSpace'));

@@ -3,71 +3,81 @@
  */
 
 export const colors = {
-  // プライマリカラー (薄いグレー系)
-  primary: '#E5E7EB',
-  primaryLight: '#F3F4F6',
-  primaryDark: '#9CA3AF',
+  // プライマリカラー（ダークスレート）
+  primary: '#4a6da7',
+  primaryLight: '#6b8cb8',
+  primaryDark: '#2c4a7d',
   
   // セカンダリカラー (コーラル) - より落ち着いた色調に
-  secondary: '#E86C60',
-  secondaryLight: '#F09D95',
-  secondaryDark: '#D05A4F',
+  secondary: '#f5f5f5',
+  secondaryLight: '#ffffff',
+  secondaryDark: '#e0e0e0',
   
-  // アクセントカラー (ミント色) - より落ち着いた色調に
-  accent: '#47B8A9',
-  accentLight: '#7CCDC3',
-  accentDark: '#3A9A8E',
+  // アクセントカラー（ブライトティール）
+  accent: '#ff6b6b',
+  accentLight: '#ff8e8e',
+  accentDark: '#e64a4a',
   
-  // 空間カラー - 彩度と明度のバランスを整えた
+  // アクションカラー（ローズ）
+  action: '#4a6da7',
+  actionLight: '#6b8cb8',
+  actionDark: '#2c4a7d',
+  
+  // サブカラー
+  white: '#FFFFFF',
+  lightGray: '#F1F5F9',
+  
+  // 空間カラー
   spaces: {
     chat: {
-      primary: '#E86C60', // 落ち着いたコーラル
-      background: '#FDF5F4',
-      accent: '#E86C60',
+      primary: '#FF6B6B',
+      background: '#FFF5F5',
+      accent: '#FFE3E3',
     },
     board: {
-      primary: '#F5AE41', // 深みのある黄色
-      background: '#FEF8ED',
-      accent: '#F5AE41',
+      primary: '#FFD93D',
+      background: '#FFF9E6',
+      accent: '#FFF3CC',
     },
-    zoom: {
-      primary: '#47B8A9', // 落ち着いたミント
-      background: '#F0F9F7',
-      accent: '#47B8A9',
+    meeting: {
+      primary: '#4ECDC4',
+      background: '#F0FFFD',
+      accent: '#E0FFFC',
     },
     analysis: {
-      primary: '#2F87B8', // 青みのあるターコイズ
-      background: '#EAF5FA',
-      accent: '#2F87B8',
+      primary: '#2E7D32',
+      background: '#F1F8E9',
+      accent: '#E8F5E9',
     },
     settings: {
-      primary: '#4B5563', // 濃いグレー
-      background: '#F8FAFC',
-      accent: '#4B5563',
+      primary: '#424242',
+      background: '#F5F5F5',
+      accent: '#EEEEEE',
     },
   },
   
   // ユーティリティカラー
   text: {
-    primary: '#111827', // 濃いグレー（ほぼ黒）でコントラストを強く
-    secondary: '#4B5563',
-    disabled: '#9CA3AF',
-    hint: '#9CA3AF',
+    primary: '#333333',
+    secondary: '#757575',
+    disabled: '#9e9e9e',
+    hint: '#94A3B8',
     onDark: '#F9FAFB',
   },
   background: {
-    default: '#F3F4F6',
-    paper: '#FFFFFF',
-    card: '#FFFFFF',
+    default: '#ffffff',
+    paper: '#f5f5f5',
+    card: '#ffffff',
   },
-  divider: '#E5E7EB',
+  divider: '#E2E8F0',
+  border: '#e0e0e0',
   
-  // ステータスカラー - WCAG AAに準拠したコントラスト比
+  // ステータスカラー
   status: {
-    success: '#0E9E73', // ディープグリーンと同じ色で統一感
-    info: '#2F87B8',    // Analysis色と同じにして統一感を出す
-    warning: '#F5AE41', // ボードの色と同じ
-    error: '#E86C60', // コーラルと同じ
+    success: '#4caf50',
+    info: '#2196f3',
+    warning: '#ff9800',
+    error: '#f44336',
   },
 };
 

@@ -16,7 +16,8 @@ import { useNest } from '../contexts/NestContext';
 import NestMemberList from '../components/NestMemberList';
 import InvitationForm from '../components/InvitationForm';
 import PrivacySettingsForm from '../components/PrivacySettingsForm';
-import { COLORS, SPACING } from '@constants/config';
+import theme from '../../../styles/theme';
+import { useNavigate } from 'react-router-dom';
 
 // シミュレートされたナビゲーションのためのタイプ
 interface NestSettingsScreenProps {
@@ -26,7 +27,7 @@ interface NestSettingsScreenProps {
 
 const NestSettingsScreen: React.FC<NestSettingsScreenProps> = ({ 
   nestId: propNestId,
-  onBack 
+  onBack
 }) => {
   const { currentNest, userNests, updateNest, loading } = useNest();
   const [name, setName] = useState('');
@@ -37,9 +38,11 @@ const NestSettingsScreen: React.FC<NestSettingsScreenProps> = ({
   
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
-  
+
   // 使用するNest ID (props経由で指定されるか、現在のNestを使用)
   const nestId = propNestId || currentNest?.id;
+  
+  const navigate = useNavigate();
   
   // 現在のNestの情報をフォームにセット
   useEffect(() => {
@@ -125,7 +128,7 @@ const NestSettingsScreen: React.FC<NestSettingsScreenProps> = ({
   if (!nestId || loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <ActivityIndicator size="large" color={theme.colors.accent} />
         <Text style={styles.loadingText}>設定を読み込み中...</Text>
       </View>
     );
@@ -184,85 +187,88 @@ const NestSettingsScreen: React.FC<NestSettingsScreenProps> = ({
     </View>
   );
 
+  // 戻るボタンのハンドラ
+  const handleBack = () => {
+    if (onBack) {
+      onBack();
+    } else {
+      navigate(`/nest-top?nestId=${nestId}`);
+    }
+  };
+
   // デスクトップ用のサイドナビゲーション
   const renderDesktopNavigation = () => (
     <View style={styles.desktopSidebar}>
       <TouchableOpacity
-        style={[styles.sidebarItem, activeTab === 'basic' && styles.activeSidebarItem]}
-        onPress={() => setActiveTab('basic')}
-        accessibilityRole="tab"
-        accessibilityState={{ selected: activeTab === 'basic' }}
+        style={styles.sidebarBackButton}
+        onPress={handleBack}
+        accessibilityLabel="NESTトップへ戻る"
       >
-        <Text 
-          style={[
-            styles.sidebarItemText, 
-            activeTab === 'basic' && styles.activeSidebarItemText
-          ]}
-        >
-          基本情報
-        </Text>
-        <Text style={styles.shortcutText}>Alt+1</Text>
+        <Text style={styles.sidebarBackButtonText}>← NESTトップへ</Text>
       </TouchableOpacity>
-      
-      <TouchableOpacity
-        style={[styles.sidebarItem, activeTab === 'members' && styles.activeSidebarItem]}
-        onPress={() => setActiveTab('members')}
-        accessibilityRole="tab"
-        accessibilityState={{ selected: activeTab === 'members' }}
-      >
-        <Text 
-          style={[
-            styles.sidebarItemText, 
-            activeTab === 'members' && styles.activeSidebarItemText
-          ]}
-        >
-          メンバー管理
-        </Text>
-        <Text style={styles.shortcutText}>Alt+2</Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity
-        style={[styles.sidebarItem, activeTab === 'privacy' && styles.activeSidebarItem]}
-        onPress={() => setActiveTab('privacy')}
-        accessibilityRole="tab"
-        accessibilityState={{ selected: activeTab === 'privacy' }}
-      >
-        <Text 
-          style={[
-            styles.sidebarItemText, 
-            activeTab === 'privacy' && styles.activeSidebarItemText
-          ]}
-        >
-          プライバシー設定
-        </Text>
-        <Text style={styles.shortcutText}>Alt+3</Text>
-      </TouchableOpacity>
-      
-      <View style={styles.sidebarFooter}>
+      <View style={styles.menuGroup}>
         <TouchableOpacity
-          style={styles.saveButton}
-          onPress={handleSaveBasicInfo}
-          disabled={savingBasicInfo}
-          accessibilityLabel="設定を保存"
-          accessibilityHint="Alt+Sでも保存できます"
+          style={[styles.sidebarItem, activeTab === 'basic' && styles.activeSidebarItem]}
+          onPress={() => setActiveTab('basic')}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: activeTab === 'basic' }}
         >
-          {savingBasicInfo ? (
-            <ActivityIndicator size="small" color={COLORS.white} />
-          ) : (
-            <Text style={styles.saveButtonText}>保存 (Alt+S)</Text>
-          )}
-        </TouchableOpacity>
-        
-        {onBack && (
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={onBack}
-            accessibilityLabel="戻る"
+          <Text 
+            style={[
+              styles.sidebarItemText, 
+              activeTab === 'basic' && styles.activeSidebarItemText
+            ]}
           >
-            <Text style={styles.backButtonText}>戻る</Text>
-          </TouchableOpacity>
-        )}
+            基本情報
+          </Text>
+          <Text style={styles.shortcutText}>Alt+1</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.sidebarItem, activeTab === 'members' && styles.activeSidebarItem]}
+          onPress={() => setActiveTab('members')}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: activeTab === 'members' }}
+        >
+          <Text 
+            style={[
+              styles.sidebarItemText, 
+              activeTab === 'members' && styles.activeSidebarItemText
+            ]}
+          >
+            メンバー管理
+          </Text>
+          <Text style={styles.shortcutText}>Alt+2</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.sidebarItem, activeTab === 'privacy' && styles.activeSidebarItem]}
+          onPress={() => setActiveTab('privacy')}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: activeTab === 'privacy' }}
+        >
+          <Text 
+            style={[
+              styles.sidebarItemText, 
+              activeTab === 'privacy' && styles.activeSidebarItemText
+            ]}
+          >
+            プライバシー設定
+          </Text>
+          <Text style={styles.shortcutText}>Alt+3</Text>
+        </TouchableOpacity>
       </View>
+      <TouchableOpacity
+        style={styles.saveButton}
+        onPress={handleSaveBasicInfo}
+        disabled={savingBasicInfo}
+        accessibilityLabel="設定を保存"
+        accessibilityHint="Alt+Sでも保存できます"
+      >
+        {savingBasicInfo ? (
+          <ActivityIndicator size="small" color={theme.colors.background.paper} />
+        ) : (
+          <Text style={styles.saveButtonText}>保存 (Alt+S)</Text>
+        )}
+      </TouchableOpacity>
     </View>
   );
 
@@ -328,7 +334,7 @@ const NestSettingsScreen: React.FC<NestSettingsScreenProps> = ({
           disabled={savingBasicInfo}
         >
           {savingBasicInfo ? (
-            <ActivityIndicator size="small" color={COLORS.white} />
+            <ActivityIndicator size="small" color={theme.colors.background.paper} />
           ) : (
             <Text style={styles.mobileFormSubmitText}>保存</Text>
           )}
@@ -378,8 +384,8 @@ const NestSettingsScreen: React.FC<NestSettingsScreenProps> = ({
       <View style={styles.mobileHeader}>
         <TouchableOpacity 
           style={styles.mobileBackButton}
-          onPress={onBack}
-          accessibilityLabel="戻る"
+          onPress={handleBack}
+          accessibilityLabel="NESTトップへ戻る"
         >
           <Text style={styles.mobileBackButtonText}>←</Text>
         </TouchableOpacity>
@@ -409,68 +415,68 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: SPACING.lg,
+    padding: theme.spacing.lg,
   },
   loadingText: {
-    marginTop: SPACING.md,
-    fontSize: 16,
-    color: COLORS.gray,
+    marginTop: theme.spacing.md,
+    fontSize: theme.fontSizes.md,
+    color: theme.colors.text.secondary,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: SPACING.lg,
-    color: COLORS.text,
+    fontSize: theme.fontSizes.xl,
+    fontWeight: theme.fontWeights.bold as any,
+    marginBottom: theme.spacing.lg,
+    color: theme.colors.text.primary,
   },
   formGroup: {
-    marginBottom: SPACING.lg,
+    marginBottom: theme.spacing.lg,
   },
   label: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginBottom: SPACING.xs,
-    color: COLORS.text,
+    fontSize: theme.fontSizes.md,
+    fontWeight: theme.fontWeights.medium as any,
+    marginBottom: theme.spacing.xs,
+    color: theme.colors.text.primary,
   },
   input: {
-    backgroundColor: COLORS.white,
+    backgroundColor: theme.colors.background.paper,
     borderWidth: 1,
-    borderColor: COLORS.lightGray,
-    borderRadius: 8,
-    padding: SPACING.md,
-    fontSize: 16,
-    color: COLORS.text,
+    borderColor: theme.colors.divider,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    fontSize: theme.fontSizes.md,
+    color: theme.colors.text.primary,
   },
   textArea: {
     minHeight: 100,
     textAlignVertical: 'top',
   },
   charCount: {
-    fontSize: 12,
-    color: COLORS.gray,
+    fontSize: theme.fontSizes.xs,
+    color: theme.colors.text.disabled,
     alignSelf: 'flex-end',
     marginTop: 4,
   },
   colorOptions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginTop: SPACING.xs,
+    marginTop: theme.spacing.xs,
   },
   colorOption: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    marginRight: SPACING.sm,
-    marginBottom: SPACING.sm,
+    marginRight: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
   },
   selectedColorOption: {
     borderWidth: 3,
-    borderColor: COLORS.white,
+    borderColor: theme.colors.background.paper,
     ...Platform.select({
       web: {
-        boxShadow: '0 0 0 2px ' + COLORS.primary,
+        boxShadow: '0 0 0 2px ' + theme.colors.accent,
       },
       default: {
-        shadowColor: COLORS.primary,
+        shadowColor: theme.colors.accent,
         shadowOffset: { width: 0, height: 0 },
         shadowOpacity: 1,
         shadowRadius: 4,
@@ -483,100 +489,68 @@ const styles = StyleSheet.create({
   desktopContainer: {
     flex: 1,
     flexDirection: 'row',
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.colors.background.default,
   },
   desktopSidebar: {
     width: 240,
-    backgroundColor: COLORS.white,
+    backgroundColor: theme.colors.background.paper,
     borderRightWidth: 1,
-    borderRightColor: COLORS.lightGray,
-    padding: SPACING.md,
-    paddingTop: SPACING.lg,
+    borderRightColor: theme.colors.divider,
+    padding: theme.spacing.md,
+    paddingTop: theme.spacing.lg,
     height: '100%',
     flexDirection: 'column',
     justifyContent: 'space-between',
   },
-  sidebarItem: {
+  sidebarBackButton: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: SPACING.sm,
-    marginBottom: SPACING.xs,
-    borderRadius: 8,
+    padding: theme.spacing.sm,
+    marginBottom: theme.spacing.xs,
+    borderRadius: theme.borderRadius.md,
   },
-  activeSidebarItem: {
-    backgroundColor: COLORS.primary,
-  },
-  sidebarItemText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: COLORS.text,
-  },
-  activeSidebarItemText: {
-    color: COLORS.white,
-    fontWeight: '600',
-  },
-  shortcutText: {
-    fontSize: 12,
-    color: COLORS.gray,
-  },
-  sidebarFooter: {
-    marginTop: 'auto',
-    paddingTop: SPACING.lg,
+  sidebarBackButtonText: {
+    fontSize: theme.fontSizes.md,
+    fontWeight: theme.fontWeights.medium as any,
+    color: theme.colors.text.primary,
   },
   saveButton: {
-    backgroundColor: COLORS.primary,
-    padding: SPACING.md,
-    borderRadius: 8,
+    backgroundColor: theme.colors.action,
+    padding: theme.spacing.md,
+    borderRadius: theme.borderRadius.md,
     alignItems: 'center',
-    marginBottom: SPACING.sm,
+    marginBottom: theme.spacing.sm,
   },
   saveButtonText: {
-    color: COLORS.white,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  backButton: {
-    backgroundColor: 'transparent',
-    padding: SPACING.md,
-    borderRadius: 8,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.gray,
-  },
-  backButtonText: {
-    color: COLORS.text,
-    fontSize: 16,
+    color: theme.colors.background.paper,
+    fontSize: theme.fontSizes.md,
+    fontWeight: theme.fontWeights.semibold as any,
   },
   desktopContent: {
     flex: 1,
-    padding: SPACING.lg,
+    padding: theme.spacing.lg,
   },
   contentContainer: {
     flex: 1,
   },
   basicSettingsContainer: {
-    padding: SPACING.md,
-    backgroundColor: COLORS.white,
-    borderRadius: 8,
+    padding: theme.spacing.md,
+    backgroundColor: theme.colors.background.paper,
+    borderRadius: theme.borderRadius.lg,
     ...Platform.select({
       web: {
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+        boxShadow: '0 2px 8px rgba(20, 184, 166, 0.08)',
       },
       default: {
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 3,
+        ...theme.shadows.md,
       }
     }),
-    marginBottom: SPACING.lg,
+    marginBottom: theme.spacing.lg,
   },
   membersContainer: {
-    padding: SPACING.md,
-    backgroundColor: COLORS.white,
-    borderRadius: 8,
+    padding: theme.spacing.md,
+    backgroundColor: theme.colors.background.paper,
+    borderRadius: theme.borderRadius.lg,
     ...Platform.select({
       web: {
         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
@@ -589,12 +563,12 @@ const styles = StyleSheet.create({
         shadowRadius: 3,
       }
     }),
-    marginBottom: SPACING.lg,
+    marginBottom: theme.spacing.lg,
   },
   privacyContainer: {
-    padding: SPACING.md,
-    backgroundColor: COLORS.white,
-    borderRadius: 8,
+    padding: theme.spacing.md,
+    backgroundColor: theme.colors.background.paper,
+    borderRadius: theme.borderRadius.lg,
     ...Platform.select({
       web: {
         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
@@ -607,79 +581,107 @@ const styles = StyleSheet.create({
         shadowRadius: 3,
       }
     }),
-    marginBottom: SPACING.lg,
+    marginBottom: theme.spacing.lg,
   },
   
   // モバイル版スタイル
   mobileContainer: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.colors.background.default,
   },
   mobileHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: COLORS.white,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.md,
+    backgroundColor: theme.colors.background.paper,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.lightGray,
+    borderBottomColor: theme.colors.divider,
   },
   mobileBackButton: {
-    padding: SPACING.sm,
+    padding: theme.spacing.sm,
   },
   mobileBackButtonText: {
     fontSize: 20,
-    color: COLORS.primary,
+    color: theme.colors.primary,
   },
   mobileHeaderTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: theme.colors.text.primary,
   },
   mobileHeaderRight: {
     width: 40, // スペース確保用
   },
   mobileTabContainer: {
     flexDirection: 'row',
-    backgroundColor: COLORS.white,
+    backgroundColor: theme.colors.background.paper,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.lightGray,
+    borderBottomColor: theme.colors.divider,
   },
   mobileTab: {
     flex: 1,
-    paddingVertical: SPACING.md,
+    paddingVertical: theme.spacing.md,
     alignItems: 'center',
   },
   activeTab: {
     borderBottomWidth: 2,
-    borderBottomColor: COLORS.primary,
+    borderBottomColor: theme.colors.primary,
   },
   mobileTabText: {
     fontSize: 14,
-    color: COLORS.gray,
+    color: theme.colors.text.disabled,
   },
   activeTabText: {
-    color: COLORS.primary,
+    color: theme.colors.primary,
     fontWeight: '600',
   },
   mobileContent: {
     flex: 1,
   },
   mobileFormSubmit: {
-    backgroundColor: COLORS.primary,
-    padding: SPACING.md,
-    borderRadius: 8,
+    backgroundColor: theme.colors.primary,
+    padding: theme.spacing.md,
+    borderRadius: theme.borderRadius.md,
     alignItems: 'center',
-    marginTop: SPACING.md,
+    marginTop: theme.spacing.md,
   },
   mobileFormSubmitText: {
-    color: COLORS.white,
-    fontSize: 16,
-    fontWeight: '600',
+    color: theme.colors.background.paper,
+    fontSize: theme.fontSizes.md,
+    fontWeight: theme.fontWeights.semibold as any,
   },
   disabledButton: {
     opacity: 0.5,
+  },
+  sidebarItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: theme.spacing.sm,
+    marginBottom: theme.spacing.xs,
+    borderRadius: theme.borderRadius.md,
+  },
+  activeSidebarItem: {
+    backgroundColor: theme.colors.primary,
+  },
+  sidebarItemText: {
+    fontSize: theme.fontSizes.md,
+    fontWeight: theme.fontWeights.medium as any,
+    color: theme.colors.text.primary,
+  },
+  activeSidebarItemText: {
+    color: theme.colors.background.paper,
+    fontWeight: theme.fontWeights.semibold as any,
+  },
+  shortcutText: {
+    fontSize: theme.fontSizes.xs,
+    color: theme.colors.text.disabled,
+  },
+  menuGroup: {
+    marginTop: theme.spacing.lg,
+    marginBottom: 'auto',
   },
 });
 

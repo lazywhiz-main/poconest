@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Modal, StyleSheet, Platform } from 'react-native';
 import theme from '../../../styles/theme'; // プロジェクトのテーマファイルへのパスを確認してください
 
@@ -15,6 +15,14 @@ const CreateNestModal: React.FC<CreateNestModalProps> = ({ visible, onClose, onS
   // const [icon, setIcon] = useState('🏠');
   const [isSubmitting, setIsSubmitting] = useState(false);
   // const [error, setError] = useState<string | null>(null);
+
+  // Reset form state when modal becomes visible
+  useEffect(() => {
+    if (visible) {
+      setName('');
+      setIsSubmitting(false);
+    }
+  }, [visible]);
 
   // const handleSubmit = async () => { ... }; // Original handleSubmit temporarily commented
 
@@ -35,47 +43,66 @@ const CreateNestModal: React.FC<CreateNestModalProps> = ({ visible, onClose, onS
   }
 
   return (
-    <TouchableOpacity 
-      style={styles.modalOverlay_VIEW_VERSION}
-      activeOpacity={1}
-      onPress={handleClose} 
+    <Modal
+      visible={visible}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={handleClose}
     >
       <TouchableOpacity 
-        style={styles.modalContent} 
-        activeOpacity={1} 
-        onPress={(e) => e.stopPropagation()} 
+        style={styles.modalOverlay_VIEW_VERSION}
+        activeOpacity={1}
+        onPress={handleClose} 
       >
-        <Text style={styles.modalTitle}>新しい巣を作成 (骨組みテスト)</Text>
-        
-        {/* Temporarily comment out all form elements */}
-        {/* {error && <Text style={styles.errorText}>{error}</Text>}
-        <TextInput
-          style={styles.input}
-          placeholder="Nestの名前 (テスト用)"
-          value={name} // Still use name to test button disabling
-          onChangeText={setName}
-          placeholderTextColor={theme.colors.text.hint}
-        />
-        */} 
+        <TouchableOpacity 
+          style={styles.modalContent} 
+          activeOpacity={1} 
+          onPress={(e) => e.stopPropagation()} 
+        >
+          <Text style={styles.modalTitle}>新しい巣を作成</Text>
+          
+          <TextInput
+            style={styles.input}
+            placeholder="Nestの名前"
+            value={name}
+            onChangeText={setName}
+            placeholderTextColor={theme.colors.text.hint}
+          />
 
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            style={[styles.button, styles.cancelButton]}
-            onPress={handleClose}
-            // disabled={isSubmitting} // Temporarily enable
-          >
-            <Text style={styles.buttonTextWhite}>キャンセル</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.button, styles.submitButton /*, (isSubmitting || !name.trim()) && styles.disabledButton*/ ]}
-            onPress={() => console.log("Submit (骨組み) clicked")} // Temporary simple action
-            // disabled={isSubmitting || !name.trim()} // Temporarily enable
-          >
-            <Text style={styles.buttonText}>作成</Text>
-          </TouchableOpacity>
-        </View>
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity
+              style={[styles.button, styles.cancelButton]}
+              onPress={handleClose}
+              disabled={isSubmitting}
+            >
+              <Text style={styles.buttonTextWhite}>キャンセル</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.button, 
+                styles.submitButton,
+                (isSubmitting || !name.trim()) && styles.disabledButton
+              ]}
+              onPress={() => {
+                if (!isSubmitting && name.trim()) {
+                  setIsSubmitting(true);
+                  onSubmit({ name: name.trim() })
+                    .catch(error => {
+                      console.error('Failed to create nest:', error);
+                    })
+                    .finally(() => {
+                      setIsSubmitting(false);
+                    });
+                }
+              }}
+              disabled={isSubmitting || !name.trim()}
+            >
+              <Text style={styles.buttonText}>作成</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
       </TouchableOpacity>
-    </TouchableOpacity>
+    </Modal>
   );
 };
 

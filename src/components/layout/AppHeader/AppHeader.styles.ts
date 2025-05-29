@@ -85,13 +85,11 @@ export const createStyles = (
       overflow: 'hidden',
     },
     title: {
-      fontSize: Platform.select({
-        web: screenType === 'desktop' ? 20 : 18,
-        default: 18,
-      }),
+      fontSize: 18,
       fontWeight: '600',
       color: COLORS.text,
       textAlign: 'center',
+      padding: 12,
     },
     subtitle: {
       fontSize: 12,

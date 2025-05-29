@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, SafeAreaView, useWindowDimensions } from 'react-native';
-import { NestSpaceProvider } from './contexts/_NestSpaceContext';
+import { NestSpaceProvider } from '@contexts/NestSpaceContext';
 import NestSpaceNavigator from './NestSpaceNavigator';
-import { SpaceType } from './types/nestSpace.types';
+import { SpaceType } from '../../types/nestSpace.types';
 import ZoomSpaceScreen from './zoom-space/screens/ZoomSpaceScreen';
 
 /**

@@ -1,12 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Image, FlatList } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Image, FlatList, Modal, useWindowDimensions, Animated, Easing, Dimensions, Alert, Platform } from 'react-native';
 import theme from '../../../styles/theme';
-import { useChatToBoard } from '../../../hooks/useChatToBoard';
 import { useChat } from '../../../contexts/ChatContext';
 import { Channel, Message } from '../../../types/chat';
+import { useAuth } from '@contexts/AuthContext';
+import { useNestSpace } from '@contexts/NestSpaceContext';
+import { createPortal } from 'react-dom';
+// import { useBoardContext } from '../../../features/board-space/contexts/BoardContext';
+import { SUPABASE_FUNCTION_URL } from '../../../constants/config';
+import { useChatToBoard } from '../../../hooks/useChatToBoard';
+
+console.log('ChatSpace.tsx loaded!');
 
 interface ChatSpaceProps {
-  // 必要に応じてpropsを追加
+  nestId: string;
+  // 必要に応じて他のpropsを追加
 }
 
 // SVGアイコンコンポーネント
@@ -103,14 +111,71 @@ const getIconPath = (name: string) => {
   }
 };
 
+// チャネル作成モーダル
+type CreateChannelModalProps = {
+  visible: boolean;
+  onClose: () => void;
+  onSubmit: (name: string, desc: string) => void;
+};
+
+const CreateChannelModal: React.FC<CreateChannelModalProps> = ({ visible, onClose, onSubmit }) => {
+  const [name, setName] = useState('');
+  const [desc, setDesc] = useState('');
+  const handleCreate = () => {
+    if (name.trim()) {
+      onSubmit(name.trim(), desc.trim());
+      setName('');
+      setDesc('');
+    }
+  };
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={{ flex:1, justifyContent:'center', alignItems:'center', backgroundColor:'rgba(0,0,0,0.2)' }}>
+        <View style={{ backgroundColor:'#fff', borderRadius:12, padding:24, width:320, maxWidth:'90%' }}>
+          <Text style={{ fontSize:18, fontWeight:'bold', marginBottom:12 }}>新しいチャネルを作成</Text>
+          <TextInput
+            style={{ borderWidth:1, borderColor:'#ccc', borderRadius:8, padding:8, marginBottom:12 }}
+            placeholder="チャネル名"
+            value={name}
+            onChangeText={setName}
+            autoFocus
+          />
+          <TextInput
+            style={{ borderWidth:1, borderColor:'#ccc', borderRadius:8, padding:8, marginBottom:16 }}
+            placeholder="説明 (任意)"
+            value={desc}
+            onChangeText={setDesc}
+          />
+          <View style={{ flexDirection:'row', justifyContent:'flex-end' }}>
+            <TouchableOpacity onPress={onClose} style={{ marginRight:16 }}>
+              <Text style={{ color:'#888', fontSize:16 }}>キャンセル</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleCreate} disabled={!name.trim()}>
+              <Text style={{ color:!name.trim() ? '#ccc' : '#007AFF', fontSize:16, fontWeight:'bold' }}>作成</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
 /**
  * チャット空間コンポーネント
  * 
  * チャネルごとに直接メッセージのやり取りを行える
  */
-const ChatSpace: React.FC<ChatSpaceProps> = () => {
+const ChatSpace: React.FC<ChatSpaceProps> = ({ nestId }) => {
+  console.log('ChatSpace mounted!');
   const [newMessage, setNewMessage] = useState('');
   const scrollViewRef = useRef<ScrollView>(null);
+  const [createModalVisible, setCreateModalVisible] = useState(false);
+  const [showChannelList, setShowChannelList] = useState(false);
+  const { width } = useWindowDimensions();
+  const isMobile = width < 600;
+  // アニメーション用
+  const windowHeight = Dimensions.get('window').height;
+  const channelListAnim = useRef(new Animated.Value(-windowHeight)).current; // 初期は画面外上部
   
   // ChatContextからチャット関連の状態と機能を取得
   const { 
@@ -121,14 +186,47 @@ const ChatSpace: React.FC<ChatSpaceProps> = () => {
     sendMessage: sendChatMessage,
     isPocoTyping,
     extractAndSaveInsights,
-    isExtractingInsights
+    isExtractingInsights,
+    createChatRoom,
+    isChatRoomsLoaded,
+    deleteChatRoom
   } = useChat();
   
+  // const { addCards } = useBoardContext();
+
+  // チャットルームのロード完了後、activeChatRoomIdが未設定なら自動で最初のルームを選択
+  useEffect(() => {
+    if (isChatRoomsLoaded && chatRooms.length > 0 && !activeChatRoomId) {
+      setActiveChatRoom(chatRooms[0].id);
+    }
+  }, [isChatRoomsLoaded, chatRooms, activeChatRoomId, setActiveChatRoom]);
+
+  // ローディング中はローディングUIを表示
+  console.log('isChatRoomsLoaded:', isChatRoomsLoaded);
+  if (!isChatRoomsLoaded) {
+    console.log('returning loading...');
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#e3f2fd' }}>
+        <Text style={{ fontSize: 18, color: '#4a6da7' }}>チャットルームを読み込み中...</Text>
+      </View>
+    );
+  }
+  console.log('passed loading check');
+  
   // 現在選択されているチャネル情報
-  const currentChannel = chatRooms.find(room => room.id === activeChatRoomId);
+  const currentChannel = chatRooms.find(room => String(room.id) === String(activeChatRoomId));
   
   // 現在のチャネルのメッセージ一覧
   const currentMessages = activeChatRoomId ? messages[activeChatRoomId] || [] : [];
+  console.log('currentMessages:', currentMessages);
+  // AI分析用のMessage[]に変換
+  const aiMessages = currentMessages.map(msg => ({
+    id: msg.id,
+    text: msg.content,
+    userId: msg.sender?.id || 'unknown',
+    userName: msg.sender?.name || 'User',
+    timestamp: msg.created_at,
+  }));
 
   // メッセージ送信時に自動スクロール
   useEffect(() => {
@@ -138,21 +236,6 @@ const ChatSpace: React.FC<ChatSpaceProps> = () => {
       }, 100);
     }
   }, [currentMessages.length]);
-
-  // チャット→ボード連携の設定
-  const { status, startAnalysis } = useChatToBoard({
-    channelId: activeChatRoomId || '',
-    // 型変換が必要
-    messages: currentMessages.map(msg => ({
-      id: msg.id,
-      text: msg.content,
-      userId: msg.sender.id,
-      userName: msg.sender.name,
-      timestamp: msg.created_at,
-      isSelf: msg.sender.id === 'human-user-id'
-    })) as any,
-    enabled: true
-  });
 
   // メッセージ送信ハンドラー
   const handleSendMessage = async () => {
@@ -166,6 +249,16 @@ const ChatSpace: React.FC<ChatSpaceProps> = () => {
   const handleExtractInsights = async () => {
     if (!activeChatRoomId) return;
     await extractAndSaveInsights(activeChatRoomId);
+  };
+
+  // チャネル追加ハンドラー
+  const handleAddChannel = () => {
+    setCreateModalVisible(true);
+  };
+
+  const handleCreateChannel = async (name: string, desc: string) => {
+    setCreateModalVisible(false);
+    await createChatRoom(nestId, name, desc);
   };
 
   // チャネルアイテムをレンダリング
@@ -208,10 +301,11 @@ const ChatSpace: React.FC<ChatSpaceProps> = () => {
   };
 
   // メッセージ表示コンポーネント
-  const ChatMessageItem = ({ message }: { message: typeof currentMessages[0] }) => {
-    const isSelf = message.sender.id === 'human-user-id';
+  const { user } = useAuth();
+  const ChatMessageItem = ({ message, user }: { message: typeof currentMessages[0], user: any }) => {
+    const isSelf = message.sender.id === user?.id;
     const timestamp = new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    
+
     return (
       <View style={[styles.messageRow, isSelf && styles.selfMessageRow]}>
         {!isSelf && (
@@ -222,146 +316,475 @@ const ChatSpace: React.FC<ChatSpaceProps> = () => {
             />
           </View>
         )}
-        
-        <View 
-          style={[
-            styles.messageBubble,
-            isSelf ? styles.selfBubble : styles.otherBubble
-          ]}
-        >
+        <View style={{ flex: 1 }}>
+          {/* 自分以外はユーザー名をバブルの上に表示 */}
           {!isSelf && (
             <Text style={styles.messageAuthor}>{message.sender.name}</Text>
           )}
-          <Text style={styles.messageText}>{message.content}</Text>
-          <Text style={styles.timestamp}>{timestamp}</Text>
+          <View 
+            style={[
+              styles.messageBubble,
+              isSelf ? styles.selfBubble : styles.otherBubble
+            ]}
+          >
+            <Text style={styles.messageText}>{message.content}</Text>
+            {/* タイムスタンプは常にバブル内右下 */}
+            <Text style={[styles.timestamp, { alignSelf: 'flex-end', marginTop: 4 }]}>{timestamp}</Text>
+          </View>
         </View>
       </View>
     );
   };
 
+  useEffect(() => {
+    if (isMobile && showChannelList) {
+      // モーダル表示時に上から下へスライドイン
+      channelListAnim.setValue(-windowHeight);
+      Animated.timing(channelListAnim, {
+        toValue: 0,
+        duration: 300,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [showChannelList, isMobile, channelListAnim, windowHeight]);
+
+  // メニュー表示用の状態
+  const [menuVisible, setMenuVisible] = useState(false);
+  const menuButtonRef = useRef<any>(null);
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
+  const openMenu = () => {
+    if (typeof window !== 'undefined' && menuButtonRef.current) {
+      const rect = menuButtonRef.current.getBoundingClientRect();
+      setMenuPos({ top: rect.bottom, left: rect.right - 200 }); // 200はメニュー幅
+    }
+    setMenuVisible(true);
+  };
+
+  // メニューが開いた直後にログ
+  if (menuVisible && typeof window !== 'undefined') {
+    console.log('Menu opened!');
+  }
+
+  const handleDeleteRoom = () => {
+    if (!currentChannel) return;
+    Alert.alert(
+      'チャットルームを削除',
+      `「${currentChannel.name}」を本当に削除しますか？`,
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        { text: '削除', style: 'destructive', onPress: async () => {
+          await deleteChatRoom(currentChannel.id);
+          setMenuVisible(false);
+        }},
+      ]
+    );
+  };
+
+  // チャネル切り替え時にメニューを自動で閉じる
+  useEffect(() => {
+    setMenuVisible(false);
+  }, [activeChatRoomId]);
+
+  // デバッグ用ログ
+  console.log('chatRooms:', chatRooms);
+  console.log('activeChatRoomId:', activeChatRoomId);
+  console.log('currentChannel:', currentChannel);
+
+  // チャット→ボード連携の設定
+  const [analyzeResult, setAnalyzeResult] = useState<any[] | null>(null);
+  const [showAnalyzeResultModal, setShowAnalyzeResultModal] = useState(false);
+  const [analyzeWarning, setAnalyzeWarning] = useState<string | null>(null);
+  const [showAnalyzeTooltip, setShowAnalyzeTooltip] = useState(false);
+
+  const { status, startAnalysis, insights } = useChatToBoard({
+    channelId: currentChannel?.id || '',
+    messages: aiMessages,
+    enabled: true,
+    onNewInsightsGenerated: (newInsights) => {
+      setAnalyzeResult(newInsights);
+      setShowAnalyzeResultModal(true);
+    },
+  });
+
+  // 分析ボタン押下時のハンドラ
+  const handleAnalyzeClick = async () => {
+    console.log('[ChatSpace] handleAnalyzeClick called');
+    const warn = await startAnalysis();
+    if (warn) {
+      setAnalyzeWarning(warn);
+      setShowAnalyzeResultModal(true);
+    }
+  };
+
   return (
-    <View style={styles.container}>
-      {/* チャット空間ヘッダー */}
+    <View style={{ flex: 1, flexDirection: 'column' }}>
+      {/* チャット空間ヘッダー（常に「チャット空間」＋アイコンで固定） */}
       <View style={styles.spaceHeader}>
         <View style={styles.headerIcon}>
-          <Text style={styles.headerIconText}>💬</Text>
+          <Text style={[styles.headerIconText, {color: theme.colors.text.primary}]}>💬</Text>
         </View>
         <Text style={styles.headerTitle}>チャット空間</Text>
-        
-        {/* AIステータスインジケーター */}
-        {(status.isAnalyzing || isExtractingInsights) && (
-          <View style={styles.aiStatusContainer}>
-            <Text style={styles.aiStatusText}>AI分析中...</Text>
-          </View>
-        )}
-        
-        {status.insightCount > 0 && (
-          <TouchableOpacity 
-            style={styles.insightIndicator}
-            onPress={handleExtractInsights}
-          >
-            <Text style={styles.insightCount}>{status.insightCount}</Text>
-            <Text style={styles.insightText}>件の洞察</Text>
-          </TouchableOpacity>
-        )}
       </View>
-      
-      <View style={styles.content}>
-        {/* チャネルリスト */}
-        <View style={styles.channelListContainer}>
-          <View style={styles.channelListHeader}>
-            <Text style={styles.listHeaderTitle}>チャネル</Text>
-            <TouchableOpacity style={styles.newChannelButton}>
-              <Icon name="plus" size={16} color="white" />
-            </TouchableOpacity>
-          </View>
-          
-          <FlatList
-            data={chatRooms}
-            keyExtractor={item => item.id}
-            renderItem={renderChannelItem}
-            showsVerticalScrollIndicator={false}
-          />
-      </View>
-
-      {/* メッセージ表示エリア */}
-        <View style={styles.messagesContainer}>
-          {/* チャネルヘッダー */}
-          {currentChannel && (
-            <View style={styles.channelHeader}>
-              <View style={styles.channelTitleContainer}>
-                <View style={styles.channelTitleRow}>
-                  <Icon 
-                    name={'hash'} 
-                    size={18} 
-                    color={theme.colors.text.primary} 
-                    style={styles.channelHeaderIcon}
-                  />
-                  <Text style={styles.channelHeaderName}>{currentChannel.name}</Text>
-                </View>
-                <Text style={styles.channelDescription}>
-                  {currentChannel.description}
-                </Text>
-              </View>
-              <View style={styles.channelActions}>
-                <TouchableOpacity style={styles.channelAction}>
-                  <Icon name="search" size={18} color={theme.colors.text.secondary} />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.channelAction}>
-                  <Icon name="more-vertical" size={18} color={theme.colors.text.secondary} />
-                </TouchableOpacity>
-              </View>
+      {/* 下部（チャネルリスト＋メッセージエリア） */}
+      <View style={{ flex: 1, flexDirection: 'row' }}>
+        {/* チャネルリスト（PC/タブレットのみ常時表示） */}
+        {!isMobile && (
+          <View style={styles.channelListContainer}>
+            <View style={styles.channelListHeader}>
+              <Text style={styles.listHeaderTitle}>チャネル</Text>
+              <TouchableOpacity style={styles.newChannelButton} onPress={handleAddChannel}>
+                <Icon name="plus" size={16} color="white" />
+              </TouchableOpacity>
             </View>
-          )}
-
-          {/* メッセージリスト */}
-          <ScrollView 
-            ref={scrollViewRef}
-            style={styles.messagesList}
-            contentContainerStyle={styles.messagesContent}
-          >
-            {currentMessages.map(message => (
-              <ChatMessageItem key={message.id} message={message} />
-            ))}
-            {isPocoTyping && (
-              <View style={styles.typingIndicator}>
-                <Text style={styles.typingText}>ポコは入力中...</Text>
+            <FlatList
+              data={chatRooms}
+              keyExtractor={item => item.id}
+              renderItem={renderChannelItem}
+              showsVerticalScrollIndicator={false}
+            />
           </View>
-            )}
-      </ScrollView>
-
-      {/* 入力エリア */}
-      <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.input}
-          placeholder="メッセージを入力..."
-          placeholderTextColor={theme.colors.text.hint}
-          multiline
+        )}
+        {/* メッセージエリア（本物） */}
+        <View style={styles.messagesContainer}>
+          {/* メッセージヘッダー（ルーム名・説明） */}
+          {chatRooms.length === 0 ? (
+            <View style={styles.emptyMessageContainer}>
+              <Text style={styles.emptyMessageTitle}>まだチャネルがありません</Text>
+              <Text style={styles.emptyMessageSub}>最初のチャネルを作成してください</Text>
+              <TouchableOpacity style={[styles.sendButtonNormal, { marginTop: 16 }]} onPress={handleAddChannel}>
+                <Text style={styles.sendButtonText}>チャネルを作成</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <>
+              {currentChannel && (
+                <View style={styles.channelHeader}>
+                  <View style={styles.channelTitleContainer}>
+                    <View style={styles.channelTitleRow}>
+                      <Icon 
+                        name={'hash'} 
+                        size={18} 
+                        color={theme.colors.text.primary} 
+                        style={styles.channelHeaderIcon}
+                      />
+                      <Text style={styles.channelHeaderName}>{currentChannel.name}</Text>
+                    </View>
+                    <Text style={styles.channelDescription}>
+                      {currentChannel.description}
+                    </Text>
+                  </View>
+                  <View style={[styles.channelActions, { position: 'relative' }]}>
+                    <TouchableOpacity style={styles.channelAction}>
+                      <Icon name="search" size={18} color={theme.colors.text.secondary} />
+                    </TouchableOpacity>
+                    {typeof window !== 'undefined' ? (
+                      <div style={{ position: 'relative', display: 'inline-block' }}
+                        onMouseEnter={() => setShowAnalyzeTooltip(true)}
+                        onMouseLeave={() => setShowAnalyzeTooltip(false)}
+                      >
+                        <TouchableOpacity
+                          style={styles.channelAction}
+                          onPress={handleAnalyzeClick}
+                          disabled={status?.isAnalyzing}
+                        >
+                          {status?.isAnalyzing ? (
+                            <svg width={18} height={18} viewBox="0 0 24 24" className="ai-spinner">
+                              <circle cx="12" cy="12" r="10" stroke="#888" strokeWidth="4" fill="none" opacity="0.2" />
+                              <path d="M12 2a10 10 0 0 1 10 10" stroke="#1976d2" strokeWidth="4" fill="none" strokeLinecap="round" />
+                            </svg>
+                          ) : (
+                            <Icon name="hash" size={18} color={theme.colors.text.secondary} />
+                          )}
+                        </TouchableOpacity>
+                        {showAnalyzeTooltip && (
+                          <span style={{
+                            position: 'absolute',
+                            top: 36,
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            background: '#333',
+                            color: '#fff',
+                            borderRadius: 6,
+                            padding: '2px 10px',
+                            fontSize: 12,
+                            whiteSpace: 'nowrap',
+                            zIndex: 9999
+                          }}>AI分析</span>
+                        )}
+                      </div>
+                    ) : (
+                      <TouchableOpacity
+                        style={styles.channelAction}
+                        onPress={handleAnalyzeClick}
+                        disabled={status?.isAnalyzing}
+                      >
+                        {status?.isAnalyzing ? (
+                          <svg width={18} height={18} viewBox="0 0 24 24" className="ai-spinner">
+                            <circle cx="12" cy="12" r="10" stroke="#888" strokeWidth="4" fill="none" opacity="0.2" />
+                            <path d="M12 2a10 10 0 0 1 10 10" stroke="#1976d2" strokeWidth="4" fill="none" strokeLinecap="round" />
+                          </svg>
+                        ) : (
+                          <Icon name="hash" size={18} color={theme.colors.text.secondary} />
+                        )}
+                      </TouchableOpacity>
+                    )}
+                    <TouchableOpacity
+                      ref={menuButtonRef}
+                      style={styles.channelAction}
+                      onPress={openMenu}
+                    >
+                      <Icon name="more-vertical" size={18} color={theme.colors.text.secondary} />
+                    </TouchableOpacity>
+                    {menuVisible && typeof window !== 'undefined' && createPortal(
+                      <>
+                        {/* 背景クリックでメニューを閉じる */}
+                        <div
+                          style={{
+                            position: 'fixed',
+                            top: 0,
+                            left: 0,
+                            width: '100vw',
+                            height: '100vh',
+                            zIndex: 99998,
+                            background: 'transparent',
+                          }}
+                          onClick={() => setMenuVisible(false)}
+                        />
+                        <div
+                          style={{
+                            position: 'fixed',
+                            top: menuPos.top,
+                            left: menuPos.left,
+                            background: '#fff',
+                            borderRadius: 12,
+                            boxShadow: '0 4px 24px rgba(0,0,0,0.12)',
+                            minWidth: 200,
+                            padding: 0,
+                            zIndex: 99999,
+                          }}
+                          onClick={e => e.stopPropagation()}
+                          onMouseDown={e => e.stopPropagation()}
+                        >
+                          <button
+                            style={{
+                              display: 'block',
+                              width: '100%',
+                              padding: '12px 20px',
+                              background: 'none',
+                              border: 'none',
+                              color: theme.colors.text.primary,
+                              fontWeight: 600,
+                              fontSize: 16,
+                              textAlign: 'left',
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap',
+                            }}
+                            onClick={handleAnalyzeClick}
+                            disabled={status?.isAnalyzing}
+                          >
+                            {status?.isAnalyzing ? '分析中...' : 'Inbox＆Insight抽出'}
+                          </button>
+                          {status?.isAnalyzing && (
+                            <div style={{ marginTop: 8, color: '#888' }}>
+                              <span>分析中...</span>
+                            </div>
+                          )}
+                          <button
+                            style={{
+                              display: 'block',
+                              width: '100%',
+                              padding: '12px 20px',
+                              background: 'none',
+                              border: 'none',
+                              color: theme.colors.text.primary,
+                              fontWeight: 600,
+                              fontSize: 16,
+                              textAlign: 'left',
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap',
+                            }}
+                            onClick={() => {
+                              if (window.confirm(`「${currentChannel?.name}」を本当に削除しますか？`)) {
+                                deleteChatRoom(currentChannel.id);
+                                setMenuVisible(false);
+                              }
+                            }}
+                          >
+                            チャットルームを削除
+                          </button>
+                          <button
+                            style={{
+                              display: 'block',
+                              width: '100%',
+                              padding: '12px 20px',
+                              background: 'none',
+                              border: 'none',
+                              color: theme.colors.text.secondary,
+                              fontSize: 15,
+                              textAlign: 'left',
+                              cursor: 'pointer',
+                            }}
+                            onClick={() => setMenuVisible(false)}
+                          >
+                            閉じる
+                          </button>
+                        </div>
+                      </>,
+                      window.document.body
+                    )}
+                    {/* ネイティブ用 fallback */}
+                    {menuVisible && typeof window === 'undefined' && (
+                      <View style={{ position: 'absolute', top: 44, right: 0, backgroundColor: '#fff', borderRadius: 12, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 8, elevation: 99, zIndex: 9999, minWidth: 200, paddingVertical: 8 }}>
+                        <TouchableOpacity onPress={handleDeleteRoom} style={{ paddingVertical: 12, paddingHorizontal: 20 }}>
+                          <Text style={{ color: 'red', fontWeight: 'bold', fontSize: 16, textAlign: 'left' }} numberOfLines={1}>チャットルームを削除</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => setMenuVisible(false)} style={{ paddingVertical: 12, paddingHorizontal: 20 }}>
+                          <Text style={{ color: theme.colors.text.secondary, fontSize: 15, textAlign: 'left' }} numberOfLines={1}>閉じる</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              )}
+              {/* メッセージリスト or 運営メッセージ（本物） */}
+              {currentMessages.length === 0 ? (
+                <View style={styles.emptyMessageContainer}>
+                  <Text style={styles.emptyMessageTitle}>初めてのメッセージを送ってみてください！</Text>
+                  <Text style={styles.emptyMessageSub}>このチャットルームの最初の一言を投稿しましょう。</Text>
+                </View>
+              ) : (
+                <ScrollView 
+                  ref={scrollViewRef}
+                  style={styles.messagesList}
+                  contentContainerStyle={styles.messagesContent}
+                >
+                  {currentMessages.map(message => (
+                    <ChatMessageItem key={message.id} message={message} user={user} />
+                  ))}
+                  {isPocoTyping && (
+                    <View style={styles.typingIndicator}>
+                      <Text style={styles.typingText}>ポコは入力中...</Text>
+                    </View>
+                  )}
+                </ScrollView>
+              )}
+            </>
+          )}
+          {/* 入力エリア（本物） */}
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={styles.input}
+              placeholder="メッセージを入力..."
+              placeholderTextColor={theme.colors.text.hint}
+              multiline
               value={newMessage}
               onChangeText={setNewMessage}
-        />
+            />
             <View style={styles.inputActions}>
-              <TouchableOpacity 
-                style={styles.analyzeButton}
-                onPress={startAnalysis}
-                disabled={status.isAnalyzing}
-              >
-                <Text style={styles.analyzeButtonText}>🧠</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[
-                  styles.sendButton,
-                  newMessage.trim() === '' && styles.sendButtonDisabled
-                ]}
+              <TouchableOpacity
+                style={[styles.sendButtonNormal, newMessage.trim() === '' && styles.sendButtonDisabled]}
                 onPress={handleSendMessage}
                 disabled={newMessage.trim() === ''}
               >
-                <Icon name="send" size={18} color="white" />
-        </TouchableOpacity>
-      </View>
+                <Text style={styles.sendButtonText}>送信</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </View>
+      {/* モバイル用チャネルリストモーダル（上から下にアニメーション） */}
+      {isMobile && (
+        <Modal
+          visible={showChannelList}
+          animationType="none"
+          transparent={true}
+          onRequestClose={() => setShowChannelList(false)}
+        >
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.2)', justifyContent: 'flex-start' }}>
+            <Animated.View
+              style={{
+                backgroundColor: 'white',
+                borderRadius: 16,
+                marginTop: 60,
+                marginHorizontal: 12,
+                padding: 8,
+                maxHeight: '80%',
+                transform: [{ translateY: channelListAnim }],
+              }}
+            >
+              <View style={styles.channelListHeader}>
+                <Text style={styles.listHeaderTitle}>チャネル</Text>
+                <TouchableOpacity style={styles.newChannelButton} onPress={handleAddChannel}>
+                  <Icon name="plus" size={16} color="white" />
+                </TouchableOpacity>
+              </View>
+              <FlatList
+                data={chatRooms}
+                keyExtractor={item => item.id}
+                renderItem={renderChannelItem}
+                showsVerticalScrollIndicator={true}
+              />
+              <TouchableOpacity onPress={() => setShowChannelList(false)} style={{ alignSelf: 'center', marginTop: 12 }}>
+                <Text style={{ color: theme.colors.text.secondary, fontSize: 16 }}>閉じる</Text>
+              </TouchableOpacity>
+            </Animated.View>
+          </View>
+        </Modal>
+      )}
+      {/* 分析完了モーダル・警告モーダル */}
+      {showAnalyzeResultModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+          background: 'rgba(0,0,0,0.3)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}>
+          <div style={{ background: '#fff', borderRadius: 12, padding: 32, minWidth: 320 }}>
+            <h2 style={{ fontSize: 20, marginBottom: 16 }}>分析完了</h2>
+            {analyzeWarning ? (
+              <div style={{ marginBottom: 16, color: 'red' }}>{analyzeWarning}</div>
+            ) : analyzeResult && analyzeResult.length > 0 ? (
+              <>
+                <div style={{ marginBottom: 12 }}>追加されたカード数: <b>{analyzeResult.length}</b></div>
+                <ul style={{ marginBottom: 16 }}>
+                  {analyzeResult.map(card => (
+                    <li key={card.id} style={{ fontSize: 16 }}>{card.title}</li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <div style={{ marginBottom: 16 }}>カードは抽出されませんでした。</div>
+            )}
+            <button
+              style={{ background: '#2ec4b6', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 24px', fontSize: 16, fontWeight: 600, cursor: 'pointer' }}
+              onClick={() => { setShowAnalyzeResultModal(false); setAnalyzeWarning(null); }}
+            >OK</button>
+          </div>
+        </div>
+      )}
+      {/* 分析進行中モーダル */}
+      {status.isAnalyzing && (
+        <Modal visible transparent animationType="fade">
+          <View style={{ flex:1, justifyContent:'center', alignItems:'center', backgroundColor:'rgba(0,0,0,0.3)' }}>
+            <View style={{ backgroundColor:'#fff', borderRadius:12, padding:32, minWidth:280, alignItems:'center' }}>
+              <Text style={{ fontSize:18, marginBottom:16 }}>AI分析中...</Text>
+              <View style={{ marginBottom:12 }}>
+                <svg width={40} height={40} viewBox="0 0 24 24" className="ai-spinner">
+                  <circle cx="12" cy="12" r="10" stroke="#888" strokeWidth="4" fill="none" opacity="0.2" />
+                  <path d="M12 2a10 10 0 0 1 10 10" stroke="#1976d2" strokeWidth="4" fill="none" strokeLinecap="round" />
+                </svg>
+              </View>
+              <Text style={{ color:'#888' }}>しばらくお待ちください</Text>
+            </View>
+          </View>
+        </Modal>
+      )}
+      {/* スピナー用グローバルCSS */}
+      {typeof window !== 'undefined' && (
+        <style>{`
+          @keyframes spin { 100% { transform: rotate(360deg); } }
+          .ai-spinner { animation: spin 1s linear infinite; }
+        `}</style>
+      )}
     </View>
   );
 };
@@ -396,7 +819,7 @@ const styles = StyleSheet.create({
     width: 200,
     borderRightWidth: 1,
     borderRightColor: theme.colors.divider,
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.background.paper,
   },
   channelListHeader: {
     padding: 16,
@@ -415,7 +838,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: theme.colors.secondary,
+    backgroundColor: theme.colors.action,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -426,7 +849,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   activeChannelItem: {
-    backgroundColor: 'rgba(255, 107, 107, 0.15)',
+    backgroundColor: theme.colors.spaces.chat.primary + '15',
     borderLeftWidth: 3,
     borderLeftColor: theme.colors.spaces.chat.primary,
   },
@@ -469,7 +892,7 @@ const styles = StyleSheet.create({
   },
   channelHeader: {
     padding: 16,
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.background.paper,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.divider,
     flexDirection: 'row',
@@ -514,6 +937,7 @@ const styles = StyleSheet.create({
   },
   messagesContent: {
     padding: 16,
+    paddingRight: 16,
   },
   messageRow: {
     flexDirection: 'row',
@@ -537,12 +961,13 @@ const styles = StyleSheet.create({
     maxWidth: '70%',
   },
   selfBubble: {
-    backgroundColor: 'rgba(255, 107, 107, 0.15)',
+    backgroundColor: theme.colors.spaces.chat.primary + '15',
     borderBottomRightRadius: 4,
-    marginLeft: 40,
+    alignSelf: 'flex-end',
+    marginRight: 0,
   },
   otherBubble: {
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.background.paper,
     borderBottomLeftRadius: 4,
     marginRight: 40,
   },
@@ -567,7 +992,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderTopWidth: 1,
     borderTopColor: theme.colors.divider,
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.background.paper,
   },
   input: {
     flex: 1,
@@ -597,17 +1022,22 @@ const styles = StyleSheet.create({
   analyzeButtonText: {
     fontSize: 20,
   },
-  sendButton: {
-    width: 44,
-    height: 44,
-    backgroundColor: theme.colors.secondary,
-    borderRadius: 22,
+  sendButtonNormal: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: theme.colors.action,
+    borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
   },
   sendButtonDisabled: {
-    backgroundColor: theme.colors.secondaryLight,
+    backgroundColor: theme.colors.action + '60',
     opacity: 0.6,
+  },
+  sendButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
   aiStatusContainer: {
     marginLeft: 'auto',
@@ -655,6 +1085,27 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: theme.colors.text.secondary,
     fontStyle: 'italic',
+  },
+  emptyMessageContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    borderRadius: 16,
+    margin: 32,
+    padding: 32,
+    borderWidth: 1,
+    borderColor: theme.colors.divider,
+  },
+  emptyMessageTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: theme.colors.text.primary,
+    marginBottom: 8,
+  },
+  emptyMessageSub: {
+    fontSize: 14,
+    color: theme.colors.text.secondary,
   },
 });
 

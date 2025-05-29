@@ -16,7 +16,7 @@ import {
   TouchableOpacity
 } from 'react-native';
 import { useNestSpace } from '@contexts/NestSpaceContext';
-import { SpaceType, LayoutType } from '../../../types/nestSpace.types';
+import { SpaceType, LayoutType } from '../types/nestSpace.types';
 
 // Error boundary component
 class ErrorBoundary extends React.Component<
@@ -56,25 +56,15 @@ const MockSpaceComponent = ({ name, color = '#f0f0f0' }: { name: string; color?:
 
 // 各空間の遅延ロード
 const LazySpaceComponents = {
-  [SpaceType.CHAT]: lazy(() => import("../../chat-space/components/ChatSpace").catch(() => ({ 
-    default: () => <MockSpaceComponent name="チャット空間" color="#e3f2fd" />
-  }))),
+  [SpaceType.CHAT]: lazy(() => import("../../chat-space/components/ChatSpace").catch((err) => { console.error('Failed to load ChatSpace:', err); return { default: () => <MockSpaceComponent name="チャット空間" color="#e3f2fd" /> }; })),
   
-  [SpaceType.BOARD]: lazy(() => import("../../board-space/components/BoardSpace").catch(() => ({ 
-    default: () => <MockSpaceComponent name="ボード空間" color="#e8f5e9" />
-  }))),
+  [SpaceType.BOARD]: lazy(() => import("../../board-space/components/BoardSpace").catch((err) => { console.error('Failed to load BoardSpace:', err); return { default: () => <MockSpaceComponent name="ボード空間" color="#e8f5e9" /> }; })),
   
-  [SpaceType.ZOOM]: lazy(() => import("../../zoom-space/components/ZoomSpace").catch(() => ({ 
-    default: () => <MockSpaceComponent name="Zoom空間" color="#f3e5f5" />
-  }))),
+  [SpaceType.MEETING]: lazy(() => import("../../nest-space/meeting-space/components/MeetingSpace").catch((err) => { console.error('Failed to load MeetingSpace:', err); return { default: () => <MockSpaceComponent name="ミーティング空間" color="#f3e5f5" /> }; })),
   
-  [SpaceType.ANALYSIS]: lazy(() => import("../../analysis-space/components/AnalysisSpace").catch(() => ({ 
-    default: () => <MockSpaceComponent name="分析空間" color="#fff3e0" />
-  }))),
+  [SpaceType.ANALYSIS]: lazy(() => import("../../analysis-space/components/AnalysisSpace").catch((err) => { console.error('Failed to load AnalysisSpace:', err); return { default: () => <MockSpaceComponent name="分析空間" color="#fff3e0" /> }; })),
   
-  [SpaceType.USER_PROFILE]: lazy(() => import("../../user-profile/components/UserProfileSpace").catch(() => ({ 
-    default: () => <MockSpaceComponent name="プロフィール設定" color="#f5f5f5" />
-  }))),
+  [SpaceType.USER_PROFILE]: lazy(() => import("../../user-profile/components/UserProfileSpace").catch((err) => { console.error('Failed to load UserProfileSpace:', err); return { default: () => <MockSpaceComponent name="プロフィール設定" color="#f5f5f5" /> }; })),
 };
 
 // Loading fallback component
@@ -159,13 +149,13 @@ const NestSpaceContainer: React.FC<NestSpaceContainerProps> = ({
   
   // 現在のデバイスレイアウト
   const currentLayout = useMemo<LayoutType>(() => {
-    return nestSpace.navigation.currentLayout || LayoutType.DESKTOP;
-  }, [nestSpace.navigation.currentLayout]);
+    return nestSpace.spaceState.layoutType || LayoutType.DESKTOP;
+  }, [nestSpace.spaceState.layoutType]);
   
   // アクティブな空間ID
   const activeSpaceId = useMemo(() => {
-    return nestSpace.navigation.activeSpaceId || mockState.activeSpaceId;
-  }, [nestSpace.navigation.activeSpaceId, mockState.activeSpaceId]);
+    return nestSpace.spaceState.activeSpaceType || mockState.activeSpaceId;
+  }, [nestSpace.spaceState.activeSpaceType, mockState.activeSpaceId]);
   
   // ビューの状態
   const views = useMemo(() => {
@@ -279,6 +269,32 @@ const NestSpaceContainer: React.FC<NestSpaceContainerProps> = ({
       );
     }
     
+    // BoardSpaceのみpropsを渡す。as anyで型エラーを一時的に回避
+    if (spaceType === SpaceType.BOARD) {
+      if (!nestSpace.currentNest?.id) {
+        return (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>NEST IDが設定されていません</Text>
+          </View>
+        );
+      }
+      return (
+        <ErrorBoundary
+          fallback={
+            <ErrorFallback 
+              spaceType={spaceType} 
+              onRetry={() => handleRetry(spaceId)} 
+            />
+          }
+        >
+          <Suspense fallback={<LoadingFallback />}>
+            {React.createElement(SpaceComponent as any, { nestId: nestSpace.currentNest.id })}
+          </Suspense>
+        </ErrorBoundary>
+      );
+    }
+
+    // それ以外はpropsなしで呼び出す。as anyで型エラーを一時的に回避
     return (
       <ErrorBoundary
         fallback={
@@ -289,11 +305,11 @@ const NestSpaceContainer: React.FC<NestSpaceContainerProps> = ({
         }
       >
         <Suspense fallback={<LoadingFallback />}>
-          <SpaceComponent />
+          {React.createElement(SpaceComponent as any)}
         </Suspense>
       </ErrorBoundary>
     );
-  }, [retryCounter, handleRetry]);
+  }, [retryCounter, handleRetry, nestSpace.currentNest?.id]);
   
   // メインコンテンツのレンダリング
   const renderContent = useCallback(() => {
@@ -374,6 +390,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     position: 'relative',
+    backgroundColor: 'cyan',
   },
   contentContainer: {
     flex: 1,

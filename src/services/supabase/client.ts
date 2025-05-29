@@ -111,7 +111,7 @@ if (typeof window !== 'undefined') {
 // タイムアウト付きのカスタムfetch関数
 const customFetch: typeof fetch = (input, init) => {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000);
+  const timeoutId = setTimeout(() => controller.abort(), 60000);
   
   const signal = init?.signal || controller.signal;
   
