@@ -17,7 +17,15 @@ import NestMemberList from '../components/NestMemberList';
 import InvitationForm from '../components/InvitationForm';
 import PrivacySettingsForm from '../components/PrivacySettingsForm';
 import theme from '../../../styles/theme';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../../../contexts/AuthContext';
+import ChatSpace from '../../chat-space/components/ChatSpace';
+import BoardSpace from '../../board-space/components/BoardSpace';
+import MeetingSpace from '../../nest-space/meeting-space/components/MeetingSpace';
+import AnalysisSpace from '../../analysis-space/components/AnalysisSpace';
+import UserProfileSpace from '../../user-profile/components/UserProfileSpace';
+// import NestSelectorModal from '../components/NestSelectorModal';
+// import NestHeader from '../components/NestHeader';
 
 // シミュレートされたナビゲーションのためのタイプ
 interface NestSettingsScreenProps {
@@ -43,6 +51,9 @@ const NestSettingsScreen: React.FC<NestSettingsScreenProps> = ({
   const nestId = propNestId || currentNest?.id;
   
   const navigate = useNavigate();
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  const space = params.get('space') || 'chat';
   
   // 現在のNestの情報をフォームにセット
   useEffect(() => {

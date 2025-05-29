@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>モダン・テック コンポーネントライブラリ</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: #0f0f23;
+            color: #e2e8f0;
+            line-height: 1.4;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .section {
+            margin-bottom: 60px;
+            background: #1a1a2e;
+            border: 1px solid #333366;
+            border-radius: 4px;
+            padding: 30px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #00ff88;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border-bottom: 1px solid #333366;
+            padding-bottom: 10px;
+        }
+
+        /* ワークスペースヘッダー */
+        .workspace-header {
+            background: #0f0f23;
+            border-bottom: 1px solid #333366;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .workspace-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: #00ff88;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .workspace-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .workspace-btn {
+            width: 28px;
+            height: 28px;
+            background: #1a1a2e;
+            border: 1px solid #333366;
+            border-radius: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 11px;
+            color: #a6adc8;
+        }
+
+        .workspace-btn:hover {
+            background: #00ff88;
+            color: #0f0f23;
+        }
+
+        /* メニューページヘッダー */
+        .page-header {
+            background: #1a1a2e;
+            border-bottom: 1px solid #333366;
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .page-title {
+            font-size: 16px;
+            font-weight: 500;
+            color: #e2e8f0;
+        }
+
+        .page-breadcrumb {
+            font-size: 12px;
+            color: #6c7086;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .page-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        /* サイドメニュー */
+        .side-menu {
+            width: 240px;
+            background: #1a1a2e;
+            border-right: 1px solid #333366;
+            height: 600px;
+            padding: 20px 0;
+        }
+
+        .menu-section {
+            margin-bottom: 24px;
+        }
+
+        .menu-section-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: #6c7086;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 0 20px 8px;
+            margin-bottom: 8px;
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 20px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-left: 2px solid transparent;
+        }
+
+        .menu-item:hover {
+            background: #333366;
+            border-left-color: #00ff88;
+        }
+
+        .menu-item.active {
+            background: #333366;
+            border-left-color: #00ff88;
+            color: #00ff88;
+        }
+
+        .menu-icon {
+            width: 16px;
+            height: 16px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .menu-text {
+            font-size: 13px;
+            font-weight: 400;
+        }
+
+        .menu-badge {
+            margin-left: auto;
+            background: #00ff88;
+            color: #0f0f23;
+            padding: 2px 6px;
+            border-radius: 2px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        /* チャネルリスト */
+        .channel-list {
+            width: 200px;
+            background: #1a1a2e;
+            border-right: 1px solid #333366;
+            height: 400px;
+            padding: 16px 0;
+        }
+
+        .channel-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 12px;
+        }
+
+        .channel-item:hover {
+            background: #333366;
+        }
+
+        .channel-item.active {
+            background: #333366;
+            color: #00ff88;
+        }
+
+        .channel-prefix {
+            color: #6c7086;
+            font-weight: 600;
+        }
+
+        .channel-name {
+            flex: 1;
+        }
+
+        .channel-status {
+            width: 6px;
+            height: 6px;
+            border-radius: 1px;
+            background: #6c7086;
+        }
+
+        .channel-status.active {
+            background: #00ff88;
+        }
+
+        /* メッセージ表示 */
+        .message-container {
+            background: #0f0f23;
+            padding: 16px;
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #333366;
+        }
+
+        .message {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+            padding: 8px;
+            border-radius: 2px;
+            transition: all 0.2s ease;
+        }
+
+        .message:hover {
+            background: #1a1a2e;
+        }
+
+        .message-avatar {
+            width: 32px;
+            height: 32px;
+            background: #333366;
+            border-radius: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+            color: #00ff88;
+        }
+
+        .message-content {
+            flex: 1;
+        }
+
+        .message-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+
+        .message-user {
+            font-size: 13px;
+            font-weight: 500;
+            color: #e2e8f0;
+        }
+
+        .message-time {
+            font-size: 10px;
+            color: #6c7086;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .message-text {
+            font-size: 13px;
+            color: #a6adc8;
+            line-height: 1.4;
+        }
+
+        /* メッセージ入力フォーム */
+        .message-input-container {
+            background: #1a1a2e;
+            border: 1px solid #333366;
+            border-radius: 4px;
+            padding: 12px;
+        }
+
+        .message-input {
+            width: 100%;
+            background: #0f0f23;
+            border: 1px solid #333366;
+            border-radius: 2px;
+            padding: 8px 12px;
+            color: #e2e8f0;
+            font-size: 13px;
+            font-family: inherit;
+            resize: none;
+            outline: none;
+            min-height: 36px;
+        }
+
+        .message-input:focus {
+            border-color: #00ff88;
+        }
+
+        .message-input-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 8px;
+        }
+
+        .input-tools {
+            display: flex;
+            gap: 6px;
+        }
+
+        .input-tool {
+            width: 24px;
+            height: 24px;
+            background: #333366;
+            border: 1px solid #45475a;
+            border-radius: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 10px;
+            color: #a6adc8;
+            transition: all 0.2s ease;
+        }
+
+        .input-tool:hover {
+            background: #00ff88;
+            color: #0f0f23;
+        }
+
+        /* タブ切り替え */
+        .tab-container {
+            display: flex;
+            border-bottom: 1px solid #333366;
+            background: #1a1a2e;
+        }
+
+        .tab {
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 2px solid transparent;
+        }
+
+        .tab:hover {
+            background: #333366;
+        }
+
+        .tab.active {
+            color: #00ff88;
+            border-bottom-color: #00ff88;
+            background: #333366;
+        }
+
+        .tab-content {
+            background: #0f0f23;
+            padding: 20px;
+            border: 1px solid #333366;
+            border-top: none;
+            min-height: 200px;
+        }
+
+        /* カードUI */
+        .card {
+            background: #1a1a2e;
+            border: 1px solid #333366;
+            border-radius: 4px;
+            padding: 16px;
+            margin-bottom: 16px;
+            transition: all 0.2s ease;
+        }
+
+        .card:hover {
+            border-color: #45475a;
+            transform: translateY(-1px);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .card-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #e2e8f0;
+            margin-bottom: 4px;
+        }
+
+        .card-tags {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .card-tag {
+            background: #333366;
+            color: #a6adc8;
+            padding: 2px 6px;
+            border-radius: 2px;
+            font-size: 10px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .card-tag.primary {
+            background: #00ff88;
+            color: #0f0f23;
+        }
+
+        .card-content {
+            color: #a6adc8;
+            font-size: 12px;
+            line-height: 1.5;
+            margin-bottom: 12px;
+        }
+
+        .card-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            color: #6c7086;
+            font-family: 'JetBrains Mono', monospace;
+            border-top: 1px solid #333366;
+            padding-top: 8px;
+        }
+
+        .card-links {
+            margin-top: 8px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .card-link {
+            color: #00ff88;
+            font-size: 10px;
+            text-decoration: none;
+            padding: 2px 4px;
+            border: 1px solid #00ff88;
+            border-radius: 2px;
+            transition: all 0.2s ease;
+        }
+
+        .card-link:hover {
+            background: #00ff88;
+            color: #0f0f23;
+        }
+
+        /* ボタンUI */
+        .btn {
+            padding: 8px 16px;
+            border: 1px solid #333366;
+            border-radius: 2px;
+            background: #1a1a2e;
+            color: #e2e8f0;
+            font-size: 12px;
+            font-weight: 500;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn:hover {
+            background: #333366;
+            transform: translateY(-1px);
+        }
+
+        .btn.primary {
+            background: #00ff88;
+            color: #0f0f23;
+            border-color: #00ff88;
+        }
+
+        .btn.primary:hover {
+            background: #00cc6a;
+            border-color: #00cc6a;
+        }
+
+        .btn.danger {
+            background: #ff6b6b;
+            color: white;
+            border-color: #ff6b6b;
+        }
+
+        .btn.danger:hover {
+            background: #ff5252;
+            border-color: #ff5252;
+        }
+
+        .btn.small {
+            padding: 4px 8px;
+            font-size: 10px;
+        }
+
+        .btn.large {
+            padding: 12px 24px;
+            font-size: 14px;
+        }
+
+        /* リストUI */
+        .list {
+            background: #1a1a2e;
+            border: 1px solid #333366;
+            border-radius: 4px;
+        }
+
+        .list-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-bottom: 1px solid #333366;
+            transition: all 0.2s ease;
+        }
+
+        .list-item:last-child {
+            border-bottom: none;
+        }
+
+        .list-item:hover {
+            background: #333366;
+        }
+
+        .list-item-icon {
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: #00ff88;
+        }
+
+        .list-item-content {
+            flex: 1;
+        }
+
+        .list-item-title {
+            font-size: 13px;
+            font-weight: 500;
+            color: #e2e8f0;
+            margin-bottom: 2px;
+        }
+
+        .list-item-subtitle {
+            font-size: 11px;
+            color: #6c7086;
+        }
+
+        .list-item-meta {
+            font-size: 10px;
+            color: #6c7086;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* デモレイアウト */
+        .demo-layout {
+            display: grid;
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .demo-row {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+
+        .demo-full {
+            grid-column: 1 / -1;
+        }
+
+        @media (max-width: 768px) {
+            .demo-row {
+                flex-direction: column;
+            }
+            .side-menu, .channel-list {
+                width: 100%;
+                height: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 style="color: #00ff88; text-align: center; margin-bottom: 40px; text-transform: uppercase; letter-spacing: 2px;">MODERN TECH COMPONENT LIBRARY</h1>
+
+        <!-- ワークスペースヘッダー -->
+        <div class="section">
+            <div class="section-title">WORKSPACE HEADER</div>
+            <div class="workspace-header">
+                <div class="workspace-title">DEV_WORKSPACE_01</div>
+                <div class="workspace-controls">
+                    <div class="workspace-btn">⚙</div>
+                    <div class="workspace-btn">◉</div>
+                    <div class="workspace-btn">▲</div>
+                    <div class="workspace-btn">■</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- メニューページヘッダー -->
+        <div class="section">
+            <div class="section-title">PAGE HEADER</div>
+            <div class="page-header">
+                <div>
+                    <div class="page-title">Project Dashboard</div>
+                    <div class="page-breadcrumb">workspace > projects > dashboard</div>
+                </div>
+                <div class="page-actions">
+                    <button class="btn small">EXPORT</button>
+                    <button class="btn primary small">NEW</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- サイドメニューとチャネルリスト -->
+        <div class="section">
+            <div class="section-title">NAVIGATION COMPONENTS</div>
+            <div class="demo-row">
+                <div class="side-menu">
+                    <div class="menu-section">
+                        <div class="menu-section-title">WORKSPACE</div>
+                        <div class="menu-item active">
+                            <div class="menu-icon">◉</div>
+                            <div class="menu-text">Dashboard</div>
+                        </div>
+                        <div class="menu-item">
+                            <div class="menu-icon">□</div>
+                            <div class="menu-text">Projects</div>
+                            <div class="menu-badge">7</div>
+                        </div>
+                        <div class="menu-item">
+                            <div class="menu-icon">▲</div>
+                            <div class="menu-text">Tasks</div>
+                            <div class="menu-badge">23</div>
+                        </div>
+                        <div class="menu-item">
+                            <div class="menu-icon">◆</div>
+                            <div class="menu-text">Analytics</div>
+                        </div>
+                    </div>
+                    <div class="menu-section">
+                        <div class="menu-section-title">TOOLS</div>
+                        <div class="menu-item">
+                            <div class="menu-icon">⚙</div>
+                            <div class="menu-text">Settings</div>
+                        </div>
+                        <div class="menu-item">
+                            <div class="menu-icon">●</div>
+                            <div class="menu-text">Profile</div>
+                        </div>
+                        <div class="menu-item">
+                            <div class="menu-icon">◉</div>
+                            <div class="menu-text">Help</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="channel-list">
+                    <div class="menu-section-title" style="padding: 0 16px 8px; margin-bottom: 8px;">CHANNELS</div>
+                    <div class="channel-item active">
+                        <div class="channel-prefix">#</div>
+                        <div class="channel-name">general</div>
+                        <div class="channel-status active"></div>
+                    </div>
+                    <div class="channel-item">
+                        <div class="channel-prefix">#</div>
+                        <div class="channel-name">development</div>
+                        <div class="channel-status"></div>
+                    </div>
+                    <div class="channel-item">
+                        <div class="channel-prefix">#</div>
+                        <div class="channel-name">design</div>
+                        <div class="channel-status active"></div>
+                    </div>
+                    <div class="channel-item">
+                        <div class="channel-prefix">@</div>
+                        <div class="channel-name">alice_dev</div>
+                        <div class="channel-status"></div>
+                    </div>
+                    <div class="channel-item">
+                        <div class="channel-prefix">@</div>
+                        <div class="channel-name">bob_design</div>
+                        <div class="channel-status active"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- メッセージ表示とメッセージ入力 -->
+        <div class="section">
+            <div class="section-title">MESSAGE COMPONENTS</div>
+            <div class="message-container">
+                <div class="message">
+                    <div class="message-avatar">A</div>
+                    <div class="message-content">
+                        <div class="message-header">
+                            <div class="message-user">alice_dev</div>
+                            <div class="message-time">14:23:07</div>
+                        </div>
+                        <div class="message-text">
+                            新しいAPI設計完了しました。パフォーマンステストの結果も良好です。<br>
+                            レビューお願いします 🚀
+                        </div>
+                    </div>
+                </div>
+                <div class="message">
+                    <div class="message-avatar">B</div>
+                    <div class="message-content">
+                        <div class="message-header">
+                            <div class="message-user">bob_design</div>
+                            <div class="message-time">14:25:12</div>
+                        </div>
+                        <div class="message-text">
+                            確認します。UIモックアップも合わせて確認していただけますか？
+                        </div>
+                    </div>
+                </div>
+                <div class="message">
+                    <div class="message-avatar">S</div>
+                    <div class="message-content">
+                        <div class="message-header">
+                            <div class="message-user">system</div>
+                            <div class="message-time">14:27:33</div>
+                        </div>
+                        <div class="message-text">
+                            deployment.status = "SUCCESS"<br>
+                            build_time: 2m 34s | tests_passed: 247/247
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="margin-top: 16px;">
+                <div class="message-input-container">
+                    <textarea class="message-input" placeholder="message.send()" rows="2"></textarea>
+                    <div class="message-input-actions">
+                        <div class="input-tools">
+                            <div class="input-tool">📎</div>
+                            <div class="input-tool">😊</div>
+                            <div class="input-tool">💻</div>
+                            <div class="input-tool">⚡</div>
+                        </div>
+                        <button class="btn primary small">SEND</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- タブ切り替え -->
+        <div class="section">
+            <div class="section-title">TAB NAVIGATION</div>
+            <div class="tab-container">
+                <div class="tab active">OVERVIEW</div>
+                <div class="tab">CODE</div>
+                <div class="tab">ISSUES</div>
+                <div class="tab">ANALYTICS</div>
+                <div class="tab">SETTINGS</div>
+            </div>
+            <div class="tab-content">
+                <p style="color: #a6adc8; font-size: 13px;">
+                    プロジェクトの概要情報を表示します。<br>
+                    現在のステータス: ACTIVE | 最終更新: 2024-01-15 14:23:07
+                </p>
+            </div>
+        </div>
+
+        <!-- カードUI -->
+        <div class="section">
+            <div class="section-title">CARD COMPONENTS</div>
+            <div class="demo-layout">
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <div class="card-title">API Gateway Optimization</div>
+                            <div class="card-tags">
+                                <div class="card-tag primary">HIGH</div>
+                                <div class="card-tag">BACKEND</div>
+                                <div class="card-tag">API</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-content">
+                        APIゲートウェイのレスポンス時間を50%改善する最適化プロジェクト。キャッシュ戦略の見直しとクエリ最適化を実装予定。
+                    </div>
+                    <div class="card-meta">
+                        <div>Created: 2024-01-10 | alice_dev</div>
+                        <div>Updated: 2024-01-15 | bob_backend</div>
+                    </div>
+                    <div class="card-links">
+                        <a href="#" class="card-link">RELATED_001</a>
+                        <a href="#" class="card-link">DOCS_API</a>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <div class="card-title">User Interface Redesign</div>
+                            <div class="card-tags">
+                                <div class="card-tag">MEDIUM</div>
+                                <div class="card-tag">FRONTEND</div>
+                                <div class="card-tag">UI/UX</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-content">
+                        モダンなデザインシステムを導入し、ユーザビリティを向上させる。アクセシビリティ対応も含む包括的なリデザイン。
+                    </div>
+                    <div class="card-meta">
+                        <div>Created: 2024-01-08 | design_team</div>
+                        <div>Updated: 2024-01-14 | alice_dev</div>
+                    </div>
+                    <div class="card-links">
+                        <a href="#" class="card-link">FIGMA_001</a>
+                        <a href="#" class="card-link">COMP_LIB</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ボタンUI -->
+        <div class="section">
+            <div class="section-title">BUTTON COMPONENTS</div>
+            <div class="demo-layout">
+                <div class="demo-row">
+                    <button class="btn">DEFAULT</button>
+                    <button class="btn primary">PRIMARY</button>
+                    <button class="btn danger">DANGER</button>
+                </div>
+                <div class="demo-row">
+                    <button class="btn small">SMALL</button>
+                    <button class="btn">NORMAL</button>
+                    <button class="btn large">LARGE</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- リストUI -->
+        <div class="section">
+            <div class="section-title">LIST COMPONENTS</div>
+            <div class="list">
+                <div class="list-item">
+                    <div class="list-item-icon">◉</div>
+                    <div class="list-item-content">
+                        <div class="list-item-title">Database Migration</div>
+                        <div class="list-item-subtitle">PostgreSQL 14 → 15 upgrade process</div>
+                    </div>
+                    <div class="list-item-meta">14:23</div>
+                </div>
+                <div class="list-item">
+                    <div class="list-item-icon">□</div>
+                    <div class="list-item-content">
+                        <div class="list-item-title">Security Audit</div>
+                        <div class="list-item-subtitle">Quarterly security assessment</div>
+                    </div>
+                    <div class="list-item-meta">13:45</div>
+                </div>
+                <div class="list-item">
+                    <div class="list-item-icon">▲</div>
+                    <div class="list-item-content">
+                        <div class="list-item-title">Performance Testing</div>
+                        <div class="list-item-subtitle">Load testing for new API endpoints</div>
+                    </div>
+                    <div class="list-item-meta">12:10</div>
+                </div>
+                <div class="list-item">
+                    <div class="list-item-icon">◆</div>
+                    <div class="list-item-content">
+                        <div class="list-item-title">Code Review</div>
+                        <div class="list-item-subtitle">Feature branch merge request #247</div>
+                    </div>
+                    <div class="list-item-meta">11:33</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

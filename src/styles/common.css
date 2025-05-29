@@ -1,0 +1,125 @@
+/* 共通スタイル */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Space Grotesk', sans-serif;
+    background: #0f0f23;
+    color: #e2e8f0;
+    line-height: 1.4;
+}
+
+/* ワークスペースヘッダー */
+.workspace-header {
+    background: #0f0f23;
+    border-bottom: 1px solid #333366;
+    padding: 12px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.workspace-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: #00ff88;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.workspace-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.workspace-btn {
+    width: 28px;
+    height: 28px;
+    background: #1a1a2e;
+    border: 1px solid #333366;
+    border-radius: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 11px;
+    color: #a6adc8;
+}
+
+.workspace-btn:hover {
+    background: #00ff88;
+    color: #0f0f23;
+}
+
+/* サイドメニュー */
+.side-menu {
+    width: 240px;
+    background: #1a1a2e;
+    border-right: 1px solid #333366;
+    height: 100vh;
+    padding: 20px 0;
+}
+
+.menu-section {
+    margin-bottom: 24px;
+}
+
+.menu-section-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: #6c7086;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 0 20px 8px;
+    margin-bottom: 8px;
+}
+
+.menu-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 20px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-left: 2px solid transparent;
+}
+
+.menu-item:hover {
+    background: #333366;
+    border-left-color: #00ff88;
+}
+
+.menu-item.active {
+    background: #333366;
+    border-left-color: #00ff88;
+    color: #00ff88;
+}
+
+.menu-icon {
+    width: 16px;
+    height: 16px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.menu-text {
+    font-size: 13px;
+    font-weight: 400;
+}
+
+.menu-badge {
+    margin-left: auto;
+    background: #00ff88;
+    color: #0f0f23;
+    padding: 2px 6px;
+    border-radius: 2px;
+    font-size: 10px;
+    font-weight: 600;
+} 

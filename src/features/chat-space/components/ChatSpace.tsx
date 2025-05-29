@@ -420,12 +420,12 @@ const ChatSpace: React.FC<ChatSpaceProps> = ({ nestId }) => {
   return (
     <View style={{ flex: 1, flexDirection: 'column' }}>
       {/* チャット空間ヘッダー（常に「チャット空間」＋アイコンで固定） */}
-      <View style={styles.spaceHeader}>
+      {/* <View style={styles.spaceHeader}>
         <View style={styles.headerIcon}>
           <Text style={[styles.headerIconText, {color: theme.colors.text.primary}]}>💬</Text>
         </View>
         <Text style={styles.headerTitle}>チャット空間</Text>
-      </View>
+      </View> */}
       {/* 下部（チャネルリスト＋メッセージエリア） */}
       <View style={{ flex: 1, flexDirection: 'row' }}>
         {/* チャネルリスト（PC/タブレットのみ常時表示） */}

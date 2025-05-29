@@ -163,9 +163,9 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
       return (
         <View style={styles.container}>
           {/* ヘッダー */}
-          <View style={styles.header}>
+          {/* <View style={styles.header}>
             <Text style={styles.headerTitle}>ミーティング</Text>
-          </View>
+          </View> */}
           <View style={styles.splitContainer}>
             {/* 左カラム：ミーティングリスト＋新規追加 */}
             <View style={styles.leftColumn}>
@@ -211,9 +211,9 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
       return (
         <View style={styles.container}>
           {/* ヘッダー */}
-          <View style={styles.header}>
+          {/* <View style={styles.header}>
             <Text style={styles.headerTitle}>ミーティング</Text>
-          </View>
+          </View> */}
           <View style={styles.splitContainer}>
             {/* 左カラム：ミーティングリスト＋新規追加 */}
             <View style={styles.leftColumn}>
@@ -258,9 +258,9 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
     return (
       <View style={styles.container}>
         {/* ヘッダー */}
-        <View style={styles.header}>
+        {/* <View style={styles.header}>
           <Text style={styles.headerTitle}>ミーティング</Text>
-        </View>
+        </View> */}
         <View style={styles.splitContainer}>
           {/* 左カラム：ミーティングリスト＋新規追加 */}
           <View style={styles.leftColumn}>

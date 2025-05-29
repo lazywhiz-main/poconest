@@ -263,12 +263,12 @@ const UserProfileSpace: React.FC = () => {
       </View>
       
       <ScrollView style={styles.content}>
-        <Text style={styles.sectionTitle}>
+        {/* <Text style={styles.sectionTitle}>
           {activeSection === 'profile' ? 'プロフィール' : 
            activeSection === 'appearance' ? '外観設定' :
            activeSection === 'notifications' ? '通知設定' :
            activeSection === 'privacy' ? 'プライバシーと安全性' : '詳細設定'}
-        </Text>
+        </Text> */}
         {renderContent()}
       </ScrollView>
     </View>

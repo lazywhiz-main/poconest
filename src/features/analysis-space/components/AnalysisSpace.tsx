@@ -250,9 +250,9 @@ const AnalysisSpace: React.FC<AnalysisSpaceProps> = () => {
   return (
     <View style={styles.container}>
       {/* ヘッダー */}
-      <View style={styles.spaceHeader}>
+      {/* <View style={styles.spaceHeader}>
         <View>
-      <Text style={styles.title}>分析空間</Text>
+          <Text style={styles.title}>分析空間</Text>
           <Text style={styles.subtitle}>活動統計とレポート</Text>
         </View>
         
@@ -281,10 +281,10 @@ const AnalysisSpace: React.FC<AnalysisSpaceProps> = () => {
           >
             <Text style={[styles.periodButtonText, periodFilter === 'monthly' && styles.activePeriodText]}>
               月次
-      </Text>
+            </Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </View> */}
       
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* 統計カード */}

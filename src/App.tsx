@@ -12,8 +12,15 @@ import LoginScreen from '@screens/auth/LoginScreen';
 import theme from './styles/theme';
 import { BoardProvider } from './features/board-space/contexts/BoardContext';
 import CreateTestNestScreen from './features/nest/screens/CreateTestNestScreen';
-import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import NestSettingsScreen from './features/nest/screens/NestSettingsScreen';
+import { Layout } from './components/Layout';
+import './styles/common.css';
+import ChatSpace from './features/chat-space/components/ChatSpace';
+import BoardSpace from './features/board-space/components/BoardSpace';
+import MeetingSpace from './features/nest-space/meeting-space/components/MeetingSpace';
+import AnalysisSpace from './features/analysis-space/components/AnalysisSpace';
+import UserProfileSpace from './features/user-profile/components/UserProfileSpace';
 
 // Webではreact-native-screensを無効化
 if (typeof window !== 'undefined') {
@@ -353,6 +360,14 @@ const AppContent: React.FC = () => {
     setIsCreateNestModalVisible(false);
   }, [selectedNest]);
 
+  useEffect(() => {
+    if (currentNest) {
+      if (window.location.pathname === '/') {
+        navigate(`/nest-top?nestId=${currentNest.id}&space=chat`, { replace: true });
+      }
+    }
+  }, [currentNest, navigate]);
+
   if (auth.loading || initializing) {
     return (
       <View style={styles.loadingContainer}>
@@ -378,83 +393,98 @@ const AppContent: React.FC = () => {
           onSelectNest={(nest: ImportedNestType) => {
             setSelectedNest(nest);
             setCurrentNestById(nest.id);
-            setIsCreateNestModalVisible(false); // Reset modal state
+            setIsCreateNestModalVisible(false);
           }}
           onCreateNest={handleOpenCreateNestModal}
         />
     );
   }
 
-  return (
-    <SafeAreaProvider>
-      <CreateNestModal
-        visible={isCreateNestModalVisible}
-        onClose={() => setIsCreateNestModalVisible(false)}
-        onSubmit={handleCreateNestSubmit}
-      />
-      {currentNest && (
-        <BoardProvider key={currentNest.id} currentNestId={currentNest.id}>
-          <ChatProvider>
-            <View style={styles.container}>
-              {selectedNest && (
-                <>
-                  <NestHeader 
-                    selectedNest={selectedNest}
-                    onNestSelect={() => {
-                      setNestSelectorVisible(true);
-                    }}
-                    onOpenSettings={() => {
-                      if (selectedNest) {
-                        navigate(`/nest-settings?nestId=${selectedNest.id}`);
-                      }
-                    }}
-                  />
-                  <NestSpaceIntegrationDemo />
-                  <NestSelectorModal 
-                    visible={nestSelectorVisible}
-                    onClose={() => setNestSelectorVisible(false)}
-                    onSelectNest={(nest) => {
-                      setSelectedNest(nest);
-                      setCurrentNestById(nest.id);
-                      setIsCreateNestModalVisible(false);
-                    }}
-                    currentNestId={selectedNest.id}
-                    onCreateNewNest={handleOpenCreateNestModal}
-                    nests={userNests}
-                  />
-                </>
-              )}
-            </View>
-          </ChatProvider>
-        </BoardProvider>
-      )}
-
-      <Modal
-        visible={showSettingsModal}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowSettingsModal(false)}
+  if (currentNest) {
+    if (window.location.pathname === '/') {
+      return null; // リダイレクト中は何も表示しない
+    }
+    const params = new URLSearchParams(window.location.search);
+    const space = params.get('space') || 'chat';
+    const menuSections = [
+      {
+        title: '',
+        items: [
+          { id: 'chat', icon: '💬', text: 'チャット', isActive: space === 'chat' },
+          { id: 'board', icon: '📋', text: 'ボード', isActive: space === 'board' },
+          { id: 'meeting', icon: '📅', text: 'ミーティング', isActive: space === 'meeting' },
+          { id: 'analytics', icon: '📊', text: '分析', isActive: space === 'analytics' },
+          { id: 'profile', icon: '👤', text: 'プロフィール', isActive: space === 'profile' },
+        ],
+      },
+    ];
+    const handleMenuItemClick = (itemId: string) => {
+      if (itemId && currentNest.id) {
+        navigate(`/nest-top?nestId=${currentNest.id}&space=${itemId}`);
+      }
+    };
+    let SpaceComponent = null;
+    switch (space) {
+      case 'chat':
+        SpaceComponent = (
+          <BoardProvider currentNestId={currentNest.id}>
+            <ChatSpace nestId={currentNest.id} />
+          </BoardProvider>
+        );
+        break;
+      case 'board':
+        SpaceComponent = (
+          <BoardProvider currentNestId={currentNest.id}>
+            <BoardSpace nestId={currentNest.id} />
+          </BoardProvider>
+        );
+        break;
+      case 'meeting':
+        SpaceComponent = (
+          <BoardProvider currentNestId={currentNest.id}>
+            <MeetingSpace nestId={currentNest.id} />
+          </BoardProvider>
+        );
+        break;
+      case 'analytics':
+        SpaceComponent = <AnalysisSpace />;
+        break;
+      case 'profile':
+        SpaceComponent = <UserProfileSpace />;
+        break;
+      default:
+        SpaceComponent = (
+          <BoardProvider currentNestId={currentNest.id}>
+            <ChatSpace nestId={currentNest.id} />
+          </BoardProvider>
+        );
+        break;
+    }
+    return (
+      <Layout
+        workspaceTitle={currentNest.name + ' ▼'}
+        menuSections={menuSections}
+        onMenuItemClick={handleMenuItemClick}
+        nestId={currentNest.id}
+        onSettingsClick={() => navigate(`/nest-settings?nestId=${currentNest.id}`)}
       >
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.15)', justifyContent: 'center', alignItems: 'center' }}>
-          <View style={{ backgroundColor: '#fff', borderRadius: 12, width: 600, maxWidth: '95%', maxHeight: '90%' }}>
-            <NestSettingsScreen
-              nestId={selectedNest?.id}
-              onBack={() => setShowSettingsModal(false)}
-            />
-          </View>
-        </View>
-      </Modal>
-    </SafeAreaProvider>
-  );
+        {SpaceComponent}
+      </Layout>
+    );
+  }
+
+  return null;
 };
 
 // --- 画面コンポーネント ---
 const NestTopScreen: React.FC = () => {
   const params = new URLSearchParams(window.location.search);
   const nestId = params.get('nestId');
+  const space = params.get('space') || 'chat';
   const { userNests, currentNest, setCurrentNestById } = useNest();
   const { user } = useAuth();
   const [nestSelectorVisible, setNestSelectorVisible] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
   const navigate = useNavigate();
 
   // NEST情報を取得
@@ -475,32 +505,102 @@ const NestTopScreen: React.FC = () => {
     );
   }
 
+  let SpaceComponent = null;
+  switch (space) {
+    case 'chat':
+      SpaceComponent = (
+        <BoardProvider currentNestId={nest.id}>
+          <ChatSpace nestId={nest.id} />
+        </BoardProvider>
+      );
+      break;
+    case 'board':
+      SpaceComponent = (
+        <BoardProvider currentNestId={nest.id}>
+          <BoardSpace nestId={nest.id} />
+        </BoardProvider>
+      );
+      break;
+    case 'meeting':
+      SpaceComponent = (
+        <BoardProvider currentNestId={nest.id}>
+          <MeetingSpace nestId={nest.id} />
+        </BoardProvider>
+      );
+      break;
+    case 'analytics':
+      SpaceComponent = <AnalysisSpace />;
+      break;
+    case 'profile':
+      SpaceComponent = <UserProfileSpace />;
+      break;
+    default:
+      SpaceComponent = (
+        <BoardProvider currentNestId={nest.id}>
+          <ChatSpace nestId={nest.id} />
+        </BoardProvider>
+      );
+      break;
+  }
+
+  // --- サイドメニュー定義 ---
+  const menuSections = [
+    {
+      title: '',
+      items: [
+        { id: 'chat', icon: '💬', text: 'チャット', isActive: space === 'chat' },
+        { id: 'board', icon: '📋', text: 'ボード', isActive: space === 'board' },
+        { id: 'meeting', icon: '📅', text: 'ミーティング', isActive: space === 'meeting' },
+        { id: 'analytics', icon: '📊', text: '分析', isActive: space === 'analytics' },
+        { id: 'profile', icon: '👤', text: 'プロフィール', isActive: space === 'profile' },
+      ],
+    },
+  ];
+  const handleMenuItemClick = (itemId: string) => {
+    if (itemId && nest.id) {
+      navigate(`/nest-top?nestId=${nest.id}&space=${itemId}`);
+    }
+  };
+
+  // --- workspace-headerのカスタムアクション ---
+  const headerActions = (
+    <div className="workspace-controls">
+      <div className="workspace-btn" onClick={() => navigate(`/nest-settings?nestId=${nest.id}`)}>⚙</div>
+      <div className="workspace-btn" onClick={() => setDarkMode(dm => !dm)}>{darkMode ? '☀️' : '🌙'}</div>
+      {/* 必要なら他のアクションも追加 */}
+    </div>
+  );
+
   return (
-    <View style={styles.container}>
+    <Layout
+      workspaceTitle={nest.name + ' ▼'}
+      menuSections={menuSections}
+      onMenuItemClick={handleMenuItemClick}
+      nestId={nest.id}
+      onSettingsClick={() => navigate(`/nest-settings?nestId=${nest.id}`)}
+    >
+      {SpaceComponent}
+      {/*
       <NestHeader 
         selectedNest={nest}
-        onNestSelect={() => {
-          setNestSelectorVisible(true);
-        }}
-        onOpenSettings={() => {
-          if (nest) {
-            navigate(`/nest-settings?nestId=${nest.id}`);
-          }
-        }}
+        onNestSelect={() => setNestSelectorVisible(true)}
+        onOpenSettings={() => navigate(`/nest-settings?nestId=${nest.id}`)}
       />
-      <NestSpaceIntegrationDemo />
-      <NestSelectorModal 
-        visible={nestSelectorVisible}
-        onClose={() => setNestSelectorVisible(false)}
-        onSelectNest={(selected) => {
-          setCurrentNestById(selected.id);
-          setNestSelectorVisible(false);
-        }}
-        currentNestId={nest.id}
-        onCreateNewNest={() => {}}
-        nests={userNests}
-      />
-    </View>
+      */}
+      {nestSelectorVisible && (
+        <NestSelectorModal 
+          visible={nestSelectorVisible}
+          onClose={() => setNestSelectorVisible(false)}
+          onSelectNest={(selected) => {
+            setCurrentNestById(selected.id);
+            setNestSelectorVisible(false);
+          }}
+          currentNestId={nest.id}
+          onCreateNewNest={() => {}}
+          nests={userNests}
+        />
+      )}
+    </Layout>
   );
 };
 
@@ -557,65 +657,24 @@ const AuthGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
 const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <NestProvider>
-        <NestSpaceProvider>
-          <ChatProvider>
-            <AppWithNest />
-          </ChatProvider>
-        </NestSpaceProvider>
-      </NestProvider>
-    </AuthProvider>
+    <Router>
+      <AuthProvider>
+        <NestProvider>
+          <NestSpaceProvider>
+            <ChatProvider>
+              <Routes>
+                <Route path="/" element={<AppContent />} />
+                <Route path="/nest-top" element={<NestTopScreen />} />
+                <Route path="/create-nest" element={<CreateTestNestScreenWrapper />} />
+                <Route path="/nest-settings" element={<NestSettingsScreenWrapper />} />
+                {/* 必要に応じて他のルートも追加 */}
+              </Routes>
+            </ChatProvider>
+          </NestSpaceProvider>
+        </NestProvider>
+      </AuthProvider>
+    </Router>
   );
-};
-
-const AppWithNest: React.FC = () => {
-  const { currentNest } = useNest();
-  if (currentNest) {
-    return (
-      <BoardProvider key={currentNest.id} currentNestId={currentNest.id}>
-        <Router>
-          <Routes>
-            <Route path="/login" element={<LoginScreen />} />
-            <Route
-              path="/*"
-              element={
-                <AuthGuard>
-                  <Routes>
-                    <Route path="/" element={<NestSelectorScreenWrapper />} />
-                    <Route path="/create-nest" element={<CreateTestNestScreenWrapper />} />
-                    <Route path="/nest-top" element={<NestTopScreen />} />
-                    <Route path="/nest-settings" element={<NestSettingsScreenWrapper />} />
-                  </Routes>
-                </AuthGuard>
-              }
-            />
-          </Routes>
-        </Router>
-      </BoardProvider>
-    );
-  } else {
-    return (
-      <Router>
-        <Routes>
-          <Route path="/login" element={<LoginScreen />} />
-          <Route
-            path="/*"
-            element={
-              <AuthGuard>
-                <Routes>
-                  <Route path="/" element={<NestSelectorScreenWrapper />} />
-                  <Route path="/create-nest" element={<CreateTestNestScreenWrapper />} />
-                  <Route path="/nest-top" element={<NestTopScreen />} />
-                  <Route path="/nest-settings" element={<NestSettingsScreenWrapper />} />
-                </Routes>
-              </AuthGuard>
-            }
-          />
-        </Routes>
-      </Router>
-    );
-  }
 };
 
 const styles = StyleSheet.create({
