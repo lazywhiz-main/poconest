@@ -1,14 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Image, FlatList, Modal, useWindowDimensions, Animated, Easing, Dimensions, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Image, FlatList, useWindowDimensions, Animated, Easing, Dimensions, Alert, Platform } from 'react-native';
 import theme from '../../../styles/theme';
 import { useChat } from '../../../contexts/ChatContext';
 import { Channel, Message } from '../../../types/chat';
 import { useAuth } from '@contexts/AuthContext';
-import { useNestSpace } from '@contexts/NestSpaceContext';
+import { useNest } from '../../nest/contexts/NestContext';
 import { createPortal } from 'react-dom';
 // import { useBoardContext } from '../../../features/board-space/contexts/BoardContext';
 import { SUPABASE_FUNCTION_URL } from '../../../constants/config';
 import { useChatToBoard } from '../../../hooks/useChatToBoard';
+// import { useNestSpace } from '../../nest-space/contexts/_NestSpaceContext';
+import { useNestSpace } from '@contexts/NestSpaceContext';
+import CommonButton from '../../../components/CommonButton';
+import ChatMessage from '../../../components/ChatMessage';
+import ChatInput from '../../../components/ChatInput';
+import Modal from '../../../components/ui/Modal';
+import Button from '../../../components/ui/Button';
+import Spinner from '../../../components/ui/Spinner';
 
 console.log('ChatSpace.tsx loaded!');
 
@@ -106,6 +114,15 @@ const getIconPath = (name: string) => {
           <circle cx="12" cy="19" r="1"></circle>
         </>
       );
+    case 'trash':
+      return (
+        <>
+          <path d="M3 6h18"></path>
+          <path d="M8 6V4c0-1.1.9-2 2-2h4c1.1 0 2 .9 2 2v2"></path>
+          <path d="M10 11v6"></path>
+          <path d="M14 11v6"></path>
+        </>
+      );
     default:
       return <circle cx="12" cy="12" r="10"></circle>;
   }
@@ -121,38 +138,80 @@ type CreateChannelModalProps = {
 const CreateChannelModal: React.FC<CreateChannelModalProps> = ({ visible, onClose, onSubmit }) => {
   const [name, setName] = useState('');
   const [desc, setDesc] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+
   const handleCreate = () => {
-    if (name.trim()) {
+    if (!name.trim()) {
+      setError('チャネル名を入力してください');
+      return;
+    }
+    setIsCreating(true);
+    setError(null);
+    try {
       onSubmit(name.trim(), desc.trim());
       setName('');
       setDesc('');
+      onClose();
+    } catch (e) {
+      setError('作成に失敗しました');
+    } finally {
+      setIsCreating(false);
     }
   };
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={{ flex:1, justifyContent:'center', alignItems:'center', backgroundColor:'rgba(0,0,0,0.2)' }}>
-        <View style={{ backgroundColor:'#fff', borderRadius:12, padding:24, width:320, maxWidth:'90%' }}>
-          <Text style={{ fontSize:18, fontWeight:'bold', marginBottom:12 }}>新しいチャネルを作成</Text>
-          <TextInput
-            style={{ borderWidth:1, borderColor:'#ccc', borderRadius:8, padding:8, marginBottom:12 }}
-            placeholder="チャネル名"
-            value={name}
-            onChangeText={setName}
-            autoFocus
-          />
-          <TextInput
-            style={{ borderWidth:1, borderColor:'#ccc', borderRadius:8, padding:8, marginBottom:16 }}
-            placeholder="説明 (任意)"
-            value={desc}
-            onChangeText={setDesc}
-          />
-          <View style={{ flexDirection:'row', justifyContent:'flex-end' }}>
-            <TouchableOpacity onPress={onClose} style={{ marginRight:16 }}>
-              <Text style={{ color:'#888', fontSize:16 }}>キャンセル</Text>
+      <View style={modalStyles.overlay}>
+        <View style={modalStyles.modal}>
+          <View style={modalStyles.header}>
+            <Text style={modalStyles.title}>新しいチャネルを作成</Text>
+            <TouchableOpacity onPress={onClose} style={modalStyles.closeBtn} accessibilityLabel="閉じる">
+              <Text style={modalStyles.closeText}>×</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={handleCreate} disabled={!name.trim()}>
-              <Text style={{ color:!name.trim() ? '#ccc' : '#007AFF', fontSize:16, fontWeight:'bold' }}>作成</Text>
-            </TouchableOpacity>
+          </View>
+          <View style={modalStyles.body}>
+            <View style={modalStyles.formGroup}>
+              <Text style={modalStyles.label}>チャネル名</Text>
+              <TextInput
+                style={[modalStyles.input, error ? modalStyles.inputError : null]}
+                value={name}
+                onChangeText={setName}
+                placeholder="例: プロジェクト計画"
+                placeholderTextColor="#6c7086"
+                autoFocus
+              />
+              {error && <Text style={modalStyles.error}>{error}</Text>}
+            </View>
+            <View style={modalStyles.formGroup}>
+              <Text style={modalStyles.label}>説明（任意）</Text>
+              <TextInput
+                style={[modalStyles.input, modalStyles.textArea]}
+                value={desc}
+                onChangeText={setDesc}
+                placeholder="このチャネルの目的や用途を説明してください"
+                placeholderTextColor="#6c7086"
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+              />
+            </View>
+          </View>
+          <View style={modalStyles.footer}>
+            <CommonButton
+              variant="default"
+              onPress={onClose}
+              disabled={isCreating}
+            >
+              キャンセル
+            </CommonButton>
+            <CommonButton
+              variant="primary"
+              onPress={handleCreate}
+              disabled={!name.trim() || isCreating}
+            >
+              {isCreating ? '作成中...' : '作成'}
+            </CommonButton>
           </View>
         </View>
       </View>
@@ -160,14 +219,124 @@ const CreateChannelModal: React.FC<CreateChannelModalProps> = ({ visible, onClos
   );
 };
 
+const modalStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(15, 15, 35, 0.8)',
+  },
+  modal: {
+    backgroundColor: '#1a1a2e',
+    borderColor: '#333366',
+    borderWidth: 1,
+    borderRadius: 4,
+    width: '90%',
+    maxWidth: 500,
+    maxHeight: '80%',
+    overflow: 'hidden',
+  },
+  header: {
+    backgroundColor: '#333366',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#45475a',
+  },
+  title: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#e2e8f0',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  closeBtn: {
+    padding: 4,
+    borderRadius: 2,
+  },
+  closeText: {
+    color: '#a6adc8',
+    fontSize: 18,
+  },
+  body: {
+    padding: 20,
+    backgroundColor: '#1a1a2e',
+  },
+  footer: {
+    backgroundColor: '#333366',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#45475a',
+  },
+  formGroup: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#a6adc8',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 6,
+  },
+  input: {
+    width: '100%',
+    backgroundColor: '#0f0f23',
+    borderColor: '#333366',
+    borderWidth: 1,
+    borderRadius: 2,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    color: '#e2e8f0',
+    fontSize: 13,
+    fontFamily: Platform.select({ ios: 'System', android: 'System', default: 'sans-serif' }),
+    marginBottom: 2,
+  },
+  inputError: {
+    borderColor: '#ff6b6b',
+  },
+  error: {
+    color: '#ff6b6b',
+    fontSize: 10,
+    marginTop: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  textArea: {
+    minHeight: 60,
+    maxHeight: 120,
+  },
+});
+
 /**
  * チャット空間コンポーネント
  * 
  * チャネルごとに直接メッセージのやり取りを行える
  */
 const ChatSpace: React.FC<ChatSpaceProps> = ({ nestId }) => {
+  const { currentNest, setCurrentNestById, loading } = useNest();
+  const { spaceState } = useNestSpace();
+  React.useEffect(() => {
+    if (nestId && (!currentNest || nestId !== currentNest.id)) {
+      setCurrentNestById(nestId);
+    }
+  }, [nestId, currentNest, setCurrentNestById]);
+
+  if (!currentNest || nestId !== currentNest.id) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0f0f23' }}>
+        <Text style={{ color: '#00ff88', fontSize: 18 }}>NEST情報を取得中...</Text>
+      </View>
+    );
+  }
   console.log('ChatSpace mounted!');
-  const [newMessage, setNewMessage] = useState('');
   const scrollViewRef = useRef<ScrollView>(null);
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [showChannelList, setShowChannelList] = useState(false);
@@ -233,16 +402,14 @@ const ChatSpace: React.FC<ChatSpaceProps> = ({ nestId }) => {
     if (scrollViewRef.current && currentMessages.length > 0) {
       setTimeout(() => {
         scrollViewRef.current?.scrollToEnd({ animated: true });
-      }, 100);
+      }, 50);
     }
   }, [currentMessages.length]);
 
   // メッセージ送信ハンドラー
-  const handleSendMessage = async () => {
-    if (newMessage.trim() === '' || !activeChatRoomId) return;
-    
-    await sendChatMessage(newMessage);
-    setNewMessage('');
+  const handleSendMessage = async (message: string) => {
+    if (!activeChatRoomId) return;
+    await sendChatMessage(message);
   };
 
   // インサイト抽出ハンドラー
@@ -258,7 +425,34 @@ const ChatSpace: React.FC<ChatSpaceProps> = ({ nestId }) => {
 
   const handleCreateChannel = async (name: string, desc: string) => {
     setCreateModalVisible(false);
-    await createChatRoom(nestId, name, desc);
+
+    let chatSpaceId: string | undefined = undefined;
+
+    // 1. activeSpaceTypeで現在のspaceを特定し、そのidを使う
+    if (spaceState?.activeSpaceType && Array.isArray(spaceState.availableSpaces)) {
+      const activeSpace = spaceState.availableSpaces.find(
+        (s: any) => s.type === spaceState.activeSpaceType
+      );
+      if (activeSpace) chatSpaceId = activeSpace.id;
+    }
+
+    // 2. availableSpacesからtype: 'chat'を探す
+    if (!chatSpaceId && Array.isArray(spaceState?.availableSpaces)) {
+      const chatSpace = spaceState.availableSpaces.find((s: any) => s.type === 'chat');
+      if (chatSpace) chatSpaceId = chatSpace.id;
+    }
+
+    // 3. chatRoomsが存在する場合はそこからspaceIdを使う
+    if (!chatSpaceId && chatRooms && chatRooms.length > 0 && chatRooms[0].spaceId) {
+      chatSpaceId = chatRooms[0].spaceId;
+    }
+
+    if (!chatSpaceId) {
+      alert('チャット空間のspaceIdが見つかりません。管理者にご連絡ください。');
+      return;
+    }
+
+    await createChatRoom(chatSpaceId, name, desc);
   };
 
   // チャネルアイテムをレンダリング
@@ -356,7 +550,17 @@ const ChatSpace: React.FC<ChatSpaceProps> = ({ nestId }) => {
   const openMenu = () => {
     if (typeof window !== 'undefined' && menuButtonRef.current) {
       const rect = menuButtonRef.current.getBoundingClientRect();
-      setMenuPos({ top: rect.bottom, left: rect.right - 200 }); // 200はメニュー幅
+      const menuWidth = 200;
+      let left = rect.left + window.scrollX;
+      let top = rect.bottom + window.scrollY;
+      if (left + menuWidth > window.innerWidth) {
+        left = window.innerWidth - menuWidth - 8;
+      }
+      if (left < 0) left = 8;
+      if (top < 0) top = 40;
+      const pos = { top, left };
+      console.log('[openMenu] menuPos:', pos);
+      setMenuPos(pos);
     }
     setMenuVisible(true);
   };
@@ -384,7 +588,7 @@ const ChatSpace: React.FC<ChatSpaceProps> = ({ nestId }) => {
   // チャネル切り替え時にメニューを自動で閉じる
   useEffect(() => {
     setMenuVisible(false);
-  }, [activeChatRoomId]);
+  }, [activeChatRoomId, nestId]);
 
   // デバッグ用ログ
   console.log('chatRooms:', chatRooms);
@@ -414,37 +618,627 @@ const ChatSpace: React.FC<ChatSpaceProps> = ({ nestId }) => {
     if (warn) {
       setAnalyzeWarning(warn);
       setShowAnalyzeResultModal(true);
+    } else if (status.lastError) {
+      setAnalyzeWarning(status.lastError.message || 'AI分析でエラーが発生しました');
+      setShowAnalyzeResultModal(true);
     }
   };
 
-  return (
-    <View style={{ flex: 1, flexDirection: 'column' }}>
-      {/* チャット空間ヘッダー（常に「チャット空間」＋アイコンで固定） */}
-      {/* <View style={styles.spaceHeader}>
-        <View style={styles.headerIcon}>
-          <Text style={[styles.headerIconText, {color: theme.colors.text.primary}]}>💬</Text>
-        </View>
-        <Text style={styles.headerTitle}>チャット空間</Text>
-      </View> */}
-      {/* 下部（チャネルリスト＋メッセージエリア） */}
-      <View style={{ flex: 1, flexDirection: 'row' }}>
-        {/* チャネルリスト（PC/タブレットのみ常時表示） */}
-        {!isMobile && (
-          <View style={styles.channelListContainer}>
-            <View style={styles.channelListHeader}>
-              <Text style={styles.listHeaderTitle}>チャネル</Text>
-              <TouchableOpacity style={styles.newChannelButton} onPress={handleAddChannel}>
-                <Icon name="plus" size={16} color="white" />
-              </TouchableOpacity>
-            </View>
-            <FlatList
-              data={chatRooms}
-              keyExtractor={item => item.id}
-              renderItem={renderChannelItem}
-              showsVerticalScrollIndicator={false}
+  // status.isAnalyzingの変化を監視
+  useEffect(() => {
+    console.log('[ChatSpace] status.isAnalyzing:', status.isAnalyzing);
+  }, [status.isAnalyzing]);
+
+  // --- 削除確認モーダル用 state ---
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  // --- メニュー外クリックで閉じる ---
+  useEffect(() => {
+    if (!menuVisible) return;
+    const handleClick = (e: MouseEvent) => {
+      if (menuButtonRef.current && !menuButtonRef.current.contains(e.target as Node)) {
+        setMenuVisible(false);
+      }
+    };
+    window.addEventListener('mousedown', handleClick);
+    return () => window.removeEventListener('mousedown', handleClick);
+  }, [menuVisible]);
+
+  // --- 新規チャネル作成フォーム state ---
+  const [newChannelName, setNewChannelName] = useState('');
+  const [newChannelDesc, setNewChannelDesc] = useState('');
+  const [newChannelError, setNewChannelError] = useState<string | null>(null);
+  const [isCreatingChannel, setIsCreatingChannel] = useState(false);
+
+  const handleCreateChannelWeb = async () => {
+    if (!newChannelName.trim()) {
+      setNewChannelError('チャネル名を入力してください');
+      return;
+    }
+    setIsCreatingChannel(true);
+    setNewChannelError(null);
+    try {
+      await handleCreateChannel(newChannelName.trim(), newChannelDesc.trim());
+      setNewChannelName('');
+      setNewChannelDesc('');
+      setCreateModalVisible(false);
+    } catch (e) {
+      setNewChannelError('作成に失敗しました');
+    } finally {
+      setIsCreatingChannel(false);
+    }
+  };
+
+  // --- グローバルクリック監視 ---
+  useEffect(() => {
+    const handler = e => {
+      console.log('window click', e.target);
+    };
+    window.addEventListener('click', handler);
+    return () => window.removeEventListener('click', handler);
+  }, []);
+
+  if (Platform.OS === 'web') {
+    return (
+      <>
+        {/* 分析進行中モーダル */}
+        <Modal open={status.isAnalyzing} onClose={() => {}} title="AI分析中...">
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20, minWidth: 240 }}>
+            <Spinner size={48} strokeWidth={6} />
+            <div style={{ fontSize: 15, color: '#a6adc8', textAlign: 'center', fontWeight: 400 }}>しばらくお待ちください</div>
+          </div>
+        </Modal>
+        {/* 分析完了モーダル */}
+        <Modal open={showAnalyzeResultModal} onClose={() => { setShowAnalyzeResultModal(false); setAnalyzeWarning(null); }} title="分析完了">
+          {analyzeWarning ? (
+            <div style={{ color: '#ff6b6b', fontSize: 14, textAlign: 'center', fontWeight: 500, marginBottom: 18 }}>{analyzeWarning}</div>
+          ) : analyzeResult && analyzeResult.length > 0 ? (
+            <>
+              <div style={{ marginBottom: 10, color: '#a6adc8', fontSize: 14, fontWeight: 400 }}>追加されたカード数: <b style={{ color: '#00ff88', fontSize: 15 }}>{analyzeResult.length}</b></div>
+              <ul style={{ marginBottom: 14, padding: 0, listStyle: 'none', maxHeight: 140, overflow: 'auto', width: '100%' }}>
+                {analyzeResult.map(card => (
+                  <li key={card.id} style={{ fontSize: 14, color: '#e2e8f0', background: '#23243a', borderRadius: 4, padding: '8px 10px', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8, fontWeight: 400 }}>
+                    <svg width={16} height={16} viewBox="0 0 24 24" style={{ marginRight: 4 }}><rect x="4" y="4" width="16" height="16" rx="3" fill="#00ff88" opacity="0.18" /><rect x="7" y="7" width="10" height="10" rx="2" fill="#00ff88" opacity="0.38" /></svg>
+                    <span style={{ flex: 1 }}>{card.title}</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <div style={{ marginBottom: 14, color: '#a6adc8', fontSize: 14, fontWeight: 400 }}>カードは抽出されませんでした。</div>
+          )}
+          <div style={{ width: '100%', display: 'flex', justifyContent: 'center', marginTop: 4 }}>
+            <Button
+              title="OK"
+              variant="primary"
+              size="md"
+              onPress={() => { setShowAnalyzeResultModal(false); setAnalyzeWarning(null); }}
+              style={{ minWidth: 96 }}
             />
-          </View>
+          </div>
+        </Modal>
+        {/* --- 新規チャネル作成モーダル（Web用） --- */}
+        <Modal open={createModalVisible} onClose={() => setCreateModalVisible(false)} title="新しいチャネルを作成">
+          <div style={{ minWidth: 320, maxWidth: 420 }}>
+            <div style={{ marginBottom: 18 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#a6adc8', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>チャネル名</div>
+              <input
+                style={{
+                  width: '100%',
+                  background: '#0f0f23',
+                  border: `1px solid ${newChannelError ? '#ff6b6b' : '#333366'}`,
+                  borderRadius: 2,
+                  padding: '8px 12px',
+                  color: '#e2e8f0',
+                  fontSize: 13,
+                  marginBottom: 2,
+                  outline: 'none',
+                }}
+                value={newChannelName}
+                onChange={e => setNewChannelName(e.target.value)}
+                placeholder="例: プロジェクト計画"
+                autoFocus
+              />
+              {newChannelError && <div style={{ color: '#ff6b6b', fontSize: 10, marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>{newChannelError}</div>}
+            </div>
+            <div style={{ marginBottom: 18 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#a6adc8', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>説明（任意）</div>
+              <textarea
+                style={{
+                  width: '100%',
+                  minHeight: 60,
+                  maxHeight: 120,
+                  background: '#0f0f23',
+                  border: '1px solid #333366',
+                  borderRadius: 2,
+                  padding: '8px 12px',
+                  color: '#e2e8f0',
+                  fontSize: 13,
+                  marginBottom: 2,
+                  outline: 'none',
+                  resize: 'vertical',
+                }}
+                value={newChannelDesc}
+                onChange={e => setNewChannelDesc(e.target.value)}
+                placeholder="このチャネルの目的や用途を説明してください"
+              />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 24 }}>
+              <Button
+                title="キャンセル"
+                variant="default"
+                size="md"
+                onPress={() => setCreateModalVisible(false)}
+                style={{ minWidth: 96 }}
+                disabled={isCreatingChannel}
+              />
+              <Button
+                title={isCreatingChannel ? '作成中...' : '作成'}
+                variant="primary"
+                size="md"
+                onPress={handleCreateChannelWeb}
+                style={{ minWidth: 96 }}
+                disabled={!newChannelName.trim() || isCreatingChannel}
+              />
+            </div>
+          </div>
+        </Modal>
+        {/* --- メニュー本体をPortalで描画 --- */}
+        {menuVisible && typeof window !== 'undefined' && (() => {
+          console.log('メニューJSX描画！');
+          return (
+            <div
+              style={{
+                position: 'fixed',
+                top: menuPos.top,
+                left: menuPos.left,
+                minWidth: 180,
+                background: 'rgba(0,255,0,0.15)', // デバッグ用: 緑
+                border: '1px solid #333366',
+                borderRadius: 4,
+                zIndex: 99999, // 極端に上げる
+                boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+                padding: 0,
+                pointerEvents: 'auto', // 明示的に
+              }}
+            >
+              <button
+                key={menuVisible ? 'menu-open' : 'menu-closed'}
+                ref={el => { if (el) console.log('button mounted', el); }}
+                style={{
+                  width: '100%',
+                  padding: '10px 20px',
+                  color: '#e2e8f0',
+                  cursor: 'pointer',
+                  fontSize: 14,
+                  borderBottom: '1px solid #333366',
+                  background: 'rgba(255,0,0,0.2)', // デバッグ用: 赤
+                  border: 'none',
+                  textAlign: 'left',
+                }}
+                onClick={e => {
+                  console.log('onClick fired');
+                  alert('削除クリック');
+                  console.log('チャネルを削除クリック');
+                  setShowDeleteConfirm(true);
+                  setMenuVisible(false);
+                }}
+              >
+                チャネルを削除
+              </button>
+              <button
+                style={{
+                  width: '100%',
+                  padding: '10px 20px',
+                  color: '#e2e8f0',
+                  cursor: 'pointer',
+                  fontSize: 14,
+                  borderBottom: '1px solid #333366',
+                  background: 'rgba(0,0,255,0.2)', // デバッグ用: 青
+                  border: 'none',
+                  textAlign: 'left',
+                }}
+                onClick={() => {
+                  alert('テストクリック');
+                }}
+              >
+                テスト
+              </button>
+              <div
+                style={{
+                  padding: '10px 20px',
+                  color: '#a6adc8',
+                  cursor: 'pointer',
+                  fontSize: 14,
+                }}
+                onClick={e => {
+                  e.stopPropagation();
+                  setMenuVisible(false);
+                }}
+              >
+                閉じる
+              </div>
+            </div>
+          );
+        })()}
+        {/* --- 削除確認モーダル --- */}
+        {showDeleteConfirm && (
+          <Modal
+            open={showDeleteConfirm}
+            onClose={() => setShowDeleteConfirm(false)}
+            style={{ minWidth: 360, textAlign: 'center' }}
+          >
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#fff', marginBottom: 32, textAlign: 'center', letterSpacing: 0.5 }}>
+              本当にこのチャネルを削除しますか？
+            </div>
+            <div style={{ display: 'flex', gap: 20, justifyContent: 'center' }}>
+              <Button
+                title="キャンセル"
+                variant="default"
+                style={{ minWidth: 120 }}
+                onPress={() => setShowDeleteConfirm(false)}
+              />
+              <Button
+                title="削除"
+                variant="danger"
+                style={{ minWidth: 120 }}
+                onPress={async () => { if(currentChannel) { await deleteChatRoom(currentChannel.id); } setShowDeleteConfirm(false); }}
+              />
+            </div>
+          </Modal>
         )}
+        <div style={{
+          display: 'flex',
+          flexDirection: 'row',
+          height: '100%',
+          minHeight: 0,
+          flex: 1,
+        }}>
+          {/* サイドバー（固定） */}
+          <div style={{
+            width: 240,
+            background: '#1a1a2e',
+            borderRight: '1px solid #333366',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            flexShrink: 0,
+            overflow: 'hidden',
+          }}>
+            {/* CHANNELS見出し */}
+            <div style={{
+              fontSize: 11,
+              fontWeight: 600,
+              color: '#6c7086',
+              textTransform: 'uppercase',
+              letterSpacing: 1,
+              paddingLeft: 16,
+              marginTop: 20,
+              marginBottom: 8,
+            }}>CHANNELS</div>
+            {/* チャネルリスト＋ボタン */}
+            <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0, flex: 1 }}>
+              {/* チャネルリスト（スクロール） */}
+              <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+                {chatRooms.map((item) => {
+                  const isActive = activeChatRoomId === item.id;
+                  const isPublic = item.name !== 'プロジェクトアイデア';
+                  return (
+                    <div
+                      key={item.id}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: '6px 16px',
+                        background: isActive ? '#333366' : 'transparent',
+                        borderLeft: isActive ? '2px solid #00ff88' : '2px solid transparent',
+                        marginBottom: 2,
+                        borderRadius: 0,
+                        cursor: 'pointer',
+                        color: isActive ? '#00ff88' : '#e2e8f0',
+                        fontWeight: isActive ? 600 : 400,
+                        fontSize: 13,
+                      }}
+                      onClick={() => setActiveChatRoom(item.id)}
+                    >
+                      <span style={{ color: '#6c7086', fontWeight: 600, marginRight: 4, fontSize: 14 }}>{isPublic ? '#' : '@'}</span>
+                      <span style={{ flex: 1 }}>{item.name}</span>
+                      <span style={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: 1,
+                        background: item.unreadCount > 0 ? '#00ff88' : '#6c7086',
+                        marginLeft: 6,
+                        display: 'inline-block',
+                      }} />
+                      {item.unreadCount > 0 && (
+                        <span style={{
+                          marginLeft: 8,
+                          background: '#00ff88',
+                          padding: '0 6px',
+                          borderRadius: 2,
+                          minWidth: 18,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          height: 18,
+                          color: '#0f0f23',
+                          fontSize: 10,
+                          fontWeight: 600,
+                        }}>{item.unreadCount}</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              {/* 新規チャネルボタン（リストの直下） */}
+              <button
+                style={{
+                  marginTop: 8,
+                  marginLeft: 16,
+                  marginRight: 16,
+                  marginBottom: 16,
+                  height: 36,
+                  background: '#00ff88',
+                  borderRadius: 2,
+                  border: 'none',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  display: 'flex',
+                  flexDirection: 'row',
+                  gap: 6,
+                  fontWeight: 600,
+                  fontSize: 13,
+                  color: '#0f0f23',
+                  cursor: 'pointer',
+                }}
+                onClick={() => setCreateModalVisible(true)}
+              >
+                <span style={{ marginRight: 6 }}><Icon name="plus" size={16} color="#0f0f23" /></span>
+                新規チャネル
+              </button>
+            </div>
+          </div>
+          {/* 右カラム: チャットエリア（スクロール可能） */}
+          <div style={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            minHeight: 0,
+            height: '100%',
+          }}>
+            {/* メッセージエリア（本物） */}
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+              {/* メッセージヘッダー（ルーム名・説明） */}
+              {chatRooms.length === 0 ? (
+                <View style={styles.emptyMessageContainer}>
+                  <Text style={styles.emptyMessageTitle}>まだチャネルがありません</Text>
+                  <Text style={styles.emptyMessageSub}>最初のチャネルを作成してください</Text>
+                  <TouchableOpacity style={[styles.sendButtonNormal, { marginTop: 16 }]} onPress={handleAddChannel}>
+                    <Text style={styles.sendButtonText}>チャネルを作成</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <>
+                  {currentChannel && (
+                    <div style={{
+                      background: '#1a1a2e',
+                      borderBottom: '1px solid #333366',
+                      padding: '16px 24px',
+                      display: 'flex',
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <Icon name={'hash'} size={18} color={'#00ff88'} style={{ marginRight: 8 }} />
+                          <span style={{ fontSize: 16, fontWeight: 600, color: '#e2e8f0' }}>{currentChannel.name}</span>
+                        </div>
+                        <span style={{ fontSize: 12, color: '#6c7086', marginTop: 2 }}>{currentChannel.description}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <button style={{
+                          width: 28,
+                          height: 28,
+                          background: '#1a1a2e',
+                          border: '1px solid #333366',
+                          borderRadius: 2,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          fontSize: 14,
+                          color: '#a6adc8',
+                          transition: 'all 0.2s',
+                        }} onClick={handleAnalyzeClick} disabled={status?.isAnalyzing}>
+                          <Icon name="hash" size={18} color="#a6adc8" />
+                        </button>
+                        <button
+                          style={{
+                            width: 28,
+                            height: 28,
+                            background: '#1a1a2e',
+                            border: '1px solid #333366',
+                            borderRadius: 2,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            fontSize: 14,
+                            color: '#a6adc8',
+                            transition: 'all 0.2s',
+                          }}
+                          onClick={() => setShowDeleteConfirm(true)}
+                          title="チャネルを削除"
+                        >
+                          <Icon name="trash" size={18} color="#ff6b6b" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {/* メッセージリスト or 運営メッセージ */}
+                  <div style={{ flex: 1, minHeight: 0, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
+                    {currentMessages.length === 0 ? (
+                      <View style={styles.emptyMessageContainer}>
+                        <Text style={styles.emptyMessageTitle}>初めてのメッセージを送ってみてください！</Text>
+                        <Text style={styles.emptyMessageSub}>このチャットルームの最初の一言を投稿しましょう。</Text>
+                      </View>
+                    ) : (
+                      <ScrollView 
+                        ref={scrollViewRef}
+                        style={[styles.messagesList, { flex: 1 }]}
+                        contentContainerStyle={styles.messagesContent}
+                      >
+                        {currentMessages.map(message => (
+                          <ChatMessage
+                            key={message.id}
+                            content={message.content}
+                            sender={message.sender}
+                            timestamp={message.created_at}
+                            isSelf={message.sender.id === user?.id}
+                          />
+                        ))}
+                        {isPocoTyping && (
+                          <View style={styles.typingIndicator}>
+                            <Text style={styles.typingText}>ポコは入力中...</Text>
+                          </View>
+                        )}
+                      </ScrollView>
+                    )}
+                  </div>
+                </>
+              )}
+              {/* 入力エリア（下端固定） */}
+              <div style={{
+                position: 'sticky',
+                bottom: 0,
+                background: '#0f0f23',
+                zIndex: 10,
+                borderTop: '1px solid #333366',
+                width: '100%',
+              }}>
+                <ChatInput
+                  onSend={handleSendMessage}
+                  disabled={!activeChatRoomId}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+  // Nativeの場合は従来通り
+  return (
+    <View style={{ flex: 1, flexDirection: 'row', minHeight: 0 }}>
+      <View style={{
+        width: 240,
+        backgroundColor: '#1a1a2e',
+        borderRightWidth: 1,
+        borderRightColor: '#333366',
+        paddingTop: 20,
+        paddingBottom: 20,
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'flex-start',
+        minHeight: 0,
+        overflow: 'hidden',
+      }}>
+        <Text style={{
+          fontSize: 11,
+          fontWeight: '600',
+          color: '#6c7086',
+          textTransform: 'uppercase',
+          letterSpacing: 1,
+          paddingHorizontal: 16,
+          marginBottom: 8,
+        }}>CHANNELS</Text>
+        <View style={{ flex: 1 }}>
+          {chatRooms.map((item) => {
+            const isActive = activeChatRoomId === item.id;
+            const isPublic = item.name !== 'プロジェクトアイデア';
+            return (
+              <TouchableOpacity
+                key={item.id}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 8,
+                  paddingVertical: 6,
+                  paddingHorizontal: 16,
+                  backgroundColor: isActive ? '#333366' : 'transparent',
+                  borderLeftWidth: 2,
+                  borderLeftColor: isActive ? '#00ff88' : 'transparent',
+                  marginBottom: 2,
+                  borderRadius: 0,
+                }}
+                activeOpacity={0.8}
+                onPress={() => setActiveChatRoom(item.id)}
+              >
+                <Text style={{
+                  color: '#6c7086',
+                  fontWeight: '600',
+                  marginRight: 4,
+                  fontSize: 14,
+                }}>{isPublic ? '#' : '@'}</Text>
+                <Text style={{
+                  flex: 1,
+                  color: isActive ? '#00ff88' : '#e2e8f0',
+                  fontSize: 13,
+                  fontWeight: isActive ? '600' : '400',
+                }}>{item.name}</Text>
+                {/* ステータスドット */}
+                <View style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: 1,
+                  backgroundColor: item.unreadCount > 0 ? '#00ff88' : '#6c7086',
+                  marginLeft: 6,
+                }} />
+                {/* 未読バッジ */}
+                {item.unreadCount > 0 && (
+                  <View style={{
+                    marginLeft: 8,
+                    backgroundColor: '#00ff88',
+                    paddingHorizontal: 6,
+                    borderRadius: 2,
+                    minWidth: 18,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    height: 18,
+                  }}>
+                    <Text style={{ color: '#0f0f23', fontSize: 10, fontWeight: '600' }}>{item.unreadCount}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+        {/* 新規チャネルボタン */}
+        <TouchableOpacity
+          style={{
+            marginTop: 16,
+            marginHorizontal: 16,
+            height: 36,
+            backgroundColor: '#00ff88',
+            borderRadius: 2,
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexDirection: 'row',
+            gap: 6,
+          }}
+          onPress={handleAddChannel}
+          activeOpacity={0.85}
+        >
+          <Icon name="plus" size={16} color="#0f0f23" />
+          <Text style={{ color: '#0f0f23', fontWeight: '600', fontSize: 13 }}>新規チャネル</Text>
+        </TouchableOpacity>
+      </View>
+      {/* 右カラム: チャットエリア（スクロール可能） */}
+      <View style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         {/* メッセージエリア（本物） */}
         <View style={styles.messagesContainer}>
           {/* メッセージヘッダー（ルーム名・説明） */}
@@ -459,242 +1253,112 @@ const ChatSpace: React.FC<ChatSpaceProps> = ({ nestId }) => {
           ) : (
             <>
               {currentChannel && (
-                <View style={styles.channelHeader}>
-                  <View style={styles.channelTitleContainer}>
-                    <View style={styles.channelTitleRow}>
-                      <Icon 
-                        name={'hash'} 
-                        size={18} 
-                        color={theme.colors.text.primary} 
-                        style={styles.channelHeaderIcon}
-                      />
-                      <Text style={styles.channelHeaderName}>{currentChannel.name}</Text>
-                    </View>
-                    <Text style={styles.channelDescription}>
-                      {currentChannel.description}
-                    </Text>
-                  </View>
-                  <View style={[styles.channelActions, { position: 'relative' }]}>
-                    <TouchableOpacity style={styles.channelAction}>
-                      <Icon name="search" size={18} color={theme.colors.text.secondary} />
-                    </TouchableOpacity>
-                    {typeof window !== 'undefined' ? (
-                      <div style={{ position: 'relative', display: 'inline-block' }}
-                        onMouseEnter={() => setShowAnalyzeTooltip(true)}
-                        onMouseLeave={() => setShowAnalyzeTooltip(false)}
-                      >
-                        <TouchableOpacity
-                          style={styles.channelAction}
-                          onPress={handleAnalyzeClick}
-                          disabled={status?.isAnalyzing}
-                        >
-                          {status?.isAnalyzing ? (
-                            <svg width={18} height={18} viewBox="0 0 24 24" className="ai-spinner">
-                              <circle cx="12" cy="12" r="10" stroke="#888" strokeWidth="4" fill="none" opacity="0.2" />
-                              <path d="M12 2a10 10 0 0 1 10 10" stroke="#1976d2" strokeWidth="4" fill="none" strokeLinecap="round" />
-                            </svg>
-                          ) : (
-                            <Icon name="hash" size={18} color={theme.colors.text.secondary} />
-                          )}
-                        </TouchableOpacity>
-                        {showAnalyzeTooltip && (
-                          <span style={{
-                            position: 'absolute',
-                            top: 36,
-                            left: '50%',
-                            transform: 'translateX(-50%)',
-                            background: '#333',
-                            color: '#fff',
-                            borderRadius: 6,
-                            padding: '2px 10px',
-                            fontSize: 12,
-                            whiteSpace: 'nowrap',
-                            zIndex: 9999
-                          }}>AI分析</span>
-                        )}
-                      </div>
-                    ) : (
-                      <TouchableOpacity
-                        style={styles.channelAction}
-                        onPress={handleAnalyzeClick}
-                        disabled={status?.isAnalyzing}
-                      >
-                        {status?.isAnalyzing ? (
-                          <svg width={18} height={18} viewBox="0 0 24 24" className="ai-spinner">
-                            <circle cx="12" cy="12" r="10" stroke="#888" strokeWidth="4" fill="none" opacity="0.2" />
-                            <path d="M12 2a10 10 0 0 1 10 10" stroke="#1976d2" strokeWidth="4" fill="none" strokeLinecap="round" />
-                          </svg>
-                        ) : (
-                          <Icon name="hash" size={18} color={theme.colors.text.secondary} />
-                        )}
-                      </TouchableOpacity>
-                    )}
-                    <TouchableOpacity
-                      ref={menuButtonRef}
-                      style={styles.channelAction}
-                      onPress={openMenu}
+                <div style={{
+                  background: '#1a1a2e',
+                  borderBottom: '1px solid #333366',
+                  padding: '16px 24px',
+                  display: 'flex',
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Icon name={'hash'} size={18} color={'#00ff88'} style={{ marginRight: 8 }} />
+                      <span style={{ fontSize: 16, fontWeight: 600, color: '#e2e8f0' }}>{currentChannel.name}</span>
+                    </div>
+                    <span style={{ fontSize: 12, color: '#6c7086', marginTop: 2 }}>{currentChannel.description}</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <button style={{
+                      width: 28,
+                      height: 28,
+                      background: '#1a1a2e',
+                      border: '1px solid #333366',
+                      borderRadius: 2,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      fontSize: 14,
+                      color: '#a6adc8',
+                      transition: 'all 0.2s',
+                    }} onClick={handleAnalyzeClick} disabled={status?.isAnalyzing}>
+                      <Icon name="hash" size={18} color="#a6adc8" />
+                    </button>
+                    <button
+                      style={{
+                        width: 28,
+                        height: 28,
+                        background: '#1a1a2e',
+                        border: '1px solid #333366',
+                        borderRadius: 2,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        fontSize: 14,
+                        color: '#a6adc8',
+                        transition: 'all 0.2s',
+                      }}
+                      onClick={() => setShowDeleteConfirm(true)}
+                      title="チャネルを削除"
                     >
-                      <Icon name="more-vertical" size={18} color={theme.colors.text.secondary} />
-                    </TouchableOpacity>
-                    {menuVisible && typeof window !== 'undefined' && createPortal(
-                      <>
-                        {/* 背景クリックでメニューを閉じる */}
-                        <div
-                          style={{
-                            position: 'fixed',
-                            top: 0,
-                            left: 0,
-                            width: '100vw',
-                            height: '100vh',
-                            zIndex: 99998,
-                            background: 'transparent',
-                          }}
-                          onClick={() => setMenuVisible(false)}
-                        />
-                        <div
-                          style={{
-                            position: 'fixed',
-                            top: menuPos.top,
-                            left: menuPos.left,
-                            background: '#fff',
-                            borderRadius: 12,
-                            boxShadow: '0 4px 24px rgba(0,0,0,0.12)',
-                            minWidth: 200,
-                            padding: 0,
-                            zIndex: 99999,
-                          }}
-                          onClick={e => e.stopPropagation()}
-                          onMouseDown={e => e.stopPropagation()}
-                        >
-                          <button
-                            style={{
-                              display: 'block',
-                              width: '100%',
-                              padding: '12px 20px',
-                              background: 'none',
-                              border: 'none',
-                              color: theme.colors.text.primary,
-                              fontWeight: 600,
-                              fontSize: 16,
-                              textAlign: 'left',
-                              cursor: 'pointer',
-                              whiteSpace: 'nowrap',
-                            }}
-                            onClick={handleAnalyzeClick}
-                            disabled={status?.isAnalyzing}
-                          >
-                            {status?.isAnalyzing ? '分析中...' : 'Inbox＆Insight抽出'}
-                          </button>
-                          {status?.isAnalyzing && (
-                            <div style={{ marginTop: 8, color: '#888' }}>
-                              <span>分析中...</span>
-                            </div>
-                          )}
-                          <button
-                            style={{
-                              display: 'block',
-                              width: '100%',
-                              padding: '12px 20px',
-                              background: 'none',
-                              border: 'none',
-                              color: theme.colors.text.primary,
-                              fontWeight: 600,
-                              fontSize: 16,
-                              textAlign: 'left',
-                              cursor: 'pointer',
-                              whiteSpace: 'nowrap',
-                            }}
-                            onClick={() => {
-                              if (window.confirm(`「${currentChannel?.name}」を本当に削除しますか？`)) {
-                                deleteChatRoom(currentChannel.id);
-                                setMenuVisible(false);
-                              }
-                            }}
-                          >
-                            チャットルームを削除
-                          </button>
-                          <button
-                            style={{
-                              display: 'block',
-                              width: '100%',
-                              padding: '12px 20px',
-                              background: 'none',
-                              border: 'none',
-                              color: theme.colors.text.secondary,
-                              fontSize: 15,
-                              textAlign: 'left',
-                              cursor: 'pointer',
-                            }}
-                            onClick={() => setMenuVisible(false)}
-                          >
-                            閉じる
-                          </button>
-                        </div>
-                      </>,
-                      window.document.body
-                    )}
-                    {/* ネイティブ用 fallback */}
-                    {menuVisible && typeof window === 'undefined' && (
-                      <View style={{ position: 'absolute', top: 44, right: 0, backgroundColor: '#fff', borderRadius: 12, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 8, elevation: 99, zIndex: 9999, minWidth: 200, paddingVertical: 8 }}>
-                        <TouchableOpacity onPress={handleDeleteRoom} style={{ paddingVertical: 12, paddingHorizontal: 20 }}>
-                          <Text style={{ color: 'red', fontWeight: 'bold', fontSize: 16, textAlign: 'left' }} numberOfLines={1}>チャットルームを削除</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => setMenuVisible(false)} style={{ paddingVertical: 12, paddingHorizontal: 20 }}>
-                          <Text style={{ color: theme.colors.text.secondary, fontSize: 15, textAlign: 'left' }} numberOfLines={1}>閉じる</Text>
-                        </TouchableOpacity>
+                      <Icon name="trash" size={18} color="#ff6b6b" />
+                    </button>
+                  </div>
+                </div>
+              )}
+              {/* メッセージリスト or 運営メッセージ */}
+              <View style={{ flex: 1, minHeight: 0 }}>
+                {currentMessages.length === 0 ? (
+                  <View style={styles.emptyMessageContainer}>
+                    <Text style={styles.emptyMessageTitle}>初めてのメッセージを送ってみてください！</Text>
+                    <Text style={styles.emptyMessageSub}>このチャットルームの最初の一言を投稿しましょう。</Text>
+                  </View>
+                ) : (
+                  <ScrollView 
+                    ref={scrollViewRef}
+                    style={[styles.messagesList, { flex: 1 }]}
+                    contentContainerStyle={styles.messagesContent}
+                  >
+                    {currentMessages.map(message => (
+                      <ChatMessage
+                        key={message.id}
+                        content={message.content}
+                        sender={message.sender}
+                        timestamp={message.created_at}
+                        isSelf={message.sender.id === user?.id}
+                      />
+                    ))}
+                    {isPocoTyping && (
+                      <View style={styles.typingIndicator}>
+                        <Text style={styles.typingText}>ポコは入力中...</Text>
                       </View>
                     )}
-                  </View>
-                </View>
-              )}
-              {/* メッセージリスト or 運営メッセージ（本物） */}
-              {currentMessages.length === 0 ? (
-                <View style={styles.emptyMessageContainer}>
-                  <Text style={styles.emptyMessageTitle}>初めてのメッセージを送ってみてください！</Text>
-                  <Text style={styles.emptyMessageSub}>このチャットルームの最初の一言を投稿しましょう。</Text>
-                </View>
-              ) : (
-                <ScrollView 
-                  ref={scrollViewRef}
-                  style={styles.messagesList}
-                  contentContainerStyle={styles.messagesContent}
-                >
-                  {currentMessages.map(message => (
-                    <ChatMessageItem key={message.id} message={message} user={user} />
-                  ))}
-                  {isPocoTyping && (
-                    <View style={styles.typingIndicator}>
-                      <Text style={styles.typingText}>ポコは入力中...</Text>
-                    </View>
-                  )}
-                </ScrollView>
-              )}
+                  </ScrollView>
+                )}
+              </View>
             </>
           )}
-          {/* 入力エリア（本物） */}
-          <View style={styles.inputContainer}>
-            <TextInput
-              style={styles.input}
-              placeholder="メッセージを入力..."
-              placeholderTextColor={theme.colors.text.hint}
-              multiline
-              value={newMessage}
-              onChangeText={setNewMessage}
+          {/* 入力エリア（下端固定） */}
+          <div style={{
+            position: 'sticky',
+            bottom: 0,
+            background: '#0f0f23',
+            zIndex: 10,
+            borderTop: '1px solid #333366',
+            width: '100%',
+          }}>
+            <ChatInput
+              onSend={handleSendMessage}
+              disabled={!activeChatRoomId}
             />
-            <View style={styles.inputActions}>
-              <TouchableOpacity
-                style={[styles.sendButtonNormal, newMessage.trim() === '' && styles.sendButtonDisabled]}
-                onPress={handleSendMessage}
-                disabled={newMessage.trim() === ''}
-              >
-                <Text style={styles.sendButtonText}>送信</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+          </div>
         </View>
       </View>
       {/* モバイル用チャネルリストモーダル（上から下にアニメーション） */}
-      {isMobile && (
+      {isMobile && Platform.OS !== 'web' && (
         <Modal
           visible={showChannelList}
           animationType="none"
@@ -723,7 +1387,6 @@ const ChatSpace: React.FC<ChatSpaceProps> = ({ nestId }) => {
                 data={chatRooms}
                 keyExtractor={item => item.id}
                 renderItem={renderChannelItem}
-                showsVerticalScrollIndicator={true}
               />
               <TouchableOpacity onPress={() => setShowChannelList(false)} style={{ alignSelf: 'center', marginTop: 12 }}>
                 <Text style={{ color: theme.colors.text.secondary, fontSize: 16 }}>閉じる</Text>
@@ -732,59 +1395,12 @@ const ChatSpace: React.FC<ChatSpaceProps> = ({ nestId }) => {
           </View>
         </Modal>
       )}
-      {/* 分析完了モーダル・警告モーダル */}
-      {showAnalyzeResultModal && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-          background: 'rgba(0,0,0,0.3)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center'
-        }}>
-          <div style={{ background: '#fff', borderRadius: 12, padding: 32, minWidth: 320 }}>
-            <h2 style={{ fontSize: 20, marginBottom: 16 }}>分析完了</h2>
-            {analyzeWarning ? (
-              <div style={{ marginBottom: 16, color: 'red' }}>{analyzeWarning}</div>
-            ) : analyzeResult && analyzeResult.length > 0 ? (
-              <>
-                <div style={{ marginBottom: 12 }}>追加されたカード数: <b>{analyzeResult.length}</b></div>
-                <ul style={{ marginBottom: 16 }}>
-                  {analyzeResult.map(card => (
-                    <li key={card.id} style={{ fontSize: 16 }}>{card.title}</li>
-                  ))}
-                </ul>
-              </>
-            ) : (
-              <div style={{ marginBottom: 16 }}>カードは抽出されませんでした。</div>
-            )}
-            <button
-              style={{ background: '#2ec4b6', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 24px', fontSize: 16, fontWeight: 600, cursor: 'pointer' }}
-              onClick={() => { setShowAnalyzeResultModal(false); setAnalyzeWarning(null); }}
-            >OK</button>
-          </div>
-        </div>
-      )}
-      {/* 分析進行中モーダル */}
-      {status.isAnalyzing && (
-        <Modal visible transparent animationType="fade">
-          <View style={{ flex:1, justifyContent:'center', alignItems:'center', backgroundColor:'rgba(0,0,0,0.3)' }}>
-            <View style={{ backgroundColor:'#fff', borderRadius:12, padding:32, minWidth:280, alignItems:'center' }}>
-              <Text style={{ fontSize:18, marginBottom:16 }}>AI分析中...</Text>
-              <View style={{ marginBottom:12 }}>
-                <svg width={40} height={40} viewBox="0 0 24 24" className="ai-spinner">
-                  <circle cx="12" cy="12" r="10" stroke="#888" strokeWidth="4" fill="none" opacity="0.2" />
-                  <path d="M12 2a10 10 0 0 1 10 10" stroke="#1976d2" strokeWidth="4" fill="none" strokeLinecap="round" />
-                </svg>
-              </View>
-              <Text style={{ color:'#888' }}>しばらくお待ちください</Text>
-            </View>
-          </View>
-        </Modal>
-      )}
-      {/* スピナー用グローバルCSS */}
-      {typeof window !== 'undefined' && (
-        <style>{`
-          @keyframes spin { 100% { transform: rotate(360deg); } }
-          .ai-spinner { animation: spin 1s linear infinite; }
-        `}</style>
-      )}
+      {/* チャネル作成モーダル */}
+      <CreateChannelModal
+        visible={createModalVisible}
+        onClose={() => setCreateModalVisible(false)}
+        onSubmit={handleCreateChannel}
+      />
     </View>
   );
 };
@@ -889,6 +1505,8 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.spaces.chat.background,
     display: 'flex',
     flexDirection: 'column',
+    position: 'relative',
+    minHeight: 0,
   },
   channelHeader: {
     padding: 16,
@@ -934,10 +1552,13 @@ const styles = StyleSheet.create({
   },
   messagesList: {
     flex: 1,
+    backgroundColor: '#0f0f23',
+    minHeight: 0,
   },
   messagesContent: {
-    padding: 16,
-    paddingRight: 16,
+    paddingVertical: 16,
+    paddingLeft: 24,
+    paddingRight: 24,
   },
   messageRow: {
     flexDirection: 'row',
@@ -1076,36 +1697,42 @@ const styles = StyleSheet.create({
   },
   typingIndicator: {
     padding: 8,
-    backgroundColor: 'rgba(0, 0, 0, 0.05)',
-    borderRadius: 16,
+    backgroundColor: '#1a1a2e',
+    borderRadius: 2,
     alignSelf: 'flex-start',
+    marginLeft: 16,
     marginBottom: 16,
   },
   typingText: {
     fontSize: 12,
-    color: theme.colors.text.secondary,
+    color: '#6c7086',
     fontStyle: 'italic',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   emptyMessageContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.7)',
-    borderRadius: 16,
+    backgroundColor: '#1a1a2e',
+    borderRadius: 2,
     margin: 32,
     padding: 32,
     borderWidth: 1,
-    borderColor: theme.colors.divider,
+    borderColor: '#333366',
   },
   emptyMessageTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: theme.colors.text.primary,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#e2e8f0',
     marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   emptyMessageSub: {
-    fontSize: 14,
-    color: theme.colors.text.secondary,
+    fontSize: 12,
+    color: '#6c7086',
+    textAlign: 'center',
   },
 });
 

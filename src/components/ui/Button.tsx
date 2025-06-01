@@ -6,11 +6,12 @@ import {
   ViewStyle, 
   TextStyle, 
   ActivityIndicator,
-  View
+  View,
+  Platform
 } from 'react-native';
 import theme from '../../styles/theme';
 
-type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'text';
+type ButtonVariant = 'primary' | 'danger' | 'default';
 type ButtonSize = 'sm' | 'md' | 'lg';
 
 interface ButtonProps {
@@ -27,6 +28,50 @@ interface ButtonProps {
   fullWidth?: boolean;
 }
 
+// --- getButtonStyle: web用デザインシステムスタイル ---
+const getButtonStyle = (variant: ButtonVariant, disabled: boolean): React.CSSProperties => {
+  const base = {
+    borderRadius: 2,
+    padding: '8px 16px',
+    fontWeight: 700,
+    fontSize: 12,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    opacity: disabled ? 0.6 : 1,
+    transition: 'all 0.2s',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    border: undefined,
+    background: undefined,
+    color: undefined,
+  } as React.CSSProperties;
+  switch (variant) {
+    case 'primary':
+      return {
+        ...base,
+        background: '#00ff88',
+        border: '1px solid #00ff88',
+        color: '#0f0f23',
+      };
+    case 'danger':
+      return {
+        ...base,
+        background: '#ff6b6b',
+        border: '1px solid #ff6b6b',
+        color: '#fff',
+      };
+    default:
+      return {
+        ...base,
+        background: '#1a1a2e',
+        border: '1px solid #333366',
+        color: '#e2e8f0',
+      };
+  }
+};
+
 /**
  * スタイル付きボタンコンポーネント
  * 
@@ -36,16 +81,27 @@ const Button: React.FC<ButtonProps> = ({
   title,
   onPress,
   variant = 'primary',
-  size = 'md',
   disabled = false,
   loading = false,
-  icon,
-  iconPosition = 'left',
   style,
   textStyle,
-  fullWidth = false,
+  ...rest
 }) => {
-  // サイズに基づくスタイル
+  if (Platform.OS === 'web') {
+    // Web: use native button and design system styles
+    const btnStyle = getButtonStyle(variant as ButtonVariant, disabled);
+    return (
+      <button
+        style={{ ...btnStyle, ...(style as any) }}
+        onClick={onPress}
+        disabled={disabled || loading}
+        {...rest}
+      >
+        {title}
+      </button>
+    );
+  }
+  // Native: use TouchableOpacity and StyleSheet
   const sizeStyles = {
     sm: {
       button: { paddingVertical: theme.spacing.xs, paddingHorizontal: theme.spacing.md },
@@ -60,105 +116,25 @@ const Button: React.FC<ButtonProps> = ({
       text: { fontSize: theme.fontSizes.lg },
     },
   };
-
-  // バリアントに基づくスタイル
-  const getVariantStyles = (variant: ButtonVariant) => {
-    switch (variant) {
-      case 'primary':
-        return {
-          button: {
-            backgroundColor: disabled ? 'rgba(255, 122, 122, 0.6)' : theme.colors.primary,
-            ...theme.shadows.sm,
-          },
-          text: {
-            color: theme.colors.text.onDark,
-          },
-        };
-      case 'secondary':
-        return {
-          button: {
-            backgroundColor: disabled ? 'rgba(80, 208, 200, 0.6)' : theme.colors.secondary,
-            ...theme.shadows.sm,
-          },
-          text: {
-            color: theme.colors.text.onDark,
-          },
-        };
-      case 'outline':
-        return {
-          button: {
-            backgroundColor: 'transparent',
-            borderWidth: 1,
-            borderColor: disabled ? theme.colors.text.disabled : theme.colors.secondary,
-          },
-          text: {
-            color: disabled ? theme.colors.text.disabled : theme.colors.secondary,
-          },
-        };
-      case 'text':
-        return {
-          button: {
-            backgroundColor: 'transparent',
-            paddingHorizontal: theme.spacing.sm,
-          },
-          text: {
-            color: disabled ? theme.colors.text.disabled : theme.colors.secondary,
-          },
-        };
-      default:
-        return {
-          button: {},
-          text: {},
-        };
-    }
-  };
-
-  const variantStyles = getVariantStyles(variant);
-
-  // コンポーネントスタイルの組み合わせ
-  const buttonStyles = [
+  const btnStyle = [
     styles.button,
-    sizeStyles[size].button,
-    variantStyles.button,
-    fullWidth && styles.fullWidth,
+    sizeStyles['md'].button,
     style,
+    disabled && { opacity: 0.6 },
   ];
-
   const textStyles = [
     styles.text,
-    sizeStyles[size].text,
-    variantStyles.text,
+    sizeStyles['md'].text,
     textStyle,
   ];
-
-  // ローディングインジケーターの色
-  const spinnerColor = 
-    variant === 'outline' || variant === 'text'
-      ? theme.colors.secondary
-      : theme.colors.text.onDark;
-
   return (
     <TouchableOpacity
-      style={buttonStyles}
+      style={btnStyle}
       onPress={onPress}
       disabled={disabled || loading}
       activeOpacity={0.7}
     >
-      {loading ? (
-        <ActivityIndicator size="small" color={spinnerColor} />
-      ) : (
-        <View style={styles.contentContainer}>
-          {icon && iconPosition === 'left' && (
-            <View style={styles.iconLeft}>{icon}</View>
-          )}
-          
-          <Text style={textStyles}>{title}</Text>
-          
-          {icon && iconPosition === 'right' && (
-            <View style={styles.iconRight}>{icon}</View>
-          )}
-        </View>
-      )}
+      <Text style={textStyles}>{title}</Text>
     </TouchableOpacity>
   );
 };

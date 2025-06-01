@@ -1,0 +1,2142 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ワークスペース - TechOS</title>
+    <meta name="description" content="TechOS - 開発者向けクラウドプラットフォーム。プロジェクト管理からデプロイまで統合的に支援。">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        /* CSS Variables - モダンテックデザインシステム */
+        :root {
+            /* Colors */
+            --primary-green: #00ff88;
+            --primary-green-dark: #00cc6a;
+            --primary-green-light: rgba(0, 255, 136, 0.1);
+            --primary-blue: #64b5f6;
+            --primary-blue-light: rgba(100, 181, 246, 0.1);
+            --primary-orange: #ffa500;
+            --primary-orange-light: rgba(255, 165, 0, 0.1);
+            --primary-red: #ff6b6b;
+            --primary-red-light: rgba(255, 107, 107, 0.1);
+            --primary-purple: #9c27b0;
+            --primary-cyan: #26c6da;
+            --primary-yellow: #ffd93d;
+            
+            /* Background */
+            --bg-primary: #0f0f23;
+            --bg-secondary: #1a1a2e;
+            --bg-tertiary: #333366;
+            --bg-quaternary: #45475a;
+            --bg-surface: #252545;
+            --bg-accent: rgba(0, 255, 136, 0.03);
+            
+            /* Text */
+            --text-primary: #e2e8f0;
+            --text-secondary: #a6adc8;
+            --text-muted: #6c7086;
+            --text-inverse: #0f0f23;
+            --text-disabled: #4a4a6a;
+            
+            /* Border */
+            --border-primary: #333366;
+            --border-secondary: #45475a;
+            --border-accent: #00ff88;
+            --border-focus: rgba(0, 255, 136, 0.5);
+            
+            /* Spacing - 8pt grid system */
+            --space-1: 2px;
+            --space-2: 4px;
+            --space-3: 8px;
+            --space-4: 12px;
+            --space-5: 16px;
+            --space-6: 20px;
+            --space-7: 24px;
+            --space-8: 32px;
+            --space-9: 40px;
+            --space-10: 48px;
+            --space-12: 64px;
+            
+            /* Typography */
+            --font-family-text: 'Space Grotesk', sans-serif;
+            --font-family-mono: 'JetBrains Mono', monospace;
+            
+            /* Font sizes - Type scale */
+            --text-xs: 11px;
+            --text-sm: 12px;
+            --text-base: 14px;
+            --text-lg: 16px;
+            --text-xl: 18px;
+            --text-2xl: 20px;
+            --text-3xl: 24px;
+            --text-4xl: 32px;
+            
+            /* Shadows */
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.1);
+            --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.2);
+            --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.25);
+            --shadow-glow: 0 0 20px rgba(0, 255, 136, 0.3);
+            
+            /* Transitions */
+            --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+            --transition-normal: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            --transition-slow: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            
+            /* Border radius */
+            --radius-sm: 4px;
+            --radius-md: 6px;
+            --radius-lg: 8px;
+            --radius-xl: 12px;
+            --radius-2xl: 16px;
+        }
+
+        /* Reset and base styles */
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: var(--font-family-text);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.5;
+            min-height: 100vh;
+            font-size: var(--text-base);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* Focus management for accessibility */
+        :focus-visible {
+            outline: 2px solid var(--border-focus);
+            outline-offset: 2px;
+        }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        /* Header */
+        .header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-primary);
+            padding: var(--space-5) var(--space-7);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(8px);
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: var(--space-5);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: var(--space-4);
+            flex-shrink: 0;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--primary-green);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-inverse);
+            font-weight: 700;
+            font-family: var(--font-family-mono);
+            font-size: var(--text-lg);
+        }
+
+        .logo-text {
+            font-size: var(--text-2xl);
+            font-weight: 700;
+            color: var(--text-primary);
+            font-family: var(--font-family-mono);
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: var(--space-6);
+            flex-shrink: 0;
+        }
+
+        /* Main Navigation */
+        .main-nav {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            padding: var(--space-3) var(--space-4);
+            border-radius: var(--radius-md);
+            text-decoration: none;
+            color: var(--text-secondary);
+            font-size: var(--text-sm);
+            font-weight: 500;
+            transition: all var(--transition-normal);
+            position: relative;
+        }
+
+        .nav-item:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .nav-item.active {
+            background: var(--primary-green-light);
+            color: var(--primary-green);
+        }
+
+        .nav-icon {
+            font-size: var(--text-base);
+        }
+
+        .nav-label {
+            font-family: var(--font-family-mono);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-size: var(--text-xs);
+        }
+
+        .search-box {
+            position: relative;
+            display: flex;
+            align-items: center;
+            flex: 1;
+            max-width: 400px;
+        }
+
+        .search-input {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-md);
+            padding: var(--space-3) var(--space-10) var(--space-3) var(--space-8);
+            color: var(--text-primary);
+            font-size: var(--text-base);
+            width: 100%;
+            transition: all var(--transition-normal);
+        }
+
+        .search-input:focus {
+            border-color: var(--primary-green);
+            box-shadow: 0 0 0 3px var(--primary-green-light);
+        }
+
+        .search-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: var(--space-4);
+            color: var(--text-muted);
+            font-family: var(--font-family-mono);
+            pointer-events: none;
+        }
+
+        .search-shortcut {
+            position: absolute;
+            right: var(--space-3);
+            color: var(--text-muted);
+            font-size: var(--text-xs);
+            font-family: var(--font-family-mono);
+            background: var(--bg-tertiary);
+            padding: 2px 6px;
+            border-radius: var(--radius-sm);
+            pointer-events: none;
+        }
+        .notification-btn {
+            position: relative;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-md);
+            color: var(--text-secondary);
+            padding: var(--space-3);
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 44px;
+            height: 44px;
+        }
+
+        .notification-btn:hover,
+        .notification-btn:focus {
+            background: var(--bg-tertiary);
+            border-color: var(--border-secondary);
+            color: var(--text-primary);
+        }
+
+        .notification-icon {
+            font-size: var(--text-lg);
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            background: var(--primary-red);
+            color: white;
+            font-size: var(--text-xs);
+            font-weight: 600;
+            padding: 1px 5px;
+            border-radius: 10px;
+            min-width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-family-mono);
+        }
+
+        /* User Menu */
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+            background: var(--bg-primary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-md);
+            padding: var(--space-3) var(--space-4);
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            min-width: 0;
+        }
+
+        .user-menu:hover,
+        .user-menu:focus {
+            background: var(--bg-tertiary);
+            border-color: var(--border-secondary);
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            background: var(--primary-blue);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-inverse);
+            font-size: var(--text-sm);
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        .user-name {
+            font-size: var(--text-base);
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-weight: 500;
+        }
+
+        .dropdown-arrow {
+            font-size: var(--text-xs);
+            color: var(--text-muted);
+            transition: transform var(--transition-normal);
+        }
+
+        .user-menu:hover .dropdown-arrow {
+            transform: rotate(180deg);
+        }
+
+        /* Main Content */
+        .main-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: var(--space-8) var(--space-7);
+        }
+
+        .page-header {
+            margin-bottom: var(--space-10);
+        }
+
+        .page-title {
+            font-size: var(--text-4xl);
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 0 0 var(--space-4) 0;
+            font-family: var(--font-family-mono);
+            line-height: 1.2;
+        }
+
+        .page-subtitle {
+            font-size: var(--text-lg);
+            color: var(--text-secondary);
+            margin: 0 0 var(--space-8) 0;
+            line-height: 1.4;
+        }
+
+        .page-actions {
+            display: flex;
+            gap: var(--space-5);
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            background: var(--primary-green);
+            border: none;
+            border-radius: var(--radius-md);
+            color: var(--text-inverse);
+            padding: var(--space-4) var(--space-6);
+            font-size: var(--text-base);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            font-family: var(--font-family-mono);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-3);
+            min-height: 44px;
+            justify-content: center;
+        }
+
+        .btn:hover,
+        .btn:focus {
+            background: var(--primary-green-dark);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-glow);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-secondary);
+        }
+
+        .btn-secondary:hover,
+        .btn-secondary:focus {
+            background: var(--bg-quaternary);
+            color: var(--text-primary);
+            box-shadow: var(--shadow-md);
+            transform: translateY(-1px);
+        }
+
+        .filter-tabs {
+            display: flex;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .filter-tab {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            padding: var(--space-3) var(--space-5);
+            font-size: var(--text-sm);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            font-family: var(--font-family-mono);
+            font-weight: 500;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .filter-tab.active {
+            background: var(--primary-green);
+            color: var(--text-inverse);
+        }
+
+        .filter-tab:hover:not(.active) {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .filter-tab:focus:not(.active) {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        /* Workspace Grid */
+        .workspace-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+            gap: var(--space-7);
+            margin-top: var(--space-8);
+        }
+
+        .workspace-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-xl);
+            padding: var(--space-7);
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .workspace-card:hover {
+            border-color: var(--primary-green);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-xl), 0 0 0 1px var(--primary-green-light);
+        }
+
+        .workspace-card:focus-within {
+            border-color: var(--primary-green);
+            box-shadow: 0 0 0 3px var(--primary-green-light);
+        }
+
+        .workspace-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary-green), var(--primary-blue), var(--primary-purple));
+        }
+
+        .workspace-header {
+            margin-bottom: var(--space-6);
+        }
+
+        .workspace-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: var(--space-4);
+            margin-bottom: var(--space-4);
+        }
+
+        .workspace-name {
+            font-size: var(--text-xl);
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0;
+            line-height: 1.3;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .workspace-description {
+            font-size: var(--text-base);
+            color: var(--text-secondary);
+            line-height: 1.5;
+            margin: 0;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .workspace-status {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            font-size: var(--text-xs);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-family: var(--font-family-mono);
+            padding: var(--space-2) var(--space-3);
+            border-radius: var(--radius-sm);
+            flex-shrink: 0;
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .status-active {
+            color: var(--primary-green);
+            background: var(--primary-green-light);
+        }
+
+        .status-active .status-dot {
+            background: var(--primary-green);
+        }
+
+        .status-inactive {
+            color: var(--text-muted);
+            background: rgba(108, 112, 134, 0.1);
+        }
+
+        .status-inactive .status-dot {
+            background: var(--text-muted);
+        }
+
+        .status-building {
+            color: var(--primary-orange);
+            background: var(--primary-orange-light);
+        }
+
+        .status-building .status-dot {
+            background: var(--primary-orange);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(1.1); }
+        }
+
+        .workspace-meta {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--space-5);
+            margin: var(--space-6) 0;
+            padding: var(--space-5);
+            background: var(--bg-primary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-lg);
+        }
+
+        .meta-item {
+            text-align: center;
+        }
+
+        .meta-label {
+            font-size: var(--text-xs);
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: var(--space-2);
+            font-family: var(--font-family-mono);
+            display: block;
+        }
+
+        .meta-value {
+            font-size: var(--text-lg);
+            font-weight: 600;
+            color: var(--text-primary);
+            font-family: var(--font-family-mono);
+        }
+
+        .workspace-tech {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-2);
+            margin-bottom: var(--space-6);
+        }
+
+        .tech-tag {
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            padding: var(--space-2) var(--space-3);
+            border-radius: var(--radius-sm);
+            font-size: var(--text-xs);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-family: var(--font-family-mono);
+            border: 1px solid var(--border-secondary);
+            transition: all var(--transition-fast);
+        }
+
+        .tech-tag.primary {
+            background: var(--primary-blue);
+            color: var(--text-inverse);
+            border-color: var(--primary-blue);
+        }
+
+        .tech-tag:hover {
+            background: var(--bg-quaternary);
+            color: var(--text-primary);
+        }
+
+        .workspace-team {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-6);
+        }
+
+        .team-avatars {
+            display: flex;
+            margin-left: calc(-1 * var(--space-1));
+        }
+
+        .team-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: 2px solid var(--bg-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: var(--text-xs);
+            font-weight: 600;
+            color: var(--text-inverse);
+            margin-left: calc(-1 * var(--space-1));
+            position: relative;
+            transition: transform var(--transition-fast);
+        }
+
+        .team-avatar:hover {
+            transform: translateY(-2px);
+            z-index: 1;
+        }
+
+        .team-avatar:nth-child(1) { background: var(--primary-green); }
+        .team-avatar:nth-child(2) { background: var(--primary-blue); }
+        .team-avatar:nth-child(3) { background: var(--primary-purple); }
+        .team-avatar:nth-child(4) { background: var(--primary-orange); }
+
+        .team-count {
+            font-size: var(--text-sm);
+            color: var(--text-muted);
+            font-family: var(--font-family-mono);
+        }
+
+        .workspace-actions {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: var(--space-3);
+        }
+
+        .action-btn {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-md);
+            color: var(--text-secondary);
+            padding: var(--space-3) var(--space-4);
+            font-size: var(--text-sm);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            font-family: var(--font-family-mono);
+            min-height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .action-btn:hover,
+        .action-btn:focus {
+            background: var(--primary-green);
+            color: var(--text-inverse);
+            border-color: var(--primary-green);
+            transform: translateY(-1px);
+        }
+
+        .action-btn.primary {
+            background: var(--primary-green);
+            color: var(--text-inverse);
+            border-color: var(--primary-green);
+        }
+
+        .action-btn.primary:hover,
+        .action-btn.primary:focus {
+            background: var(--primary-green-dark);
+        }
+
+        /* Create Workspace Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 15, 35, 0.8);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all var(--transition-normal);
+            padding: var(--space-5);
+        }
+
+        .modal-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-xl);
+            padding: var(--space-8);
+            width: 100%;
+            max-width: 600px;
+            position: relative;
+            transform: translateY(20px) scale(0.95);
+            transition: transform var(--transition-normal);
+            box-shadow: var(--shadow-xl);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-overlay.show .modal {
+            transform: translateY(0) scale(1);
+        }
+
+        .modal::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary-green), var(--primary-blue), var(--primary-purple));
+            border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-7);
+        }
+
+        .modal-title {
+            font-size: var(--text-3xl);
+            font-weight: 600;
+            color: var(--text-primary);
+            font-family: var(--font-family-mono);
+            margin: 0;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: var(--text-3xl);
+            cursor: pointer;
+            transition: color var(--transition-normal);
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--radius-md);
+        }
+
+        .modal-close:hover,
+        .modal-close:focus {
+            color: var(--primary-red);
+            background: var(--primary-red-light);
+        }
+
+        .form-group {
+            margin-bottom: var(--space-6);
+        }
+
+        .form-label {
+            display: block;
+            color: var(--text-secondary);
+            font-size: var(--text-sm);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: var(--space-3);
+            font-family: var(--font-family-mono);
+        }
+
+        .form-input, .form-textarea, .form-select {
+            width: 100%;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-md);
+            padding: var(--space-4) var(--space-5);
+            color: var(--text-primary);
+            font-size: var(--text-base);
+            font-family: var(--font-family-text);
+            transition: all var(--transition-normal);
+            min-height: 44px;
+        }
+
+        .form-input:focus, .form-textarea:focus, .form-select:focus {
+            border-color: var(--primary-green);
+            box-shadow: 0 0 0 3px var(--primary-green-light);
+        }
+
+        .form-input::placeholder, .form-textarea::placeholder {
+            color: var(--text-muted);
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 100px;
+            line-height: 1.5;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-5);
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: var(--space-4);
+            justify-content: flex-end;
+            margin-top: var(--space-8);
+        }
+
+        /* Toast notification styles */
+        .toast {
+            position: fixed;
+            top: var(--space-5);
+            right: var(--space-5);
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-lg);
+            padding: var(--space-5);
+            color: var(--text-primary);
+            font-family: var(--font-family-mono);
+            font-size: var(--text-base);
+            z-index: 10000;
+            animation: slideInRight 0.3s ease;
+            max-width: 400px;
+            box-shadow: var(--shadow-xl);
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+        }
+
+        .toast-success {
+            border-left: 4px solid var(--primary-green);
+        }
+
+        .toast-info {
+            border-left: 4px solid var(--primary-blue);
+        }
+
+        .toast-warning {
+            border-left: 4px solid var(--primary-orange);
+        }
+
+        .toast-error {
+            border-left: 4px solid var(--primary-red);
+        }
+
+        .toast-icon {
+            font-size: var(--text-lg);
+            flex-shrink: 0;
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(100%);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .animate-fade-in {
+            animation: fadeInUp 0.3s var(--transition-normal);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1024px) {
+            .main-content {
+                padding: var(--space-7) var(--space-5);
+            }
+
+            .workspace-card {
+                padding: var(--space-5);
+            }
+
+            .modal {
+                margin: var(--space-3);
+                padding: var(--space-5);
+            }
+
+            .logo-text {
+                flex-direction: row;
+                align-items: center;
+                gap: var(--space-2);
+            }
+
+            .brand-name {
+                font-size: var(--text-xl);
+            }
+
+            .brand-tagline {
+                display: none;
+            }
+
+            .page-title {
+                font-size: var(--text-3xl);
+            }
+
+            .page-subtitle {
+                font-size: var(--text-base);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .workspace-grid {
+                grid-template-columns: 1fr;
+                gap: var(--space-5);
+            }
+
+            .page-actions {
+                flex-direction: column;
+                align-items: stretch;
+                gap: var(--space-4);
+            }
+
+            .filter-tabs {
+                order: -1;
+            }
+
+            .page-title {
+                font-size: var(--text-2xl);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header" role="banner">
+        <div class="header-content">
+            <div class="logo">
+                <div class="logo-icon" aria-hidden="true">T</div>
+                <div class="logo-text">TechOS</div>
+            </div>
+            
+            <div class="header-actions">
+                <!-- Main Navigation -->
+                <nav class="main-nav" role="navigation" aria-label="メインナビゲーション">
+                    <a href="#" class="nav-item active" aria-current="page">
+                        <span class="nav-icon">🏠</span>
+                        <span class="nav-label">ワークスペース</span>
+                    </a>
+                    <a href="#" class="nav-item">
+                        <span class="nav-icon">⚙️</span>
+                        <span class="nav-label">設定</span>
+                    </a>
+                </nav>
+                
+                <div class="search-box" role="search">
+                    <span class="search-icon" aria-hidden="true">🔍</span>
+                    <label for="searchInput" class="sr-only">ワークスペースを検索</label>
+                    <input 
+                        type="text" 
+                        class="search-input" 
+                        placeholder="検索... (Ctrl+K)" 
+                        id="searchInput"
+                        aria-label="ワークスペースを検索"
+                    >
+                    <div class="search-shortcut">⌘K</div>
+                </div>
+
+                <!-- Notifications -->
+                <button class="notification-btn" title="通知 (3件未読)" aria-label="通知を確認">
+                    <span class="notification-icon">🔔</span>
+                    <span class="notification-badge">3</span>
+                </button>
+                
+                <!-- User Menu -->
+                <button class="user-menu" aria-label="ユーザーメニューを開く">
+                    <div class="user-avatar" aria-hidden="true">田</div>
+                    <div class="user-name">田中太郎</div>
+                    <span class="dropdown-arrow">▼</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content" role="main">
+        <div class="page-header">
+            <h1 class="page-title">ワークスペース</h1>
+            <p class="page-subtitle">
+                TechOS でプロジェクトの管理・デプロイ・モニタリングを統合的に実行。
+                <br>シンプルで強力な開発環境をクラウドで提供します。
+            </p>
+            
+            <div class="page-actions">
+                <button class="btn" onclick="openCreateModal()" aria-label="新しいワークスペースを作成">
+                    <span aria-hidden="true">＋</span> 新規作成
+                </button>
+                
+                <button class="btn btn-secondary" aria-label="ワークスペースをインポート">
+                    <span aria-hidden="true">📥</span> インポート
+                </button>
+                
+                <div class="filter-tabs" role="tablist" aria-label="ワークスペースフィルター">
+                    <button class="filter-tab active" data-filter="all" role="tab" aria-selected="true">All</button>
+                    <button class="filter-tab" data-filter="active" role="tab" aria-selected="false">Active</button>
+                    <button class="filter-tab" data-filter="building" role="tab" aria-selected="false">Building</button>
+                    <button class="filter-tab" data-filter="inactive" role="tab" aria-selected="false">Inactive</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Workspace Grid -->
+        <div class="workspace-grid" id="workspaceGrid" role="region" aria-label="ワークスペース一覧">
+            <!-- E-commerce Platform -->
+            <article class="workspace-card" data-status="active" tabindex="0" role="button" aria-label="E-commerce Platform ワークスペースを開く">
+                <div class="workspace-header">
+                    <div class="workspace-top">
+                        <h2 class="workspace-name">E-commerce Platform</h2>
+                        <div class="workspace-status status-active">
+                            <span class="status-dot" aria-hidden="true"></span>
+                            <span class="sr-only">ステータス: </span>Active
+                        </div>
+                    </div>
+                    <p class="workspace-description">
+                        Next.js + TypeScript + Prisma を使用したモダンECサイト。
+                        マイクロサービスアーキテクチャで高可用性を実現。
+                    </p>
+                </div>
+
+                <div class="workspace-meta">
+                    <div class="meta-item">
+                        <span class="meta-label">Uptime</span>
+                        <span class="meta-value">99.9%</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">Deploy</span>
+                        <span class="meta-value">2h ago</span>
+                    </div>
+                </div>
+
+                <div class="workspace-tech">
+                    <span class="tech-tag primary">Next.js</span>
+                    <span class="tech-tag">TypeScript</span>
+                    <span class="tech-tag">Prisma</span>
+                    <span class="tech-tag">PostgreSQL</span>
+                    <span class="tech-tag">Redis</span>
+                </div>
+
+                <div class="workspace-team">
+                    <div class="team-avatars" role="group" aria-label="チームメンバー">
+                        <div class="team-avatar" title="田中太郎">田</div>
+                        <div class="team-avatar" title="佐藤花子">佐</div>
+                        <div class="team-avatar" title="山田一郎">山</div>
+                        <div class="team-avatar" title="他2名">+2</div>
+                    </div>
+                    <div class="team-count">5 members</div>
+                </div>
+
+                <div class="workspace-actions">
+                    <button class="action-btn primary" onclick="handleAction(event, 'open', 'E-commerce Platform')">OPEN</button>
+                    <button class="action-btn" onclick="handleAction(event, 'settings', 'E-commerce Platform')">SETTINGS</button>
+                    <button class="action-btn" onclick="handleAction(event, 'logs', 'E-commerce Platform')">LOGS</button>
+                </div>
+            </article>
+
+            <!-- AI Analytics Dashboard -->
+            <article class="workspace-card" data-status="building" tabindex="0" role="button" aria-label="AI Analytics Dashboard ワークスペースを開く">
+                <div class="workspace-header">
+                    <div class="workspace-top">
+                        <h2 class="workspace-name">AI Analytics Dashboard</h2>
+                        <div class="workspace-status status-building">
+                            <span class="status-dot" aria-hidden="true"></span>
+                            <span class="sr-only">ステータス: </span>Building
+                        </div>
+                    </div>
+                    <p class="workspace-description">
+                        Python + FastAPI + React を使用したリアルタイム分析基盤。
+                        機械学習モデルの実験・デプロイ・監視を統合。
+                    </p>
+                </div>
+
+                <div class="workspace-meta">
+                    <div class="meta-item">
+                        <span class="meta-label">Build</span>
+                        <span class="meta-value">78%</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">ETA</span>
+                        <span class="meta-value">3m</span>
+                    </div>
+                </div>
+
+                <div class="workspace-tech">
+                    <span class="tech-tag primary">Python</span>
+                    <span class="tech-tag">FastAPI</span>
+                    <span class="tech-tag">React</span>
+                    <span class="tech-tag">TensorFlow</span>
+                    <span class="tech-tag">MongoDB</span>
+                </div>
+
+                <div class="workspace-team">
+                    <div class="team-avatars" role="group" aria-label="チームメンバー">
+                        <div class="team-avatar" title="田中太郎">田</div>
+                        <div class="team-avatar" title="鈴木次郎">鈴</div>
+                    </div>
+                    <div class="team-count">2 members</div>
+                </div>
+
+                <div class="workspace-actions">
+                    <button class="action-btn" onclick="handleAction(event, 'view-build', 'AI Analytics Dashboard')">VIEW BUILD</button>
+                    <button class="action-btn" onclick="handleAction(event, 'settings', 'AI Analytics Dashboard')">SETTINGS</button>
+                    <button class="action-btn" onclick="handleAction(event, 'logs', 'AI Analytics Dashboard')">LOGS</button>
+                </div>
+            </article>
+
+            <!-- Mobile Banking App -->
+            <article class="workspace-card" data-status="active" tabindex="0" role="button" aria-label="Mobile Banking App ワークスペースを開く">
+                <div class="workspace-header">
+                    <div class="workspace-top">
+                        <h2 class="workspace-name">Mobile Banking App</h2>
+                        <div class="workspace-status status-active">
+                            <span class="status-dot" aria-hidden="true"></span>
+                            <span class="sr-only">ステータス: </span>Active
+                        </div>
+                    </div>
+                    <p class="workspace-description">
+                        React Native + Node.js + GraphQL を使用したセキュアな銀行アプリ。
+                        PCI DSS準拠の決済処理とリアルタイム通知機能。
+                    </p>
+                </div>
+
+                <div class="workspace-meta">
+                    <div class="meta-item">
+                        <span class="meta-label">Users</span>
+                        <span class="meta-value">12.3K</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">Deploy</span>
+                        <span class="meta-value">1d ago</span>
+                    </div>
+                </div>
+
+                <div class="workspace-tech">
+                    <span class="tech-tag primary">React Native</span>
+                    <span class="tech-tag">Node.js</span>
+                    <span class="tech-tag">GraphQL</span>
+                    <span class="tech-tag">PostgreSQL</span>
+                    <span class="tech-tag">AWS</span>
+                </div>
+
+                <div class="workspace-team">
+                    <div class="team-avatars" role="group" aria-label="チームメンバー">
+                        <div class="team-avatar" title="田中太郎">田</div>
+                        <div class="team-avatar" title="高橋美咲">高</div>
+                        <div class="team-avatar" title="林健太">林</div>
+                    </div>
+                    <div class="team-count">3 members</div>
+                </div>
+
+                <div class="workspace-actions">
+                    <button class="action-btn primary" onclick="handleAction(event, 'open', 'Mobile Banking App')">OPEN</button>
+                    <button class="action-btn" onclick="handleAction(event, 'settings', 'Mobile Banking App')">SETTINGS</button>
+                    <button class="action-btn" onclick="handleAction(event, 'logs', 'Mobile Banking App')">LOGS</button>
+                </div>
+            </article>
+
+            <!-- IoT Monitoring System -->
+            <article class="workspace-card" data-status="inactive" tabindex="0" role="button" aria-label="IoT Monitoring System ワークスペースを開く">
+                <div class="workspace-header">
+                    <div class="workspace-top">
+                        <h2 class="workspace-name">IoT Monitoring System</h2>
+                        <div class="workspace-status status-inactive">
+                            <span class="status-dot" aria-hidden="true"></span>
+                            <span class="sr-only">ステータス: </span>Inactive
+                        </div>
+                    </div>
+                    <p class="workspace-description">
+                        Go + InfluxDB + Grafana を使用したIoTデバイス監視システム。
+                        数百万のセンサーデータをリアルタイム処理・可視化。
+                    </p>
+                </div>
+
+                <div class="workspace-meta">
+                    <div class="meta-item">
+                        <span class="meta-label">Devices</span>
+                        <span class="meta-value">847</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">Last Use</span>
+                        <span class="meta-value">5d ago</span>
+                    </div>
+                </div>
+
+                <div class="workspace-tech">
+                    <span class="tech-tag primary">Go</span>
+                    <span class="tech-tag">InfluxDB</span>
+                    <span class="tech-tag">Grafana</span>
+                    <span class="tech-tag">MQTT</span>
+                    <span class="tech-tag">Docker</span>
+                </div>
+
+                <div class="workspace-team">
+                    <div class="team-avatars" role="group" aria-label="チームメンバー">
+                        <div class="team-avatar" title="田中太郎">田</div>
+                        <div class="team-avatar" title="中村正志">中</div>
+                    </div>
+                    <div class="team-count">2 members</div>
+                </div>
+
+                <div class="workspace-actions">
+                    <button class="action-btn" onclick="handleAction(event, 'start', 'IoT Monitoring System')">START</button>
+                    <button class="action-btn" onclick="handleAction(event, 'settings', 'IoT Monitoring System')">SETTINGS</button>
+                    <button class="action-btn" onclick="handleAction(event, 'archive', 'IoT Monitoring System')">ARCHIVE</button>
+                </div>
+            </article>
+
+            <!-- Blockchain DeFi Platform -->
+            <article class="workspace-card" data-status="active" tabindex="0" role="button" aria-label="Blockchain DeFi Platform ワークスペースを開く">
+                <div class="workspace-header">
+                    <div class="workspace-top">
+                        <h2 class="workspace-name">Blockchain DeFi Platform</h2>
+                        <div class="workspace-status status-active">
+                            <span class="status-dot" aria-hidden="true"></span>
+                            <span class="sr-only">ステータス: </span>Active
+                        </div>
+                    </div>
+                    <p class="workspace-description">
+                        Solidity + Web3.js + React を使用した分散金融プラットフォーム。
+                        スマートコントラクトによる自動化された金融サービス。
+                    </p>
+                </div>
+
+                <div class="workspace-meta">
+                    <div class="meta-item">
+                        <span class="meta-label">TVL</span>
+                        <span class="meta-value">$2.1M</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">Deploy</span>
+                        <span class="meta-value">6h ago</span>
+                    </div>
+                </div>
+
+                <div class="workspace-tech">
+                    <span class="tech-tag primary">Solidity</span>
+                    <span class="tech-tag">Web3.js</span>
+                    <span class="tech-tag">React</span>
+                    <span class="tech-tag">Hardhat</span>
+                    <span class="tech-tag">IPFS</span>
+                </div>
+
+                <div class="workspace-team">
+                    <div class="team-avatars" role="group" aria-label="チームメンバー">
+                        <div class="team-avatar" title="田中太郎">田</div>
+                        <div class="team-avatar" title="青木智子">青</div>
+                        <div class="team-avatar" title="白石大輔">白</div>
+                        <div class="team-avatar" title="黒田慎二">黒</div>
+                    </div>
+                    <div class="team-count">4 members</div>
+                </div>
+
+                <div class="workspace-actions">
+                    <button class="action-btn primary" onclick="handleAction(event, 'open', 'Blockchain DeFi Platform')">OPEN</button>
+                    <button class="action-btn" onclick="handleAction(event, 'settings', 'Blockchain DeFi Platform')">SETTINGS</button>
+                    <button class="action-btn" onclick="handleAction(event, 'logs', 'Blockchain DeFi Platform')">LOGS</button>
+                </div>
+            </article>
+
+            <!-- Cloud Gaming Backend -->
+            <article class="workspace-card" data-status="building" tabindex="0" role="button" aria-label="Cloud Gaming Backend ワークスペースを開く">
+                <div class="workspace-header">
+                    <div class="workspace-top">
+                        <h2 class="workspace-name">Cloud Gaming Backend</h2>
+                        <div class="workspace-status status-building">
+                            <span class="status-dot" aria-hidden="true"></span>
+                            <span class="sr-only">ステータス: </span>Building
+                        </div>
+                    </div>
+                    <p class="workspace-description">
+                        Rust + WebRTC + Kubernetes を使用したクラウドゲーミング基盤。
+                        低遅延ストリーミングとスケーラブルな処理を実現。
+                    </p>
+                </div>
+
+                <div class="workspace-meta">
+                    <div class="meta-item">
+                        <span class="meta-label">Build</span>
+                        <span class="meta-value">45%</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">ETA</span>
+                        <span class="meta-value">8m</span>
+                    </div>
+                </div>
+
+                <div class="workspace-tech">
+                    <span class="tech-tag primary">Rust</span>
+                    <span class="tech-tag">WebRTC</span>
+                    <span class="tech-tag">Kubernetes</span>
+                    <span class="tech-tag">gRPC</span>
+                    <span class="tech-tag">Redis</span>
+                </div>
+
+                <div class="workspace-team">
+                    <div class="team-avatars" role="group" aria-label="チームメンバー">
+                        <div class="team-avatar" title="田中太郎">田</div>
+                    </div>
+                    <div class="team-count">1 member</div>
+                </div>
+
+                <div class="workspace-actions">
+                    <button class="action-btn" onclick="handleAction(event, 'view-build', 'Cloud Gaming Backend')">VIEW BUILD</button>
+                    <button class="action-btn" onclick="handleAction(event, 'settings', 'Cloud Gaming Backend')">SETTINGS</button>
+                    <button class="action-btn" onclick="handleAction(event, 'logs', 'Cloud Gaming Backend')">LOGS</button>
+                </div>
+            </article>
+        </div>
+    </main>
+
+    <!-- Create Workspace Modal -->
+    <div class="modal-overlay" id="createModal" role="dialog" aria-labelledby="modal-title" aria-modal="true">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modal-title">新規ワークスペース作成</h2>
+                <button class="modal-close" onclick="closeCreateModal()" aria-label="モーダルを閉じる">×</button>
+            </div>
+
+            <form id="createWorkspaceForm" novalidate>
+                <div class="form-group">
+                    <label class="form-label" for="workspaceName">ワークスペース名 *</label>
+                    <input 
+                        type="text" 
+                        id="workspaceName" 
+                        class="form-input" 
+                        placeholder="My Awesome Project" 
+                        required 
+                        aria-required="true"
+                        autocomplete="off"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="workspaceDescription">説明</label>
+                    <textarea 
+                        id="workspaceDescription" 
+                        class="form-textarea" 
+                        placeholder="プロジェクトの詳細な説明を入力してください..."
+                        rows="4"
+                    ></textarea>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label" for="workspaceTemplate">テンプレート *</label>
+                        <select id="workspaceTemplate" class="form-select" required aria-required="true">
+                            <option value="">テンプレートを選択</option>
+                            <option value="nextjs">Next.js + TypeScript</option>
+                            <option value="react">React + Vite</option>
+                            <option value="vue">Vue.js + Nuxt</option>
+                            <option value="python">Python + FastAPI</option>
+                            <option value="nodejs">Node.js + Express</option>
+                            <option value="rust">Rust + Actix</option>
+                            <option value="go">Go + Gin</option>
+                            <option value="blank">空のプロジェクト</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="workspaceRegion">リージョン *</label>
+                        <select id="workspaceRegion" class="form-select" required aria-required="true">
+                            <option value="ap-northeast-1">Asia Pacific (Tokyo)</option>
+                            <option value="us-west-2">US West (Oregon)</option>
+                            <option value="eu-west-1">Europe (Ireland)</option>
+                            <option value="ap-southeast-1">Asia Pacific (Singapore)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label" for="workspaceTeam">チーム</label>
+                        <input 
+                            type="text" 
+                            id="workspaceTeam" 
+                            class="form-input" 
+                            placeholder="frontend-team"
+                            autocomplete="organization"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="workspaceVisibility">公開範囲 *</label>
+                        <select id="workspaceVisibility" class="form-select" required aria-required="true">
+                            <option value="private">プライベート</option>
+                            <option value="team">チーム</option>
+                            <option value="organization">組織</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeCreateModal()">キャンセル</button>
+                    <button type="submit" class="btn">作成</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let allWorkspaces = [];
+        let filteredWorkspaces = [];
+        let currentFilter = 'all';
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeWorkspaces();
+            setupEventListeners();
+            setupSearch();
+            setupAccessibility();
+            console.log('🚀 TechOS Workspace Manager initialized');
+        });
+
+        function initializeWorkspaces() {
+            allWorkspaces = Array.from(document.querySelectorAll('.workspace-card'));
+            filteredWorkspaces = [...allWorkspaces];
+        }
+
+        function setupEventListeners() {
+            // Filter tabs
+            document.querySelectorAll('.filter-tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const filter = this.getAttribute('data-filter');
+                    setActiveFilter(filter);
+                    filterWorkspaces(filter);
+                });
+
+                // Keyboard navigation for tabs
+                tab.addEventListener('keydown', function(e) {
+                    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                        e.preventDefault();
+                        const tabs = Array.from(document.querySelectorAll('.filter-tab'));
+                        const currentIndex = tabs.indexOf(this);
+                        let nextIndex;
+
+                        if (e.key === 'ArrowLeft') {
+                            nextIndex = currentIndex > 0 ? currentIndex - 1 : tabs.length - 1;
+                        } else {
+                            nextIndex = currentIndex < tabs.length - 1 ? currentIndex + 1 : 0;
+                        }
+
+                        tabs[nextIndex].focus();
+                        tabs[nextIndex].click();
+                    }
+                });
+            });
+
+            // Workspace card clicks
+            document.querySelectorAll('.workspace-card').forEach(card => {
+                card.addEventListener('click', function(e) {
+                    // Don't trigger if clicking on action buttons
+                    if (e.target.classList.contains('action-btn')) return;
+                    
+                    const workspaceName = this.querySelector('.workspace-name').textContent;
+                    openWorkspace(workspaceName);
+                });
+
+                // Keyboard support for workspace cards
+                card.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        const workspaceName = this.querySelector('.workspace-name').textContent;
+                        openWorkspace(workspaceName);
+                    }
+                });
+            });
+
+            // Create workspace form
+            document.getElementById('createWorkspaceForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                handleCreateWorkspace();
+            });
+
+            // Modal close on Escape
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    closeCreateModal();
+                }
+            });
+
+            // Modal overlay click to close
+            document.getElementById('createModal').addEventListener('click', function(e) {
+                if (e.target === this) {
+                    closeCreateModal();
+                }
+            });
+        }
+
+        function setupSearch() {
+            const searchInput = document.getElementById('searchInput');
+            let searchTimeout;
+
+            searchInput.addEventListener('input', function() {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    const query = this.value.toLowerCase().trim();
+                    searchWorkspaces(query);
+                }, 300);
+            });
+
+            // Clear search on Escape
+            searchInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    this.value = '';
+                    searchWorkspaces('');
+                }
+            });
+        }
+
+        function setupAccessibility() {
+            // Announce filter changes
+            const filterTabs = document.querySelectorAll('.filter-tab');
+            filterTabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const filter = this.textContent;
+                    announceToScreenReader(`${filter}フィルターが選択されました`);
+                });
+            });
+        }
+
+        function announceToScreenReader(message) {
+            const announcement = document.createElement('div');
+            announcement.setAttribute('aria-live', 'polite');
+            announcement.setAttribute('aria-atomic', 'true');
+            announcement.className = 'sr-only';
+            announcement.textContent = message;
+            document.body.appendChild(announcement);
+            
+            setTimeout(() => {
+                document.body.removeChild(announcement);
+            }, 1000);
+        }
+
+        function setActiveFilter(filter) {
+            document.querySelectorAll('.filter-tab').forEach(tab => {
+                tab.classList.remove('active');
+                tab.setAttribute('aria-selected', 'false');
+            });
+            const activeTab = document.querySelector(`[data-filter="${filter}"]`);
+            activeTab.classList.add('active');
+            activeTab.setAttribute('aria-selected', 'true');
+            currentFilter = filter;
+        }
+
+        function filterWorkspaces(filter) {
+            const grid = document.getElementById('workspaceGrid');
+            let visibleCount = 0;
+            
+            allWorkspaces.forEach((card, index) => {
+                const status = card.getAttribute('data-status');
+                let shouldShow = false;
+
+                switch(filter) {
+                    case 'all':
+                        shouldShow = true;
+                        break;
+                    case 'active':
+                        shouldShow = status === 'active';
+                        break;
+                    case 'building':
+                        shouldShow = status === 'building';
+                        break;
+                    case 'inactive':
+                        shouldShow = status === 'inactive';
+                        break;
+                }
+
+                if (shouldShow) {
+                    card.style.display = 'block';
+                    card.style.animation = 'fadeInUp 0.3s ease';
+                    card.style.animationDelay = `${index * 0.05}s`;
+                    visibleCount++;
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+
+            // Update filtered array
+            filteredWorkspaces = allWorkspaces.filter(card => 
+                card.style.display !== 'none'
+            );
+
+            // Announce results to screen reader
+            announceToScreenReader(`${visibleCount}件のワークスペースが見つかりました`);
+        }
+
+        function searchWorkspaces(query) {
+            if (!query) {
+                filterWorkspaces(currentFilter);
+                return;
+            }
+
+            let visibleCount = 0;
+            allWorkspaces.forEach((card, index) => {
+                const name = card.querySelector('.workspace-name').textContent.toLowerCase();
+                const description = card.querySelector('.workspace-description').textContent.toLowerCase();
+                const techTags = Array.from(card.querySelectorAll('.tech-tag'))
+                    .map(tag => tag.textContent.toLowerCase()).join(' ');
+
+                const matches = name.includes(query) || 
+                               description.includes(query) || 
+                               techTags.includes(query);
+
+                if (matches) {
+                    card.style.display = 'block';
+                    card.style.animation = 'fadeInUp 0.3s ease';
+                    card.style.animationDelay = `${index * 0.05}s`;
+                    visibleCount++;
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+
+            announceToScreenReader(`検索結果: ${visibleCount}件のワークスペース`);
+        }
+
+        function openWorkspace(workspaceName) {
+            console.log(`Opening workspace: ${workspaceName}`);
+            showToast(`${workspaceName} を開いています...`, 'info', '🚀');
+            
+            // Visual feedback
+            const card = Array.from(allWorkspaces).find(card => 
+                card.querySelector('.workspace-name').textContent === workspaceName
+            );
+            
+            if (card) {
+                card.style.transform = 'translateY(-4px) scale(0.98)';
+                setTimeout(() => {
+                    card.style.transform = '';
+                }, 200);
+            }
+        }
+
+        function handleAction(event, action, workspaceName) {
+            event.stopPropagation();
+            console.log(`${action} action for workspace: ${workspaceName}`);
+            
+            // Visual feedback
+            const button = event.target;
+            button.style.transform = 'scale(0.95)';
+            setTimeout(() => {
+                button.style.transform = '';
+            }, 150);
+
+            // Handle different actions
+            const actionMessages = {
+                'open': { message: `${workspaceName} を開いています...`, type: 'success', icon: '🚀' },
+                'start': { message: `${workspaceName} を起動しています...`, type: 'info', icon: '▶️' },
+                'view-build': { message: `${workspaceName} のビルドログを表示しています...`, type: 'info', icon: '🔍' },
+                'settings': { message: `${workspaceName} の設定を開いています...`, type: 'info', icon: '⚙️' },
+                'logs': { message: `${workspaceName} のログを表示しています...`, type: 'info', icon: '📋' },
+                'archive': { message: `${workspaceName} をアーカイブしています...`, type: 'warning', icon: '📦' }
+            };
+
+            const actionInfo = actionMessages[action] || { 
+                message: `${workspaceName} でアクションを実行しています...`, 
+                type: 'info', 
+                icon: '⚡' 
+            };
+
+            showToast(actionInfo.message, actionInfo.type, actionInfo.icon);
+        }
+
+        // Modal functions
+        function openCreateModal() {
+            const modal = document.getElementById('createModal');
+            modal.classList.add('show');
+            document.body.style.overflow = 'hidden';
+            
+            // Focus management
+            setTimeout(() => {
+                document.getElementById('workspaceName').focus();
+            }, 300);
+            
+            // Trap focus within modal
+            trapFocus(modal);
+        }
+
+        function closeCreateModal() {
+            const modal = document.getElementById('createModal');
+            modal.classList.remove('show');
+            document.body.style.overflow = '';
+            
+            // Reset form
+            document.getElementById('createWorkspaceForm').reset();
+            clearFormErrors();
+            
+            // Return focus to create button
+            document.querySelector('.btn[onclick="openCreateModal()"]').focus();
+        }
+
+        function trapFocus(modal) {
+            const focusableElements = modal.querySelectorAll(
+                'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+            );
+            const firstElement = focusableElements[0];
+            const lastElement = focusableElements[focusableElements.length - 1];
+
+            function handleTabKey(e) {
+                if (e.key === 'Tab') {
+                    if (e.shiftKey) {
+                        if (document.activeElement === firstElement) {
+                            e.preventDefault();
+                            lastElement.focus();
+                        }
+                    } else {
+                        if (document.activeElement === lastElement) {
+                            e.preventDefault();
+                            firstElement.focus();
+                        }
+                    }
+                }
+            }
+
+            modal.addEventListener('keydown', handleTabKey);
+            
+            // Cleanup on modal close
+            const observer = new MutationObserver((mutations) => {
+                mutations.forEach((mutation) => {
+                    if (mutation.attributeName === 'class' && !modal.classList.contains('show')) {
+                        modal.removeEventListener('keydown', handleTabKey);
+                        observer.disconnect();
+                    }
+                });
+            });
+            observer.observe(modal, { attributes: true });
+        }
+
+        function validateForm() {
+            const form = document.getElementById('createWorkspaceForm');
+            const requiredFields = form.querySelectorAll('[required]');
+            let isValid = true;
+
+            clearFormErrors();
+
+            requiredFields.forEach(field => {
+                if (!field.value.trim()) {
+                    showFieldError(field, 'この項目は必須です');
+                    isValid = false;
+                }
+            });
+
+            // Custom validation
+            const workspaceName = document.getElementById('workspaceName').value.trim();
+            if (workspaceName && !/^[a-zA-Z0-9\s\-_]+$/.test(workspaceName)) {
+                showFieldError(
+                    document.getElementById('workspaceName'), 
+                    '英数字、スペース、ハイフン、アンダースコアのみ使用できます'
+                );
+                isValid = false;
+            }
+
+            return isValid;
+        }
+
+        function showFieldError(field, message) {
+            field.style.borderColor = 'var(--primary-red)';
+            field.setAttribute('aria-invalid', 'true');
+            
+            // Create or update error message
+            let errorElement = field.parentNode.querySelector('.field-error');
+            if (!errorElement) {
+                errorElement = document.createElement('div');
+                errorElement.className = 'field-error';
+                errorElement.style.cssText = `
+                    color: var(--primary-red);
+                    font-size: var(--text-sm);
+                    margin-top: var(--space-2);
+                    font-family: var(--font-family-mono);
+                `;
+                field.parentNode.appendChild(errorElement);
+            }
+            errorElement.textContent = message;
+            field.setAttribute('aria-describedby', errorElement.id || (errorElement.id = `error-${Date.now()}`));
+        }
+
+        function clearFormErrors() {
+            const form = document.getElementById('createWorkspaceForm');
+            const errorElements = form.querySelectorAll('.field-error');
+            const invalidFields = form.querySelectorAll('[aria-invalid="true"]');
+
+            errorElements.forEach(el => el.remove());
+            invalidFields.forEach(field => {
+                field.style.borderColor = '';
+                field.removeAttribute('aria-invalid');
+                field.removeAttribute('aria-describedby');
+            });
+        }
+
+        function handleCreateWorkspace() {
+            if (!validateForm()) {
+                announceToScreenReader('フォームにエラーがあります。修正してください。');
+                return;
+            }
+
+            const formData = {
+                name: document.getElementById('workspaceName').value.trim(),
+                description: document.getElementById('workspaceDescription').value.trim(),
+                template: document.getElementById('workspaceTemplate').value,
+                region: document.getElementById('workspaceRegion').value,
+                team: document.getElementById('workspaceTeam').value.trim(),
+                visibility: document.getElementById('workspaceVisibility').value
+            };
+
+            console.log('Creating workspace:', formData);
+            
+            // Show loading state
+            const submitButton = document.querySelector('#createWorkspaceForm button[type="submit"]');
+            const originalText = submitButton.textContent;
+            submitButton.textContent = '作成中...';
+            submitButton.disabled = true;
+            
+            // Simulate API call
+            showToast('ワークスペースを作成中...', 'info', '⚙️');
+            
+            setTimeout(() => {
+                showToast(`${formData.name} が正常に作成されました！`, 'success', '✅');
+                closeCreateModal();
+                
+                // Reset button state
+                submitButton.textContent = originalText;
+                submitButton.disabled = false;
+            }, 2000);
+        }
+
+        // Toast notification system
+        function showToast(message, type = 'info', icon = 'ℹ️') {
+            // Remove existing toast
+            const existingToast = document.querySelector('.toast');
+            if (existingToast) {
+                existingToast.remove();
+            }
+
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.setAttribute('role', 'alert');
+            toast.setAttribute('aria-live', 'polite');
+            
+            toast.innerHTML = `
+                <span class="toast-icon" aria-hidden="true">${icon}</span>
+                <span>${message}</span>
+            `;
+
+            document.body.appendChild(toast);
+
+            // Auto remove
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.style.animation = 'slideOutRight 0.3s ease';
+                    setTimeout(() => {
+                        if (toast.parentNode) {
+                            toast.remove();
+                        }
+                    }, 300);
+                }
+            }, 4000);
+
+            // Click to dismiss
+            toast.addEventListener('click', () => {
+                toast.style.animation = 'slideOutRight 0.3s ease';
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        toast.remove();
+                    }
+                }, 300);
+            });
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            // Global shortcuts
+            if (e.ctrlKey || e.metaKey) {
+                switch(e.key) {
+                    case 'n':
+                        e.preventDefault();
+                        openCreateModal();
+                        break;
+                    case 'f':
+                        e.preventDefault();
+                        document.getElementById('searchInput').focus();
+                        break;
+                    case 'k':
+                        e.preventDefault();
+                        document.getElementById('searchInput').focus();
+                        break;
+                }
+            }
+
+            // Number keys for filters
+            if (e.key >= '1' && e.key <= '4' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                const filterIndex = parseInt(e.key) - 1;
+                const filterTabs = document.querySelectorAll('.filter-tab');
+                if (filterTabs[filterIndex]) {
+                    e.preventDefault();
+                    filterTabs[filterIndex].click();
+                    filterTabs[filterIndex].focus();
+                }
+            }
+        });
+
+        // Performance monitoring and initialization feedback
+        window.addEventListener('load', function() {
+            console.log('💡 Keyboard shortcuts:');
+            console.log('  • Ctrl+N: 新規ワークスペース作成');
+            console.log('  • Ctrl+F or Ctrl+K: 検索フォーカス');
+            console.log('  • 1-4: フィルタータブ切り替え');
+            console.log('  • Esc: モーダルを閉じる');
+            console.log('  • Tab/Shift+Tab: ナビゲーション');
+            
+            // Performance metrics
+            const perfData = performance.getEntriesByType('navigation')[0];
+            if (perfData) {
+                console.log(`⚡ Page load: ${Math.round(perfData.loadEventEnd - perfData.loadEventStart)}ms`);
+            }
+        });
+
+        // Error boundary for better error handling
+        window.addEventListener('error', function(e) {
+            console.error('Global error:', e.error);
+            showToast('エラーが発生しました。ページを再読み込みしてください。', 'error', '❌');
+        });
+
+        // Service worker registration for PWA capabilities
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                // In a real app, you would register a service worker here
+                console.log('💫 Service Worker support available');
+            });
+        }
+
+        // Intersection Observer for performance optimization
+        const observerOptions = {
+            root: null,
+            rootMargin: '50px',
+            threshold: 0.1
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    // Add any lazy loading logic here
+                    entry.target.classList.add('animate-fade-in');
+                }
+            });
+        }, observerOptions);
+
+        // Observe workspace cards for scroll animations
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(() => {
+                document.querySelectorAll('.workspace-card').forEach(card => {
+                    observer.observe(card);
+                });
+            }, 100);
+        });
+    </script>
+</body>
+</html>workspace-grid {
+                grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+                gap: var(--space-6);
+            }
+
+            .workspace-meta {
+                grid-template-columns: 1fr;
+                gap: var(--space-4);
+            }
+
+            .workspace-actions {
+                grid-template-columns: 1fr;
+                gap: var(--space-3);
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .modal {
+                margin: var(--space-5);
+                padding: var(--space-6);
+                max-height: calc(100vh - var(--space-10));
+            }
+
+            .modal-actions {
+                flex-direction: column;
+            }
+
+            .search-input {
+                width: 240px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                padding: var(--space-4) var(--space-5);
+            }
+
+            .header-content {
+                flex-direction: column;
+                gap: var(--space-4);
+                align-items: stretch;
+            }
+
+            .header-actions {
+                flex-direction: column;
+                gap: var(--space-4);
+            }
+
+            .search-input {
+                width: 100%;
+            }
+
+            .user-menu {
+                justify-content: center;
+            }
+
+            .

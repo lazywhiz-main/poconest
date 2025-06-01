@@ -122,4 +122,16 @@ body {
     border-radius: 2px;
     font-size: 10px;
     font-weight: 600;
+}
+
+.side-menu .menu-item,
+.side-menu .menu-text,
+.side-menu .menu-icon {
+  color: #e2e8f0;
+}
+
+.side-menu .menu-item.active,
+.side-menu .menu-item.active .menu-text,
+.side-menu .menu-item.active .menu-icon {
+  color: #00ff88;
 } 

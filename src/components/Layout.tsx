@@ -32,7 +32,13 @@ export const Layout: React.FC<LayoutProps> = ({
         <div style={{ height: '100vh', background: '#0f0f23', display: 'flex', flexDirection: 'column' }}>
             {/* ヘッダー（ブラウザ横幅いっぱい） */}
             <header className="workspace-header" style={{ width: '100vw', minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div className="workspace-title">{workspaceTitle}</div>
+                <div 
+                    className="workspace-title" 
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => window.location.href = '/nest-list'}
+                >
+                    {workspaceTitle}
+                </div>
                 <div className="workspace-controls" style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
                     <div className="workspace-btn" onClick={onSettingsClick}>
                         ⚙
@@ -49,7 +55,25 @@ export const Layout: React.FC<LayoutProps> = ({
             </header>
             {/* サイドメニュー＋メインエリア */}
             <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
-                <nav className="side-menu">
+                <nav
+                  className="side-menu"
+                  style={{
+                    height: '100%',
+                    minHeight: 0,
+                    display: 'flex',
+                    flexDirection: 'column',
+                  }}
+                >
+                    {/* サイドメニュー上部にSPACESラベルを追加 */}
+                    <div style={{
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: '#6c7086',
+                        textTransform: 'uppercase',
+                        letterSpacing: 1,
+                        padding: '0 20px 8px',
+                        marginBottom: 8,
+                    }}>SPACES</div>
                     {menuSections.map((section, idx) => (
                         <div className="menu-section" key={idx}>
                             {section.title && (

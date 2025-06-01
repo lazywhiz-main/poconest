@@ -1,0 +1,1245 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>モダンテック風カレンダー</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        /* CSS Variables - モダンテックデザインシステム */
+        :root {
+            /* Colors */
+            --primary-green: #00ff88;
+            --primary-green-dark: #00cc6a;
+            --primary-blue: #64b5f6;
+            --primary-orange: #ffa500;
+            --primary-red: #ff6b6b;
+            --primary-purple: #9c27b0;
+            --primary-cyan: #26c6da;
+            
+            /* Background */
+            --bg-primary: #0f0f23;
+            --bg-secondary: #1a1a2e;
+            --bg-tertiary: #333366;
+            --bg-quaternary: #45475a;
+            
+            /* Text */
+            --text-primary: #e2e8f0;
+            --text-secondary: #a6adc8;
+            --text-muted: #6c7086;
+            --text-inverse: #0f0f23;
+            
+            /* Border */
+            --border-primary: #333366;
+            --border-secondary: #45475a;
+            
+            /* Spacing */
+            --space-xs: 4px;
+            --space-sm: 8px;
+            --space-md: 12px;
+            --space-lg: 16px;
+            --space-xl: 20px;
+            --space-2xl: 24px;
+            --space-3xl: 32px;
+            
+            /* Typography */
+            --font-family-text: 'Space Grotesk', sans-serif;
+            --font-family-mono: 'JetBrains Mono', monospace;
+            
+            /* Transitions */
+            --transition-fast: 0.15s ease;
+            --transition-normal: 0.2s ease;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: var(--space-xl);
+            font-family: var(--font-family-text);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.4;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .demo-section {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: 8px;
+            padding: var(--space-3xl);
+            margin-bottom: var(--space-2xl);
+        }
+
+        .section-title {
+            color: var(--primary-green);
+            font-size: 18px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: var(--space-xl);
+            border-bottom: 1px solid var(--border-primary);
+            padding-bottom: var(--space-md);
+        }
+
+        /* === CALENDAR COMPONENTS === */
+
+        /* Mini Calendar */
+        .calendar-mini {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-primary);
+            border-radius: 6px;
+            padding: var(--space-lg);
+            width: 280px;
+            min-width: 280px;
+            max-width: 280px;
+            font-family: var(--font-family-mono);
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-lg);
+            padding-bottom: var(--space-sm);
+            border-bottom: 1px solid var(--border-primary);
+        }
+
+        .calendar-title {
+            color: var(--primary-green);
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .calendar-nav {
+            display: flex;
+            gap: var(--space-sm);
+        }
+
+        .calendar-nav-btn {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-secondary);
+            border-radius: 3px;
+            color: var(--text-secondary);
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 10px;
+            transition: all var(--transition-normal);
+        }
+
+        .calendar-nav-btn:hover {
+            background: var(--primary-green);
+            color: var(--text-inverse);
+            border-color: var(--primary-green);
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 2px;
+            width: 100%;
+        }
+
+        .calendar-day-header {
+            text-align: center;
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: var(--space-xs);
+            font-weight: 600;
+            background: var(--bg-secondary);
+            border-radius: 2px;
+        }
+
+        .calendar-day {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 500;
+            border-radius: 2px;
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            position: relative;
+            background: var(--bg-secondary);
+            min-height: 32px;
+        }
+
+        .calendar-day:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .calendar-day.other-month {
+            color: var(--text-muted);
+            opacity: 0.5;
+        }
+
+        .calendar-day.today {
+            background: var(--primary-green);
+            color: var(--text-inverse);
+            font-weight: 600;
+        }
+
+        .calendar-day.selected {
+            background: var(--primary-blue);
+            color: var(--text-inverse);
+        }
+
+        .calendar-day.has-event::after {
+            content: '•';
+            position: absolute;
+            bottom: 2px;
+            right: 2px;
+            color: var(--primary-orange);
+            font-size: 8px;
+        }
+
+        /* Full Calendar */
+        .calendar-full {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-primary);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .calendar-full-header {
+            background: var(--bg-tertiary);
+            padding: var(--space-lg) var(--space-2xl);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-secondary);
+            flex-wrap: wrap;
+            gap: var(--space-md);
+        }
+
+        .calendar-full-title {
+            color: var(--text-primary);
+            font-size: 20px;
+            font-weight: 600;
+            font-family: var(--font-family-mono);
+        }
+
+        .calendar-controls {
+            display: flex;
+            gap: var(--space-md);
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .calendar-view-toggle {
+            display: flex;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .view-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            padding: var(--space-sm) var(--space-md);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            font-family: var(--font-family-mono);
+        }
+
+        .view-btn.active {
+            background: var(--primary-green);
+            color: var(--text-inverse);
+        }
+
+        .view-btn:hover:not(.active) {
+            background: var(--bg-tertiary);
+        }
+
+        .calendar-full-nav {
+            display: flex;
+            gap: var(--space-sm);
+        }
+
+        .calendar-nav-btn-large {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: 4px;
+            color: var(--text-secondary);
+            padding: var(--space-sm) var(--space-md);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            font-family: var(--font-family-mono);
+        }
+
+        .calendar-nav-btn-large:hover {
+            background: var(--primary-green);
+            color: var(--text-inverse);
+        }
+
+        .calendar-weekdays {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-primary);
+        }
+
+        .calendar-weekday {
+            padding: var(--space-md);
+            text-align: center;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-family: var(--font-family-mono);
+            border-right: 1px solid var(--border-primary);
+        }
+
+        .calendar-weekday:last-child {
+            border-right: none;
+        }
+
+        .calendar-month-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            background: var(--bg-primary);
+            gap: 1px;
+        }
+
+        .calendar-date-cell {
+            min-height: 120px;
+            max-height: 120px;
+            height: 120px;
+            background: var(--bg-primary);
+            padding: var(--space-sm);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid var(--border-primary);
+        }
+
+        .calendar-date-cell.other-month {
+            background: var(--bg-secondary);
+            opacity: 0.5;
+        }
+
+        .calendar-date-cell.today {
+            background: var(--bg-secondary);
+            border: 2px solid var(--primary-green);
+            box-sizing: border-box;
+        }
+
+        .calendar-date-number {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            font-family: var(--font-family-mono);
+            margin-bottom: var(--space-xs);
+            flex-shrink: 0;
+        }
+
+        .calendar-date-cell.other-month .calendar-date-number {
+            color: var(--text-muted);
+        }
+
+        .calendar-date-cell.today .calendar-date-number {
+            color: var(--primary-green);
+        }
+
+        .calendar-date-cell.selected {
+            background: var(--bg-tertiary);
+            border: 2px solid var(--primary-blue);
+            box-sizing: border-box;
+        }
+
+        .calendar-date-cell.selected .calendar-date-number {
+            color: var(--primary-blue);
+        }
+
+        /* Events */
+        .calendar-event {
+            background: var(--primary-blue);
+            color: var(--text-inverse);
+            padding: 2px var(--space-xs);
+            border-radius: 2px;
+            font-size: 10px;
+            margin-bottom: 2px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            text-overflow: ellipsis;
+            overflow: hidden;
+            white-space: nowrap;
+            flex-shrink: 0;
+            max-width: 100%;
+        }
+
+        .calendar-event:hover {
+            background: var(--primary-green);
+            transform: translateX(2px);
+        }
+
+        .calendar-event.priority-high {
+            background: var(--primary-red);
+        }
+
+        .calendar-event.priority-medium {
+            background: var(--primary-orange);
+        }
+
+        .calendar-event.priority-low {
+            background: var(--primary-cyan);
+        }
+
+        .calendar-event.type-meeting {
+            border-left: 3px solid var(--primary-green);
+        }
+
+        .calendar-event.type-deadline {
+            border-left: 3px solid var(--primary-red);
+        }
+
+        .calendar-event.type-task {
+            border-left: 3px solid var(--primary-orange);
+        }
+
+        /* Terminal-style calendar */
+        .calendar-terminal {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-primary);
+            border-radius: 6px;
+            padding: var(--space-lg);
+            font-family: var(--font-family-mono);
+            font-size: 12px;
+            line-height: 1.2;
+        }
+
+        .terminal-header {
+            color: var(--primary-green);
+            margin-bottom: var(--space-md);
+            font-weight: 600;
+        }
+
+        .terminal-prompt {
+            color: var(--text-muted);
+        }
+
+        .terminal-command {
+            color: var(--primary-blue);
+        }
+
+        .terminal-output {
+            margin: var(--space-sm) 0;
+        }
+
+        .terminal-calendar-grid {
+            white-space: pre-line;
+            color: var(--text-secondary);
+        }
+
+        .terminal-today {
+            background: var(--primary-green);
+            color: var(--text-inverse);
+            padding: 0 2px;
+        }
+
+        .terminal-event {
+            color: var(--primary-orange);
+        }
+
+        /* Time picker */
+        .time-picker {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: 6px;
+            padding: var(--space-lg);
+            display: inline-block;
+        }
+
+        .time-picker-title {
+            color: var(--primary-green);
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: var(--space-md);
+        }
+
+        .time-picker-display {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-primary);
+            border-radius: 4px;
+            padding: var(--space-md);
+            text-align: center;
+            font-family: var(--font-family-mono);
+            font-size: 24px;
+            color: var(--primary-green);
+            margin-bottom: var(--space-md);
+        }
+
+        .time-picker-controls {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--space-sm);
+        }
+
+        .time-picker-btn {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-secondary);
+            border-radius: 3px;
+            color: var(--text-secondary);
+            padding: var(--space-sm);
+            font-size: 11px;
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            font-family: var(--font-family-mono);
+        }
+
+        .time-picker-btn:hover {
+            background: var(--primary-green);
+            color: var(--text-inverse);
+        }
+
+        /* Event sidebar */
+        .event-sidebar {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: 6px;
+            padding: var(--space-lg);
+            width: 300px;
+            min-width: 300px;
+            max-width: 300px;
+        }
+
+        .event-sidebar-title {
+            color: var(--primary-green);
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: var(--space-lg);
+            border-bottom: 1px solid var(--border-primary);
+            padding-bottom: var(--space-sm);
+        }
+
+        .event-item {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-primary);
+            border-radius: 4px;
+            padding: var(--space-md);
+            margin-bottom: var(--space-md);
+            cursor: pointer;
+            transition: all var(--transition-normal);
+        }
+
+        .event-item:hover {
+            border-color: var(--primary-green);
+            transform: translateX(2px);
+        }
+
+        .event-time {
+            color: var(--primary-blue);
+            font-size: 11px;
+            font-family: var(--font-family-mono);
+            margin-bottom: var(--space-xs);
+        }
+
+        .event-title {
+            color: var(--text-primary);
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: var(--space-xs);
+        }
+
+        .event-type {
+            color: var(--text-muted);
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Layout demos */
+        .demo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: var(--space-2xl);
+            margin-bottom: var(--space-3xl);
+        }
+
+        .demo-row {
+            display: flex;
+            gap: var(--space-2xl);
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+
+        .calendar-app-layout {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: var(--space-xl);
+            height: 600px;
+            align-items: start;
+        }
+
+        .week-view-container {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: 6px;
+            padding: var(--space-lg);
+            margin-top: var(--space-lg);
+            overflow-x: auto;
+        }
+
+        .week-grid {
+            display: grid;
+            grid-template-columns: 50px repeat(7, 1fr);
+            gap: 1px;
+            background: var(--border-primary);
+            min-width: 400px;
+        }
+
+        .week-time-slot, .week-day-header {
+            background: var(--bg-tertiary);
+            padding: var(--space-xs);
+            font-size: 9px;
+            color: var(--text-muted);
+            text-align: center;
+        }
+
+        .week-day-cell {
+            background: var(--bg-primary);
+            padding: var(--space-xs);
+            position: relative;
+            min-height: 30px;
+        }
+
+        .week-day-header.today {
+            background: var(--bg-primary);
+            color: var(--primary-green);
+            font-weight: 600;
+        }
+
+        .week-event {
+            background: var(--primary-blue);
+            color: var(--text-inverse);
+            padding: 1px 3px;
+            border-radius: 2px;
+            font-size: 8px;
+        }
+
+        .week-event.priority-high {
+            background: var(--primary-red);
+        }
+
+        .week-event.priority-medium {
+            background: var(--primary-green);
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: var(--space-md);
+            }
+
+            .demo-row {
+                flex-direction: column;
+            }
+
+            .calendar-app-layout {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto;
+                height: auto;
+                gap: var(--space-lg);
+            }
+
+            .calendar-full-header {
+                padding: var(--space-md);
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .calendar-controls {
+                width: 100%;
+                justify-content: space-between;
+                flex-wrap: wrap;
+                gap: var(--space-sm);
+            }
+
+            .event-sidebar {
+                width: 100%;
+                max-width: none;
+                min-width: auto;
+            }
+
+            .calendar-mini {
+                width: 100%;
+                max-width: none;
+                min-width: auto;
+            }
+
+            .calendar-date-cell {
+                min-height: 80px;
+                max-height: 80px;
+                height: 80px;
+            }
+
+            .demo-section {
+                padding: var(--space-lg);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- ミニカレンダー -->
+        <div class="demo-section">
+            <div class="section-title">Mini Calendar Components</div>
+            <div class="demo-grid">
+                <div class="calendar-mini">
+                    <div class="calendar-header">
+                        <div class="calendar-title">2025.01</div>
+                        <div class="calendar-nav">
+                            <button class="calendar-nav-btn" onclick="previousMonth()">‹</button>
+                            <button class="calendar-nav-btn" onclick="nextMonth()">›</button>
+                        </div>
+                    </div>
+                    <div class="calendar-grid">
+                        <div class="calendar-day-header">Mon</div>
+                        <div class="calendar-day-header">Tue</div>
+                        <div class="calendar-day-header">Wed</div>
+                        <div class="calendar-day-header">Thu</div>
+                        <div class="calendar-day-header">Fri</div>
+                        <div class="calendar-day-header">Sat</div>
+                        <div class="calendar-day-header">Sun</div>
+                        
+                        <div class="calendar-day other-month">30</div>
+                        <div class="calendar-day other-month">31</div>
+                        <div class="calendar-day">1</div>
+                        <div class="calendar-day">2</div>
+                        <div class="calendar-day">3</div>
+                        <div class="calendar-day">4</div>
+                        <div class="calendar-day">5</div>
+                        
+                        <div class="calendar-day">6</div>
+                        <div class="calendar-day">7</div>
+                        <div class="calendar-day">8</div>
+                        <div class="calendar-day">9</div>
+                        <div class="calendar-day">10</div>
+                        <div class="calendar-day">11</div>
+                        <div class="calendar-day">12</div>
+                        
+                        <div class="calendar-day">13</div>
+                        <div class="calendar-day">14</div>
+                        <div class="calendar-day today">15</div>
+                        <div class="calendar-day">16</div>
+                        <div class="calendar-day has-event">17</div>
+                        <div class="calendar-day">18</div>
+                        <div class="calendar-day">19</div>
+                        
+                        <div class="calendar-day selected">20</div>
+                        <div class="calendar-day has-event">21</div>
+                        <div class="calendar-day">22</div>
+                        <div class="calendar-day">23</div>
+                        <div class="calendar-day">24</div>
+                        <div class="calendar-day">25</div>
+                        <div class="calendar-day">26</div>
+                        
+                        <div class="calendar-day">27</div>
+                        <div class="calendar-day">28</div>
+                        <div class="calendar-day">29</div>
+                        <div class="calendar-day">30</div>
+                        <div class="calendar-day">31</div>
+                        <div class="calendar-day other-month">1</div>
+                        <div class="calendar-day other-month">2</div>
+                    </div>
+                </div>
+
+                <div class="time-picker">
+                    <div class="time-picker-title">Time Select</div>
+                    <div class="time-picker-display" id="timeDisplay">14:30</div>
+                    <div class="time-picker-controls">
+                        <button class="time-picker-btn" onclick="adjustTime('hour', 1)">H+</button>
+                        <button class="time-picker-btn" onclick="adjustTime('minute', 1)">M+</button>
+                        <button class="time-picker-btn" onclick="resetTime()">RST</button>
+                        <button class="time-picker-btn" onclick="adjustTime('hour', -1)">H-</button>
+                        <button class="time-picker-btn" onclick="adjustTime('minute', -1)">M-</button>
+                        <button class="time-picker-btn" onclick="setNow()">NOW</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- アプリケーションレイアウト -->
+        <div class="demo-section">
+            <div class="section-title">Calendar Application Layout</div>
+            <div class="calendar-app-layout">
+                <div class="event-sidebar">
+                    <div class="event-sidebar-title">Today's Schedule</div>
+                    
+                    <div class="event-item">
+                        <div class="event-time">09:00 - 09:30</div>
+                        <div class="event-title">Daily Standup</div>
+                        <div class="event-type">Meeting • Team</div>
+                    </div>
+                    
+                    <div class="event-item">
+                        <div class="event-time">10:00 - 11:30</div>
+                        <div class="event-title">Feature Development</div>
+                        <div class="event-type">Task • Development</div>
+                    </div>
+                    
+                    <div class="event-item">
+                        <div class="event-time">14:00 - 15:00</div>
+                        <div class="event-title">Code Review Session</div>
+                        <div class="event-type">Review • Team</div>
+                    </div>
+                    
+                    <div class="event-item">
+                        <div class="event-time">16:00 - 17:00</div>
+                        <div class="event-title">API Documentation</div>
+                        <div class="event-type">Task • Documentation</div>
+                    </div>
+                    
+                    <div class="event-item">
+                        <div class="event-time">18:00</div>
+                        <div class="event-title">Deployment Deadline</div>
+                        <div class="event-type">Deadline • Critical</div>
+                    </div>
+                </div>
+                
+                <div class="calendar-mini">
+                    <div class="calendar-header">
+                        <div class="calendar-title">January 2025 • Week View</div>
+                        <div class="calendar-nav">
+                            <button class="calendar-nav-btn">‹</button>
+                            <button class="calendar-nav-btn">›</button>
+                        </div>
+                    </div>
+                    
+                    <!-- 週表示カレンダー -->
+                    <div class="week-view-container">
+                        <div class="week-grid">
+                            <!-- ヘッダー行 -->
+                            <div class="week-time-slot">TIME</div>
+                            <div class="week-day-header">MON<br>13</div>
+                            <div class="week-day-header">TUE<br>14</div>
+                            <div class="week-day-header today">WED<br>15</div>
+                            <div class="week-day-header">THU<br>16</div>
+                            <div class="week-day-header">FRI<br>17</div>
+                            <div class="week-day-header">SAT<br>18</div>
+                            <div class="week-day-header">SUN<br>19</div>
+                            
+                            <!-- 9:00 -->
+                            <div class="week-time-slot">9:00</div>
+                            <div class="week-day-cell"></div>
+                            <div class="week-day-cell"></div>
+                            <div class="week-day-cell">
+                                <div class="week-event">Standup</div>
+                            </div>
+                            <div class="week-day-cell"></div>
+                            <div class="week-day-cell"></div>
+                            <div class="week-day-cell"></div>
+                            <div class="week-day-cell"></div>
+                            
+                            <!-- 14:00 -->
+                            <div class="week-time-slot">14:00</div>
+                            <div class="week-day-cell"></div>
+                            <div class="week-day-cell"></div>
+                            <div class="week-day-cell">
+                                <div class="week-event priority-medium">Review</div>
+                            </div>
+                            <div class="week-day-cell"></div>
+                            <div class="week-day-cell">
+                                <div class="week-event priority-high">Deadline</div>
+                            </div>
+                            <div class="week-day-cell"></div>
+                            <div class="week-day-cell"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ターミナル風カレンダー -->
+        <div class="demo-section">
+            <div class="section-title">Terminal Calendar</div>
+            <div class="calendar-terminal">
+                <div class="terminal-header">dev@calendar:~$ cal 2025</div>
+                <div class="terminal-output">
+                    <div class="terminal-prompt">user@system:~$ </div><span class="terminal-command">cal -m January 2025</span>
+                </div>
+                <div class="terminal-calendar-grid">
+January 2025
+Mo Tu We Th Fr Sa Su
+       1  2  3  4  5
+ 6  7  8  9 10 11 12
+13 14 <span class="terminal-today">15</span> 16 <span class="terminal-event">17</span> 18 19
+20 <span class="terminal-event">21</span> 22 23 24 25 26
+27 28 29 30 31
+                </div>
+                <div class="terminal-output">
+                    <div class="terminal-prompt">user@system:~$ </div><span class="terminal-command">agenda --today</span>
+                </div>
+                <div class="terminal-output">
+<span style="color: var(--primary-green);">TODAY: 2025-01-15</span>
+<span style="color: var(--primary-blue);">14:30</span> Team standup meeting
+<span style="color: var(--primary-orange);">16:00</span> Code review session
+<span style="color: var(--primary-red);">18:00</span> Deployment deadline
+                </div>
+                <div class="terminal-prompt">user@system:~$ <span class="terminal-cursor">_</span></div>
+            </div>
+        </div>
+
+        <!-- フルカレンダー -->
+        <div class="demo-section">
+            <div class="section-title">Full Calendar Interface</div>
+            <div class="calendar-full">
+                <div class="calendar-full-header">
+                    <div class="calendar-full-title">January 2025</div>
+                    <div class="calendar-controls">
+                        <div class="calendar-view-toggle">
+                            <button class="view-btn active">Month</button>
+                            <button class="view-btn">Week</button>
+                            <button class="view-btn">Day</button>
+                        </div>
+                        <div class="calendar-full-nav">
+                            <button class="calendar-nav-btn-large">‹ Prev</button>
+                            <button class="calendar-nav-btn-large">Today</button>
+                            <button class="calendar-nav-btn-large">Next ›</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="calendar-weekdays">
+                    <div class="calendar-weekday">Monday</div>
+                    <div class="calendar-weekday">Tuesday</div>
+                    <div class="calendar-weekday">Wednesday</div>
+                    <div class="calendar-weekday">Thursday</div>
+                    <div class="calendar-weekday">Friday</div>
+                    <div class="calendar-weekday">Saturday</div>
+                    <div class="calendar-weekday">Sunday</div>
+                </div>
+                
+                <div class="calendar-month-grid">
+                    <div class="calendar-date-cell other-month">
+                        <div class="calendar-date-number">30</div>
+                    </div>
+                    <div class="calendar-date-cell other-month">
+                        <div class="calendar-date-number">31</div>
+                    </div>
+                    <div class="calendar-date-cell">
+                        <div class="calendar-date-number">1</div>
+                        <div class="calendar-event type-meeting">Team Planning</div>
+                    </div>
+                    <div class="calendar-date-cell">
+                        <div class="calendar-date-number">2</div>
+                    </div>
+                    <div class="calendar-date-cell">
+                        <div class="calendar-date-number">3</div>
+                        <div class="calendar-event priority-high type-deadline">Release v2.0</div>
+                    </div>
+                    <div class="calendar-date-cell">
+                        <div class="calendar-date-number">4</div>
+                    </div>
+                    <div class="calendar-date-cell">
+                        <div class="calendar-date-number">5</div>
+                    </div>
+                    
+                    <div class="calendar-date-cell">
+                        <div class="calendar-date-number">6</div>
+                    </div>
+                    <div class="calendar-date-cell">
+                        <div class="calendar-date-number">7</div>
+                        <div class="calendar-event priority-medium type-task">Code Review</div>
+                    </div>
+                    <div class="calendar-date-cell">
+                        <div class="calendar-date-number">8</div>
+                    </div>
+                    <div class="calendar-date-cell">
+                        <div class="calendar-date-number">9</div>
+                    </div>
+                    <div class="calendar-date-cell">
+                        <div class="calendar-date-number">10</div>
+                        <div class="calendar-event type-meeting">Sprint Review</div>
+                        <div class="calendar-event priority-low">Team Lunch</div>
+                    </div>
+                    <div class="calendar-date-cell">
+                        <div class="calendar-date-number">11</div>
+                    </div>
+                    <div class="calendar-date-cell">
+                        <div class="calendar-date-number">12</div>
+                    </div>
+                    
+                    <div class="calendar-date-cell">
+                        <div class="calendar-date-number">13</div>
+                    </div>
+                    <div class="calendar-date-cell">
+                        <div class="calendar-date-number">14</div>
+                    </div>
+                    <div class="calendar-date-cell today">
+                        <div class="calendar-date-number">15</div>
+                        <div class="calendar-event type-meeting">Daily Standup</div>
+                        <div class="calendar-event priority-medium type-task">API Documentation</div>
+                    </div>
+                    <div class="calendar-date-cell">
+                        <div class="calendar-date-number">16</div>
+                    </div>
+                    <div class="calendar-date-cell">
+                        <div class="calendar-date-number">17</div>
+                        <div class="calendar-event priority-high type-deadline">Feature Complete</div>
+                    </div>
+                    <div class="calendar-date-cell">
+                        <div class="calendar-date-number">18</div>
+                    </div>
+                    <div class="calendar-date-cell">
+                        <div class="calendar-date-number">19</div>
+                    </div>
+                    
+                    <div class="calendar-date-cell">
+                        <div class="calendar-date-number">20</div>
+                    </div>
+                    <div class="calendar-date-cell">
+                        <div class="calendar-date-number">21</div>
+                        <div class="calendar-event type-meeting">Architecture Review</div>
+                    </div>
+                    <div class="calendar-date-cell">
+                        <div class="calendar-date-number">22</div>
+                    </div>
+                    <div class="calendar-date-cell">
+                        <div class="calendar-date-number">23</div>
+                    </div>
+                    <div class="calendar-date-cell">
+                        <div class="calendar-date-number">24</div>
+                        <div class="calendar-event priority-medium">Performance Testing</div>
+                    </div>
+                    <div class="calendar-date-cell">
+                        <div class="calendar-date-number">25</div>
+                    </div>
+                    <div class="calendar-date-cell">
+                        <div class="calendar-date-number">26</div>
+                    </div>
+                    
+                    <div class="calendar-date-cell">
+                        <div class="calendar-date-number">27</div>
+                    </div>
+                    <div class="calendar-date-cell">
+                        <div class="calendar-date-number">28</div>
+                        <div class="calendar-event type-meeting">Retrospective</div>
+                    </div>
+                    <div class="calendar-date-cell">
+                        <div class="calendar-date-number">29</div>
+                    </div>
+                    <div class="calendar-date-cell">
+                        <div class="calendar-date-number">30</div>
+                    </div>
+                    <div class="calendar-date-cell">
+                        <div class="calendar-date-number">31</div>
+                        <div class="calendar-event priority-high type-deadline">Monthly Report</div>
+                    </div>
+                    <div class="calendar-date-cell other-month">
+                        <div class="calendar-date-number">1</div>
+                    </div>
+                    <div class="calendar-date-cell other-month">
+                        <div class="calendar-date-number">2</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- デザインパターン説明 -->
+        <div class="demo-section">
+            <div class="section-title">Design System Implementation</div>
+            <div style="background: var(--bg-primary); border: 1px solid var(--border-primary); border-radius: 6px; padding: var(--space-2xl); font-family: var(--font-family-mono); font-size: 13px;">
+                <h3 style="color: var(--primary-green); margin-bottom: var(--space-lg);">モダンテック・カレンダーの設計原則</h3>
+                
+                <div style="margin-bottom: var(--space-lg);">
+                    <div style="color: var(--primary-blue); margin-bottom: var(--space-sm);">🎨 Color Coding System:</div>
+                    <div style="margin-left: var(--space-lg); color: var(--text-secondary);">
+                        • <span style="color: var(--primary-red);">RED</span> - 期限・重要な予定<br>
+                        • <span style="color: var(--primary-orange);">ORANGE</span> - タスク・作業<br>
+                        • <span style="color: var(--primary-blue);">BLUE</span> - 会議・コミュニケーション<br>
+                        • <span style="color: var(--primary-green);">GREEN</span> - 今日・選択中<br>
+                        • <span style="color: var(--primary-cyan);">CYAN</span> - 低優先度・個人イベント
+                    </div>
+                </div>
+
+                <div style="margin-bottom: var(--space-lg);">
+                    <div style="color: var(--primary-blue); margin-bottom: var(--space-sm);">⌨️ Terminal Inspiration:</div>
+                    <div style="margin-left: var(--space-lg); color: var(--text-secondary);">
+                        • UNIX/Linux calコマンドの視覚的再現<br>
+                        • モノスペースフォントで統一感<br>
+                        • プロンプト風のUIデザイン<br>
+                        • キーボードファーストな操作性
+                    </div>
+                </div>
+
+                <div style="margin-bottom: var(--space-lg);">
+                    <div style="color: var(--primary-blue); margin-bottom: var(--space-sm);">🔧 Technical Features:</div>
+                    <div style="margin-left: var(--space-lg); color: var(--text-secondary);">
+                        • CSS Grid による柔軟なレイアウト<br>
+                        • 統一されたCSS変数システム<br>
+                        • レスポンシブ対応<br>
+                        • アクセシビリティ配慮
+                    </div>
+                </div>
+
+                <div>
+                    <div style="color: var(--primary-blue); margin-bottom: var(--space-sm);">🎯 Use Cases:</div>
+                    <div style="margin-left: var(--space-lg); color: var(--text-secondary);">
+                        • 開発チームのスプリント管理<br>
+                        • リリーススケジュール追跡<br>
+                        • コードレビュー・会議調整<br>
+                        • プロジェクト期限管理
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 時刻表示の管理
+        let currentTime = { hour: 14, minute: 30 };
+
+        function updateTimeDisplay() {
+            const display = document.getElementById('timeDisplay');
+            if (!display) return;
+            
+            const hourStr = currentTime.hour.toString().padStart(2, '0');
+            const minuteStr = currentTime.minute.toString().padStart(2, '0');
+            display.textContent = `${hourStr}:${minuteStr}`;
+        }
+
+        function adjustTime(unit, delta) {
+            if (unit === 'hour') {
+                currentTime.hour = (currentTime.hour + delta + 24) % 24;
+            } else if (unit === 'minute') {
+                currentTime.minute = (currentTime.minute + delta + 60) % 60;
+            }
+            updateTimeDisplay();
+        }
+
+        function resetTime() {
+            currentTime = { hour: 0, minute: 0 };
+            updateTimeDisplay();
+        }
+
+        function setNow() {
+            const now = new Date();
+            currentTime.hour = now.getHours();
+            currentTime.minute = now.getMinutes();
+            updateTimeDisplay();
+        }
+
+        // カレンダーナビゲーション
+        function previousMonth() {
+            console.log('Previous month clicked');
+            const title = document.querySelector('.calendar-title');
+            if (title) {
+                title.style.opacity = '0.5';
+                setTimeout(() => {
+                    title.style.opacity = '1';
+                }, 200);
+            }
+        }
+
+        function nextMonth() {
+            console.log('Next month clicked');
+            const title = document.querySelector('.calendar-title');
+            if (title) {
+                title.style.opacity = '0.5';
+                setTimeout(() => {
+                    title.style.opacity = '1';
+                }, 200);
+            }
+        }
+
+        // ビュー切り替え
+        document.querySelectorAll('.view-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+
+        // イベントアイテムのクリック処理
+        document.querySelectorAll('.calendar-event, .event-item').forEach(item => {
+            item.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const eventText = this.textContent?.trim() || 'Unknown Event';
+                console.log('Event clicked:', eventText);
+                
+                this.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    this.style.transform = '';
+                }, 150);
+            });
+        });
+
+        // カレンダー日付のクリック処理
+        document.querySelectorAll('.calendar-day, .calendar-date-cell').forEach(cell => {
+            cell.addEventListener('click', function(e) {
+                e.preventDefault();
+                document.querySelectorAll('.calendar-day, .calendar-date-cell').forEach(c => {
+                    c.classList.remove('selected');
+                });
+                this.classList.add('selected');
+                console.log('Date selected:', this.querySelector('.calendar-date-number')?.textContent || this.textContent);
+            });
+        });
+
+        // キーボードショートカット
+        document.addEventListener('keydown', function(e) {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                return;
+            }
+
+            if (e.ctrlKey || e.metaKey) {
+                switch(e.key) {
+                    case 'ArrowLeft':
+                        e.preventDefault();
+                        previousMonth();
+                        break;
+                    case 'ArrowRight':
+                        e.preventDefault();
+                        nextMonth();
+                        break;
+                    case 't':
+                        e.preventDefault();
+                        console.log('Go to today');
+                        const todayCell = document.querySelector('.today');
+                        if (todayCell) {
+                            todayCell.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            todayCell.style.boxShadow = '0 0 20px var(--primary-green)';
+                            setTimeout(() => {
+                                todayCell.style.boxShadow = '';
+                            }, 1000);
+                        }
+                        break;
+                }
+            }
+        });
+
+        // 初期化
+        updateTimeDisplay();
+    </script>
+</body>
+</html>

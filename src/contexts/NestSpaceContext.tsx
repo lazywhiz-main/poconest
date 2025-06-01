@@ -118,9 +118,19 @@ export const NestSpaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const loadSpaceContainer = async (containerId: string): Promise<void> => { console.log('loadSpaceContainer called', containerId); };
 
   // --- 必要なコールバックを追加 ---
+  // availableSpacesをspaces stateから生成
+  const availableSpaces = Object.values(spaces).map((s: any) => ({
+    id: s.id,
+    type: s.type,
+    title: s.name,
+    icon: s.icon,
+    color: s.color || '#888',
+    // 必要に応じて他のSpaceMetadataプロパティも追加
+  }));
+
   const spaceState: SpaceState = {
     activeSpaceType: state.navigation.activeSpaceId as SpaceType,
-    availableSpaces: [], // TODO: 必要に応じてstateから取得
+    availableSpaces, // ←ここを修正
     layoutType: state.navigation.currentLayout as LayoutType,
     sidebarOpen: false, // TODO: 必要に応じてstateから取得
     loading: state.isLoading,
@@ -128,6 +138,16 @@ export const NestSpaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     personalization: {}, // TODO: 必要に応じてstateから取得
     splitView: undefined, // TODO: 必要に応じてstateから取得
   };
+  // const spaceState: SpaceState = {
+  //   activeSpaceType: state.navigation.activeSpaceId as SpaceType,
+  //   availableSpaces: [], // TODO: 必要に応じてstateから取得
+  //   layoutType: state.navigation.currentLayout as LayoutType,
+  //   sidebarOpen: false, // TODO: 必要に応じてstateから取得
+  //   loading: state.isLoading,
+  //   memberPresence: [], // TODO: 必要に応じてstateから取得
+  //   personalization: {}, // TODO: 必要に応じてstateから取得
+  //   splitView: undefined, // TODO: 必要に応じてstateから取得
+  // };
   const dispatchAction = dispatch as React.Dispatch<SpaceNavigationAction>;
 
   const toggleSidebar = useCallback(() => {

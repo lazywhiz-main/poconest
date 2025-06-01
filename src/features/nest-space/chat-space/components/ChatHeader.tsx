@@ -14,17 +14,19 @@ import { LayoutType, SpaceType } from '../../types/nestSpace.types';
 
 // Placeholder for icons - in a real implementation, you'd import from a library
 const Icon = ({ name, size = 20, color = '#000' }: { name: string; size?: number; color?: string }) => (
-  <Text style={{ fontSize: size, color }}>{name === 'search' ? '🔍' : name === 'plus' ? '➕' : name === 'thread' ? '🧵' : name === 'pin' ? '📌' : name === 'back' ? '←' : name === 'settings' ? '⚙️' : '•'}</Text>
+  <Text style={{ fontSize: size, color }}>{name === 'search' ? '🔍' : name === 'plus' ? '➕' : name === 'thread' ? '🧵' : name === 'pin' ? '📌' : name === 'back' ? '←' : name === 'settings' ? '⚙️' : name === 'channel' ? '📢' : '•'}</Text>
 );
 
 interface ChatHeaderProps {
   onToggleThreadView?: () => void;
   onToggleSettings?: () => void;
+  onCreateChannel?: () => void;
 }
 
 const ChatHeader: React.FC<ChatHeaderProps> = ({
   onToggleThreadView,
-  onToggleSettings
+  onToggleSettings,
+  onCreateChannel
 }) => {
   const { spaceState, getSpaceMetadata } = useNestSpace();
   const { chatRooms, activeChatRoomId, chatSpaceState, togglePin } = useChatSpace();
@@ -134,6 +136,13 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
                 
                 <TouchableOpacity style={styles.iconButton} onPress={togglePin}>
                   <Icon name="pin" color={chatSpaceState.isPinned ? '#1E88E5' : undefined} />
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.iconButton}
+                  onPress={() => onCreateChannel && onCreateChannel()}
+                >
+                  <Icon name="channel" />
                 </TouchableOpacity>
               </>
             )}

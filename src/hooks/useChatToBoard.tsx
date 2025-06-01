@@ -43,57 +43,70 @@ export const useChatToBoard = ({
       if (onError) onError(error);
     },
     async onNewInsightsGenerated(newInsights) {
-      // 1. チャット内容をsourceとして登録
-      const now = new Date();
-      const label = `チャットログ（${now.toLocaleString()}）`;
-      const sourceInsert = {
-        type: 'chat',
-        label,
-        meta: { messages: JSON.stringify(messages), channelId },
-      };
-      let source: Source | null = null;
       try {
-        const res = await addSource(sourceInsert);
-        if (res.data) source = res.data;
-      } catch (e) {
-        console.error('source登録失敗', e);
-      }
-      // 2. カードをDBにinsert
-      const nowStr = now.toISOString();
-      const cardsToInsert = newInsights.map(insight => ({
-        board_id: boardId,
-        title: insight.title,
-        content: insight.content,
-        column_type: BoardColumnType.INBOX,
-        created_by: user?.id || 'ai',
-        created_at: nowStr,
-        updated_at: nowStr,
-        order_index: 0,
-        is_archived: false,
-        metadata: insight.metadata ?? {},
-      }));
-      const { data, error } = await addBoardCards(cardsToInsert);
-      if (!error && data) {
-        // 3. タグ・リレーションも追加
-        for (let i = 0; i < data.length; i++) {
-          const cardId = data[i].id;
-          const insight = newInsights[i];
-          // tags
-          if (insight.tags && insight.tags.length > 0) {
-            await supabase.from('board_card_tags').insert(insight.tags.map(tag => ({ card_id: cardId, tag })));
+        // 1. チャット内容をsourceとして登録
+        const now = new Date();
+        const label = `チャットログ（${now.toLocaleString()}）`;
+        const sourceInsert = {
+          type: 'chat',
+          label,
+          meta: { messages: JSON.stringify(messages), channelId },
+        };
+        let source: Source | null = null;
+        try {
+          const res = await addSource(sourceInsert);
+          if (res.data) source = res.data;
+        } catch (e) {
+          console.error('source登録失敗', e);
+        }
+
+        // 2. トランザクションでカードと関連データを作成
+        const nowStr = now.toISOString();
+        const createdCards = [];
+
+        for (const insight of newInsights) {
+          const { data: cardData, error: cardError } = await supabase.rpc('create_card_with_relations', {
+            p_board_id: boardId,
+            p_title: insight.title,
+            p_content: insight.content,
+            p_column_type: BoardColumnType.INBOX,
+            p_created_by: user?.id || 'ai',
+            p_created_at: nowStr,
+            p_updated_at: nowStr,
+            p_order_index: 0,
+            p_is_archived: false,
+            p_metadata: insight.metadata ?? {},
+            p_tags: insight.tags || [],
+            p_source_id: source?.id
+          });
+
+          if (cardError) {
+            throw {
+              type: 'DB_ERROR',
+              message: 'カードの作成に失敗しました',
+              details: {
+                error: cardError,
+                insight: insight
+              }
+            };
           }
-          // sources
-          if (source) {
-            await addCardSource({ card_id: cardId, source_id: source.id });
+
+          if (cardData && cardData.success) {
+            createdCards.push(cardData.card);
           }
         }
-        addCards(data);
-        setLastError(null);
-        if (onNewInsightsGenerated) onNewInsightsGenerated(data);
-      } else {
-        const err = { type: 'DB_ERROR', message: 'カードの保存に失敗', details: error };
-        setLastError(err);
-        if (onError) onError(err);
+
+        // 3. 作成したカードをコンテキストに追加
+        if (createdCards.length > 0) {
+          addCards(createdCards);
+          setLastError(null);
+          if (onNewInsightsGenerated) onNewInsightsGenerated(createdCards);
+        }
+      } catch (e) {
+        const error = e as { type: string; message: string; details?: any };
+        console.error('カード作成エラー:', error);
+        setLastError(error);
+        if (onError) onError(error);
       }
     }
   });

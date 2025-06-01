@@ -1,6 +1,7 @@
 import { useCallback, useState, useEffect, useMemo } from 'react';
 import { useBoardContext } from '../../../board-space/contexts/BoardContext';
-import { useNestSpace } from '../../contexts/_NestSpaceContext.tsx';
+// import { useNestSpace } from '../../contexts/_NestSpaceContext.tsx';
+import { useNestSpace } from '@contexts/NestSpaceContext';
 import { SpaceType } from '../../types/nestSpace.types';
 import { BoardColumnType, Card, BoardViewSettings } from '../../../../types/board';
 import { useChatSpace } from '../../chat-space/hooks/useChatSpace';
@@ -167,7 +168,7 @@ export const useBoardSpace = () => {
       
       // Source filter
       if (boardSpaceState.filters.source && boardSpaceState.filters.source !== 'all') {
-        if (card.sourceType !== boardSpaceState.filters.source) {
+        if (card.source !== boardSpaceState.filters.source) {
           return false;
         }
       }
@@ -390,7 +391,8 @@ export const useBoardSpace = () => {
               if (card) {
                 const currentTags = card.tags || [];
                 if (!currentTags.includes(tag)) {
-                  await updateCard(cardId, {
+                  await updateCard({
+                    id: cardId,
                     tags: [...currentTags, tag]
                   });
                 }
@@ -446,6 +448,7 @@ export const useBoardSpace = () => {
         content: message.content,
         column_type: BoardColumnType.INBOX,
         created_by: message.sender.id,
+        created_by_display_name: message.sender.name || '',
         created_at: now,
         updated_at: now,
         order_index: 0,

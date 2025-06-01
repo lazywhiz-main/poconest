@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poconest - Login Panel</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        /* CSS Variables - モダンテックデザインシステム */
+        :root {
+            /* Colors */
+            --primary-green: #00ff88;
+            --primary-green-dark: #00cc6a;
+            --primary-blue: #64b5f6;
+            --primary-orange: #ffa500;
+            --primary-red: #ff6b6b;
+            --primary-purple: #9c27b0;
+            --primary-cyan: #26c6da;
+            
+            /* Background */
+            --bg-primary: #0f0f23;
+            --bg-secondary: #1a1a2e;
+            --bg-tertiary: #333366;
+            --bg-quaternary: #45475a;
+            
+            /* Text */
+            --text-primary: #e2e8f0;
+            --text-secondary: #a6adc8;
+            --text-muted: #6c7086;
+            --text-inverse: #0f0f23;
+            
+            /* Border */
+            --border-primary: #333366;
+            --border-secondary: #45475a;
+            
+            /* Spacing */
+            --space-xs: 4px;
+            --space-sm: 8px;
+            --space-md: 12px;
+            --space-lg: 16px;
+            --space-xl: 20px;
+            --space-2xl: 24px;
+            --space-3xl: 32px;
+            --space-4xl: 48px;
+            
+            /* Typography */
+            --font-family-text: 'Space Grotesk', sans-serif;
+            --font-family-mono: 'JetBrains Mono', monospace;
+            
+            /* Transitions */
+            --transition-fast: 0.15s ease;
+            --transition-normal: 0.2s ease;
+            --transition-slow: 0.3s ease;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: var(--font-family-text);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Background animation */
+        .bg-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.06;
+        }
+
+        .bg-particles {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+
+        .particle {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: var(--primary-green);
+            border-radius: 50%;
+            animation: float 25s infinite linear;
+        }
+
+        .particle:nth-child(1) { left: 15%; animation-delay: 0s; animation-duration: 20s; }
+        .particle:nth-child(2) { left: 35%; animation-delay: 3s; animation-duration: 25s; }
+        .particle:nth-child(3) { left: 55%; animation-delay: 6s; animation-duration: 18s; }
+        .particle:nth-child(4) { left: 75%; animation-delay: 9s; animation-duration: 22s; }
+        .particle:nth-child(5) { left: 25%; animation-delay: 12s; animation-duration: 24s; }
+
+        @keyframes float {
+            0% {
+                transform: translateY(100vh) scale(0);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            90% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-100vh) scale(1);
+                opacity: 0;
+            }
+        }
+
+        /* Main container */
+        .login-panel {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: var(--space-4xl);
+            text-align: center;
+            position: relative;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Brand section */
+        .brand-section {
+            margin-bottom: var(--space-4xl);
+        }
+
+        .brand-logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--space-lg);
+            margin-bottom: var(--space-2xl);
+        }
+
+        .logo-icon {
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, var(--primary-green), var(--primary-blue));
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            color: var(--text-inverse);
+            font-weight: 700;
+            position: relative;
+            box-shadow: 0 8px 32px rgba(0, 255, 136, 0.3);
+            animation: logoPulse 4s ease-in-out infinite;
+        }
+
+        .logo-icon::after {
+            content: '🪺';
+            filter: brightness(0) invert(1);
+        }
+
+        @keyframes logoPulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 8px 32px rgba(0, 255, 136, 0.3); }
+            50% { transform: scale(1.05); box-shadow: 0 12px 40px rgba(0, 255, 136, 0.5); }
+        }
+
+        .brand-name {
+            font-size: 42px;
+            font-weight: 700;
+            font-family: var(--font-family-text);
+            margin: 0;
+            background: linear-gradient(135deg, var(--primary-green), var(--primary-blue));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: textShimmer 3s ease-in-out infinite;
+        }
+
+        @keyframes textShimmer {
+            0%, 100% { filter: brightness(1); }
+            50% { filter: brightness(1.2); }
+        }
+
+        .brand-tagline {
+            font-size: 20px;
+            color: var(--text-secondary);
+            margin: var(--space-lg) 0 0 0;
+            font-weight: 400;
+            opacity: 0.9;
+        }
+
+        /* Key Value section */
+        .key-value {
+            margin-bottom: var(--space-4xl);
+        }
+
+        .kv-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: var(--space-xl);
+            font-family: var(--font-family-text);
+            line-height: 1.3;
+        }
+
+        .kv-highlight {
+            background: linear-gradient(135deg, var(--primary-green), var(--primary-blue));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 700;
+        }
+
+        .kv-description {
+            font-size: 16px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            max-width: 400px;
+            margin: 0 auto var(--space-2xl);
+        }
+
+        /* Feature highlights */
+        .feature-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-md);
+            justify-content: center;
+            margin-bottom: var(--space-3xl);
+        }
+
+        .feature-pill {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: 20px;
+            padding: var(--space-sm) var(--space-lg);
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-family: var(--font-family-mono);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all var(--transition-normal);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-pill::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 255, 136, 0.1), transparent);
+            transition: left 0.6s ease;
+        }
+
+        .feature-pill:hover {
+            border-color: var(--primary-green);
+            color: var(--primary-green);
+            transform: translateY(-2px);
+        }
+
+        .feature-pill:hover::before {
+            left: 100%;
+        }
+
+        .feature-pill:nth-child(2):hover {
+            border-color: var(--primary-blue);
+            color: var(--primary-blue);
+        }
+
+        .feature-pill:nth-child(3):hover {
+            border-color: var(--primary-purple);
+            color: var(--primary-purple);
+        }
+
+        /* Demo snippet */
+        .demo-snippet {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: 12px;
+            padding: var(--space-xl);
+            font-family: var(--font-family-mono);
+            font-size: 13px;
+            text-align: left;
+            position: relative;
+            overflow: hidden;
+            max-width: 450px;
+            margin: 0 auto;
+        }
+
+        .demo-snippet::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--primary-green), var(--primary-blue), var(--primary-purple));
+        }
+
+        .demo-header {
+            color: var(--primary-green);
+            font-weight: 600;
+            margin-bottom: var(--space-lg);
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .chat-line {
+            margin-bottom: var(--space-md);
+            line-height: 1.4;
+        }
+
+        .chat-user {
+            color: var(--primary-blue);
+            font-weight: 600;
+            margin-right: var(--space-sm);
+        }
+
+        .chat-text {
+            color: var(--text-secondary);
+        }
+
+        .ai-insight {
+            background: rgba(0, 255, 136, 0.05);
+            border: 1px solid var(--primary-green);
+            border-radius: 8px;
+            padding: var(--space-md);
+            margin-top: var(--space-lg);
+        }
+
+        .insight-header {
+            color: var(--primary-green);
+            font-weight: 600;
+            margin-bottom: var(--space-sm);
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            gap: var(--space-xs);
+        }
+
+        .insight-text {
+            color: var(--text-primary);
+            font-size: 12px;
+            line-height: 1.4;
+            font-style: italic;
+        }
+
+        /* Status indicator */
+        .status-indicator {
+            position: absolute;
+            top: var(--space-xl);
+            right: var(--space-xl);
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            font-size: 12px;
+            color: var(--text-muted);
+            font-family: var(--font-family-mono);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--primary-green);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.1); }
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .login-panel {
+                padding: var(--space-xl);
+                height: auto;
+                min-height: 100vh;
+            }
+
+            .brand-name {
+                font-size: 28px;
+            }
+
+            .brand-tagline {
+                font-size: 14px;
+            }
+
+            .kv-title {
+                font-size: 18px;
+            }
+
+            .kv-description {
+                font-size: 13px;
+            }
+
+            .demo-snippet {
+                padding: var(--space-md);
+                font-size: 11px;
+            }
+
+            .feature-pills {
+                gap: var(--space-xs);
+            }
+
+            .feature-pill {
+                font-size: 10px;
+                padding: var(--space-xs) var(--space-sm);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .login-panel {
+                padding: var(--space-lg);
+            }
+
+            .brand-logo {
+                gap: var(--space-sm);
+            }
+
+            .logo-icon {
+                width: 40px;
+                height: 40px;
+                font-size: 20px;
+            }
+
+            .brand-name {
+                font-size: 24px;
+            }
+
+            .brand-tagline {
+                font-size: 13px;
+            }
+
+            .kv-title {
+                font-size: 16px;
+            }
+
+            .status-indicator {
+                position: static;
+                justify-content: center;
+                margin-bottom: var(--space-md);
+            }
+        }
+
+        /* Subtle animations */
+        .login-panel > * {
+            animation: fadeInUp 0.8s ease forwards;
+        }
+
+        .brand-section {
+            animation-delay: 0.1s;
+        }
+
+        .key-value {
+            animation-delay: 0.3s;
+        }
+
+        .feature-pills {
+            animation-delay: 0.5s;
+        }
+
+        .demo-snippet {
+            animation-delay: 0.7s;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Background animation -->
+    <div class="bg-animation">
+        <div class="bg-particles">
+            <div class="particle"></div>
+            <div class="particle"></div>
+            <div class="particle"></div>
+            <div class="particle"></div>
+            <div class="particle"></div>
+        </div>
+    </div>
+
+    <!-- Status indicator -->
+    <div class="status-indicator">
+        <span class="status-dot"></span>
+        <span>System Online</span>
+    </div>
+
+    <!-- Main panel -->
+    <div class="login-panel">
+        <!-- Brand section -->
+        <div class="brand-section">
+            <div class="brand-logo">
+                <div class="logo-icon"></div>
+                <h1 class="brand-name">poconest</h1>
+            </div>
+            <p class="brand-tagline">Your team's digital nest</p>
+        </div>
+
+        <!-- Key Value -->
+        <div class="key-value">
+            <h2 class="kv-title">
+                少人数チームの<span class="kv-highlight">深い対話</span>から<br>
+                <span class="kv-highlight">哲学的な洞察</span>を自動抽出
+            </h2>
+            <p class="kv-description">
+                単なる情報共有を超えて、チームの集合知を育む新しいプラットフォーム。
+                AIが会話の奥にある本質的なパターンを発見します。
+            </p>
+        </div>
+
+        <!-- Feature highlights -->
+        <div class="feature-pills">
+            <span class="feature-pill">Deep Conversations</span>
+            <span class="feature-pill">AI Philosophy</span>
+            <span class="feature-pill">Team Intelligence</span>
+        </div>
+
+        <!-- Demo snippet -->
+        <div class="demo-snippet">
+            <div class="demo-header">
+                <span>🧠</span> Live Analysis
+            </div>
+            
+            <div class="chat-line">
+                <span class="chat-user">@designer:</span>
+                <span class="chat-text">なぜか愛されないプロダクト...</span>
+            </div>
+            
+            <div class="chat-line">
+                <span class="chat-user">@dev:</span>
+                <span class="chat-text">機能は完璧なのに</span>
+            </div>
+
+            <div class="ai-insight">
+                <div class="insight-header">
+                    <span>🤖</span> AI Insight
+                </div>
+                <div class="insight-text">
+                    "「機能 vs 感情」の根本的なジレンマを検出。人間中心設計のアプローチを提案します。"
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Demo animation
+        function animateDemo() {
+            const chatLines = document.querySelectorAll('.chat-line');
+            const insight = document.querySelector('.ai-insight');
+            
+            // Reset
+            chatLines.forEach(line => line.style.opacity = '0.5');
+            insight.style.opacity = '0.3';
+            
+            // Animate chat lines
+            chatLines.forEach((line, index) => {
+                setTimeout(() => {
+                    line.style.transition = 'opacity 0.3s ease';
+                    line.style.opacity = '1';
+                }, index * 800);
+            });
+            
+            // Animate insight
+            setTimeout(() => {
+                insight.style.transition = 'all 0.5s ease';
+                insight.style.opacity = '1';
+                insight.style.transform = 'scale(1.02)';
+                setTimeout(() => {
+                    insight.style.transform = 'scale(1)';
+                }, 500);
+            }, 2000);
+        }
+
+        // Start animation after load
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(animateDemo, 1500);
+            setInterval(animateDemo, 8000); // Repeat every 8 seconds
+            
+            console.log('🪺 Poconest Login Panel initialized');
+        });
+
+        // Subtle mouse interaction
+        document.addEventListener('mousemove', function(e) {
+            const panel = document.querySelector('.login-panel');
+            const rect = panel.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            
+            const deltaX = (e.clientX - centerX) / rect.width;
+            const deltaY = (e.clientY - centerY) / rect.height;
+            
+            panel.style.transform = `
+                perspective(1000px) 
+                rotateY(${deltaX * 2}deg) 
+                rotateX(${-deltaY * 2}deg)
+            `;
+        });
+
+        // Reset on mouse leave
+        document.addEventListener('mouseleave', function() {
+            const panel = document.querySelector('.login-panel');
+            panel.style.transform = '';
+        });
+    </script>
+</body>
+</html>

@@ -298,50 +298,50 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       });
       
       // ボットの応答を生成
-    setIsPocoTyping(true);
-    
-    // 遅延をシミュレート
-    await new Promise(resolve => setTimeout(resolve, 1500));
+      // setIsPocoTyping(true);
+      
+      // 遅延をシミュレート
+      // await new Promise(resolve => setTimeout(resolve, 1500));
 
-    // ボットの応答をランダムに選択
-    const botResponses = [
-      'なるほど、興味深いですね。もう少し詳しく教えていただけますか？',
-      'ご質問ありがとうございます。それについては次のように考えています...',
-      'それは素晴らしいアイデアです！さらに発展させるために次のステップを考えてみましょう。',
-      'ご意見ありがとうございます。その点については異なる視点もあります。',
-      '確かにその通りです。さらに補足すると、最近の研究によると...',
-    ];
-    const randomResponse = botResponses[Math.floor(Math.random() * botResponses.length)];
+      // ボットの応答をランダムに選択
+      // const botResponses = [
+      //   'なるほど、興味深いですね。もう少し詳しく教えていただけますか？',
+      //   'ご質問ありがとうございます。それについては次のように考えています...',
+      //   'それは素晴らしいアイデアです！さらに発展させるために次のステップを考えてみましょう。',
+      //   'ご意見ありがとうございます。その点については異なる視点もあります。',
+      //   '確かにその通りです。さらに補足すると、最近の研究によると...',
+      // ];
+      // const randomResponse = botResponses[Math.floor(Math.random() * botResponses.length)];
 
       // サービスを使ってボットのメッセージを送信
-      const botMessage = await chatService.sendMessage(activeChatRoomId, randomResponse, pocoUser);
+      // const botMessage = await chatService.sendMessage(activeChatRoomId, randomResponse, pocoUser);
 
-    // タイピング状態を解除
-    setIsPocoTyping(false);
+      // タイピング状態を解除
+      // setIsPocoTyping(false);
 
       // ボットのメッセージをステートに追加
-      setMessages(prev => {
-        const currentMessages = prev[activeChatRoomId] || [];
-        return {
-          ...prev,
-          [activeChatRoomId]: [...currentMessages, botMessage]
-    };
-      });
+      // setMessages(prev => {
+      //   const currentMessages = prev[activeChatRoomId] || [];
+      //   return {
+      //     ...prev,
+      //     [activeChatRoomId]: [...currentMessages, botMessage]
+      //   };
+      // });
 
-    // チャットルームのlastMessageを更新
-      setChatRooms(prev => prev.map(room => {
-      if (room.id === activeChatRoomId) {
-        return {
-          ...room,
-          lastMessage: botMessage,
-            lastActivity: botMessage.created_at,
-        };
-      }
-      return room;
-      }));
+      // チャットルームのlastMessageを更新
+      // setChatRooms(prev => prev.map(room => {
+      //   if (room.id === activeChatRoomId) {
+      //     return {
+      //       ...room,
+      //       lastMessage: botMessage,
+      //       lastActivity: botMessage.created_at,
+      //     };
+      //   }
+      //   return room;
+      // }));
     } catch (error) {
       console.error('メッセージ送信エラー:', error);
-      setIsPocoTyping(false);
+      // setIsPocoTyping(false);
       
       // 送信失敗を表示
       setMessages(prev => {

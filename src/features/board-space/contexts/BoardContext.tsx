@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, useCallback, useState, useEffect } from 'react';
 import { supabase } from '../../../services/supabase/client';
-import { getBoardCardsWithTags } from '../../../services/BoardService';
+import { getBoardCardsWithTags, Source } from '../../../services/BoardService';
 
 // ボード空間の状態定義
 interface BoardState {
@@ -244,7 +244,7 @@ export const BoardProvider: React.FC<BoardProviderProps> = ({ children, currentN
       // 2. 取得したboard_idを使ってカードを取得（tags含む）
       const { data: cardData, error: cardError } = await getBoardCardsWithTags(boardData.id);
       if (cardError) throw cardError;
-      console.log('[loadNestData] 取得したカード一覧:', cardData);
+      console.log('[loadNestData] 取得したcardData:', JSON.stringify(cardData, null, 2));
       // 追加: relationsを一括取得
       const { data: relationsData } = await supabase
         .from('board_card_relations')
@@ -319,9 +319,11 @@ export const BoardProvider: React.FC<BoardProviderProps> = ({ children, currentN
           insights: related.filter((c: any) => c.column_type === 'insights').map((c: any) => ({ id: c.id, title: c.title })),
           themes: related.filter((c: any) => c.column_type === 'themes').map((c: any) => ({ id: c.id, title: c.title })),
           referencedBy,
-          sources: item.sources || [],
+          sources: [...(item.sources || [])],
+          related_cards: [...related],
         };
       });
+      console.log('[loadNestData] 生成したconvertedCards:', JSON.stringify(convertedCards, null, 2));
       dispatch({ type: 'SET_CARDS', payload: convertedCards });
       setBoardNotFound(false);
     } catch (e) {
@@ -439,23 +441,20 @@ export enum BoardColumnType {
 // カード型
 export interface BoardItem {
   id: string;
-  nest_id: string;
+  board_id: string;
   title: string;
   content: string;
   column_type: BoardColumnType;
   created_by: string;
-  created_by_display_name: string;
   created_at: string;
   updated_at: string;
-  updated_by?: string;
-  source_message_id?: string;
   order_index: number;
-  tags?: string[];
   is_archived: boolean;
-  metadata?: Record<string, any>;
-  source?: string;
-  insights?: { id: string; title: string }[];
-  themes?: { id: string; title: string }[];
-  referencedBy?: { id: string; title: string; column_type: BoardColumnType }[];
-  sources?: any[];
+  metadata: Record<string, any>;
+  tags?: string[];
+  sources?: Source[];
+  related_card_ids?: string[];
+  related_cards?: BoardItem[];
+  created_by_display_name?: string;
+  updated_by?: string;
 } 

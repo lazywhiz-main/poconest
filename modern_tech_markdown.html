@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>改善版モダンテックマークダウンスタイル</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        /* CSS Variables - 元のモダンテックデザインに準拠 */
+        :root {
+            /* Colors - 元のデザインシステムから継承 */
+            --primary-green: #00ff88;
+            --primary-green-dark: #00cc6a;
+            --primary-blue: #64b5f6;
+            --primary-orange: #ffa500;
+            --primary-red: #ff6b6b;
+            --primary-purple: #9c27b0;
+            --primary-cyan: #26c6da;
+            
+            /* Background - 元のデザインシステムを維持 */
+            --bg-primary: #0f0f23;
+            --bg-secondary: #1a1a2e;
+            --bg-tertiary: #333366;
+            --bg-quaternary: #45475a;
+            
+            /* Text - 元の配色を維持 */
+            --text-primary: #e2e8f0;
+            --text-secondary: #a6adc8;
+            --text-muted: #6c7086;
+            --text-inverse: #0f0f23;
+            
+            /* Border - 元の統一感を維持 */
+            --border-primary: #333366;
+            --border-secondary: #45475a;
+            
+            /* Spacing */
+            --space-xs: 4px;
+            --space-sm: 8px;
+            --space-md: 12px;
+            --space-lg: 16px;
+            --space-xl: 20px;
+            --space-2xl: 24px;
+            --space-3xl: 32px;
+            
+            /* Typography */
+            --font-family-text: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-family-mono: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+            
+            /* Font sizes */
+            --text-xs: 10px;
+            --text-sm: 11px;
+            --text-base: 14px;
+            --text-lg: 16px;
+            --text-xl: 18px;
+            --text-2xl: 22px;
+            --text-3xl: 28px;
+            
+            /* Line heights */
+            --leading-tight: 1.4;
+            --leading-normal: 1.6;
+            --leading-relaxed: 1.7;
+            
+            /* Border radius */
+            --radius-sm: 3px;
+            --radius-md: 6px;
+            --radius-lg: 8px;
+            
+            /* Shadows */
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.2);
+            --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+            
+            /* Transitions */
+            --transition-fast: 0.15s ease;
+            --transition-normal: 0.2s ease;
+            --transition-slow: 0.3s ease;
+        }
+
+        /* ライトテーマは削除 - モダンテックはダークテーマ専用 */
+
+        /* Reset and base styles */
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: var(--space-xl);
+            font-family: var(--font-family-text);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: var(--leading-normal);
+        }
+
+        /* Container */
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        /* Demo sections */
+        .demo-section {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-lg);
+            padding: var(--space-3xl);
+            margin-bottom: var(--space-2xl);
+        }
+
+        .demo-title {
+            color: var(--primary-green);
+            font-size: var(--text-xl);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: var(--space-xl);
+            border-bottom: 1px solid var(--border-primary);
+            padding-bottom: var(--space-md);
+        }
+
+        /* Utility classes */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        .focus-outline {
+            outline: 2px solid var(--primary-green);
+            outline-offset: 2px;
+        }
+
+        /* === MARKDOWN CONTENT STYLES === */
+        .markdown-content {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-md);
+            padding: var(--space-2xl);
+            font-size: var(--text-base);
+            line-height: var(--leading-relaxed);
+            max-width: none;
+            overflow-wrap: break-word;
+        }
+
+        /* Focus management for interactive elements */
+        .markdown-content a:focus,
+        .markdown-content button:focus,
+        .markdown-content [tabindex]:focus {
+            outline: 2px solid var(--primary-green);
+            outline-offset: 2px;
+            border-radius: var(--radius-sm);
+        }
+
+        /* Headers with improved hierarchy */
+        .markdown-content h1,
+        .markdown-content h2,
+        .markdown-content h3,
+        .markdown-content h4,
+        .markdown-content h5,
+        .markdown-content h6 {
+            margin: 0 0 var(--space-lg) 0;
+            font-weight: 600;
+            line-height: var(--leading-tight);
+            scroll-margin-top: var(--space-3xl);
+        }
+
+        .markdown-content h1 {
+            color: var(--primary-green);
+            font-size: var(--text-3xl);
+            font-weight: 700;
+            margin-bottom: var(--space-lg);
+            padding-bottom: var(--space-md);
+            border-bottom: 2px solid var(--border-primary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .markdown-content h1::before {
+            content: '# ';
+            color: var(--text-muted);
+            font-family: var(--font-family-mono);
+            font-weight: 400;
+        }
+
+        .markdown-content h2 {
+            color: var(--primary-blue);
+            font-size: var(--text-2xl);
+            margin: var(--space-2xl) 0 var(--space-md) 0;
+            padding-bottom: var(--space-sm);
+            border-bottom: 1px solid var(--border-primary);
+        }
+
+        .markdown-content h2::before {
+            content: '## ';
+            color: var(--text-muted);
+            font-family: var(--font-family-mono);
+            font-weight: 400;
+        }
+
+        .markdown-content h3 {
+            color: var(--primary-orange);
+            font-size: var(--text-xl);
+            margin: var(--space-xl) 0 var(--space-sm) 0;
+        }
+
+        .markdown-content h3::before {
+            content: '### ';
+            color: var(--text-muted);
+            font-family: var(--font-family-mono);
+            font-weight: 400;
+        }
+
+        .markdown-content h4 {
+            color: var(--primary-red);
+            font-size: var(--text-lg);
+            margin: var(--space-lg) 0 var(--space-sm) 0;
+            font-weight: 500;
+        }
+
+        .markdown-content h4::before {
+            content: '#### ';
+            color: var(--text-muted);
+            font-family: var(--font-family-mono);
+            font-weight: 400;
+        }
+
+        /* Paragraphs */
+        .markdown-content p {
+            margin: 0 0 var(--space-lg) 0;
+            color: var(--text-secondary);
+        }
+
+        .markdown-content p:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Lists with improved accessibility */
+        .markdown-content ul,
+        .markdown-content ol {
+            margin: var(--space-lg) 0;
+            padding-left: var(--space-xl);
+        }
+
+        .markdown-content li {
+            margin-bottom: var(--space-sm);
+            color: var(--text-secondary);
+            position: relative;
+        }
+
+        .markdown-content ul li {
+            list-style: none;
+        }
+
+        .markdown-content ul li::before {
+            content: '▶';
+            position: absolute;
+            left: calc(-1 * var(--space-lg));
+            color: var(--primary-green);
+            font-size: var(--text-sm);
+            top: 2px;
+        }
+
+        .markdown-content ol li::marker {
+            color: var(--primary-blue);
+            font-weight: 600;
+        }
+
+        .markdown-content li ul,
+        .markdown-content li ol {
+            margin: var(--space-sm) 0;
+        }
+
+        .markdown-content li ul li::before {
+            content: '▸';
+            color: var(--text-muted);
+        }
+
+        /* Inline code with better contrast */
+        .markdown-content code {
+            background: var(--bg-tertiary);
+            color: var(--primary-green);
+            padding: 2px var(--space-sm);
+            border-radius: var(--radius-sm);
+            font-family: var(--font-family-mono);
+            font-size: calc(var(--text-base) - 1px);
+            font-weight: 500;
+            border: 1px solid var(--border-secondary);
+            white-space: nowrap;
+        }
+
+        /* Code blocks with enhanced features */
+        .markdown-content pre {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-md);
+            padding: var(--space-lg);
+            margin: var(--space-lg) 0;
+            overflow-x: auto;
+            position: relative;
+            line-height: var(--leading-normal);
+        }
+
+        .markdown-content pre::before {
+            content: attr(data-lang);
+            position: absolute;
+            top: var(--space-sm);
+            right: var(--space-md);
+            color: var(--text-muted);
+            font-size: var(--text-xs);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-family: var(--font-family-mono);
+            background: var(--bg-primary);
+            padding: 2px var(--space-sm);
+            border-radius: var(--radius-sm);
+        }
+
+        .markdown-content pre code {
+            background: transparent;
+            border: none;
+            padding: 0;
+            color: var(--text-primary);
+            font-size: calc(var(--text-base) - 1px);
+            display: block;
+            white-space: pre;
+            overflow: visible;
+        }
+
+        /* Enhanced syntax highlighting */
+        .markdown-content .keyword {
+            color: var(--primary-red);
+            font-weight: 600;
+        }
+
+        .markdown-content .string {
+            color: var(--primary-green);
+        }
+
+        .markdown-content .comment {
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        .markdown-content .function {
+            color: var(--primary-blue);
+        }
+
+        .markdown-content .variable {
+            color: var(--primary-orange);
+        }
+
+        .markdown-content .number {
+            color: var(--primary-cyan);
+        }
+
+        /* Blockquotes with better semantics */
+        .markdown-content blockquote {
+            border-left: 4px solid var(--primary-green);
+            background: var(--bg-secondary);
+            padding: var(--space-md) var(--space-lg);
+            margin: var(--space-lg) 0;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            position: relative;
+        }
+
+        .markdown-content blockquote::before {
+            content: '>';
+            position: absolute;
+            left: calc(-1 * var(--space-md));
+            top: var(--space-md);
+            color: var(--text-muted);
+            font-family: var(--font-family-mono);
+            font-weight: 600;
+            background: var(--bg-primary);
+            padding: 0 var(--space-xs);
+        }
+
+        .markdown-content blockquote p {
+            color: var(--primary-blue);
+            font-style: italic;
+            margin: 0;
+        }
+
+        /* Links with improved accessibility */
+        .markdown-content a {
+            color: var(--primary-green);
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: all var(--transition-normal);
+            position: relative;
+        }
+
+        .markdown-content a:hover {
+            border-bottom-color: var(--primary-green);
+            color: var(--primary-green-dark);
+        }
+
+        .markdown-content a:focus {
+            outline: 2px solid var(--primary-green);
+            outline-offset: 2px;
+        }
+
+        .markdown-content a::before {
+            content: '[';
+            color: var(--text-muted);
+            opacity: 0.7;
+        }
+
+        .markdown-content a::after {
+            content: ']';
+            color: var(--text-muted);
+            opacity: 0.7;
+        }
+
+        /* External link indicator */
+        .markdown-content a[href^="http"]:not([href*="example.com"])::after {
+            content: ']↗';
+            color: var(--text-muted);
+            opacity: 0.7;
+        }
+
+        /* Text emphasis */
+        .markdown-content strong {
+            color: var(--primary-green);
+            font-weight: 600;
+        }
+
+        .markdown-content em {
+            color: var(--primary-blue);
+            font-style: italic;
+        }
+
+        .markdown-content del {
+            color: var(--text-muted);
+            text-decoration: line-through;
+            opacity: 0.7;
+        }
+
+        /* Tables with enhanced responsiveness */
+        .table-wrapper {
+            overflow-x: auto;
+            margin: var(--space-lg) 0;
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-md);
+        }
+
+        .markdown-content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0;
+            background: var(--bg-secondary);
+            min-width: 600px;
+        }
+
+        .markdown-content th {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            padding: var(--space-md) var(--space-lg);
+            text-align: left;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-size: var(--text-sm);
+            border-bottom: 1px solid var(--border-secondary);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .markdown-content td {
+            padding: var(--space-md) var(--space-lg);
+            border-bottom: 1px solid var(--border-primary);
+            color: var(--text-secondary);
+            font-size: calc(var(--text-base) - 1px);
+        }
+
+        .markdown-content tr:last-child td {
+            border-bottom: none;
+        }
+
+        .markdown-content tbody tr:hover {
+            background: var(--bg-tertiary);
+        }
+
+        /* Horizontal rules with style */
+        .markdown-content hr {
+            border: none;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--border-primary), transparent);
+            margin: var(--space-2xl) 0;
+            position: relative;
+        }
+
+        .markdown-content hr::after {
+            content: '---';
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--bg-primary);
+            color: var(--text-muted);
+            padding: 0 var(--space-md);
+            font-family: var(--font-family-mono);
+            font-size: var(--text-sm);
+        }
+
+        /* Task lists with better interaction */
+        .markdown-content .task-list {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .markdown-content .task-list li {
+            position: relative;
+            padding-left: var(--space-2xl);
+            margin-bottom: var(--space-sm);
+        }
+
+        .markdown-content .task-list li::before {
+            content: '☐';
+            position: absolute;
+            left: 0;
+            color: var(--text-muted);
+            font-size: var(--text-base);
+            cursor: pointer;
+            transition: color var(--transition-normal);
+        }
+
+        .markdown-content .task-list li::before:hover {
+            color: var(--primary-green);
+        }
+
+        .markdown-content .task-list li.completed::before {
+            content: '☑';
+            color: var(--primary-green);
+        }
+
+        .markdown-content .task-list li.completed {
+            color: var(--text-muted);
+            text-decoration: line-through;
+            opacity: 0.7;
+        }
+
+        /* Alert boxes - 元のデザインに合わせた背景 */
+        .markdown-content .alert {
+            padding: var(--space-lg);
+            margin: var(--space-lg) 0;
+            border-radius: var(--radius-md);
+            border-left: 4px solid;
+            position: relative;
+            background: var(--bg-secondary);
+        }
+
+        .markdown-content .alert.info {
+            border-left-color: var(--primary-blue);
+            color: var(--primary-blue);
+            background: #1a2332;
+        }
+
+        .markdown-content .alert.warning {
+            border-left-color: var(--primary-orange);
+            color: var(--primary-orange);
+            background: #332519;
+        }
+
+        .markdown-content .alert.error {
+            border-left-color: var(--primary-red);
+            color: var(--primary-red);
+            background: #331919;
+        }
+
+        .markdown-content .alert.success {
+            border-left-color: var(--primary-green);
+            color: var(--primary-green);
+            background: #193319;
+        }
+
+        /* Math expressions */
+        .markdown-content .math {
+            font-family: var(--font-family-mono);
+            background: var(--bg-tertiary);
+            color: var(--primary-orange);
+            padding: 2px var(--space-sm);
+            border-radius: var(--radius-sm);
+            font-size: calc(var(--text-base) - 1px);
+            border: 1px solid var(--border-secondary);
+        }
+
+        /* Copy button with improved UX */
+        .code-block-wrapper {
+            position: relative;
+        }
+
+        .copy-button {
+            position: absolute;
+            top: var(--space-sm);
+            right: var(--space-sm);
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-secondary);
+            color: var(--text-secondary);
+            padding: var(--space-xs) var(--space-sm);
+            border-radius: var(--radius-sm);
+            font-size: var(--text-xs);
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-family: var(--font-family-mono);
+            font-weight: 500;
+            z-index: 5;
+        }
+
+        .copy-button:hover {
+            background: var(--primary-green);
+            color: var(--text-inverse);
+            border-color: var(--primary-green);
+        }
+
+        .copy-button:focus {
+            outline: 2px solid var(--primary-green);
+            outline-offset: 2px;
+        }
+
+        .copy-button.copied {
+            background: var(--primary-green);
+            color: var(--text-inverse);
+            border-color: var(--primary-green);
+        }
+
+        /* Table of contents with better navigation */
+        .toc {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-md);
+            padding: var(--space-lg);
+            margin: var(--space-lg) 0;
+        }
+
+        .toc-title {
+            color: var(--primary-green);
+            font-weight: 600;
+            margin-bottom: var(--space-md);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: var(--text-sm);
+        }
+
+        .toc ul {
+            list-style: none;
+            padding-left: 0;
+            margin: 0;
+        }
+
+        .toc li {
+            margin-bottom: var(--space-xs);
+        }
+
+        .toc a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: calc(var(--text-base) - 1px);
+            display: block;
+            padding: var(--space-xs) 0;
+            border-radius: var(--radius-sm);
+            transition: all var(--transition-normal);
+        }
+
+        .toc a:hover {
+            color: var(--primary-green);
+            background: var(--bg-tertiary);
+            padding-left: var(--space-sm);
+        }
+
+        .toc a:focus {
+            outline: 2px solid var(--primary-green);
+            outline-offset: 1px;
+        }
+
+        .toc li li a {
+            padding-left: var(--space-lg);
+            color: var(--text-muted);
+            font-size: var(--text-sm);
+        }
+
+        .toc li li a:hover {
+            padding-left: var(--space-xl);
+        }
+
+        /* Footnotes */
+        .footnote {
+            font-size: var(--text-sm);
+            color: var(--text-muted);
+            border-top: 1px solid var(--border-primary);
+            padding-top: var(--space-lg);
+            margin-top: var(--space-3xl);
+        }
+
+        .footnote-ref {
+            color: var(--primary-blue);
+            text-decoration: none;
+            vertical-align: super;
+            font-size: var(--text-xs);
+            font-weight: 600;
+        }
+
+        .footnote-ref:hover {
+            color: var(--primary-green);
+        }
+
+        /* Mobile responsiveness */
+        @media (max-width: 768px) {
+            body {
+                padding: var(--space-md);
+            }
+
+            .demo-section {
+                padding: var(--space-lg);
+            }
+
+            .markdown-content {
+                padding: var(--space-lg);
+                font-size: calc(var(--text-base) - 1px);
+            }
+
+            .markdown-content h1 {
+                font-size: var(--text-2xl);
+            }
+
+            .markdown-content h2 {
+                font-size: var(--text-xl);
+            }
+
+            .markdown-content h3 {
+                font-size: var(--text-lg);
+            }
+
+            .markdown-content pre {
+                padding: var(--space-md);
+                margin: var(--space-md) 0;
+            }
+
+            .copy-button {
+                position: static;
+                display: block;
+                margin-top: var(--space-sm);
+                width: fit-content;
+            }
+
+            .markdown-content ul,
+            .markdown-content ol {
+                padding-left: var(--space-lg);
+            }
+        }
+
+        /* Print styles */
+        @media print {
+            .copy-button,
+            .demo-title {
+                display: none;
+            }
+
+            .markdown-content {
+                border: none;
+                box-shadow: none;
+                background: white !important;
+                color: black !important;
+            }
+
+            .markdown-content pre {
+                background: #f5f5f5 !important;
+                border: 1px solid #ddd !important;
+            }
+        }
+
+        /* Reduced motion support */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        /* High contrast mode support */
+        @media (prefers-contrast: high) {
+            :root {
+                --border-primary: currentColor;
+                --border-secondary: currentColor;
+            }
+
+            .markdown-content code,
+            .markdown-content pre {
+                border: 2px solid currentColor;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="demo-section">
+            <div class="demo-title">Improved Modern Tech Markdown Style</div>
+            
+            <article class="markdown-content" role="main">
+                <h1 id="api-documentation">API Documentation v2.0</h1>
+                
+                <p>この文書では、新しい<code>REST API</code>の仕様について説明します。<strong>セキュリティ</strong>と<em>パフォーマンス</em>を重視した設計になっています。</p>
+
+                <nav class="toc" aria-label="目次">
+                    <div class="toc-title">Table of Contents</div>
+                    <ul>
+                        <li><a href="#authentication">Authentication</a></li>
+                        <li><a href="#endpoints">API Endpoints</a>
+                            <ul>
+                                <li><a href="#users">User Management</a></li>
+                                <li><a href="#projects">Project Operations</a></li>
+                            </ul>
+                        </li>
+                        <li><a href="#examples">Code Examples</a></li>
+                    </ul>
+                </nav>
+
+                <h2 id="authentication">Authentication</h2>
+                
+                <p>APIアクセスには<code>JWT</code>トークンが必要です。以下の手順で認証を行ってください：</p>
+
+                <ul>
+                    <li>ユーザー登録またはログイン</li>
+                    <li>アクセストークンの取得</li>
+                    <li>リクエストヘッダーにトークンを設定
+                        <ul>
+                            <li>Bearer認証を使用</li>
+                            <li>トークンの有効期限は24時間</li>
+                        </ul>
+                    </li>
+                </ul>
+
+                <div class="alert info" role="alert" aria-live="polite">
+                    <strong>💡 Info:</strong> セキュリティのため、HTTPSでの通信を強く推奨します。
+                </div>
+
+                <h3 id="token-example">トークン取得の例</h3>
+
+                <div class="code-block-wrapper">
+                    <pre data-lang="javascript" tabindex="0" role="region" aria-label="JavaScript code example"><code><span class="comment">// ログイン処理</span>
+<span class="keyword">const</span> <span class="variable">response</span> = <span class="keyword">await</span> <span class="function">fetch</span>(<span class="string">'/api/auth/login'</span>, {
+  <span class="variable">method</span>: <span class="string">'POST'</span>,
+  <span class="variable">headers</span>: {
+    <span class="string">'Content-Type'</span>: <span class="string">'application/json'</span>
+  },
+  <span class="variable">body</span>: <span class="function">JSON.stringify</span>({
+    <span class="variable">username</span>: <span class="string">'developer@example.com'</span>,
+    <span class="variable">password</span>: <span class="string">'secure_password_123'</span>
+  })
+});
+
+<span class="keyword">const</span> <span class="variable">data</span> = <span class="keyword">await</span> <span class="variable">response</span>.<span class="function">json</span>();
+<span class="keyword">const</span> <span class="variable">token</span> = <span class="variable">data</span>.<span class="variable">access_token</span>;</code></pre>
+                    <button class="copy-button" onclick="copyCode(this)" aria-label="Copy code to clipboard">Copy</button>
+                </div>
+
+                <h2 id="endpoints">API Endpoints</h2>
+
+                <p>利用可能なエンドポイントの一覧：</p>
+
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th scope="col">Method</th>
+                                <th scope="col">Endpoint</th>
+                                <th scope="col">Description</th>
+                                <th scope="col">Auth Required</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>GET</code></td>
+                                <td><code>/api/users</code></td>
+                                <td>ユーザー一覧取得</td>
+                                <td>✅</td>
+                            </tr>
+                            <tr>
+                                <td><code>POST</code></td>
+                                <td><code>/api/users</code></td>
+                                <td>新規ユーザー作成</td>
+                                <td>✅</td>
+                            </tr>
+                            <tr>
+                                <td><code>PUT</code></td>
+                                <td><code>/api/users/:id</code></td>
+                                <td>ユーザー情報更新</td>
+                                <td>✅</td>
+                            </tr>
+                            <tr>
+                                <td><code>DELETE</code></td>
+                                <td><code>/api/users/:id</code></td>
+                                <td>ユーザー削除</td>
+                                <td>✅</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3 id="rate-limiting">Rate Limiting</h3>
+
+                <blockquote cite="https://api.example.com/docs/limits">
+                    <p>APIコールは1時間あたり1000回まで制限されています。制限を超えた場合は<code>429 Too Many Requests</code>が返されます。</p>
+                </blockquote>
+
+                <h4>タスクリスト</h4>
+
+                <ul class="task-list" role="list">
+                    <li class="completed" role="listitem">基本認証機能の実装</li>
+                    <li class="completed" role="listitem">ユーザー管理API</li>
+                    <li role="listitem">プロジェクト管理API</li>
+                    <li role="listitem">WebSocket通信サポート</li>
+                    <li role="listitem">GraphQL エンドポイント</li>
+                </ul>
+
+                <h3>エラーハンドリング</h3>
+
+                <div class="alert error" role="alert" aria-live="assertive">
+                    <strong>⚠️ Error:</strong> 不正なリクエストの場合、適切なHTTPステータスコードとエラーメッセージが返されます。
+                </div>
+
+                <div class="alert warning" role="alert" aria-live="polite">
+                    <strong>🚨 Warning:</strong> 開発環境でのみ詳細なエラー情報が表示されます。
+                </div>
+
+                <div class="alert success" role="alert" aria-live="polite">
+                    <strong>✅ Success:</strong> 正常なレスポンスには必ず<code>status: "success"</code>が含まれます。
+                </div>
+
+                <h2 id="examples">Code Examples</h2>
+
+                <h3>Python</h3>
+
+                <div class="code-block-wrapper">
+                    <pre data-lang="python" tabindex="0" role="region" aria-label="Python code example"><code><span class="comment"># Python での API 呼び出し例</span>
+<span class="keyword">import</span> requests
+
+<span class="variable">headers</span> = {
+    <span class="string">'Authorization'</span>: <span class="string">f'Bearer {token}'</span>,
+    <span class="string">'Content-Type'</span>: <span class="string">'application/json'</span>
+}
+
+<span class="variable">response</span> = requests.<span class="function">get</span>(
+    <span class="string">'https://api.example.com/v2/users'</span>,
+    <span class="variable">headers</span>=<span class="variable">headers</span>
+)
+
+<span class="keyword">if</span> <span class="variable">response</span>.<span class="variable">status_code</span> == <span class="number">200</span>:
+    <span class="variable">users</span> = <span class="variable">response</span>.<span class="function">json</span>()
+    <span class="function">print</span>(<span class="string">f'取得したユーザー数: {len(users)}'</span>)</code></pre>
+                    <button class="copy-button" onclick="copyCode(this)" aria-label="Copy Python code to clipboard">Copy</button>
+                </div>
+
+                <h3>curl コマンド</h3>
+
+                <div class="code-block-wrapper">
+                    <pre data-lang="bash" tabindex="0" role="region" aria-label="Bash curl command example"><code><span class="comment"># ユーザー一覧を取得</span>
+curl -X GET \
+  https://api.example.com/v2/users \
+  -H <span class="string">'Authorization: Bearer YOUR_TOKEN_HERE'</span> \
+  -H <span class="string">'Content-Type: application/json'</span></code></pre>
+                    <button class="copy-button" onclick="copyCode(this)" aria-label="Copy curl command to clipboard">Copy</button>
+                </div>
+
+                <hr>
+
+                <h3>数式表記</h3>
+
+                <p>レスポンス時間の計算式：<span class="math" role="math" aria-label="Response time equals processing time plus network latency">response_time = processing_time + network_latency</span></p>
+
+                <p>このAPI設計では、<del>旧バージョンとの互換性</del>よりも新機能を優先しています。</p>
+
+                <div class="footnote">
+                    <p><a href="#footnote-1" class="footnote-ref" id="footnote-ref-1" aria-describedby="footnote-1">1</a> より詳細な情報は<a href="https://docs.example.com" target="_blank" rel="noopener noreferrer">公式ドキュメント</a>を参照してください。</p>
+                    <p id="footnote-1" role="note"><strong>1.</strong> このドキュメントは定期的に更新されます。最新情報をご確認ください。</p>
+                </div>
+            </article>
+        </div>
+
+        <!-- Implementation Guide -->
+        <div class="demo-section">
+            <div class="demo-title">Implementation Improvements</div>
+            <div class="markdown-content">
+                <h2>主な改善点</h2>
+                
+                <h3>🎨 CSS変数システム</h3>
+                
+                <div class="code-block-wrapper">
+                    <pre data-lang="css" tabindex="0"><code><span class="comment">/* 統一されたデザイントークン */</span>
+<span class="keyword">:root</span> {
+  <span class="comment">/* Colors */</span>
+  <span class="variable">--primary-green</span>: <span class="string">#00ff88</span>;
+  <span class="variable">--text-primary</span>: <span class="string">#e2e8f0</span>;
+  <span class="variable">--bg-primary</span>: <span class="string">#0f0f23</span>;
+  
+  <span class="comment">/* Spacing */</span>
+  <span class="variable">--space-sm</span>: <span class="string">8px</span>;
+  <span class="variable">--space-md</span>: <span class="string">12px</span>;
+  <span class="variable">--space-lg</span>: <span class="string">16px</span>;
+  
+  <span class="comment">/* Typography */</span>
+  <span class="variable">--font-family-mono</span>: <span class="string">'JetBrains Mono', monospace</span>;
+}</code></pre>
+                    <button class="copy-button" onclick="copyCode(this)">Copy</button>
+                </div>
+
+                <h3>♿ アクセシビリティ向上</h3>
+
+                <ul>
+                    <li><strong>セマンティックHTML:</strong> 適切な<code>role</code>と<code>aria-*</code>属性</li>
+                    <li><strong>フォーカス管理:</strong> キーボードナビゲーション対応</li>
+                    <li><strong>コントラスト比:</strong> WCAG AA準拠</li>
+                    <li><strong>スクリーンリーダー:</strong> <code>aria-label</code>と<code>aria-describedby</code></li>
+                </ul>
+
+                <h3>📱 レスポンシブ対応</h3>
+
+                <ul>
+                    <li><strong>モバイルファースト:</strong> 小画面から設計</li>
+                    <li><strong>テーブル:</strong> 横スクロール対応</li>
+                    <li><strong>フォントサイズ:</strong> 画面サイズに応じた調整</li>
+                    <li><strong>タッチ操作:</strong> 適切なタップターゲット</li>
+                </ul>
+
+                <h3>⚡ パフォーマンス最適化</h3>
+
+                <ul>
+                    <li><strong>CSS効率化:</strong> 不要なプロパティ削除</li>
+                    <li><strong>トランジション:</strong> GPUアクセラレーション活用</li>
+                    <li><strong>フォント読み込み:</strong> <code>font-display: swap</code>対応</li>
+                    <li><strong>Reduced Motion:</strong> アニメーション配慮</li>
+                </ul>
+
+                <div class="alert success">
+                    <strong>✨ Result:</strong> 保守性、アクセシビリティ、パフォーマンスが大幅に向上しました！
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Enhanced copy functionality with better feedback
+        function copyCode(button) {
+            const codeBlock = button.parentElement.querySelector('code');
+            const text = codeBlock.textContent;
+            
+            // Visual feedback
+            const originalText = button.textContent;
+            button.textContent = 'Copying...';
+            button.disabled = true;
+            
+            navigator.clipboard.writeText(text).then(() => {
+                button.textContent = 'Copied!';
+                button.classList.add('copied');
+                
+                // Announce to screen readers
+                const announcement = document.createElement('div');
+                announcement.setAttribute('aria-live', 'polite');
+                announcement.setAttribute('aria-atomic', 'true');
+                announcement.className = 'sr-only';
+                announcement.textContent = 'Code copied to clipboard';
+                document.body.appendChild(announcement);
+                
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.classList.remove('copied');
+                    button.disabled = false;
+                    document.body.removeChild(announcement);
+                }, 2000);
+            }).catch(() => {
+                button.textContent = 'Failed';
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.disabled = false;
+                }, 2000);
+            });
+        }
+
+        // Smooth scrolling for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                    // Set focus for keyboard users
+                    target.setAttribute('tabindex', '-1');
+                    target.focus();
+                    target.addEventListener('blur', () => {
+                        target.removeAttribute('tabindex');
+                    }, { once: true });
+                }
+            });
+        });
+
+        // Task list interaction
+        document.querySelectorAll('.task-list li').forEach(item => {
+            item.addEventListener('click', function(e) {
+                if (e.target === this || e.target === this.querySelector('::before')) {
+                    this.classList.toggle('completed');
+                    
+                    // Announce state change
+                    const isCompleted = this.classList.contains('completed');
+                    const announcement = document.createElement('div');
+                    announcement.setAttribute('aria-live', 'polite');
+                    announcement.className = 'sr-only';
+                    announcement.textContent = `Task ${isCompleted ? 'completed' : 'marked as incomplete'}`;
+                    document.body.appendChild(announcement);
+                    
+                    setTimeout(() => {
+                        document.body.removeChild(announcement);
+                    }, 1000);
+                }
+            });
+            
+            // Make task items keyboard accessible
+            item.setAttribute('tabindex', '0');
+            item.setAttribute('role', 'checkbox');
+            item.setAttribute('aria-checked', item.classList.contains('completed'));
+            
+            item.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    this.click();
+                }
+            });
+        });
+
+        // Enhanced keyboard navigation for TOC
+        document.querySelectorAll('.toc a').forEach(link => {
+            link.addEventListener('keydown', function(e) {
+                const tocLinks = Array.from(document.querySelectorAll('.toc a'));
+                const currentIndex = tocLinks.indexOf(this);
+                
+                switch(e.key) {
+                    case 'ArrowDown':
+                        e.preventDefault();
+                        const nextIndex = (currentIndex + 1) % tocLinks.length;
+                        tocLinks[nextIndex].focus();
+                        break;
+                    case 'ArrowUp':
+                        e.preventDefault();
+                        const prevIndex = currentIndex === 0 ? tocLinks.length - 1 : currentIndex - 1;
+                        tocLinks[prevIndex].focus();
+                        break;
+                    case 'Home':
+                        e.preventDefault();
+                        tocLinks[0].focus();
+                        break;
+                    case 'End':
+                        e.preventDefault();
+                        tocLinks[tocLinks.length - 1].focus();
+                        break;
+                }
+            });
+        });
+
+        // Print functionality
+        function printDocument() {
+            window.print();
+        }
+
+        // Theme detection and system preference respect
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+            document.documentElement.setAttribute('data-theme', 'light');
+        }
+
+        // Listen for theme changes
+        window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', e => {
+            document.documentElement.setAttribute('data-theme', e.matches ? 'light' : 'dark');
+        });
+    </script>
+</body>
+</html>

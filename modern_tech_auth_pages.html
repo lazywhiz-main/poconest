@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>モダンテック認証システム</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        /* CSS Variables - モダンテックデザインシステム */
+        :root {
+            /* Colors */
+            --primary-green: #00ff88;
+            --primary-green-dark: #00cc6a;
+            --primary-blue: #64b5f6;
+            --primary-orange: #ffa500;
+            --primary-red: #ff6b6b;
+            --primary-purple: #9c27b0;
+            --primary-cyan: #26c6da;
+            
+            /* Background */
+            --bg-primary: #0f0f23;
+            --bg-secondary: #1a1a2e;
+            --bg-tertiary: #333366;
+            --bg-quaternary: #45475a;
+            
+            /* Text */
+            --text-primary: #e2e8f0;
+            --text-secondary: #a6adc8;
+            --text-muted: #6c7086;
+            --text-inverse: #0f0f23;
+            
+            /* Border */
+            --border-primary: #333366;
+            --border-secondary: #45475a;
+            --border-accent: #00ff88;
+            
+            /* Spacing */
+            --space-xs: 4px;
+            --space-sm: 8px;
+            --space-md: 12px;
+            --space-lg: 16px;
+            --space-xl: 20px;
+            --space-2xl: 24px;
+            --space-3xl: 32px;
+            --space-4xl: 48px;
+            
+            /* Typography */
+            --font-family-text: 'Space Grotesk', sans-serif;
+            --font-family-mono: 'JetBrains Mono', monospace;
+            
+            /* Transitions */
+            --transition-fast: 0.15s ease;
+            --transition-normal: 0.2s ease;
+            --transition-slow: 0.3s ease;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: var(--font-family-text);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Background animation */
+        .bg-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.1;
+        }
+
+        .bg-grid {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(0, 255, 136, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 136, 0.1) 1px, transparent 1px);
+            background-size: 50px 50px;
+            animation: gridMove 20s linear infinite;
+        }
+
+        @keyframes gridMove {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(50px, 50px); }
+        }
+
+        .floating-elements {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+
+        .floating-element {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: var(--primary-green);
+            border-radius: 50%;
+            animation: float 15s infinite linear;
+        }
+
+        .floating-element:nth-child(1) {
+            left: 10%;
+            animation-delay: 0s;
+            animation-duration: 12s;
+        }
+
+        .floating-element:nth-child(2) {
+            left: 20%;
+            animation-delay: 2s;
+            animation-duration: 18s;
+        }
+
+        .floating-element:nth-child(3) {
+            left: 30%;
+            animation-delay: 4s;
+            animation-duration: 15s;
+        }
+
+        .floating-element:nth-child(4) {
+            left: 40%;
+            animation-delay: 6s;
+            animation-duration: 20s;
+        }
+
+        .floating-element:nth-child(5) {
+            left: 50%;
+            animation-delay: 8s;
+            animation-duration: 14s;
+        }
+
+        .floating-element:nth-child(6) {
+            left: 60%;
+            animation-delay: 1s;
+            animation-duration: 16s;
+        }
+
+        .floating-element:nth-child(7) {
+            left: 70%;
+            animation-delay: 3s;
+            animation-duration: 13s;
+        }
+
+        .floating-element:nth-child(8) {
+            left: 80%;
+            animation-delay: 5s;
+            animation-duration: 17s;
+        }
+
+        .floating-element:nth-child(9) {
+            left: 90%;
+            animation-delay: 7s;
+            animation-duration: 19s;
+        }
+
+        @keyframes float {
+            0% {
+                transform: translateY(100vh) scale(0);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            90% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-100vh) scale(1);
+                opacity: 0;
+            }
+        }
+
+        /* Main layout */
+        .auth-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: var(--space-xl);
+            position: relative;
+        }
+
+        .auth-wrapper {
+            width: 100%;
+            max-width: 1200px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-4xl);
+            align-items: center;
+        }
+
+        /* Left side - Info panel */
+        .info-panel {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: 12px;
+            padding: var(--space-4xl);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .info-panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary-green), var(--primary-blue), var(--primary-purple));
+        }
+
+        .info-header {
+            margin-bottom: var(--space-3xl);
+        }
+
+        .info-title {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--primary-green);
+            margin-bottom: var(--space-md);
+            font-family: var(--font-family-mono);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .info-subtitle {
+            font-size: 18px;
+            color: var(--text-secondary);
+            margin-bottom: var(--space-2xl);
+        }
+
+        .terminal-demo {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-primary);
+            border-radius: 8px;
+            padding: var(--space-xl);
+            font-family: var(--font-family-mono);
+            font-size: 13px;
+            margin-bottom: var(--space-2xl);
+        }
+
+        .terminal-header {
+            color: var(--primary-green);
+            margin-bottom: var(--space-md);
+            font-weight: 600;
+        }
+
+        .terminal-line {
+            margin: var(--space-sm) 0;
+            display: flex;
+            align-items: center;
+        }
+
+        .terminal-prompt {
+            color: var(--text-muted);
+            margin-right: var(--space-sm);
+        }
+
+        .terminal-command {
+            color: var(--primary-blue);
+        }
+
+        .terminal-output {
+            color: var(--text-secondary);
+            margin-left: var(--space-xl);
+        }
+
+        .terminal-success {
+            color: var(--primary-green);
+        }
+
+        .terminal-cursor {
+            color: var(--primary-green);
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        .feature-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: var(--space-md);
+            color: var(--text-secondary);
+        }
+
+        .feature-icon {
+            color: var(--primary-green);
+            margin-right: var(--space-md);
+            font-family: var(--font-family-mono);
+            font-weight: 600;
+        }
+
+        /* Right side - Auth forms */
+        .auth-panel {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: 12px;
+            padding: var(--space-4xl);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .auth-panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary-blue), var(--primary-green), var(--primary-cyan));
+        }
+
+        .auth-tabs {
+            display: flex;
+            margin-bottom: var(--space-3xl);
+            background: var(--bg-primary);
+            border: 1px solid var(--border-primary);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .auth-tab {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            padding: var(--space-lg) var(--space-xl);
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            font-family: var(--font-family-mono);
+            position: relative;
+        }
+
+        .auth-tab.active {
+            color: var(--text-inverse);
+            background: var(--primary-green);
+        }
+
+        .auth-tab:hover:not(.active) {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .auth-form {
+            display: none;
+        }
+
+        .auth-form.active {
+            display: block;
+            animation: fadeInUp 0.3s ease;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .form-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: var(--space-2xl);
+            font-family: var(--font-family-mono);
+        }
+
+        .form-group {
+            margin-bottom: var(--space-xl);
+        }
+
+        .form-label {
+            display: block;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: var(--space-sm);
+            font-family: var(--font-family-mono);
+        }
+
+        .form-input {
+            width: 100%;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-primary);
+            border-radius: 6px;
+            padding: var(--space-lg);
+            color: var(--text-primary);
+            font-size: 16px;
+            font-family: var(--font-family-text);
+            transition: all var(--transition-normal);
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary-green);
+            box-shadow: 0 0 0 2px rgba(0, 255, 136, 0.2);
+        }
+
+        .form-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .form-input.error {
+            border-color: var(--primary-red);
+            box-shadow: 0 0 0 2px rgba(255, 107, 107, 0.2);
+        }
+
+        .form-error {
+            color: var(--primary-red);
+            font-size: 12px;
+            margin-top: var(--space-xs);
+            font-family: var(--font-family-mono);
+        }
+
+        .password-field {
+            position: relative;
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: var(--space-lg);
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 14px;
+            transition: color var(--transition-normal);
+        }
+
+        .password-toggle:hover {
+            color: var(--primary-green);
+        }
+
+        .form-checkbox {
+            display: flex;
+            align-items: center;
+            margin-bottom: var(--space-xl);
+        }
+
+        .checkbox-input {
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border: 1px solid var(--border-primary);
+            border-radius: 3px;
+            background: var(--bg-primary);
+            margin-right: var(--space-md);
+            position: relative;
+            cursor: pointer;
+            transition: all var(--transition-normal);
+        }
+
+        .checkbox-input:checked {
+            background: var(--primary-green);
+            border-color: var(--primary-green);
+        }
+
+        .checkbox-input:checked::after {
+            content: '✓';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: var(--text-inverse);
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .checkbox-label {
+            color: var(--text-secondary);
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .checkbox-label a {
+            color: var(--primary-green);
+            text-decoration: none;
+        }
+
+        .checkbox-label a:hover {
+            text-decoration: underline;
+        }
+
+        .form-button {
+            width: 100%;
+            background: var(--primary-green);
+            border: none;
+            border-radius: 6px;
+            padding: var(--space-lg) var(--space-xl);
+            color: var(--text-inverse);
+            font-size: 16px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            font-family: var(--font-family-mono);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .form-button:hover {
+            background: var(--primary-green-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 255, 136, 0.3);
+        }
+
+        .form-button:active {
+            transform: translateY(0);
+        }
+
+        .form-button:disabled {
+            background: var(--bg-quaternary);
+            color: var(--text-muted);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .form-button.loading {
+            color: transparent;
+        }
+
+        .form-button.loading::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            border: 2px solid transparent;
+            border-top: 2px solid var(--text-inverse);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            margin: var(--space-2xl) 0;
+            color: var(--text-muted);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-family: var(--font-family-mono);
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border-primary);
+        }
+
+        .divider::before {
+            margin-right: var(--space-lg);
+        }
+
+        .divider::after {
+            margin-left: var(--space-lg);
+        }
+
+        .social-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-md);
+            margin-bottom: var(--space-2xl);
+        }
+
+        .social-button {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-secondary);
+            border-radius: 6px;
+            padding: var(--space-lg);
+            color: var(--text-secondary);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all var(--transition-normal);
+        }
+
+        .social-button:hover {
+            background: var(--bg-quaternary);
+            color: var(--text-primary);
+            transform: translateY(-2px);
+        }
+
+        .social-icon {
+            margin-right: var(--space-sm);
+            font-size: 16px;
+        }
+
+        .auth-footer {
+            text-align: center;
+            margin-top: var(--space-2xl);
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .auth-footer a {
+            color: var(--primary-green);
+            text-decoration: none;
+        }
+
+        .auth-footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* Success message */
+        .success-message {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid var(--primary-green);
+            border-radius: 6px;
+            padding: var(--space-lg);
+            margin-bottom: var(--space-xl);
+            color: var(--primary-green);
+            font-size: 14px;
+            font-family: var(--font-family-mono);
+            display: none;
+        }
+
+        .success-message.show {
+            display: block;
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .auth-wrapper {
+                grid-template-columns: 1fr;
+                gap: var(--space-2xl);
+                max-width: 500px;
+            }
+
+            .info-panel {
+                order: 2;
+                padding: var(--space-2xl);
+            }
+
+            .auth-panel {
+                order: 1;
+                padding: var(--space-2xl);
+            }
+
+            .info-title {
+                font-size: 24px;
+            }
+
+            .terminal-demo {
+                padding: var(--space-lg);
+                font-size: 12px;
+            }
+
+            .social-buttons {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .auth-container {
+                padding: var(--space-md);
+            }
+
+            .info-panel,
+            .auth-panel {
+                padding: var(--space-xl);
+            }
+
+            .auth-tabs {
+                flex-direction: column;
+            }
+
+            .auth-tab {
+                padding: var(--space-md);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Background animation -->
+    <div class="bg-animation">
+        <div class="bg-grid"></div>
+        <div class="floating-elements">
+            <div class="floating-element"></div>
+            <div class="floating-element"></div>
+            <div class="floating-element"></div>
+            <div class="floating-element"></div>
+            <div class="floating-element"></div>
+            <div class="floating-element"></div>
+            <div class="floating-element"></div>
+            <div class="floating-element"></div>
+            <div class="floating-element"></div>
+        </div>
+    </div>
+
+    <div class="auth-container">
+        <div class="auth-wrapper">
+            <!-- Left side - Info panel -->
+            <div class="info-panel">
+                <div class="info-header">
+                    <h1 class="info-title">TechOS v3.1</h1>
+                    <p class="info-subtitle">次世代開発プラットフォームへようこそ</p>
+                </div>
+
+                <div class="terminal-demo">
+                    <div class="terminal-header">admin@techos:~$ system-status</div>
+                    <div class="terminal-line">
+                        <span class="terminal-prompt">$</span>
+                        <span class="terminal-command">auth.connect()</span>
+                    </div>
+                    <div class="terminal-line">
+                        <span class="terminal-output terminal-success">✓ セキュア接続が確立されました</span>
+                    </div>
+                    <div class="terminal-line">
+                        <span class="terminal-prompt">$</span>
+                        <span class="terminal-command">deploy --production</span>
+                    </div>
+                    <div class="terminal-line">
+                        <span class="terminal-output">🚀 デプロイ完了 (1.2s)</span>
+                    </div>
+                    <div class="terminal-line">
+                        <span class="terminal-prompt">$</span>
+                        <span class="terminal-cursor">_</span>
+                    </div>
+                </div>
+
+                <ul class="feature-list">
+                    <li class="feature-item">
+                        <span class="feature-icon">[✓]</span>
+                        エンタープライズグレードセキュリティ
+                    </li>
+                    <li class="feature-item">
+                        <span class="feature-icon">[✓]</span>
+                        リアルタイムコラボレーション
+                    </li>
+                    <li class="feature-item">
+                        <span class="feature-icon">[✓]</span>
+                        CI/CD パイプライン統合
+                    </li>
+                    <li class="feature-item">
+                        <span class="feature-icon">[✓]</span>
+                        クラウドネイティブインフラ
+                    </li>
+                    <li class="feature-item">
+                        <span class="feature-icon">[✓]</span>
+                        24/7 モニタリング & サポート
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Right side - Auth forms -->
+            <div class="auth-panel">
+                <div class="auth-tabs">
+                    <button class="auth-tab active" onclick="switchTab('login')">ログイン</button>
+                    <button class="auth-tab" onclick="switchTab('signup')">サインアップ</button>
+                </div>
+
+                <div class="success-message" id="successMessage">
+                    ✓ アカウントが正常に作成されました。ログインしてください。
+                </div>
+
+                <!-- Login Form -->
+                <form class="auth-form active" id="loginForm">
+                    <h2 class="form-title">システムにアクセス</h2>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="loginEmail">Email Address</label>
+                        <input type="email" id="loginEmail" class="form-input" placeholder="user@example.com" required>
+                        <div class="form-error" id="loginEmailError"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="loginPassword">Password</label>
+                        <div class="password-field">
+                            <input type="password" id="loginPassword" class="form-input" placeholder="••••••••" required>
+                            <button type="button" class="password-toggle" onclick="togglePassword('loginPassword')">👁</button>
+                        </div>
+                        <div class="form-error" id="loginPasswordError"></div>
+                    </div>
+
+                    <div class="form-checkbox">
+                        <input type="checkbox" id="rememberMe" class="checkbox-input">
+                        <label for="rememberMe" class="checkbox-label">ログイン状態を保持する</label>
+                    </div>
+
+                    <button type="submit" class="form-button">
+                        アクセス開始
+                    </button>
+
+                    <div class="divider">または</div>
+
+                    <div class="social-buttons">
+                        <a href="#" class="social-button">
+                            <span class="social-icon">G</span>
+                            Google
+                        </a>
+                        <a href="#" class="social-button">
+                            <span class="social-icon">⚡</span>
+                            GitHub
+                        </a>
+                    </div>
+
+                    <div class="auth-footer">
+                        パスワードを忘れた場合は <a href="#">こちら</a>
+                    </div>
+                </form>
+
+                <!-- Signup Form -->
+                <form class="auth-form" id="signupForm">
+                    <h2 class="form-title">新規アカウント作成</h2>
+
+                    <div class="form-group">
+                        <label class="form-label" for="signupName">Full Name</label>
+                        <input type="text" id="signupName" class="form-input" placeholder="田中 太郎" required>
+                        <div class="form-error" id="signupNameError"></div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="signupEmail">Email Address</label>
+                        <input type="email" id="signupEmail" class="form-input" placeholder="user@example.com" required>
+                        <div class="form-error" id="signupEmailError"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="signupPassword">Password</label>
+                        <div class="password-field">
+                            <input type="password" id="signupPassword" class="form-input" placeholder="••••••••" required>
+                            <button type="button" class="password-toggle" onclick="togglePassword('signupPassword')">👁</button>
+                        </div>
+                        <div class="form-error" id="signupPasswordError"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="confirmPassword">Confirm Password</label>
+                        <div class="password-field">
+                            <input type="password" id="confirmPassword" class="form-input" placeholder="••••••••" required>
+                            <button type="button" class="password-toggle" onclick="togglePassword('confirmPassword')">👁</button>
+                        </div>
+                        <div class="form-error" id="confirmPasswordError"></div>
+                    </div>
+
+                    <div class="form-checkbox">
+                        <input type="checkbox" id="agreeTerms" class="checkbox-input" required>
+                        <label for="agreeTerms" class="checkbox-label">
+                            <a href="#">利用規約</a> および <a href="#">プライバシーポリシー</a> に同意する
+                        </label>
+                    </div>
+
+                    <button type="submit" class="form-button">
+                        アカウント作成
+                    </button>
+
+                    <div class="divider">または</div>
+
+                    <div class="social-buttons">
+                        <a href="#" class="social-button">
+                            <span class="social-icon">G</span>
+                            Google
+                        </a>
+                        <a href="#" class="social-button">
+                            <span class="social-icon">⚡</span>
+                            GitHub
+                        </a>
+                    </div>
+
+                    <div class="auth-footer">
+                        既にアカウントをお持ちですか？ <a href="#" onclick="switchTab('login')">ログイン</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Tab switching
+        function switchTab(tab) {
+            // Update tab buttons
+            document.querySelectorAll('.auth-tab').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`[onclick="switchTab('${tab}')"]`).classList.add('active');
+
+            // Update forms
+            document.querySelectorAll('.auth-form').forEach(form => {
+                form.classList.remove('active');
+            });
+
+            if (tab === 'login') {
+                document.getElementById('loginForm').classList.add('active');
+            } else {
+                document.getElementById('signupForm').classList.add('active');
+            }
+
+            // Clear any previous errors
+            clearErrors();
+        }
+
+        // Password visibility toggle
+        function togglePassword(inputId) {
+            const input = document.getElementById(inputId);
+            const button = input.nextElementSibling;
+            
+            if (input.type === 'password') {
+                input.type = 'text';
+                button.textContent = '🙈';
+            } else {
+                input.type = 'password';
+                button.textContent = '👁';
+            }
+        }
+
+        // Form validation
+        function validateEmail(email) {
+            const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return re.test(email);
+        }
+
+        function validatePassword(password) {
+            return password.length >= 8;
+        }
+
+        function showError(inputId, message) {
+            const input = document.getElementById(inputId);
+            const errorDiv = document.getElementById(inputId + 'Error');
+            
+            input.classList.add('error');
+            errorDiv.textContent = message;
+        }
+
+        function clearError(inputId) {
+            const input = document.getElementById(inputId);
+            const errorDiv = document.getElementById(inputId + 'Error');
+            
+            input.classList.remove('error');
+            errorDiv.textContent = '';
+        }
+
+        function clearErrors() {
+            document.querySelectorAll('.form-input').forEach(input => {
+                input.classList.remove('error');
+            });
+            document.querySelectorAll('.form-error').forEach(error => {
+                error.textContent = '';
+            });
+        }
+
+        function showSuccess(message) {
+            const successDiv = document.getElementById('successMessage');
+            successDiv.textContent = '✓ ' + message;
+            successDiv.classList.add('show');
+            
+            setTimeout(() => {
+                successDiv.classList.remove('show');
+            }, 5000);
+        }
+
+        // Loading button state
+        function setButtonLoading(button, loading) {
+            if (loading) {
+                button.classList.add('loading');
+                button.disabled = true;
+            } else {
+                button.classList.remove('loading');
+                button.disabled = false;
+            }
+        }
+
+        // Login form handler
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            const submitBtn = this.querySelector('.form-button');
+            
+            clearErrors();
+            
+            let hasErrors = false;
+            
+            if (!validateEmail(email)) {
+                showError('loginEmail', '有効なメールアドレスを入力してください');
+                hasErrors = true;
+            }
+            
+            if (!validatePassword(password)) {
+                showError('loginPassword', 'パスワードは8文字以上である必要があります');
+                hasErrors = true;
+            }
+            
+            if (hasErrors) return;
+            
+            setButtonLoading(submitBtn, true);
+            
+            // Simulate API call
+            setTimeout(() => {
+                setButtonLoading(submitBtn, false);
+                showSuccess('ログインが完了しました。ダッシュボードにリダイレクトしています...');
+                
+                // Simulate redirect
+                setTimeout(() => {
+                    console.log('Redirecting to dashboard...');
+                }, 2000);
+            }, 2000);
+        });
+
+        // Signup form handler
+        document.getElementById('signupForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const name = document.getElementById('signupName').value;
+            const email = document.getElementById('signupEmail').value;
+            const password = document.getElementById('signupPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            const agreeTerms = document.getElementById('agreeTerms').checked;
+            const submitBtn = this.querySelector('.form-button');
+            
+            clearErrors();
+            
+            let hasErrors = false;
+            
+            if (name.trim().length < 2) {
+                showError('signupName', '名前は2文字以上で入力してください');
+                hasErrors = true;
+            }
+            
+            if (!validateEmail(email)) {
+                showError('signupEmail', '有効なメールアドレスを入力してください');
+                hasErrors = true;
+            }
+            
+            if (!validatePassword(password)) {
+                showError('signupPassword', 'パスワードは8文字以上である必要があります');
+                hasErrors = true;
+            }
+            
+            if (password !== confirmPassword) {
+                showError('confirmPassword', 'パスワードが一致しません');
+                hasErrors = true;
+            }
+            
+            if (!agreeTerms) {
+                alert('利用規約に同意する必要があります');
+                hasErrors = true;
+            }
+            
+            if (hasErrors) return;
+            
+            setButtonLoading(submitBtn, true);
+            
+            // Simulate API call
+            setTimeout(() => {
+                setButtonLoading(submitBtn, false);
+                showSuccess('アカウントが正常に作成されました。ログインしてください。');
+                
+                // Switch to login tab
+                setTimeout(() => {
+                    switchTab('login');
+                }, 1500);
+            }, 2000);
+        });
+
+        // Real-time validation
+        document.getElementById('loginEmail').addEventListener('blur', function() {
+            if (this.value && !validateEmail(this.value)) {
+                showError('loginEmail', '有効なメールアドレスを入力してください');
+            } else {
+                clearError('loginEmail');
+            }
+        });
+
+        document.getElementById('signupEmail').addEventListener('blur', function() {
+            if (this.value && !validateEmail(this.value)) {
+                showError('signupEmail', '有効なメールアドレスを入力してください');
+            } else {
+                clearError('signupEmail');
+            }
+        });
+
+        document.getElementById('signupPassword').addEventListener('input', function() {
+            if (this.value && !validatePassword(this.value)) {
+                showError('signupPassword', 'パスワードは8文字以上である必要があります');
+            } else {
+                clearError('signupPassword');
+            }
+        });
+
+        document.getElementById('confirmPassword').addEventListener('input', function() {
+            const password = document.getElementById('signupPassword').value;
+            if (this.value && this.value !== password) {
+                showError('confirmPassword', 'パスワードが一致しません');
+            } else {
+                clearError('confirmPassword');
+            }
+        });
+
+        // Social login handlers
+        document.querySelectorAll('.social-button').forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                const provider = this.textContent.trim();
+                
+                // Visual feedback
+                this.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    this.style.transform = '';
+                }, 150);
+                
+                console.log(`${provider} login clicked`);
+                showSuccess(`${provider} 認証を開始しています...`);
+            });
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            // Switch tabs with Ctrl+1/2
+            if (e.ctrlKey || e.metaKey) {
+                if (e.key === '1') {
+                    e.preventDefault();
+                    switchTab('login');
+                } else if (e.key === '2') {
+                    e.preventDefault();
+                    switchTab('signup');
+                }
+            }
+        });
+
+        // Input focus animations
+        document.querySelectorAll('.form-input').forEach(input => {
+            input.addEventListener('focus', function() {
+                this.parentElement.style.transform = 'translateY(-2px)';
+            });
+            
+            input.addEventListener('blur', function() {
+                this.parentElement.style.transform = '';
+            });
+        });
+
+        // Prevent form submission on Enter in password fields (except when focused)
+        document.querySelectorAll('input[type="password"]').forEach(input => {
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    // Allow form submission
+                    const form = this.closest('form');
+                    if (form) {
+                        form.dispatchEvent(new Event('submit'));
+                    }
+                }
+            });
+        });
+
+        // Initialize
+        console.log('🚀 TechOS Auth System initialized');
+        console.log('💡 Keyboard shortcuts: Ctrl+1 (Login), Ctrl+2 (Signup)');
+    </script>
+</body>
+</html>

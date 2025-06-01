@@ -1,31 +1,135 @@
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&family=Montserrat:wght@400;500;600;700&family=Roboto+Mono&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap');
 
-:root {
-  --primary-color: #4a6da7;
-  --primary-light: #7c98d0;
-  --primary-dark: #2a4c87;
-  --secondary-color: #6a1b9a;
-  --background-color: #f8f9fa;
-  --text-color: #212121;
-}
-
+/* Reset and base styles */
 * {
-  box-sizing: border-box;
   margin: 0;
   padding: 0;
+  box-sizing: border-box;
 }
 
 html, body, #root {
   height: 100%;
-  margin: 0;
-  padding: 0;
   width: 100%;
-  font-family: 'Noto Sans JP', 'Helvetica Neue', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  font-size: 16px;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background-color: var(--background-color);
-  color: var(--text-color);
+  background: #0f0f23;
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+}
+
+/* --- Section/Container --- */
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+.section {
+  margin-bottom: 60px;
+  background: #1a1a2e;
+  border: 1px solid #333366;
+  border-radius: 4px;
+  padding: 30px;
+}
+.section-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #00ff88;
+  margin-bottom: 20px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  border-bottom: 1px solid #333366;
+  padding-bottom: 10px;
+}
+
+/* --- Workspace/Header/Page/SideMenu/ChannelList/Message/Tab/Card/Button/List/Modal/Form/Toast/Dropdown/Progress/Table/Accordion/Icon/Tooltip/Spinner/Loading/ContextMenu --- */
+/* ... (省略: complete_design_system.htmlのstyleタグ内の全てのCSSをここに展開) ... */
+
+/* --- Utility: 強制背景色 --- */
+body, html, #root {
+  background: #0f0f23 !important;
+  min-height: 100vh;
+}
+
+/* --- Responsive --- */
+@media (max-width: 768px) {
+  .container {
+    padding: 0 8px;
+  }
+  .section {
+    padding: 16px;
+  }
+  .side-menu, .channel-list {
+    width: 100%;
+    height: auto;
+  }
+  .demo-row {
+    flex-direction: column;
+  }
+}
+
+/* --- ここにcomplete_design_system.htmlの全CSSを展開してください（省略部分） --- */
+
+/* Modern Tech Design System - Global CSS (Best Practice) */
+
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&family=Montserrat:wght@400;500;600;700&family=Roboto+Mono&display=swap');
+
+:root {
+  /* Modern Tech Markdown Design Variables */
+  --primary-green: #00ff88;
+  --primary-green-dark: #00cc6a;
+  --primary-blue: #64b5f6;
+  --primary-orange: #ffa500;
+  --primary-red: #ff6b6b;
+  --primary-purple: #9c27b0;
+  --primary-cyan: #26c6da;
+
+  --bg-primary: #0f0f23;
+  --bg-secondary: #1a1a2e;
+  --bg-tertiary: #333366;
+  --bg-quaternary: #45475a;
+
+  --text-primary: #e2e8f0;
+  --text-secondary: #a6adc8;
+  --text-muted: #6c7086;
+  --text-inverse: #0f0f23;
+
+  --border-primary: #333366;
+  --border-secondary: #45475a;
+
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 20px;
+  --space-2xl: 24px;
+  --space-3xl: 32px;
+
+  --font-family-text: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-family-mono: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+
+  --text-xs: 10px;
+  --text-sm: 11px;
+  --text-base: 14px;
+  --text-lg: 16px;
+  --text-xl: 18px;
+  --text-2xl: 22px;
+  --text-3xl: 28px;
+
+  --leading-tight: 1.4;
+  --leading-normal: 1.6;
+  --leading-relaxed: 1.7;
+
+  --radius-sm: 3px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.2s ease;
+  --transition-slow: 0.3s ease;
+
+  --primary-color: #4a6da7;
+  --primary-light: #7c98d0;
+  --primary-dark: #2a4c87;
+  --secondary-color: #6a1b9a;
+  --background-color: #0f0f23;
+  --text-color: #212121;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -56,4 +160,424 @@ a:hover {
   html {
     font-size: 14px;
   }
+}
+
+/* --- カードUI サンプルデザインCSS --- */
+.card-list-grid {
+  padding: 24px 24px 0 24px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 360px);
+  gap: 24px;
+  justify-content: center;
+  max-width: 100%;
+  margin: 0 auto;
+  overflow-y: auto;
+  max-height: calc(100vh - 120px);
+}
+.card {
+  background: #1a1a2e;
+  border: 1px solid #333366;
+  border-radius: 4px;
+  padding: 16px;
+  margin-bottom: 16px;
+  transition: all 0.2s ease;
+}
+.card:hover {
+  border-color: #45475a;
+  transform: translateY(-1px);
+}
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+.card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e2e8f0;
+  margin-bottom: 4px;
+  font-family: 'Space Grotesk', sans-serif;
+}
+.card-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.card-tag {
+  background: #333366;
+  color: #a6adc8;
+  padding: 2px 6px;
+  border-radius: 2px;
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  font-family: 'Space Grotesk', sans-serif;
+}
+.card-tag.primary {
+  background: #00ff88;
+  color: #0f0f23;
+}
+.card-content {
+  color: #a6adc8;
+  font-size: 12px;
+  line-height: 1.5;
+  margin-bottom: 12px;
+  font-family: 'Space Grotesk', sans-serif;
+}
+.card-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #6c7086;
+  font-family: 'JetBrains Mono', monospace;
+  border-top: 1px solid #333366;
+  padding-top: 8px;
+}
+.card-links {
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+}
+.card-link {
+  color: #00ff88;
+  font-size: 10px;
+  text-decoration: none;
+  padding: 2px 4px;
+  border: 1px solid #00ff88;
+  border-radius: 2px;
+  transition: all 0.2s ease;
+}
+.card-link:hover {
+  background: #00ff88;
+  color: #0f0f23;
+}
+
+/* --- マークダウンプレビュー用 --- */
+.markdown-preview {
+  background: var(--bg-primary, #0f0f23);
+  border: 1px solid var(--border-primary, #333366);
+  border-radius: var(--radius-md, 6px);
+  padding: var(--space-2xl, 24px);
+  color: var(--text-primary, #e2e8f0);
+  font-family: var(--font-family-text, 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* Headers */
+.markdown-preview h1,
+.markdown-preview h2,
+.markdown-preview h3,
+.markdown-preview h4,
+.markdown-preview h5,
+.markdown-preview h6 {
+  margin: 0 0 var(--space-lg, 16px) 0;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.markdown-preview h1 {
+  color: var(--primary-green, #00ff88);
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: var(--space-lg, 16px);
+  padding-bottom: var(--space-md, 12px);
+  border-bottom: 2px solid var(--border-primary, #333366);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.markdown-preview h2 {
+  color: var(--primary-blue, #64b5f6);
+  font-size: 18px;
+  margin: var(--space-2xl, 24px) 0 var(--space-md, 12px) 0;
+  padding-bottom: var(--space-sm, 8px);
+  border-bottom: 1px solid var(--border-primary, #333366);
+}
+
+.markdown-preview h3 {
+  color: var(--primary-orange, #ffa500);
+  font-size: 15px;
+  margin: var(--space-xl, 20px) 0 var(--space-sm, 8px) 0;
+}
+
+.markdown-preview h4 {
+  font-size: 13px;
+}
+
+.markdown-preview h5, .markdown-preview h6 {
+  font-size: 12px;
+}
+
+/* Paragraphs */
+.markdown-preview p {
+  margin: 0 0 var(--space-lg, 16px) 0;
+  color: var(--text-secondary, #a6adc8);
+}
+
+/* Lists */
+.markdown-preview ul,
+.markdown-preview ol {
+  margin: var(--space-lg, 16px) 0;
+  padding-left: var(--space-xl, 20px);
+}
+
+.markdown-preview li {
+  margin-bottom: var(--space-sm, 8px);
+  color: var(--text-secondary, #a6adc8);
+  position: relative;
+}
+
+.markdown-preview ul li {
+  list-style: none;
+}
+
+.markdown-preview ul li::before {
+  content: '▶';
+  position: absolute;
+  left: calc(-1 * var(--space-lg, 16px));
+  color: var(--primary-green, #00ff88);
+  font-size: var(--text-sm, 11px);
+  top: 2px;
+}
+
+.markdown-preview ol li::marker {
+  color: var(--primary-blue, #64b5f6);
+  font-weight: 600;
+}
+
+/* Code */
+.markdown-preview code {
+  background: var(--bg-tertiary, #333366);
+  color: var(--primary-green, #00ff88);
+  padding: 2px var(--space-sm, 8px);
+  border-radius: var(--radius-sm, 3px);
+  font-family: var(--font-family-mono, 'JetBrains Mono', 'Fira Code', Consolas, monospace);
+  font-size: 11px;
+  font-weight: 500;
+  border: 1px solid var(--border-secondary, #45475a);
+  white-space: nowrap;
+}
+
+.markdown-preview pre {
+  background: var(--bg-secondary, #1a1a2e);
+  border: 1px solid var(--border-primary, #333366);
+  border-radius: var(--radius-md, 6px);
+  padding: var(--space-lg, 16px);
+  margin: var(--space-lg, 16px) 0;
+  overflow-x: auto;
+  position: relative;
+  line-height: 1.4;
+}
+
+.markdown-preview pre code {
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: var(--text-primary, #e2e8f0);
+  font-size: 11px;
+  display: block;
+  white-space: pre;
+  overflow: visible;
+}
+
+/* Blockquotes */
+.markdown-preview blockquote {
+  border-left: 4px solid var(--primary-green, #00ff88);
+  background: var(--bg-secondary, #1a1a2e);
+  padding: var(--space-md, 12px) var(--space-lg, 16px);
+  margin: var(--space-lg, 16px) 0;
+  border-radius: 0 var(--radius-sm, 3px) var(--radius-sm, 3px) 0;
+  position: relative;
+}
+
+.markdown-preview blockquote p {
+  color: var(--primary-blue, #64b5f6);
+  font-style: italic;
+  margin: 0;
+}
+
+/* Links */
+.markdown-preview a {
+  color: var(--primary-green, #00ff88);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: all var(--transition-normal, 0.2s ease);
+}
+
+.markdown-preview a:hover {
+  border-bottom-color: var(--primary-green, #00ff88);
+  color: var(--primary-green-dark, #00cc6a);
+}
+
+/* Text emphasis */
+.markdown-preview strong {
+  color: var(--primary-green, #00ff88);
+  font-weight: 600;
+}
+
+.markdown-preview em {
+  color: var(--primary-blue, #64b5f6);
+  font-style: italic;
+}
+
+.markdown-preview del {
+  color: var(--text-muted, #6c7086);
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+
+/* Tables */
+.markdown-preview table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: var(--space-lg, 16px) 0;
+  background: var(--bg-secondary, #1a1a2e);
+}
+
+.markdown-preview th {
+  background: var(--bg-tertiary, #333366);
+  color: var(--text-primary, #e2e8f0);
+  padding: var(--space-md, 12px) var(--space-lg, 16px);
+  text-align: left;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 11px;
+  border-bottom: 1px solid var(--border-secondary, #45475a);
+}
+
+.markdown-preview td {
+  padding: var(--space-md, 12px) var(--space-lg, 16px);
+  border-bottom: 1px solid var(--border-primary, #333366);
+  color: var(--text-secondary, #a6adc8);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.markdown-preview tr:last-child td {
+  border-bottom: none;
+}
+
+.markdown-preview tbody tr:hover {
+  background: var(--bg-tertiary, #333366);
+}
+
+/* Horizontal rules */
+.markdown-preview hr {
+  border: none;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--border-primary, #333366), transparent);
+  margin: var(--space-2xl, 24px) 0;
+  position: relative;
+}
+
+/* Task lists */
+.markdown-preview .task-list {
+  list-style: none;
+  padding-left: 0;
+}
+
+.markdown-preview .task-list li {
+  position: relative;
+  padding-left: var(--space-2xl, 24px);
+  margin-bottom: var(--space-sm, 8px);
+}
+
+.markdown-preview .task-list li::before {
+  content: '☐';
+  position: absolute;
+  left: 0;
+  color: var(--text-muted, #6c7086);
+  font-size: var(--text-base, 14px);
+  cursor: pointer;
+  transition: color var(--transition-normal, 0.2s ease);
+}
+
+.markdown-preview .task-list li.completed::before {
+  content: '☑';
+  color: var(--primary-green, #00ff88);
+}
+
+.markdown-preview .task-list li.completed {
+  color: var(--text-muted, #6c7086);
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+
+/* Alert boxes */
+.markdown-preview .alert {
+  padding: var(--space-lg, 16px);
+  margin: var(--space-lg, 16px) 0;
+  border-radius: var(--radius-md, 6px);
+  border-left: 4px solid;
+  position: relative;
+  background: var(--bg-secondary, #1a1a2e);
+}
+
+.markdown-preview .alert.info {
+  border-left-color: var(--primary-blue, #64b5f6);
+  color: var(--primary-blue, #64b5f6);
+  background: #1a2332;
+}
+
+.markdown-preview .alert.warning {
+  border-left-color: var(--primary-orange, #ffa500);
+  color: var(--primary-orange, #ffa500);
+  background: #332519;
+}
+
+.markdown-preview .alert.error {
+  border-left-color: var(--primary-red, #ff6b6b);
+  color: var(--primary-red, #ff6b6b);
+  background: #331919;
+}
+
+.markdown-preview .alert.success {
+  border-left-color: var(--primary-green, #00ff88);
+  color: var(--primary-green, #00ff88);
+  background: #193319;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .markdown-preview {
+    padding: var(--space-lg, 16px);
+    font-size: calc(var(--text-base, 14px) - 1px);
+  }
+
+  .markdown-preview h1 {
+    font-size: var(--text-2xl, 22px);
+  }
+
+  .markdown-preview h2 {
+    font-size: var(--text-xl, 18px);
+  }
+
+  .markdown-preview h3 {
+    font-size: var(--text-lg, 16px);
+  }
+
+  .markdown-preview pre {
+    padding: var(--space-md, 12px);
+    margin: var(--space-md, 12px) 0;
+  }
+
+  .markdown-preview ul,
+  .markdown-preview ol {
+    padding-left: var(--space-lg, 16px);
+  }
+}
+
+/* カード種別ラジオボタンのラベル色を明るく */
+.form-group label,
+.form-group input[type="radio"] + label,
+.form-group input[type="radio"] ~ span {
+  color: #e2e8f0 !important;
+}
+
+/* --- Fix: Remove default white background from React Native for Web View wrappers --- */
+div[class^="css-view"] { 
+  background: transparent !important; 
 } 

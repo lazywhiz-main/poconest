@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>モダンテック風アバターサンプル</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: #0f0f23;
+            color: #e2e8f0;
+            line-height: 1.4;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #00ff88;
+            text-align: center;
+            margin-bottom: 40px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-size: 24px;
+        }
+
+        .section {
+            margin-bottom: 60px;
+            background: #1a1a2e;
+            border: 1px solid #333366;
+            border-radius: 4px;
+            padding: 30px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #00ff88;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border-bottom: 1px solid #333366;
+            padding-bottom: 10px;
+        }
+
+        .avatar-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        .avatar-sample {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            padding: 24px;
+            background: #0f0f23;
+            border: 1px solid #333366;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .avatar-sample:hover {
+            border-color: #00ff88;
+            transform: translateY(-2px);
+        }
+
+        .avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            font-weight: 600;
+            color: #0f0f23;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .avatar-info {
+            text-align: center;
+        }
+
+        .avatar-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #e2e8f0;
+            margin-bottom: 4px;
+        }
+
+        .avatar-role {
+            font-size: 11px;
+            color: #6c7086;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Geometric Avatars */
+        .avatar-geo-1 {
+            background: linear-gradient(135deg, #00ff88, #00cc6a);
+        }
+
+        .avatar-geo-2 {
+            background: linear-gradient(135deg, #64b5f6, #42a5f5);
+        }
+
+        .avatar-geo-3 {
+            background: linear-gradient(135deg, #ff6b6b, #f44336);
+        }
+
+        .avatar-geo-4 {
+            background: linear-gradient(135deg, #ffa500, #ff9800);
+        }
+
+        .avatar-geo-5 {
+            background: linear-gradient(135deg, #9c27b0, #8e24aa);
+        }
+
+        .avatar-geo-6 {
+            background: linear-gradient(135deg, #26c6da, #00bcd4);
+        }
+
+        /* Pixel Art Style */
+        .avatar-pixel {
+            image-rendering: pixelated;
+            background-size: 8px 8px;
+            background-repeat: repeat;
+        }
+
+        .avatar-pixel-1 {
+            background: 
+                linear-gradient(90deg, #00ff88 0%, #00ff88 12.5%, transparent 12.5%, transparent 25%,
+                               #333366 25%, #333366 37.5%, transparent 37.5%, transparent 50%,
+                               #00ff88 50%, #00ff88 62.5%, transparent 62.5%, transparent 75%,
+                               #333366 75%, #333366 87.5%, transparent 87.5%),
+                linear-gradient(0deg, #00ff88 0%, #00ff88 12.5%, transparent 12.5%, transparent 25%,
+                               #333366 25%, #333366 37.5%, transparent 37.5%, transparent 50%,
+                               #00ff88 50%, #00ff88 62.5%, transparent 62.5%, transparent 75%,
+                               #333366 75%, #333366 87.5%, transparent 87.5%);
+            background-color: #1a1a2e;
+        }
+
+        /* Tech Pattern Avatars */
+        .avatar-tech {
+            position: relative;
+        }
+
+        .avatar-tech::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%2300ff88' fill-opacity='0.1'%3E%3Cpath d='M0 0h20v20H0V0zm10 17a7 7 0 1 0 0-14 7 7 0 0 0 0 14z'/%3E%3C/g%3E%3C/svg%3E");
+            border-radius: 8px;
+        }
+
+        .avatar-tech-1 {
+            background: linear-gradient(45deg, #1a1a2e, #333366);
+        }
+
+        .avatar-tech-2 {
+            background: linear-gradient(45deg, #0f0f23, #1a1a2e);
+        }
+
+        /* Circuit Pattern */
+        .avatar-circuit {
+            background: #1a1a2e;
+            position: relative;
+        }
+
+        .avatar-circuit::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%2300ff88' fill-opacity='0.15'%3E%3Cpath d='M20 20.5V18H4v-2h16v-2H2v-2h18v-2H6V8h14V6H4V4h16V2H2V0h18v2h2v2h2V2h2V0h2v2h2v2h2V2h2V0h2v4H20v2h2v2h2V6h2v2h2V6h2v2h2V6h2v2h2V6h2v2h2V6h2v2h2V6h2v2h2V6h2v2h2V6h2v2h2V6h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2v2h2v2h-2V20.5z'/%3E%3C/g%3E%3C/svg%3E");
+            border-radius: 8px;
+        }
+
+        /* Status indicators */
+        .avatar-with-status {
+            position: relative;
+        }
+
+        .status-indicator {
+            position: absolute;
+            bottom: -2px;
+            right: -2px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 3px solid #1a1a2e;
+        }
+
+        .status-online {
+            background: #00ff88;
+        }
+
+        .status-away {
+            background: #ffa500;
+        }
+
+        .status-busy {
+            background: #ff6b6b;
+        }
+
+        .status-offline {
+            background: #6c7086;
+        }
+
+        /* Different sizes */
+        .avatar-sizes {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .avatar-xs {
+            width: 24px;
+            height: 24px;
+            font-size: 10px;
+            border-radius: 4px;
+        }
+
+        .avatar-sm {
+            width: 32px;
+            height: 32px;
+            font-size: 12px;
+            border-radius: 4px;
+        }
+
+        .avatar-md {
+            width: 48px;
+            height: 48px;
+            font-size: 18px;
+            border-radius: 6px;
+        }
+
+        .avatar-lg {
+            width: 64px;
+            height: 64px;
+            font-size: 24px;
+            border-radius: 8px;
+        }
+
+        .avatar-xl {
+            width: 96px;
+            height: 96px;
+            font-size: 36px;
+            border-radius: 12px;
+        }
+
+        .size-label {
+            font-size: 10px;
+            color: #6c7086;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 8px;
+            text-align: center;
+        }
+
+        /* Avatar Groups */
+        .avatar-group {
+            display: flex;
+            align-items: center;
+            gap: -8px;
+        }
+
+        .avatar-group .avatar {
+            border: 2px solid #1a1a2e;
+            margin-left: -8px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .avatar-group .avatar:hover {
+            z-index: 10;
+            transform: scale(1.1);
+        }
+
+        .avatar-group .avatar:first-child {
+            margin-left: 0;
+        }
+
+        /* Usage Examples */
+        .usage-example {
+            background: #0f0f23;
+            border: 1px solid #333366;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+
+        .user-card {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px;
+            background: #1a1a2e;
+            border: 1px solid #333366;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .user-card:hover {
+            border-color: #45475a;
+        }
+
+        .user-info h3 {
+            font-size: 16px;
+            color: #e2e8f0;
+            margin-bottom: 4px;
+        }
+
+        .user-info p {
+            font-size: 12px;
+            color: #6c7086;
+            margin-bottom: 8px;
+        }
+
+        .user-meta {
+            font-size: 10px;
+            color: #6c7086;
+            font-family: 'JetBrains Mono', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Modern Tech Avatar Samples</h1>
+
+        <!-- Basic Geometric Avatars -->
+        <div class="section">
+            <div class="section-title">Geometric Style Avatars</div>
+            <div class="avatar-grid">
+                <div class="avatar-sample">
+                    <div class="avatar avatar-geo-1 avatar-with-status">
+                        A
+                        <div class="status-indicator status-online"></div>
+                    </div>
+                    <div class="avatar-info">
+                        <div class="avatar-name">Alice Chen</div>
+                        <div class="avatar-role">Senior Developer</div>
+                    </div>
+                </div>
+
+                <div class="avatar-sample">
+                    <div class="avatar avatar-geo-2 avatar-with-status">
+                        B
+                        <div class="status-indicator status-away"></div>
+                    </div>
+                    <div class="avatar-info">
+                        <div class="avatar-name">Bob Wilson</div>
+                        <div class="avatar-role">UI Designer</div>
+                    </div>
+                </div>
+
+                <div class="avatar-sample">
+                    <div class="avatar avatar-geo-3 avatar-with-status">
+                        C
+                        <div class="status-indicator status-busy"></div>
+                    </div>
+                    <div class="avatar-info">
+                        <div class="avatar-name">Carol Davis</div>
+                        <div class="avatar-role">Product Manager</div>
+                    </div>
+                </div>
+
+                <div class="avatar-sample">
+                    <div class="avatar avatar-geo-4 avatar-with-status">
+                        D
+                        <div class="status-indicator status-offline"></div>
+                    </div>
+                    <div class="avatar-info">
+                        <div class="avatar-name">David Kim</div>
+                        <div class="avatar-role">DevOps Engineer</div>
+                    </div>
+                </div>
+
+                <div class="avatar-sample">
+                    <div class="avatar avatar-geo-5 avatar-with-status">
+                        E
+                        <div class="status-indicator status-online"></div>
+                    </div>
+                    <div class="avatar-info">
+                        <div class="avatar-name">Emma Rodriguez</div>
+                        <div class="avatar-role">Data Scientist</div>
+                    </div>
+                </div>
+
+                <div class="avatar-sample">
+                    <div class="avatar avatar-geo-6 avatar-with-status">
+                        F
+                        <div class="status-indicator status-online"></div>
+                    </div>
+                    <div class="avatar-info">
+                        <div class="avatar-name">Frank Zhang</div>
+                        <div class="avatar-role">QA Engineer</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tech Pattern Avatars -->
+        <div class="section">
+            <div class="section-title">Tech Pattern Avatars</div>
+            <div class="avatar-grid">
+                <div class="avatar-sample">
+                    <div class="avatar avatar-tech avatar-tech-1">
+                        <span style="color: #00ff88;">⚙</span>
+                    </div>
+                    <div class="avatar-info">
+                        <div class="avatar-name">System Admin</div>
+                        <div class="avatar-role">Bot Account</div>
+                    </div>
+                </div>
+
+                <div class="avatar-sample">
+                    <div class="avatar avatar-circuit">
+                        <span style="color: #00ff88; font-size: 24px;">◉</span>
+                    </div>
+                    <div class="avatar-info">
+                        <div class="avatar-name">AI Assistant</div>
+                        <div class="avatar-role">Automation</div>
+                    </div>
+                </div>
+
+                <div class="avatar-sample">
+                    <div class="avatar avatar-pixel avatar-pixel-1">
+                        <span style="color: #e2e8f0; font-size: 20px;">◆</span>
+                    </div>
+                    <div class="avatar-info">
+                        <div class="avatar-name">Game Dev</div>
+                        <div class="avatar-role">Pixel Artist</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Size Variations -->
+        <div class="section">
+            <div class="section-title">Size Variations</div>
+            <div class="avatar-sizes">
+                <div style="text-align: center;">
+                    <div class="avatar avatar-geo-1 avatar-xs">A</div>
+                    <div class="size-label">XS (24px)</div>
+                </div>
+                <div style="text-align: center;">
+                    <div class="avatar avatar-geo-2 avatar-sm">B</div>
+                    <div class="size-label">SM (32px)</div>
+                </div>
+                <div style="text-align: center;">
+                    <div class="avatar avatar-geo-3 avatar-md">C</div>
+                    <div class="size-label">MD (48px)</div>
+                </div>
+                <div style="text-align: center;">
+                    <div class="avatar avatar-geo-4 avatar-lg">D</div>
+                    <div class="size-label">LG (64px)</div>
+                </div>
+                <div style="text-align: center;">
+                    <div class="avatar avatar-geo-5 avatar-xl">E</div>
+                    <div class="size-label">XL (96px)</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Avatar Groups -->
+        <div class="section">
+            <div class="section-title">Avatar Groups</div>
+            <div class="usage-example">
+                <h3 style="color: #e2e8f0; margin-bottom: 16px; font-size: 14px;">Team Collaboration</h3>
+                <div class="avatar-group">
+                    <div class="avatar avatar-geo-1 avatar-md">A</div>
+                    <div class="avatar avatar-geo-2 avatar-md">B</div>
+                    <div class="avatar avatar-geo-3 avatar-md">C</div>
+                    <div class="avatar avatar-geo-4 avatar-md">D</div>
+                    <div class="avatar avatar-geo-5 avatar-md">+3</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Usage Examples -->
+        <div class="section">
+            <div class="section-title">Usage Examples</div>
+            
+            <div class="usage-example">
+                <h3 style="color: #e2e8f0; margin-bottom: 16px; font-size: 14px;">User Profile Cards</h3>
+                
+                <div class="user-card">
+                    <div class="avatar avatar-geo-1 avatar-lg avatar-with-status">
+                        A
+                        <div class="status-indicator status-online"></div>
+                    </div>
+                    <div class="user-info">
+                        <h3>Alice Chen</h3>
+                        <p>Senior Full Stack Developer</p>
+                        <div class="user-meta">Last seen: 2 minutes ago | Commits: 247</div>
+                    </div>
+                </div>
+
+                <div class="user-card" style="margin-top: 12px;">
+                    <div class="avatar avatar-circuit avatar-lg">
+                        <span style="color: #00ff88; font-size: 28px;">🤖</span>
+                    </div>
+                    <div class="user-info">
+                        <h3>CodeBot AI</h3>
+                        <p>Automated Code Review Assistant</p>
+                        <div class="user-meta">Status: Active | Reviews: 1,423</div>
+                    </div>
+                </div>
+
+                <div class="user-card" style="margin-top: 12px;">
+                    <div class="avatar avatar-geo-3 avatar-lg avatar-with-status">
+                        C
+                        <div class="status-indicator status-busy"></div>
+                    </div>
+                    <div class="user-info">
+                        <h3>Carol Davis</h3>
+                        <p>Product Manager</p>
+                        <div class="user-meta">In meeting | Next available: 3:30 PM</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="usage-example">
+                <h3 style="color: #e2e8f0; margin-bottom: 16px; font-size: 14px;">Message Thread</h3>
+                
+                <div style="display: flex; align-items: flex-start; gap: 12px; margin-bottom: 16px;">
+                    <div class="avatar avatar-geo-1 avatar-sm">A</div>
+                    <div>
+                        <div style="color: #e2e8f0; font-size: 13px; margin-bottom: 4px;">
+                            <strong>alice_dev</strong> 
+                            <span style="color: #6c7086; font-size: 10px; font-family: 'JetBrains Mono', monospace;">14:23:07</span>
+                        </div>
+                        <div style="color: #a6adc8; font-size: 13px;">
+                            新しいアバターシステムのコンポーネントが完成しました！🎉
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display: flex; align-items: flex-start; gap: 12px;">
+                    <div class="avatar avatar-geo-2 avatar-sm">B</div>
+                    <div>
+                        <div style="color: #e2e8f0; font-size: 13px; margin-bottom: 4px;">
+                            <strong>bob_design</strong> 
+                            <span style="color: #6c7086; font-size: 10px; font-family: 'JetBrains Mono', monospace;">14:25:12</span>
+                        </div>
+                        <div style="color: #a6adc8; font-size: 13px;">
+                            素晴らしい！デザインがとても統一されていますね 👍
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CSS Code Examples -->
+        <div class="section">
+            <div class="section-title">CSS Implementation</div>
+            <div class="usage-example">
+                <h3 style="color: #e2e8f0; margin-bottom: 16px; font-size: 14px;">基本的なアバタークラス</h3>
+                <pre style="background: #0f0f23; padding: 16px; border-radius: 4px; color: #a6adc8; font-family: 'JetBrains Mono', monospace; font-size: 12px; overflow-x: auto;">
+<span style="color: #ff6b6b;">.avatar</span> {
+  <span style="color: #64b5f6;">width</span>: <span style="color: #00ff88;">48px</span>;
+  <span style="color: #64b5f6;">height</span>: <span style="color: #00ff88;">48px</span>;
+  <span style="color: #64b5f6;">border-radius</span>: <span style="color: #00ff88;">6px</span>;
+  <span style="color: #64b5f6;">display</span>: <span style="color: #00ff88;">flex</span>;
+  <span style="color: #64b5f6;">align-items</span>: <span style="color: #00ff88;">center</span>;
+  <span style="color: #64b5f6;">justify-content</span>: <span style="color: #00ff88;">center</span>;
+  <span style="color: #64b5f6;">font-weight</span>: <span style="color: #00ff88;">600</span>;
+  <span style="color: #64b5f6;">color</span>: <span style="color: #00ff88;">#0f0f23</span>;
+  <span style="color: #64b5f6;">background</span>: <span style="color: #00ff88;">linear-gradient(135deg, #00ff88, #00cc6a)</span>;
+  <span style="color: #64b5f6;">transition</span>: <span style="color: #00ff88;">all 0.2s ease</span>;
+}
+
+<span style="color: #ff6b6b;">.avatar:hover</span> {
+  <span style="color: #64b5f6;">transform</span>: <span style="color: #00ff88;">scale(1.05)</span>;
+}</pre>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

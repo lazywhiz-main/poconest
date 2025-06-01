@@ -12,6 +12,7 @@ import { useNestSpace } from '@contexts/NestSpaceContext';
 import ChatHeader from './ChatHeader';
 import ThreadView from './ThreadView';
 import ChatSpaceSettings from './ChatSpaceSettings';
+import CreateChannelModal from './CreateChannelModal';
 import { LayoutType } from '../../types/nestSpace.types';
 
 // Reuse some existing components from the current chat implementation
@@ -39,6 +40,7 @@ const ChatSpace: React.FC = () => {
   // Local state
   const [showSettings, setShowSettings] = useState(false);
   const [showChatList, setShowChatList] = useState(false);
+  const [showCreateChannel, setShowCreateChannel] = useState(false);
   
   // Responsive layout calculations
   const isMobile = spaceState.layoutType === LayoutType.MOBILE;
@@ -90,6 +92,11 @@ const ChatSpace: React.FC = () => {
   const handleToggleSettings = () => {
     setShowSettings(!showSettings);
   };
+
+  // Toggle create channel modal
+  const handleToggleCreateChannel = () => {
+    setShowCreateChannel(!showCreateChannel);
+  };
   
   // Save message to board
   const handleSaveMessage = (message: any) => {
@@ -113,29 +120,76 @@ const ChatSpace: React.FC = () => {
   console.log('DUMMY LAYOUT!');
 
   return (
-    <View style={{ flex: 1, flexDirection: 'row' }}>
-      {/* サイドバー */}
-      <View style={{ width: 80, backgroundColor: 'red' }} />
-      {/* チャット空間全体 */}
-      <View style={{ flex: 1, flexDirection: 'column' }}>
-        {/* チャット空間ヘッダー */}
-        <View style={{ height: 60, backgroundColor: 'orange' }} />
-        {/* 下部（スレッドリスト＋メッセージエリア） */}
-        <View style={{ flex: 1, flexDirection: 'row' }}>
-          {/* スレッドリスト */}
-          <View style={{ width: 200, backgroundColor: 'blue' }} />
-          {/* メッセージエリア */}
-          <View style={{ flex: 1, flexDirection: 'column' }}>
-            {/* メッセージヘッダー */}
-            <View style={{ height: 48, backgroundColor: 'green' }} />
-            {/* メッセージ表示 */}
-            <View style={{ flex: 1, backgroundColor: 'yellow' }} />
-            {/* メッセージ入力＋送信 */}
-            <View style={{ height: 56, backgroundColor: 'purple' }} />
+    <KeyboardAvoidingView
+      style={styles.keyboardAvoidingView}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+    >
+      <View style={styles.container}>
+        <ChatHeader
+          onToggleThreadView={handleToggleThreadView}
+          onToggleSettings={handleToggleSettings}
+          onCreateChannel={handleToggleCreateChannel}
+        />
+        
+        <View style={styles.layoutRow}>
+          {shouldShowSidebar && (
+            <View style={[styles.sidebar, isSidebarOverlay && styles.overlaySidebar]}>
+              <ChatRoomList
+                rooms={chatRooms}
+                activeRoomId={activeChatRoomId}
+                onSelectRoom={handleSelectChatRoom}
+                onCreateChannel={handleToggleCreateChannel}
+              />
+            </View>
+          )}
+          
+          <View style={styles.mainArea}>
+            {activeChatRoomId ? (
+              <View style={styles.messageArea}>
+                <MessageList
+                  messages={currentMessages}
+                  onReply={replyToMessage}
+                  highlightedMessageIds={chatSpaceState.highlightedMessageIds}
+                />
+                <View style={styles.inputArea}>
+                  <ChatInput
+                    onSend={handleSendMessage}
+                    isTyping={isPocoTyping}
+                  />
+                </View>
+              </View>
+            ) : (
+              <View style={styles.emptyChatMessage}>
+                <Text style={styles.emptyChatText}>
+                  チャットルームを選択してください
+                </Text>
+              </View>
+            )}
           </View>
+          
+          {shouldShowThreadPanel && (
+            <View style={styles.threadPanel}>
+              <ThreadView
+                thread={activeThread}
+                messages={threadMessages}
+                onClose={handleToggleThreadView}
+              />
+            </View>
+          )}
         </View>
       </View>
-    </View>
+      
+      <ChatSpaceSettings
+        visible={showSettings}
+        onClose={handleToggleSettings}
+      />
+      
+      <CreateChannelModal
+        visible={showCreateChannel}
+        onClose={handleToggleCreateChannel}
+      />
+    </KeyboardAvoidingView>
   );
 };
 

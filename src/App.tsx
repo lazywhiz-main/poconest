@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, Platform, useWindowDimensions } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '@contexts/AuthContext';
 import { NestProvider, useNest, SAMPLE_NESTS, Nest as ImportedNestType } from './features/nest/contexts/NestContext';
@@ -12,15 +12,22 @@ import LoginScreen from '@screens/auth/LoginScreen';
 import theme from './styles/theme';
 import { BoardProvider } from './features/board-space/contexts/BoardContext';
 import CreateTestNestScreen from './features/nest/screens/CreateTestNestScreen';
-import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import NestSettingsScreen from './features/nest/screens/NestSettingsScreen';
 import { Layout } from './components/Layout';
 import './styles/common.css';
 import ChatSpace from './features/chat-space/components/ChatSpace';
 import BoardSpace from './features/board-space/components/BoardSpace';
-import MeetingSpace from './features/nest-space/meeting-space/components/MeetingSpace';
+import MeetingSpace from './features/meeting-space/components/MeetingSpace';
 import AnalysisSpace from './features/analysis-space/components/AnalysisSpace';
 import UserProfileSpace from './features/user-profile/components/UserProfileSpace';
+import { MeetingProvider } from './features/meeting-space/contexts/MeetingContext';
+import { NestListScreen } from './screens/NestListScreen';
+import WelcomeScreen from '@screens/auth/WelcomeScreen';
+import AuthenticatedRoutes from './navigation';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import OnboardingScreen from './screens/auth/OnboardingScreen';
 
 // Webではreact-native-screensを無効化
 if (typeof window !== 'undefined') {
@@ -442,7 +449,9 @@ const AppContent: React.FC = () => {
       case 'meeting':
         SpaceComponent = (
           <BoardProvider currentNestId={currentNest.id}>
-            <MeetingSpace nestId={currentNest.id} />
+            <MeetingProvider>
+              <MeetingSpace nestId={currentNest.id} />
+            </MeetingProvider>
           </BoardProvider>
         );
         break;
@@ -524,7 +533,9 @@ const NestTopScreen: React.FC = () => {
     case 'meeting':
       SpaceComponent = (
         <BoardProvider currentNestId={nest.id}>
-          <MeetingSpace nestId={nest.id} />
+          <MeetingProvider>
+            <MeetingSpace nestId={nest.id} />
+          </MeetingProvider>
         </BoardProvider>
       );
       break;
@@ -580,13 +591,6 @@ const NestTopScreen: React.FC = () => {
       onSettingsClick={() => navigate(`/nest-settings?nestId=${nest.id}`)}
     >
       {SpaceComponent}
-      {/*
-      <NestHeader 
-        selectedNest={nest}
-        onNestSelect={() => setNestSelectorVisible(true)}
-        onOpenSettings={() => navigate(`/nest-settings?nestId=${nest.id}`)}
-      />
-      */}
       {nestSelectorVisible && (
         <NestSelectorModal 
           visible={nestSelectorVisible}
@@ -650,30 +654,81 @@ const NestSettingsScreenWrapper: React.FC = () => {
 
 const AuthGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
-  if (loading) return null; // ローディング中は何も表示しない
-  if (!isAuthenticated) return <LoginScreen />;
+  if (loading) return null;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
   return <>{children}</>;
+};
+
+const AppRoutes: React.FC = () => {
+  const { user, isAuthenticated, isFirstSignIn, setFirstSignInShown } = useAuth();
+  const navigate = useNavigate();
+
+  if (!isAuthenticated) {
+    return <LoginScreen />;
+  }
+
+  if (isFirstSignIn && user) {
+    return (
+      <WelcomeScreen
+        userName={user.user_metadata?.name || user.email || 'User'}
+        onEnterNest={async () => {
+          await setFirstSignInShown();
+          navigate('/nest-list');
+        }}
+      />
+    );
+  }
+
+  // 通常の認証済みルートはProviderでラップ
+  return (
+    <NestProvider>
+      <NestSpaceProvider>
+        <ChatProvider>
+          <AuthenticatedRoutes />
+        </ChatProvider>
+      </NestSpaceProvider>
+    </NestProvider>
+  );
 };
 
 const App: React.FC = () => {
   return (
-    <Router>
-      <AuthProvider>
-        <NestProvider>
-          <NestSpaceProvider>
-            <ChatProvider>
-              <Routes>
-                <Route path="/" element={<AppContent />} />
-                <Route path="/nest-top" element={<NestTopScreen />} />
-                <Route path="/create-nest" element={<CreateTestNestScreenWrapper />} />
-                <Route path="/nest-settings" element={<NestSettingsScreenWrapper />} />
-                {/* 必要に応じて他のルートも追加 */}
-              </Routes>
-            </ChatProvider>
-          </NestSpaceProvider>
-        </NestProvider>
-      </AuthProvider>
-    </Router>
+    <View style={{ flex: 1 }}>
+      <Router>
+        <AuthProvider>
+          <NestProvider>
+            <NestSpaceProvider>
+              <ChatProvider>
+                <Routes>
+                  <Route path="/login" element={<LoginScreen />} />
+                  <Route path="/nest-list" element={
+                    <AuthGuard>
+                      <NestListScreen />
+                    </AuthGuard>
+                  } />
+                  <Route path="/nest-top" element={
+                    <AuthGuard>
+                      <NestTopScreen />
+                    </AuthGuard>
+                  } />
+                  <Route path="/create-nest" element={
+                    <AuthGuard>
+                      <CreateTestNestScreenWrapper />
+                    </AuthGuard>
+                  } />
+                  <Route path="/nest-settings" element={
+                    <AuthGuard>
+                      <NestSettingsScreenWrapper />
+                    </AuthGuard>
+                  } />
+                  <Route path="*" element={<Navigate to="/login" />} />
+                </Routes>
+              </ChatProvider>
+            </NestSpaceProvider>
+          </NestProvider>
+        </AuthProvider>
+      </Router>
+    </View>
   );
 };
 

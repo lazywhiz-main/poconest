@@ -1,14 +1,7 @@
-import { StyleSheet, Platform, Dimensions } from 'react-native';
-import { COLORS, SPACING, BREAKPOINTS } from '@constants/config';
-
-// ウィンドウの幅に基づいて現在のブレイクポイントを取得
-const getScreenType = () => {
-  const { width } = Dimensions.get('window');
-  if (width < BREAKPOINTS.mobile) return 'small';
-  if (width < BREAKPOINTS.tablet) return 'mobile';
-  if (width < BREAKPOINTS.desktop) return 'tablet';
-  return 'desktop';
-};
+import { StyleSheet, Platform } from 'react-native';
+import { COLORS } from '@constants/config';
+import { SPACING } from '@constants/spacing';
+import { getScreenType } from '@utils/screen';
 
 export const createStyles = (
   backgroundColor = COLORS.white,
@@ -21,10 +14,10 @@ export const createStyles = (
       height: Platform.select({
         ios: 64,
         android: 56,
-        web: screenType === 'desktop' ? 72 : 60, // デスクトップではより大きく
+        web: screenType === 'desktop' ? 72 : 60,
       }),
       paddingTop: Platform.select({
-        ios: 20, // iOSはステータスバー分のパディング
+        ios: 20,
         android: 0,
         web: 0,
       }),
@@ -39,6 +32,9 @@ export const createStyles = (
       borderBottomColor,
       ...Platform.select({
         web: {
+          position: 'relative',
+          top: 0,
+          zIndex: 100,
           boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.1)',
         },
         default: {
@@ -51,18 +47,18 @@ export const createStyles = (
       }),
     },
     leftContainer: {
-      flex: screenType === 'desktop' ? 0.2 : 1, // デスクトップでは比率を調整
+      flex: screenType === 'desktop' ? 0.2 : 1,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'flex-start',
     },
     titleContainer: {
-      flex: screenType === 'desktop' ? 0.6 : 2, // デスクトップでは比率を調整
+      flex: screenType === 'desktop' ? 0.6 : 2,
       alignItems: 'center',
       justifyContent: 'center',
     },
     rightContainer: {
-      flex: screenType === 'desktop' ? 0.2 : 1, // デスクトップでは比率を調整
+      flex: screenType === 'desktop' ? 0.2 : 1,
       flexDirection: 'row',
       justifyContent: 'flex-end',
       alignItems: 'center',
@@ -77,41 +73,33 @@ export const createStyles = (
       alignItems: 'center',
       justifyContent: 'center',
     },
-    titleTextContainer: {
-      alignItems: Platform.select({
-        web: screenType === 'desktop' ? 'center' : 'flex-start',
-        default: 'center',
-      }),
-      overflow: 'hidden',
-    },
     title: {
-      fontSize: 18,
+      fontSize: Platform.select({
+        web: screenType === 'desktop' ? 24 : 20,
+        default: 18,
+      }),
       fontWeight: '600',
       color: COLORS.text,
       textAlign: 'center',
-      padding: 12,
     },
     subtitle: {
-      fontSize: 12,
-      color: COLORS.lightText,
-      marginTop: 2,
-    },
-    emoji: {
-      fontSize: 22,
-      marginRight: SPACING.sm,
+      fontSize: Platform.select({
+        web: screenType === 'desktop' ? 16 : 14,
+        default: 14,
+      }),
+      color: COLORS.secondary,
+      textAlign: 'center',
+      marginTop: 4,
     },
     actionButton: {
-      padding: SPACING.xs,
+      padding: SPACING.sm,
       borderRadius: 8,
-      backgroundColor: `${COLORS.primary}15`, // 透明度15%のプライマリカラー
-      width: 40,
-      height: 40,
-      justifyContent: 'center',
-      alignItems: 'center',
+      backgroundColor: COLORS.primary,
       marginLeft: SPACING.sm,
     },
     actionButtonText: {
-      color: COLORS.primary,
+      color: COLORS.white,
+      fontSize: 14,
       fontWeight: '600',
     },
     // レスポンシブ対応のスタイル
