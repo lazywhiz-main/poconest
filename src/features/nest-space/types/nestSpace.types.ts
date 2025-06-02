@@ -1,3 +1,6 @@
+// このファイルの型定義はsrc/types/nestSpace.types.tsに統合されました。
+// すべてのimportはsrc/types/nestSpace.typesから行ってください。
+
 /**
  * NEST空間の型定義
  */

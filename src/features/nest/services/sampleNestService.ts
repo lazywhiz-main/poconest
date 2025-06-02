@@ -1,6 +1,6 @@
 import { supabase } from '@services/supabase';
 import { v4 as uuidv4 } from 'uuid';
-import { SpaceType } from '../../../types/nestSpace.types';
+import { SpaceType } from 'src/types/nestSpace.types';
 
 export class SampleNestService {
   /**

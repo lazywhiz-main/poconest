@@ -4,7 +4,7 @@ import {
   ViewMode, 
   LayoutMode 
 } from '../types/navigation.types';
-import { SpaceType } from '../../types/nestSpace.types';
+import { SpaceType } from 'src/types/nestSpace.types';
 
 // トランジションの種類に応じたデフォルトアニメーション
 const DEFAULT_ANIMATIONS: Record<string, string> = {

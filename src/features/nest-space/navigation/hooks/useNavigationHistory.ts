@@ -3,7 +3,7 @@ import {
   NavigationHistoryItem, 
   NavigationHistoryState 
 } from '../types/navigation.types';
-import { SpaceType } from '../../types/nestSpace.types';
+import { SpaceType } from 'src/types/nestSpace.types';
 
 // ローカルストレージキー
 const HISTORY_STORAGE_KEY = 'nest_navigation_history';

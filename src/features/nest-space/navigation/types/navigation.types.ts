@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { SpaceType } from '../../types/nestSpace.types';
+import { SpaceType } from 'src/types/nestSpace.types';
 
 // ナビゲーション履歴のアイテム型
 export interface NavigationHistoryItem {

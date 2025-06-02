@@ -4,6 +4,9 @@ export enum SpaceType {
   MEETING = 'meeting',
   ANALYSIS = 'analysis',
   USER_PROFILE = 'user_profile',
+  ZOOM = 'zoom',
+  SETTINGS = 'settings',
+  INSIGHTS = 'insights',
 }
 
 export enum LayoutType {
@@ -12,82 +15,38 @@ export enum LayoutType {
   DESKTOP = 'desktop',
 }
 
-// 以下の型定義は src/features/nest-space/types/nestSpace.types.ts に移動済み
-/*
-export interface SpacePersonalization {
-  userId: string;
-  theme?: 'light' | 'dark' | 'system';
-  backgroundColor?: string;
-  fontPreference?: string;
-  layoutPreference?: {
-    [key in LayoutType]?: {
-      isPinned?: boolean;
-      position?: 'left' | 'right' | 'top' | 'bottom';
-      size?: 'small' | 'medium' | 'large';
-    };
-  };
+export interface Thread {
+  id: string;
+  parentMessageId: string;
+  roomId: string;
+  participants: string[];
+  lastMessage?: UIMessage;
+  messageCount: number;
+  createdAt: string;
+  updatedAt: string;
+  messages: UIMessage[];
+  title: string;
+  isActive: boolean;
 }
 
-export interface MemberPresence {
-  userId: string;
-  userName: string;
+export interface ChatUser {
+  id: string;
+  name: string;
+  isBot: boolean;
   avatarUrl?: string;
-  lastActive: Date;
-  status: 'online' | 'away' | 'offline';
-  currentSpaceId?: string;
 }
 
-export interface SpaceMetadata {
-  createdAt: Date;
-  createdBy: string;
-  updatedAt: Date;
-  updatedBy: string;
-  viewCount: number;
-  version: number;
-}
-
-export interface NestSpace {
+export interface ChatMessage {
   id: string;
-  name: string;
-  type: SpaceType;
-  icon?: string;
-  description?: string;
-  parentId?: string;
-  children?: string[];
-  content?: any;
-  metadata: SpaceMetadata;
-  personalization?: SpacePersonalization[];
-  members?: string[];
-  activeMembers?: MemberPresence[];
+  chatId: string;
+  content: string;
+  sender: ChatUser;
+  created_at: string;
+  is_read: boolean;
 }
 
-export interface NestSpaceContainer {
-  id: string;
-  name: string;
-  description?: string;
-  ownerId: string;
-  spaces: NestSpace[];
-  members: string[];
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface NestSpaceView {
-  spaceId: string;
-  layout: LayoutType;
-  isVisible: boolean;
-  splitView?: {
-    isEnabled: boolean;
-    splitRatio: number;
-    secondarySpaceId?: string;
-  };
-}
-
-export interface NestSpaceNavigationState {
-  activeSpaceId: string;
-  history: string[];
-  views: NestSpaceView[];
-  currentLayout: LayoutType;
+export interface UIMessage extends ChatMessage {
+  pending?: boolean;
 }
 
 export interface Nest {
@@ -102,5 +61,4 @@ export interface Nest {
   color?: string;
   icon?: string;
   space_ids: string[];
-}
-*/ 
+} 

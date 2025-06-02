@@ -1,3 +1,5 @@
+import { SpaceType, Nest, Thread, UIMessage, ChatUser, ChatMessage } from 'src/types/nestSpace.types';
+
 /**
  * チャット関連の型定義
  */

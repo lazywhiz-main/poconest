@@ -2,7 +2,7 @@
  * NEST空間の権限関連の型定義
  */
 
-import { SpaceType } from './nestSpace.types';
+import { SpaceType } from 'src/types/nestSpace.types';
 
 // Replace with proper import path once component is integrated
 // Using a local definition to prevent linting errors

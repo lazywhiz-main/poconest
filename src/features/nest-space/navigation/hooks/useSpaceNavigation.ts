@@ -8,7 +8,7 @@ import {
   DeepLink,
   SpaceData
 } from '../types/navigation.types';
-import { SpaceType } from '../../types/nestSpace.types';
+import { SpaceType } from 'src/types/nestSpace.types';
 import { useNavigationHistory } from './useNavigationHistory';
 import { useContextTransition } from './useContextTransition';
 

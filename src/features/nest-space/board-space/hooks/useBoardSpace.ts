@@ -2,7 +2,7 @@ import { useCallback, useState, useEffect, useMemo } from 'react';
 import { useBoardContext } from '../../../board-space/contexts/BoardContext';
 // import { useNestSpace } from '../../contexts/_NestSpaceContext.tsx';
 import { useNestSpace } from '@contexts/NestSpaceContext';
-import { SpaceType } from '../../types/nestSpace.types';
+import { SpaceType } from 'src/types/nestSpace.types';
 import { BoardColumnType, Card, BoardViewSettings } from '../../../../types/board';
 import { useChatSpace } from '../../chat-space/hooks/useChatSpace';
 import { getCardSources } from '../../../../services/BoardService';
