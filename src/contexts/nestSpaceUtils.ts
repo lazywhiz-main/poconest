@@ -47,11 +47,11 @@ export type NestSpaceAction =
   | { type: NestSpaceActionType.SET_ERROR; payload: string | null };
 
 // Helper function to determine layout based on screen width (moved from NestSpaceContext)
-export const determineLayout = (): any => {
+export const determineLayout = (): string => {
   const { width } = Dimensions.get('window');
-  if (width < 768) return LayoutType.MOBILE;
-  if (width < 1024) return LayoutType.TABLET;
-  return LayoutType.DESKTOP;
+  if (width < 768) return 'mobile';
+  if (width < 1024) return 'tablet';
+  return 'desktop';
 };
 
 // Initial state (moved from NestSpaceContext, uses types defined above)
@@ -64,7 +64,7 @@ export const initialNestSpaceState: NestSpaceState = {
     views: [],
     currentLayout: determineLayout(),
   },
-  currentUserRole: SpaceRoleType.GUEST,
+  currentUserRole: 'guest',
   isLoading: false,
   error: null,
 };
@@ -94,24 +94,24 @@ export const nestSpaceReducer = (state: NestSpaceState, action: NestSpaceAction)
     case NestSpaceActionType.UPDATE_LAYOUT:
       return { ...state, navigation: { ...state.navigation, currentLayout: action.payload } };
     case NestSpaceActionType.UPDATE_VIEW: {
-      const viewIndex = state.navigation.views.findIndex(view => view.spaceId === action.payload.spaceId);
+      const viewIndex = state.navigation.views.findIndex((view: any) => view.spaceId === action.payload.spaceId);
       const updatedViews = [...state.navigation.views];
       if (viewIndex >= 0) updatedViews[viewIndex] = action.payload; else updatedViews.push(action.payload);
       return { ...state, navigation: { ...state.navigation, views: updatedViews } };
     }
     case NestSpaceActionType.TOGGLE_SPLIT_VIEW: {
-      const viewToUpdate = state.navigation.views.find(view => view.spaceId === action.payload.spaceId);
+      const viewToUpdate = state.navigation.views.find((view: any) => view.spaceId === action.payload.spaceId);
       if (!viewToUpdate) return state;
       const isEnabled = action.payload.isEnabled !== undefined ? action.payload.isEnabled : !viewToUpdate.splitView?.isEnabled;
       const updatedView: any = { ...viewToUpdate, splitView: { isEnabled, splitRatio: action.payload.splitRatio || 0.5, secondarySpaceId: action.payload.secondarySpaceId } };
-      return { ...state, navigation: { ...state.navigation, views: state.navigation.views.map(view => view.spaceId === action.payload.spaceId ? updatedView : view) } };
+      return { ...state, navigation: { ...state.navigation, views: state.navigation.views.map((view: any) => view.spaceId === action.payload.spaceId ? updatedView : view) } };
     }
     case NestSpaceActionType.UPDATE_MEMBER_PRESENCE: {
       const updatedSpaces = { ...state.spaces };
       for (const spaceId in updatedSpaces) {
         const space = updatedSpaces[spaceId];
         const memberPresence = space.activeMembers || [];
-        const memberIndex = memberPresence.findIndex(member => member.userId === action.payload.userId);
+        const memberIndex = memberPresence.findIndex((member: any) => member.userId === action.payload.userId);
         if (memberIndex >= 0) {
           const updatedMembers = [...memberPresence];
           updatedMembers[memberIndex] = action.payload;
