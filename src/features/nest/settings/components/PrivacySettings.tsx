@@ -9,10 +9,8 @@ import {
   ActivityIndicator,
   Alert
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useNestSettings } from '../hooks/useNestSettings';
 import { NestPrivacySettings } from '../types/settings.types';
-import { RadioButton } from 'react-native-paper';
 
 // プラットフォームに応じたスタイル調整
 const isWeb = Platform.OS === 'web';
@@ -137,36 +135,18 @@ const PrivacySettingsComponent: React.FC<PrivacySettingsProps> = ({
             style={styles.radioOption}
             onPress={() => handleChange('visibility', 'private')}
           >
-            <RadioButton
-              value="private"
-              status={currentPrivacy?.visibility === 'private' ? 'checked' : 'unchecked'}
-              onPress={() => handleChange('visibility', 'private')}
-              color="#0066cc"
-            />
-            <View style={styles.radioOptionContent}>
-              <Text style={styles.radioLabel}>プライベート</Text>
-              <Text style={styles.radioDescription}>
-                このNESTはメンバーのみが閲覧できます
-              </Text>
-            </View>
+            {isWeb ? null : (
+              <span>プライベート</span>
+            )}
           </TouchableOpacity>
           
           <TouchableOpacity 
             style={styles.radioOption}
             onPress={() => handleChange('visibility', 'public')}
           >
-            <RadioButton
-              value="public"
-              status={currentPrivacy?.visibility === 'public' ? 'checked' : 'unchecked'}
-              onPress={() => handleChange('visibility', 'public')}
-              color="#0066cc"
-            />
-            <View style={styles.radioOptionContent}>
-              <Text style={styles.radioLabel}>パブリック</Text>
-              <Text style={styles.radioDescription}>
-                このNESTは誰でも閲覧できます
-              </Text>
-            </View>
+            {isWeb ? null : (
+              <span>パブリック</span>
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -197,36 +177,18 @@ const PrivacySettingsComponent: React.FC<PrivacySettingsProps> = ({
             style={styles.radioOption}
             onPress={() => handleChange('memberListVisibility', 'members_only')}
           >
-            <RadioButton
-              value="members_only"
-              status={currentPrivacy?.memberListVisibility === 'members_only' ? 'checked' : 'unchecked'}
-              onPress={() => handleChange('memberListVisibility', 'members_only')}
-              color="#0066cc"
-            />
-            <View style={styles.radioOptionContent}>
-              <Text style={styles.radioLabel}>メンバーのみ</Text>
-              <Text style={styles.radioDescription}>
-                メンバーリストはNESTのメンバーのみが閲覧できます
-              </Text>
-            </View>
+            {isWeb ? null : (
+              <span>メンバーのみ</span>
+            )}
           </TouchableOpacity>
           
           <TouchableOpacity 
             style={styles.radioOption}
             onPress={() => handleChange('memberListVisibility', 'public')}
           >
-            <RadioButton
-              value="public"
-              status={currentPrivacy?.memberListVisibility === 'public' ? 'checked' : 'unchecked'}
-              onPress={() => handleChange('memberListVisibility', 'public')}
-              color="#0066cc"
-            />
-            <View style={styles.radioOptionContent}>
-              <Text style={styles.radioLabel}>公開</Text>
-              <Text style={styles.radioDescription}>
-                メンバーリストは誰でも閲覧できます
-              </Text>
-            </View>
+            {isWeb ? null : (
+              <span>公開</span>
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -251,7 +213,6 @@ const PrivacySettingsComponent: React.FC<PrivacySettingsProps> = ({
               <ActivityIndicator size="small" color="#fff" />
             ) : (
               <>
-                <Ionicons name="save-outline" size={16} color="#fff" style={styles.buttonIcon} />
                 <Text style={styles.saveButtonText}>変更を保存</Text>
               </>
             )}
@@ -261,7 +222,6 @@ const PrivacySettingsComponent: React.FC<PrivacySettingsProps> = ({
       
       {/* 設定情報 */}
       <View style={styles.infoContainer}>
-        <Ionicons name="information-circle-outline" size={16} color="#666" />
         <Text style={styles.infoText}>
           プライバシー設定はNESTの可視性とアクセス権を制御します。
           変更はすべてのメンバーに即時反映されます。
@@ -280,7 +240,7 @@ const styles = StyleSheet.create({
       web: {
         boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
         maxWidth: 800,
-        margin: '0 auto',
+        margin: 'auto',
       },
       default: {
         shadowColor: '#000',
@@ -404,9 +364,6 @@ const styles = StyleSheet.create({
     color: '#666',
     fontWeight: '500',
     fontSize: 14,
-  },
-  buttonIcon: {
-    marginRight: 6,
   },
   infoContainer: {
     flexDirection: 'row',

@@ -10,7 +10,6 @@ import {
   KeyboardAvoidingView,
   BackHandler
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useCreateNest, CreateNestStep } from '../hooks/useCreateNest';
 import NestBasicInfo from './NestBasicInfo';
@@ -217,7 +216,7 @@ const CreateNestWizard: React.FC<CreateNestWizardProps> = ({
             disabled={i > currentStep}
           >
             {i < currentStep ? (
-              <Ionicons name="checkmark" size={16} color="#fff" />
+              null
             ) : (
               <Text style={styles.stepNumber}>{i + 1}</Text>
             )}
@@ -240,7 +239,6 @@ const CreateNestWizard: React.FC<CreateNestWizardProps> = ({
             onPress={prevStep}
             disabled={loading}
           >
-            <Ionicons name="arrow-back" size={24} color={BRAND_COLORS.text.primary} />
             <Text style={styles.navButtonText}>戻る</Text>
           </TouchableOpacity>
         )}
@@ -252,7 +250,6 @@ const CreateNestWizard: React.FC<CreateNestWizardProps> = ({
             disabled={loading}
           >
             <Text style={styles.primaryNavButtonText}>次へ</Text>
-            <Ionicons name="arrow-forward" size={24} color="#fff" />
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
@@ -261,7 +258,6 @@ const CreateNestWizard: React.FC<CreateNestWizardProps> = ({
             disabled={loading}
           >
             <Text style={styles.primaryNavButtonText}>作成</Text>
-            <Ionicons name="checkmark" size={24} color="#fff" />
           </TouchableOpacity>
         )}
       </View>
@@ -291,7 +287,7 @@ const CreateNestWizard: React.FC<CreateNestWizardProps> = ({
               ]}
             >
               {i < currentStep ? (
-                <Ionicons name="checkmark" size={16} color="#fff" />
+                null
               ) : (
                 <Text style={[
                   styles.stepIconText,
@@ -343,7 +339,7 @@ const CreateNestWizard: React.FC<CreateNestWizardProps> = ({
             style={styles.closeButton}
             onPress={handleClose}
           >
-            <Ionicons name="close" size={24} color={BRAND_COLORS.text.primary} />
+            <Text style={styles.closeButtonText}>✗</Text>
           </TouchableOpacity>
           <Text style={styles.title}>新しいNESTを作成</Text>
           <Text style={styles.stepTitle}>{getStepTitle(currentStep)}</Text>
@@ -352,7 +348,6 @@ const CreateNestWizard: React.FC<CreateNestWizardProps> = ({
         {/* エラーメッセージ */}
         {error && (
           <View style={styles.errorContainer}>
-            <Ionicons name="alert-circle" size={20} color={BRAND_COLORS.error} />
             <Text style={styles.errorText}>{error}</Text>
           </View>
         )}
@@ -411,6 +406,11 @@ const styles = StyleSheet.create({
     right: 16,
     padding: 8,
     zIndex: 1,
+  },
+  closeButtonText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: BRAND_COLORS.text.primary,
   },
   title: {
     fontSize: 24,

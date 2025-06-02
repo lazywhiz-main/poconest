@@ -8,7 +8,6 @@ import {
   StatusBar
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp, ParamListBase } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import CreateNestWizard from '../components/CreateNestWizard';
 import { BRAND_COLORS } from '@constants/Colors';
 
@@ -21,7 +20,7 @@ type CreateNestScreenParams = {
  * NEST作成画面
  */
 const CreateNestScreen: React.FC = () => {
-  const navigation = useNavigation<NativeStackNavigationProp<ParamListBase>>();
+  const navigation = useNavigation<ParamListBase>();
   const route = useRoute<RouteProp<Record<string, CreateNestScreenParams>, string>>();
 
   // ウィザードが完了したときの処理

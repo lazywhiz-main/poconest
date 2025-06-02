@@ -2,8 +2,6 @@ import React from 'react';
 import { View, Text, StyleSheet, SafeAreaView, useWindowDimensions } from 'react-native';
 import { NestSpaceProvider } from '@contexts/NestSpaceContext';
 import NestSpaceNavigator from './NestSpaceNavigator';
-import { SpaceType } from '../../types/nestSpace.types';
-import ZoomSpaceScreen from './zoom-space/screens/ZoomSpaceScreen';
 
 /**
  * ナビゲーションシステムのデモコンポーネント
@@ -31,7 +29,7 @@ const NavigationDemo: React.FC = () => {
               enableAnimations={true}
             >
               {/* Zoom空間のコンテンツを直接表示 */}
-              <ZoomSpaceScreen />
+              {/* <ZoomSpaceScreen /> */}
             </NestSpaceNavigator>
             
             <Text style={styles.footnote}>
