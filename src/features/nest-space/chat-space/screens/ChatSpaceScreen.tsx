@@ -1,8 +1,9 @@
 import React, { useEffect } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Text } from 'react-native';
 import { useNestSpace } from '@contexts/NestSpaceContext';
 import { SpaceType } from '../../types/nestSpace.types';
 import ChatSpace from '../components/ChatSpace';
+import { useNest } from '../../../nest/contexts/NestContext';
 
 // This is a custom hook that provides a wrapper over useChatSpace 
 // which we'll create next as a provider
@@ -15,6 +16,7 @@ const ChatSpaceProvider: React.FC<{ children: React.ReactNode }> = ({ children }
 // Main screen component
 const ChatSpaceScreen: React.FC = () => {
   const { navigateToSpace, isSpaceActive } = useNestSpace();
+  const { currentNest } = useNest();
   
   // Ensure the chat space is activated
   useEffect(() => {
@@ -23,10 +25,18 @@ const ChatSpaceScreen: React.FC = () => {
     }
   }, [isSpaceActive, navigateToSpace]);
   
+  if (!currentNest) {
+    return (
+      <View style={styles.container}>
+        <Text>NEST情報を取得中...</Text>
+      </View>
+    );
+  }
+  
   return (
     <View style={styles.container}>
       <ChatSpaceProvider>
-        <ChatSpace />
+        <ChatSpace nestId={currentNest.id} />
       </ChatSpaceProvider>
     </View>
   );
@@ -35,7 +45,7 @@ const ChatSpaceScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'pink',
+    backgroundColor: '#FFFFFF',
   },
 });
 

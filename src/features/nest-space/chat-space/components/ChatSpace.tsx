@@ -152,7 +152,8 @@ export const ChatSpace: React.FC<ChatSpaceProps> = ({ nestId }) => {
   }, []);
 
   const handleAttachmentSelect = useCallback(() => {
-    // Implement attachment selection logic
+    // TODO: Implement attachment selection
+    console.log('Attachment selection not implemented yet');
   }, []);
 
   const handleReply = useCallback((messageId: string, inNewThread = false) => {
@@ -192,17 +193,14 @@ export const ChatSpace: React.FC<ChatSpaceProps> = ({ nestId }) => {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
     >
       <View style={styles.container}>
-        <ChatHeader
-          onToggleThreadView={handleToggleThreadView}
-          onToggleSettings={handleToggleSettings}
-          onCreateChannel={handleToggleCreateChannel}
-        />
-        
         <View style={styles.layoutRow}>
           {shouldShowSidebar && (
-            <View style={[styles.sidebar, isSidebarOverlay && styles.overlaySidebar]}>
+            <View style={[
+              styles.sidebar,
+              isSidebarOverlay && styles.overlaySidebar
+            ]}>
               <ChatRoomList
-                rooms={chatRooms}
+                rooms={rooms}
                 activeRoomId={activeRoomId}
                 onSelectRoom={handleSelectChatRoom}
                 onCreateChannel={handleToggleCreateChannel}
@@ -211,43 +209,56 @@ export const ChatSpace: React.FC<ChatSpaceProps> = ({ nestId }) => {
           )}
           
           <View style={styles.mainArea}>
-            {activeRoomId ? (
-              <View style={styles.messageArea}>
-                <MessageList
-                  messages={messages[activeRoomId] || []}
-                  onReply={handleReply}
-                  highlightedMessageIds={activeThreadId ? [activeThreadId] : []}
-                />
-                <View style={styles.inputArea}>
+            <View style={styles.messageArea}>
+              {activeChatRoom ? (
+                <>
+                  <ChatHeader
+                    onToggleThreadView={handleToggleThreadView}
+                    onToggleSettings={handleToggleSettings}
+                    onCreateChannel={handleToggleCreateChannel}
+                  />
+                  
+                  <MessageList
+                    messages={currentMessages}
+                    onReply={handleReplyMessage}
+                    onSave={handleSaveMessage}
+                    onHighlight={highlightMessages}
+                    onClearHighlights={clearHighlights}
+                    highlightedMessageIds={chatSpaceState.highlightedMessageIds}
+                  />
+                  
                   <ChatInput
                     inputState={inputState}
                     onSend={handleSendMessage}
                     onInputChange={handleInputChange}
-                    onAttachmentSelect={handleAttachmentSelect}
+                    onAttachmentSelect={() => {
+                      // TODO: Implement attachment selection
+                      console.log('Attachment selection not implemented yet');
+                    }}
                   />
+                </>
+              ) : (
+                <View style={styles.emptyChatMessage}>
+                  <Text style={styles.emptyChatText}>
+                    チャットルームを選択してください
+                  </Text>
                 </View>
-              </View>
-            ) : (
-              <View style={styles.emptyChatMessage}>
-                <Text style={styles.emptyChatText}>
-                  チャットルームを選択してください
-                </Text>
+              )}
+            </View>
+            
+            {shouldShowThreadPanel && (
+              <View style={styles.threadPanel}>
+                {activeThread ? (
+                  <ThreadView
+                    thread={activeThread}
+                    messages={threadMessages}
+                    onClose={handleToggleThreadView}
+                    onReply={messageId => handleReplyMessage({ id: messageId })}
+                  />
+                ) : null}
               </View>
             )}
           </View>
-          
-          {shouldShowThreadPanel && (
-            <View style={styles.threadPanel}>
-              {activeThread ? (
-                <ThreadView
-                  thread={activeThread}
-                  messages={threadMessages}
-                  onClose={handleCloseThread}
-                  onReply={messageId => handleReply(messageId, false)}
-                />
-              ) : null}
-            </View>
-          )}
         </View>
       </View>
       

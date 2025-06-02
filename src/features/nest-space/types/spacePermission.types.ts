@@ -135,6 +135,26 @@ export const DefaultRoleSpacePermissions: Record<NestRole, SpaceTypePermission[]
         SpaceActionType.EDIT,
       ],
     },
+    // ミーティング空間権限
+    {
+      spaceType: SpaceType.MEETING,
+      allowedActions: [
+        SpaceActionType.VIEW,
+        SpaceActionType.CREATE,
+        SpaceActionType.DELETE,
+        SpaceActionType.SHARE,
+        SpaceActionType.EXPORT,
+      ],
+    },
+    // ユーザープロフィール空間権限
+    {
+      spaceType: SpaceType.USER_PROFILE,
+      allowedActions: [
+        SpaceActionType.VIEW,
+        SpaceActionType.EDIT,
+        SpaceActionType.SHARE,
+      ],
+    },
   ],
   
   // メンバー権限
@@ -185,6 +205,22 @@ export const DefaultRoleSpacePermissions: Record<NestRole, SpaceTypePermission[]
         SpaceActionType.VIEW,
       ],
     },
+    // ミーティング空間権限
+    {
+      spaceType: SpaceType.MEETING,
+      allowedActions: [
+        SpaceActionType.VIEW,
+        SpaceActionType.CREATE,
+      ],
+    },
+    // ユーザープロフィール空間権限
+    {
+      spaceType: SpaceType.USER_PROFILE,
+      allowedActions: [
+        SpaceActionType.VIEW,
+        SpaceActionType.EDIT,
+      ],
+    },
   ],
   
   // ゲスト権限
@@ -222,6 +258,20 @@ export const DefaultRoleSpacePermissions: Record<NestRole, SpaceTypePermission[]
     {
       spaceType: SpaceType.SETTINGS,
       allowedActions: [],
+    },
+    // ミーティング空間権限
+    {
+      spaceType: SpaceType.MEETING,
+      allowedActions: [
+        SpaceActionType.VIEW,
+      ],
+    },
+    // ユーザープロフィール空間権限
+    {
+      spaceType: SpaceType.USER_PROFILE,
+      allowedActions: [
+        SpaceActionType.VIEW,
+      ],
     },
   ],
 };

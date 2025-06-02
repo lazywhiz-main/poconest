@@ -24,7 +24,10 @@ const SPACE_CONFIGS: Record<SpaceType, { icon: string; color: string }> = {
   [SpaceType.BOARD]: { icon: 'layout', color: '#43a047' },
   [SpaceType.ANALYSIS]: { icon: 'bar-chart-2', color: '#7e57c2' },
   [SpaceType.MEETING]: { icon: 'video', color: '#7e57c2' },
-  [SpaceType.USER_PROFILE]: { icon: 'user', color: '#757575' }
+  [SpaceType.USER_PROFILE]: { icon: 'user', color: '#757575' },
+  [SpaceType.ZOOM]: { icon: 'video', color: '#2196f3' },
+  [SpaceType.SETTINGS]: { icon: 'settings', color: '#757575' },
+  [SpaceType.INSIGHTS]: { icon: 'bar-chart', color: '#7e57c2' }
 };
 
 interface ContextBreadcrumbProps {
