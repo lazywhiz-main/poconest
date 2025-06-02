@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,18 +14,21 @@ import ThreadView from './ThreadView';
 import ChatSpaceSettings from './ChatSpaceSettings';
 import CreateChannelModal from './CreateChannelModal';
 import { LayoutType } from '../../types/nestSpace.types';
+import { ChatRoom, UIMessage, Thread, ChatMessage, MessageInputState, ChatUser } from '../types/chat.types';
+import ChatRoomList from './ChatRoomList';
+import { MessageList } from './MessageList';
+import { ChatInput } from './ChatInput';
 
-// Reuse some existing components from the current chat implementation
-import MessageList from '../../../../screens/chat/components/MessageList';
-import ChatInput from '../../../../screens/chat/components/ChatInput';
-import ChatRoomList from '../../../../screens/chat/components/ChatRoomList';
+export interface ChatSpaceProps {
+  nestId: string;
+}
 
-const ChatSpace: React.FC = () => {
+export const ChatSpace: React.FC<ChatSpaceProps> = ({ nestId }) => {
   const { width } = useWindowDimensions();
   const { spaceState } = useNestSpace();
   const {
     chatRooms,
-    messages,
+    messages: chatMessages,
     activeChatRoomId,
     setActiveChatRoom,
     isPocoTyping,
@@ -41,6 +44,16 @@ const ChatSpace: React.FC = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [showChatList, setShowChatList] = useState(false);
   const [showCreateChannel, setShowCreateChannel] = useState(false);
+  const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
+  const [rooms, setRooms] = useState<ChatRoom[]>([]);
+  const [messages, setMessages] = useState<Record<string, UIMessage[]>>({});
+  const [threads, setThreads] = useState<Record<string, Thread>>({});
+  const [inputState, setInputState] = useState<MessageInputState>({
+    content: '',
+    isTyping: false,
+    attachments: []
+  });
   
   // Responsive layout calculations
   const isMobile = spaceState.layoutType === LayoutType.MOBILE;
@@ -54,12 +67,10 @@ const ChatSpace: React.FC = () => {
   
   // Content preparation
   const activeChatRoom = chatRooms.find(room => room.id === activeChatRoomId);
-  const currentMessages = activeChatRoomId ? [...(messages[activeChatRoomId] || [])] : [];
+  const currentMessages = activeChatRoomId ? [...(chatMessages[activeChatRoomId] || [])] : [];
   
   // Determine if we have an active thread
-  const activeThread = chatSpaceState.activeThreadId 
-    ? chatSpaceState.threads[chatSpaceState.activeThreadId]
-    : null;
+  const activeThread = activeThreadId ? threads[activeThreadId] : null;
   
   const threadMessages = activeThread?.messages || [];
   
@@ -70,18 +81,37 @@ const ChatSpace: React.FC = () => {
   
   // Select a chat room
   const handleSelectChatRoom = (id: string) => {
-    setActiveChatRoom(id);
+    setActiveRoomId(id);
     if (isMobile) {
       setShowChatList(false);
     }
   };
   
   // Send a message
-  const handleSendMessage = (content: string) => {
-    if (content.trim() && activeChatRoomId) {
-      sendThreadMessage(content);
-    }
-  };
+  const handleSendMessage = useCallback(() => {
+    if (!inputState.content.trim() || !activeRoomId) return;
+
+    const currentUser: ChatUser = {
+      id: 'current-user-id',
+      name: 'Current User',
+      isBot: false
+    };
+
+    const newMessage: UIMessage = {
+      id: Date.now().toString(),
+      chatId: activeRoomId,
+      content: inputState.content,
+      sender: currentUser,
+      created_at: new Date().toISOString(),
+      is_read: false
+    };
+
+    setMessages(prev => ({
+      ...prev,
+      [activeRoomId]: [...(prev[activeRoomId] || []), newMessage]
+    }));
+    setInputState(prev => ({ ...prev, content: '' }));
+  }, [inputState.content, activeRoomId]);
   
   // Toggle thread panel
   const handleToggleThreadView = () => {
@@ -117,6 +147,41 @@ const ChatSpace: React.FC = () => {
     replyToMessage("", false);
   };
 
+  const handleInputChange = useCallback((content: string) => {
+    setInputState(prev => ({ ...prev, content }));
+  }, []);
+
+  const handleAttachmentSelect = useCallback(() => {
+    // Implement attachment selection logic
+  }, []);
+
+  const handleReply = useCallback((messageId: string, inNewThread = false) => {
+    if (inNewThread) {
+      // Create new thread
+      const newThread: Thread = {
+        id: Date.now().toString(),
+        parentMessageId: messageId,
+        roomId: activeRoomId!,
+        participants: [],
+        lastMessage: undefined,
+        messageCount: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        messages: [],
+        title: `Thread ${Date.now()}`
+      };
+      setThreads(prev => ({ ...prev, [newThread.id]: newThread }));
+      setActiveThreadId(newThread.id);
+    } else {
+      // Reply in existing thread
+      setActiveThreadId(messageId);
+    }
+  }, [activeRoomId]);
+
+  const handleCloseThread = useCallback(() => {
+    setActiveThreadId(null);
+  }, []);
+
   console.log('DUMMY LAYOUT!');
 
   return (
@@ -137,7 +202,7 @@ const ChatSpace: React.FC = () => {
             <View style={[styles.sidebar, isSidebarOverlay && styles.overlaySidebar]}>
               <ChatRoomList
                 rooms={chatRooms}
-                activeRoomId={activeChatRoomId}
+                activeRoomId={activeRoomId}
                 onSelectRoom={handleSelectChatRoom}
                 onCreateChannel={handleToggleCreateChannel}
               />
@@ -145,17 +210,19 @@ const ChatSpace: React.FC = () => {
           )}
           
           <View style={styles.mainArea}>
-            {activeChatRoomId ? (
+            {activeRoomId ? (
               <View style={styles.messageArea}>
                 <MessageList
-                  messages={currentMessages}
-                  onReply={replyToMessage}
-                  highlightedMessageIds={chatSpaceState.highlightedMessageIds}
+                  messages={messages[activeRoomId] || []}
+                  onReply={handleReply}
+                  highlightedMessageIds={activeThreadId ? [activeThreadId] : []}
                 />
                 <View style={styles.inputArea}>
                   <ChatInput
+                    inputState={inputState}
                     onSend={handleSendMessage}
-                    isTyping={isPocoTyping}
+                    onInputChange={handleInputChange}
+                    onAttachmentSelect={handleAttachmentSelect}
                   />
                 </View>
               </View>
@@ -170,11 +237,14 @@ const ChatSpace: React.FC = () => {
           
           {shouldShowThreadPanel && (
             <View style={styles.threadPanel}>
-              <ThreadView
-                thread={activeThread}
-                messages={threadMessages}
-                onClose={handleToggleThreadView}
-              />
+              {activeThread ? (
+                <ThreadView
+                  thread={activeThread}
+                  messages={threadMessages}
+                  onClose={handleCloseThread}
+                  onReply={messageId => handleReply(messageId, false)}
+                />
+              ) : null}
             </View>
           )}
         </View>

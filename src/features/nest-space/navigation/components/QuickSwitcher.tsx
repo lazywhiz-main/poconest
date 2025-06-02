@@ -62,8 +62,11 @@ const SPACE_CONFIGS: Record<SpaceType, { icon: string; color: string }> = {
   [SpaceType.CHAT]: { icon: 'message-circle', color: '#4a6da7' },
   [SpaceType.BOARD]: { icon: 'layout', color: '#43a047' },
   [SpaceType.ANALYSIS]: { icon: 'bar-chart-2', color: '#7e57c2' },
+  [SpaceType.MEETING]: { icon: 'video', color: '#7e57c2' },
+  [SpaceType.USER_PROFILE]: { icon: 'user', color: '#757575' },
   [SpaceType.ZOOM]: { icon: 'video', color: '#0e71eb' },
-  [SpaceType.SETTINGS]: { icon: 'settings', color: '#757575' }
+  [SpaceType.SETTINGS]: { icon: 'settings', color: '#757575' },
+  [SpaceType.INSIGHTS]: { icon: 'bar-chart-2', color: '#7e57c2' }
 };
 
 interface QuickSwitcherProps {

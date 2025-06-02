@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useChatSpace, Thread } from '../hooks/useChatSpace';
 import { useThreadNavigation } from '../hooks/useThreadNavigation';
+import { UIMessage } from '../types/chat.types';
 
 interface ThreadItemProps {
   thread: Thread;
@@ -87,11 +88,19 @@ const ThreadItem: React.FC<ThreadItemProps> = ({
   );
 };
 
-interface ThreadViewProps {
-  onClose?: () => void;
+export interface ThreadViewProps {
+  thread: Thread;
+  messages: UIMessage[];
+  onClose: () => void;
+  onReply: (messageId: string) => void;
 }
 
-const ThreadView: React.FC<ThreadViewProps> = ({ onClose }) => {
+const ThreadView: React.FC<ThreadViewProps> = ({
+  thread,
+  messages,
+  onClose,
+  onReply
+}) => {
   const { chatSpaceState, setActiveThread } = useChatSpace();
   const { navigationState, toggleThreadExpansion, searchThreads, clearSearch, getThreadHierarchy, isThreadVisible } = useThreadNavigation();
   
@@ -119,55 +128,28 @@ const ThreadView: React.FC<ThreadViewProps> = ({ onClose }) => {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>スレッド</Text>
-        {onClose && (
-          <TouchableOpacity onPress={onClose}>
-            <Text style={styles.closeButton}>✕</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-      
-      <View style={styles.searchContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="スレッドを検索..."
-          value={searchText}
-          onChangeText={handleSearch}
-        />
-      </View>
-      
-      <ScrollView style={styles.threadList}>
-        {mainThreads
-          .filter(thread => isThreadVisible(thread.id))
-          .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-          .map(thread => (
-            <ThreadItem
-              key={thread.id}
-              thread={thread}
-              isActive={thread.id === chatSpaceState.activeThreadId}
-              isExpanded={!!navigationState.expandedThreads[thread.id]}
-              childThreads={childThreads[thread.id] || []}
-              onSelect={handleThreadSelect}
-              onToggleExpansion={toggleThreadExpansion}
-            />
-          ))
-        }
-        
-        {/* Show when there are no threads or no search results */}
-        {mainThreads.length === 0 && (
-          <Text style={styles.emptyMessage}>スレッドがありません</Text>
-        )}
-        
-        {mainThreads.length > 0 && 
-          navigationState.isSearching && 
-          !mainThreads.some(thread => isThreadVisible(thread.id)) && (
-          <Text style={styles.emptyMessage}>検索結果がありません</Text>
-        )}
-      </ScrollView>
-      
-      <View style={styles.footer}>
-        <TouchableOpacity style={styles.newThreadButton}>
-          <Text style={styles.newThreadButtonText}>新規スレッド</Text>
+        <TouchableOpacity onPress={onClose}>
+          <Text style={styles.closeButton}>×</Text>
         </TouchableOpacity>
+      </View>
+      <View style={styles.messages}>
+        {messages.map(message => (
+          <View key={message.id} style={styles.messageContainer}>
+            <View style={styles.messageHeader}>
+              <Text style={styles.senderName}>{message.sender.name}</Text>
+              <Text style={styles.timestamp}>
+                {new Date(message.createdAt).toLocaleTimeString()}
+              </Text>
+            </View>
+            <Text style={styles.messageContent}>{message.content}</Text>
+            <TouchableOpacity
+              style={styles.replyButton}
+              onPress={() => onReply(message.id)}
+            >
+              <Text style={styles.replyButtonText}>返信</Text>
+            </TouchableOpacity>
+          </View>
+        ))}
       </View>
     </View>
   );
@@ -176,9 +158,7 @@ const ThreadView: React.FC<ThreadViewProps> = ({ onClose }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
-    borderLeftWidth: 1,
-    borderLeftColor: '#E0E0E0',
+    backgroundColor: '#fff',
   },
   header: {
     flexDirection: 'row',
@@ -186,29 +166,47 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: '#e0e0e0',
   },
   title: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
   },
   closeButton: {
-    fontSize: 18,
+    fontSize: 24,
+    color: '#666',
   },
-  searchContainer: {
+  messages: {
+    flex: 1,
+  },
+  messageContainer: {
     padding: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: '#e0e0e0',
   },
-  searchInput: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 4,
-    padding: 8,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
+  messageHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
   },
-  threadList: {
-    flex: 1,
+  senderName: {
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  timestamp: {
+    color: '#666',
+    fontSize: 12,
+  },
+  messageContent: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  replyButton: {
+    marginTop: 8,
+  },
+  replyButtonText: {
+    color: '#666',
+    fontSize: 12,
   },
   threadItemContainer: {
     borderBottomWidth: 1,
@@ -263,26 +261,6 @@ const styles = StyleSheet.create({
   },
   childThreadTitle: {
     fontSize: 12,
-  },
-  emptyMessage: {
-    padding: 16,
-    textAlign: 'center',
-    color: '#9E9E9E',
-  },
-  footer: {
-    padding: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
-  },
-  newThreadButton: {
-    backgroundColor: '#1E88E5',
-    borderRadius: 4,
-    padding: 12,
-    alignItems: 'center',
-  },
-  newThreadButtonText: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
   },
 });
 

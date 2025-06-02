@@ -11,6 +11,9 @@ export enum SpaceType {
   ANALYSIS = 'analysis',   // 分析空間
   MEETING = 'meeting',     // ミーティング空間
   USER_PROFILE = 'user_profile',   // ユーザープロフィール空間
+  ZOOM = 'zoom',           // Zoom空間
+  SETTINGS = 'settings',   // 設定空間
+  INSIGHTS = 'insights'    // インサイト空間
 }
 
 /**
@@ -37,6 +40,7 @@ export interface Nest {
   color?: string;
   icon?: string;
   space_ids: string[];
+  emoji?: string;  // 絵文字アイコン
 }
 
 /**

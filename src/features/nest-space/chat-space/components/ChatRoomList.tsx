@@ -6,9 +6,9 @@ import {
   TouchableOpacity,
   ScrollView,
 } from 'react-native';
-import { ChatRoom } from '@contexts/ChatContext';
+import { ChatRoom } from '../types/chat.types';
 
-interface ChatRoomListProps {
+export interface ChatRoomListProps {
   rooms: ChatRoom[];
   activeRoomId: string | null;
   onSelectRoom: (id: string) => void;
