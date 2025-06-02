@@ -1,11 +1,10 @@
-import React, { createContext, useContext, useReducer, useEffect, useState, useCallback } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, Platform, useWindowDimensions } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '@contexts/AuthContext';
-import { NestProvider, useNest, SAMPLE_NESTS, Nest as ImportedNestType } from './features/nest/contexts/NestContext';
+import { NestProvider, useNest, Nest as ImportedNestType } from './features/nest/contexts/NestContext';
 import { NestSpaceProvider, useNestSpace } from '@contexts/NestSpaceContext';
 import { ChatProvider } from '@contexts/ChatContext';
-import NestSpaceIntegrationDemo from './features/nest-space/demo/NestSpaceIntegrationDemo';
 import NestSelector from './features/nest/components/NestSelector';
 import CreateNestModal from './features/nest/components/CreateNestModal';
 import LoginScreen from '@screens/auth/LoginScreen';
@@ -25,10 +24,6 @@ import { MeetingProvider } from './features/meeting-space/contexts/MeetingContex
 import { NestListScreen } from './screens/NestListScreen';
 import WelcomeScreen from '@screens/auth/WelcomeScreen';
 import AuthenticatedRoutes from './navigation';
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import OnboardingScreen from './screens/auth/OnboardingScreen';
-
 // Webではreact-native-screensを無効化
 if (typeof window !== 'undefined') {
   // @ts-ignore

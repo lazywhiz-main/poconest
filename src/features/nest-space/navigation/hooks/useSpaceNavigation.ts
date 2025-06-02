@@ -21,7 +21,7 @@ const getViewModeFromDimensions = (width: number): ViewMode => {
 
 // デフォルトのナビゲーション設定
 const defaultConfig: NavigationConfig = {
-  preferredSpaces: [SpaceType.CHAT, SpaceType.BOARD, SpaceType.ANALYSIS, SpaceType.ZOOM],
+  preferredSpaces: [SpaceType.CHAT, SpaceType.BOARD, SpaceType.ANALYSIS, SpaceType.MEETING],
   defaultSpace: SpaceType.CHAT,
   layoutMode: 'stacked',
   showBreadcrumbs: true,

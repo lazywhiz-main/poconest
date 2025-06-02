@@ -8,8 +8,8 @@
 export enum SpaceType {
   CHAT = 'chat',           // チャット空間
   BOARD = 'board',         // ボード空間
-  MEETING = 'meeting',     // ミーティング空間
   ANALYSIS = 'analysis',   // 分析空間
+  MEETING = 'meeting',     // ミーティング空間
   USER_PROFILE = 'user_profile',   // ユーザープロフィール空間
 }
 

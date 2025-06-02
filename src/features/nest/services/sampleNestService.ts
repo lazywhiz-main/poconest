@@ -17,7 +17,7 @@ export class SampleNestService {
           spaces: [
             { type: SpaceType.CHAT, name: '全体チャット', icon: '💬' },
             { type: SpaceType.BOARD, name: 'タスク管理', icon: '📋' },
-            { type: SpaceType.ZOOM, name: 'ミーティング', icon: '🎥' }
+            { type: SpaceType.MEETING, name: 'ミーティング', icon: '🎥' }
           ]
         },
         {
@@ -37,7 +37,7 @@ export class SampleNestService {
           spaces: [
             { type: SpaceType.CHAT, name: 'プロジェクトチャット', icon: '💬' },
             { type: SpaceType.BOARD, name: 'プロジェクトボード', icon: '📋' },
-            { type: SpaceType.ZOOM, name: 'プロジェクト会議', icon: '🎥' }
+            { type: SpaceType.MEETING, name: 'プロジェクト会議', icon: '🎥' }
           ]
         }
       ];
