@@ -28,16 +28,6 @@ const ActivityItem: React.FC<ActivityItemProps> = ({ activity, onPress }) => {
     });
   };
   
-  // Format date (full)
-  const formatDate = (timestamp: string) => {
-    const date = new Date(timestamp);
-    return date.toLocaleDateString('ja-JP', { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
-    });
-  };
-  
   // Get activity icon based on type
   const getActivityIcon = () => {
     switch(activity.type) {

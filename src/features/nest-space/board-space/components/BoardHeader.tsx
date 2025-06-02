@@ -32,7 +32,6 @@ interface BoardHeaderProps {
 const BoardHeader: React.FC<BoardHeaderProps> = ({ 
   onToggleSettings 
 }) => {
-  const { spaceState } = useNestSpace();
   const { 
     boardSpaceState, 
     setActiveColumn, 

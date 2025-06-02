@@ -2,14 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Image, FlatList, useWindowDimensions, Animated, Easing, Dimensions, Alert, Platform } from 'react-native';
 import theme from '../../../styles/theme';
 import { useChat } from '../../../contexts/ChatContext';
-import { Channel, Message } from '../../../types/chat';
 import { useAuth } from '@contexts/AuthContext';
 import { useNest } from '../../nest/contexts/NestContext';
-import { createPortal } from 'react-dom';
-// import { useBoardContext } from '../../../features/board-space/contexts/BoardContext';
-import { SUPABASE_FUNCTION_URL } from '../../../constants/config';
-import { useChatToBoard } from '../../../hooks/useChatToBoard';
-// import { useNestSpace } from '../../nest-space/contexts/_NestSpaceContext';
 import { useNestSpace } from '@contexts/NestSpaceContext';
 import CommonButton from '../../../components/CommonButton';
 import ChatMessage from '../../../components/ChatMessage';
@@ -17,6 +11,12 @@ import ChatInput from '../../../components/ChatInput';
 import Modal from '../../../components/ui/Modal';
 import Button from '../../../components/ui/Button';
 import Spinner from '../../../components/ui/Spinner';
+import { useChatToBoard } from '../../../hooks/useChatToBoard';
+// import { Channel, Message } from '../../../types/chat';
+// import { createPortal } from 'react-dom';
+// import { SUPABASE_FUNCTION_URL } from '../../../constants/config';
+// import { useBoardContext } from '../../../features/board-space/contexts/BoardContext';
+// import { useNestSpace } from '../../nest-space/contexts/_NestSpaceContext';
 
 console.log('ChatSpace.tsx loaded!');
 
@@ -161,7 +161,7 @@ const CreateChannelModal: React.FC<CreateChannelModalProps> = ({ visible, onClos
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal open={visible} onClose={onClose}>
       <View style={modalStyles.overlay}>
         <View style={modalStyles.modal}>
           <View style={modalStyles.header}>
@@ -671,7 +671,7 @@ const ChatSpace: React.FC<ChatSpaceProps> = ({ nestId }) => {
 
   // --- グローバルクリック監視 ---
   useEffect(() => {
-    const handler = e => {
+    const handler = (e: MouseEvent) => {
       console.log('window click', e.target);
     };
     window.addEventListener('click', handler);
@@ -1358,12 +1358,10 @@ const ChatSpace: React.FC<ChatSpaceProps> = ({ nestId }) => {
         </View>
       </View>
       {/* モバイル用チャネルリストモーダル（上から下にアニメーション） */}
-      {isMobile && Platform.OS !== 'web' && (
+      {isMobile && typeof window === 'undefined' && (
         <Modal
-          visible={showChannelList}
-          animationType="none"
-          transparent={true}
-          onRequestClose={() => setShowChannelList(false)}
+          open={showChannelList}
+          onClose={() => setShowChannelList(false)}
         >
           <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.2)', justifyContent: 'flex-start' }}>
             <Animated.View

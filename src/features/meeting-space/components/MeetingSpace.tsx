@@ -8,13 +8,12 @@ interface MeetingSpaceProps {
 }
 
 const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
-  const { meetings, selectedMeeting, selectMeeting, loadMeetings, uploadFile, error }: {
+  const { meetings, selectedMeeting, selectMeeting, loadMeetings, uploadFile }: {
     meetings: Meeting[];
     selectedMeeting: Meeting | null;
     selectMeeting: (meeting: Meeting) => void;
     loadMeetings: () => Promise<void>;
     uploadFile: (file: File, meetingId: string) => Promise<void>;
-    error: string | null;
   } = useMeeting();
   const fileInputRef = useRef<HTMLInputElement>(null);
 

@@ -14,21 +14,18 @@ interface BoardCardProps {
   card: Card;
   onPress?: (cardId: string) => void;
   isSelected?: boolean;
-  showActions?: boolean;
 }
 
 const BoardCard: React.FC<BoardCardProps> = ({ 
   card, 
   onPress, 
-  isSelected = false,
-  showActions = false
+  isSelected = false
 }) => {
   const { 
     toggleCardSelection, 
     toggleExpandCard, 
     boardSpaceState,
     togglePinCard,
-    moveCard,
     deleteCard
   } = useBoardSpace();
   
@@ -64,12 +61,6 @@ const BoardCard: React.FC<BoardCardProps> = ({
   const handlePin = (e: GestureResponderEvent) => {
     e.stopPropagation();
     togglePinCard(card.id);
-  };
-  
-  const handleMove = (e: GestureResponderEvent, targetColumn: BoardColumnType) => {
-    e.stopPropagation();
-    moveCard(card.id, targetColumn);
-    setShowMenu(false);
   };
   
   const handleDelete = (e: GestureResponderEvent) => {
@@ -175,39 +166,10 @@ const BoardCard: React.FC<BoardCardProps> = ({
         </View>
       </View>
       
-      {/* Actions Menu (for move, delete, etc.) */}
+      {/* Actions Menu (for delete, etc.) */}
       {showMenu && (
         <View style={styles.actionsMenu}>
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={(e) => handleMove(e, BoardColumnType.INBOX)}
-          >
-            <Text style={styles.actionText}>Move to Inbox</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={(e) => handleMove(e, BoardColumnType.INSIGHTS)}
-          >
-            <Text style={styles.actionText}>Move to Insights</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={(e) => handleMove(e, BoardColumnType.THEMES)}
-          >
-            <Text style={styles.actionText}>Move to Themes</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={(e) => handleMove(e, BoardColumnType.ZOOM)}
-          >
-            <Text style={styles.actionText}>Move to Zoom</Text>
-          </TouchableOpacity>
-          
           <View style={styles.menuDivider} />
-          
           <TouchableOpacity 
             style={[styles.actionButton, styles.deleteButton]}
             onPress={handleDelete}
@@ -343,15 +305,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 4,
   },
-  actionText: {
-    fontSize: 14,
-    color: '#333',
-  },
-  menuDivider: {
-    height: 1,
-    backgroundColor: '#EEEEEE',
-    marginVertical: 4,
-  },
   deleteButton: {
     backgroundColor: 'rgba(255, 0, 0, 0.05)',
   },
@@ -369,6 +322,11 @@ const styles = StyleSheet.create({
   sourceLabel: {
     fontSize: 11,
     color: '#4a6da7',
+  },
+  menuDivider: {
+    height: 1,
+    backgroundColor: '#EEEEEE',
+    marginVertical: 4,
   },
 });
 

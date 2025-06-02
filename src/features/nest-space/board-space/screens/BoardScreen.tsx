@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -171,13 +171,11 @@ const AISuggestions: React.FC = () => {
 const BoardScreen: React.FC = () => {
   const { 
     boardSpaceState, 
-    filteredCards,
-    addCard
+    filteredCards
   } = useBoardSpace();
   
   const { 
-    navigateToCard, 
-    navigationState
+    navigateToCard
   } = useCardNavigation();
   
   const [showSettings, setShowSettings] = useState(false);

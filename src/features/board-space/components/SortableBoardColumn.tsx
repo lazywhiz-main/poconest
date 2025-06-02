@@ -3,12 +3,11 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { DndContext } from '@dnd-kit/core';
 import { SortableContext, useSortable, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { BoardItem, BoardColumnType } from '../contexts/BoardContext';
+import { BoardItem } from '../contexts/BoardContext';
 import theme from '../../../styles/theme';
 
 interface SortableBoardColumnProps {
   cards: BoardItem[];
-  columnType: BoardColumnType;
   onEdit: (card: BoardItem) => void;
   onOrderChange: (newOrder: BoardItem[]) => void;
   renderCard: (card: BoardItem) => React.ReactNode;
@@ -20,7 +19,6 @@ const SortableCard: React.FC<{ card: BoardItem; onEdit: (card: BoardItem) => voi
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: card.id });
   
   const handleClick = (e: React.MouseEvent) => {
-    console.log('Card clicked:', card.id);
     if (!isDragging) {
       e.stopPropagation();
       onEdit(card);
@@ -61,7 +59,7 @@ const SortableCard: React.FC<{ card: BoardItem; onEdit: (card: BoardItem) => voi
   );
 };
 
-const SortableBoardColumn: React.FC<SortableBoardColumnProps> = ({ cards, columnType, onEdit, onOrderChange, renderCard, columnTitle, onAddCard }) => {
+const SortableBoardColumn: React.FC<SortableBoardColumnProps> = ({ cards, onEdit, onOrderChange, renderCard, columnTitle, onAddCard }) => {
   const [localCards, setLocalCards] = useState<BoardItem[]>([]);
 
   useEffect(() => {

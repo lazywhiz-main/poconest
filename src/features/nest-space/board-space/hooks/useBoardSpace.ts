@@ -128,7 +128,7 @@ export const useBoardSpace = () => {
   // Load sources for all cards
   useEffect(() => {
     state.cards.forEach((card: BoardItem) => {
-      if (card.source && !(card.metadata && card.metadata.sources)) {
+      if (card.metadata?.source && !(card.metadata && card.metadata.sources)) {
         loadCardSources(card.id);
       }
     });
@@ -168,7 +168,7 @@ export const useBoardSpace = () => {
       
       // Source filter
       if (boardSpaceState.filters.source && boardSpaceState.filters.source !== 'all') {
-        if (card.source !== boardSpaceState.filters.source) {
+        if (card.metadata?.source !== boardSpaceState.filters.source) {
           return false;
         }
       }
@@ -441,7 +441,7 @@ export const useBoardSpace = () => {
       const now = new Date().toISOString();
       const newCard: BoardItem = {
         id: '', // サーバー側で付与される場合は空文字
-        nest_id: '', // 必要に応じてセット
+        board_id: state.boardId ?? '',
         title: message.content.length > 50 
           ? `${message.content.substring(0, 47)}...` 
           : message.content,
@@ -458,10 +458,10 @@ export const useBoardSpace = () => {
           messageId,
           senderName: message.sender.name,
           messageTimestamp: message.created_at,
-          isFromChat: true
+          isFromChat: true,
+          source: 'chat',
+          source_message_id: chatRoomId,
         },
-        source: 'chat',
-        source_message_id: chatRoomId,
       };
       
       await addCards([newCard]);
@@ -475,8 +475,8 @@ export const useBoardSpace = () => {
   // Find cards related to a specific chat message
   const findCardsFromChatMessage = useCallback((messageId: string, chatRoomId: string) => {
     return state.cards.filter((card: BoardItem) => 
-      card.source === 'chat' && 
-      card.source_message_id === chatRoomId && 
+      card.metadata?.source === 'chat' && 
+      card.metadata?.source_message_id === chatRoomId && 
       card.metadata?.messageId === messageId
     );
   }, [state.cards]);
@@ -484,10 +484,10 @@ export const useBoardSpace = () => {
   // Find chat messages related to a specific card
   const findChatMessagesFromCard = useCallback((cardId: string) => {
     const card = state.cards.find((c: BoardItem) => c.id === cardId);
-    if (!card || card.source !== 'chat' || !card.source_message_id || !card.metadata?.messageId) {
+    if (!card || card.metadata?.source !== 'chat' || !card.metadata?.source_message_id || !card.metadata?.messageId) {
       return [];
     }
-    const chatId = card.source_message_id;
+    const chatId = card.metadata?.source_message_id;
     const messageId = card.metadata.messageId;
     if (!messages[chatId]) return [];
     return messages[chatId].filter(message => message.id === messageId);
@@ -548,7 +548,7 @@ export const useBoardSpace = () => {
     updated_by: item.updated_by,
     tags: item.tags,
     order: item.order_index,
-    sourceId: item.source_message_id,
+    sourceId: item.metadata?.source_message_id,
     metadata: item.metadata,
     sources: item.metadata?.sources,
   });

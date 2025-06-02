@@ -1,4 +1,4 @@
-import React, { useState, useEffect, KeyboardEvent } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useBoardSpace } from '../hooks/useBoardSpace';
 import { BoardColumnType, Card } from '../../../../types/board';
+import type { BoardItem } from '../../../board-space/contexts/BoardContext';
 
 interface CardEditorProps {
   isVisible: boolean;
@@ -29,9 +30,8 @@ const CardEditor: React.FC<CardEditorProps> = ({
 }) => {
   const { 
     allCards, 
-    addCard, 
-    updateCard, 
-    boardSpaceState 
+    addCards, 
+    updateCard
   } = useBoardSpace();
   
   // Form state
@@ -44,12 +44,12 @@ const CardEditor: React.FC<CardEditorProps> = ({
   // Load card data if editing an existing card
   useEffect(() => {
     if (initialCardId) {
-      const card = allCards.find((c: Card) => c.id === initialCardId);
+      const card = allCards.find((c: BoardItem) => c.id === initialCardId);
       if (card) {
         setTitle(card.title);
-        setDescription(card.description);
+        setDescription(card.content || '');
         setTags(card.tags || []);
-        setSelectedColumn(card.column);
+        setSelectedColumn(card.column_type);
       }
     } else {
       // Reset form for new card
@@ -67,21 +67,37 @@ const CardEditor: React.FC<CardEditorProps> = ({
       return;
     }
     
-    const cardData = {
+    const now = new Date().toISOString();
+    const cardData: Partial<BoardItem> = {
       title,
-      description,
+      content: description,
       tags,
-      column: selectedColumn,
-      sourceType: 'manual' as const
+      column_type: selectedColumn,
+      metadata: {
+        source: 'manual'
+      },
+      created_at: now,
+      updated_at: now,
+      order_index: 0,
+      is_archived: false
     };
     
     try {
       if (initialCardId) {
         // Update existing card
-        await updateCard(initialCardId, cardData);
+        await updateCard({ 
+          ...cardData, 
+          id: initialCardId,
+          updated_at: now
+        });
       } else {
         // Create new card
-        await addCard(cardData);
+        await addCards([{
+          ...cardData,
+          id: crypto.randomUUID(),
+          board_id: '', // This will be set by the backend
+          created_by: '', // This will be set by the backend
+        } as BoardItem]);
       }
       
       onClose();
