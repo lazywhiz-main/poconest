@@ -23,7 +23,7 @@ export const MessageList: React.FC<MessageListProps> = ({
       <View style={styles.messageHeader}>
         <Text style={styles.senderName}>{message.sender.name}</Text>
         <Text style={styles.timestamp}>
-          {new Date(message.createdAt).toLocaleTimeString()}
+          {new Date(message.created_at).toLocaleTimeString()}
         </Text>
       </View>
       <Text style={styles.messageContent}>{message.content}</Text>
