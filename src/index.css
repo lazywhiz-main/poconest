@@ -7,7 +7,7 @@
   box-sizing: border-box;
 }
 
-html, body, #root {
+html, body, #root, main, .App, .container, .page, .layout {
   height: 100%;
   width: 100%;
   background: #0f0f23 !important;
