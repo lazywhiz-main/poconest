@@ -40,6 +40,7 @@ export default defineConfig({
       }
     }
   ],
+  base: './',
   resolve: {
     alias: {
       'react-native': reactNativeWeb,
@@ -74,6 +75,11 @@ export default defineConfig({
     sourcemap: !!process.env.TAURI_DEBUG,
     commonjsOptions: {
       transformMixedEsModules: true,
+    },
+    rollupOptions: {
+      output: {
+        manualChunks: undefined,
+      },
     },
   },
   optimizeDeps: {
