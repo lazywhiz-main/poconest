@@ -1,5 +1,4 @@
 import { supabase } from './supabase';
-import { NestSpace, NestSpaceContainer, SpaceType, MemberPresence } from '../types';
 
 /**
  * NestSpaceService - ネストスペース関連の操作を管理するサービス
@@ -9,7 +8,7 @@ export class NestSpaceService {
   /**
    * ユーザーの全てのコンテナを取得
    */
-  async getUserContainers(userId: string): Promise<NestSpaceContainer[]> {
+  async getUserContainers(userId: string): Promise<any[]> {
     try {
       // 1. ユーザーがメンバーであるネストのIDリストを取得
       const { data: memberOfNestsData, error: memberError } = await supabase
@@ -71,7 +70,7 @@ export class NestSpaceService {
   /**
    * 特定のコンテナの詳細を取得
    */
-  async getContainerDetails(containerId: string): Promise<NestSpaceContainer> {
+  async getContainerDetails(containerId: string): Promise<any> {
     try {
       // ネスト情報を取得
       const { data: nest, error: nestError } = await supabase
@@ -122,7 +121,7 @@ export class NestSpaceService {
       if (spacesError) throw spacesError;
       
       // データ変換
-      const container: NestSpaceContainer = {
+      const container: any = {
         id: nest.id,
         name: nest.name,
         description: nest.description || '',
@@ -146,12 +145,12 @@ export class NestSpaceService {
   /**
    * スペースのデータ変換
    */
-  private transformSpaces(spacesData: any[]): NestSpace[] {
+  private transformSpaces(spacesData: any[]): any[] {
     return spacesData.map(space => {
       return {
         id: space.id,
         name: space.name,
-        type: space.type as SpaceType,
+        type: space.type,
         icon: space.icon || '',
         description: space.description || '',
         content: space.content || {},
@@ -175,7 +174,7 @@ export class NestSpaceService {
   /**
    * デフォルトのスペースを取得または作成
    */
-  async getOrCreateDefaultSpaces(containerId: string, userId: string): Promise<NestSpace[]> {
+  async getOrCreateDefaultSpaces(containerId: string, userId: string): Promise<any[]> {
     try {
       // 既存のスペースを確認
       const { data: existingSpaces, error: checkError } = await supabase
@@ -190,10 +189,9 @@ export class NestSpaceService {
       
       // デフォルトで作成すべきスペースタイプ
       const defaultSpaceTypes = [
-        SpaceType.CHAT, 
-        SpaceType.BOARD, 
-        SpaceType.ZOOM, 
-        SpaceType.ANALYSIS
+        'chat', 
+        'board', 
+        'analysis'
       ];
       
       // 不足しているスペースを作成
@@ -232,17 +230,15 @@ export class NestSpaceService {
   /**
    * デフォルトのスペース名を取得
    */
-  private getDefaultSpaceName(type: SpaceType): string {
+  private getDefaultSpaceName(type: string): string {
     switch (type) {
-      case SpaceType.CHAT:
+      case 'chat':
         return 'チャット';
-      case SpaceType.BOARD:
+      case 'board':
         return 'ボード';
-      case SpaceType.ZOOM:
-        return 'Zoom会議';
-      case SpaceType.ANALYSIS:
+      case 'analysis':
         return '分析';
-      case SpaceType.USER_PROFILE:
+      case 'user_profile':
         return 'プロフィール';
       default:
         return 'スペース';
@@ -252,17 +248,15 @@ export class NestSpaceService {
   /**
    * デフォルトのスペースアイコンを取得
    */
-  private getDefaultSpaceIcon(type: SpaceType): string {
+  private getDefaultSpaceIcon(type: string): string {
     switch (type) {
-      case SpaceType.CHAT:
+      case 'chat':
         return 'message';
-      case SpaceType.BOARD:
+      case 'board':
         return 'grid';
-      case SpaceType.ZOOM:
-        return 'video';
-      case SpaceType.ANALYSIS:
+      case 'analysis':
         return 'analytics';
-      case SpaceType.USER_PROFILE:
+      case 'user_profile':
         return 'person';
       default:
         return 'circle';
@@ -272,17 +266,15 @@ export class NestSpaceService {
   /**
    * デフォルトのスペース説明を取得
    */
-  private getDefaultSpaceDescription(type: SpaceType): string {
+  private getDefaultSpaceDescription(type: string): string {
     switch (type) {
-      case SpaceType.CHAT:
+      case 'chat':
         return 'メンバーとのコミュニケーション空間';
-      case SpaceType.BOARD:
+      case 'board':
         return 'アイデアやタスクを整理するボード';
-      case SpaceType.ZOOM:
-        return 'Zoom会議の予定と記録';
-      case SpaceType.ANALYSIS:
+      case 'analysis':
         return 'データの分析と洞察';
-      case SpaceType.USER_PROFILE:
+      case 'user_profile':
         return 'ユーザー設定';
       default:
         return '';
@@ -292,7 +284,7 @@ export class NestSpaceService {
   /**
    * ユーザー存在のリアルタイム更新
    */
-  async updateUserPresence(presence: MemberPresence): Promise<void> {
+  async updateUserPresence(presence: any): Promise<void> {
     try {
       // リアルタイムでの存在情報を更新
       const { error } = await supabase
@@ -316,7 +308,7 @@ export class NestSpaceService {
   /**
    * 新しいネストスペースを作成
    */
-  async createNestSpace(nestId: string, space: Partial<NestSpace>, userId: string): Promise<NestSpace> {
+  async createNestSpace(nestId: string, space: Partial<any>, userId: string): Promise<any> {
     try {
       const { data, error } = await supabase
         .from('spaces')
@@ -324,7 +316,7 @@ export class NestSpaceService {
           nest_id: nestId,
           name: space.name,
           type: space.type,
-          icon: space.icon || this.getDefaultSpaceIcon(space.type as SpaceType),
+          icon: space.icon || this.getDefaultSpaceIcon(space.type as string),
           description: space.description || '',
           content: space.content || {},
           created_by: userId,

@@ -103,13 +103,6 @@ const NestSpaceNavigator: React.FC<NestSpaceNavigatorProps> = ({
             {/* 実際の実装では、AnalysisSpaceScreen などのコンポーネントを表示 */}
           </View>
         );
-      case SpaceType.ZOOM:
-        return (
-          <View style={styles.spaceContent}>
-            {/* Zoom空間のコンテンツ */}
-            {/* 実際の実装では、ZoomSpaceScreen などのコンポーネントを表示 */}
-          </View>
-        );
       default:
         return null;
     }

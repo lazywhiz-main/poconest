@@ -23,7 +23,6 @@ const SPACE_CONFIGS: Record<SpaceType, { icon: string; color: string }> = {
   [SpaceType.CHAT]: { icon: 'message-circle', color: '#4a6da7' },
   [SpaceType.BOARD]: { icon: 'layout', color: '#43a047' },
   [SpaceType.ANALYSIS]: { icon: 'bar-chart-2', color: '#7e57c2' },
-  [SpaceType.ZOOM]: { icon: 'video', color: '#0e71eb' },
   [SpaceType.SETTINGS]: { icon: 'settings', color: '#757575' }
 };
 
@@ -53,8 +52,6 @@ const ContextBreadcrumb: React.FC<ContextBreadcrumbProps> = ({
         return 'ボード';
       case SpaceType.ANALYSIS:
         return '分析';
-      case SpaceType.ZOOM:
-        return 'Zoom';
       case SpaceType.SETTINGS:
         return '設定';
       default:

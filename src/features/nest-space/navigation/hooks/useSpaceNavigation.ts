@@ -72,17 +72,6 @@ const initialSpaceData: SpaceData[] = [
     isVisible: true
   },
   {
-    id: SpaceType.ZOOM,
-    title: 'Zoom',
-    icon: 'video',
-    shortcut: 'Z',
-    color: '#0e71eb',
-    order: 3,
-    isActive: false,
-    badge: null,
-    isVisible: true
-  },
-  {
     id: SpaceType.USER_PROFILE,
     title: 'プロフィール',
     icon: 'user-profile',
