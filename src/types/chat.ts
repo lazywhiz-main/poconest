@@ -1,3 +1,5 @@
+import { ChatUser } from './nestSpace.types';
+
 export interface Message {
   id: string;
   text: string;
@@ -16,14 +18,6 @@ export interface Channel {
   members?: string[]; // user IDs
   lastActivity?: string;
   unreadCount?: number;
-}
-
-export interface ChatUser {
-  id: string;
-  name: string;
-  avatar?: string;
-  status?: 'online' | 'away' | 'offline';
-  lastActive?: string;
 }
 
 export interface ChatState {

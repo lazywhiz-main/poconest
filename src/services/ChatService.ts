@@ -1,6 +1,7 @@
 import { supabase } from './supabase/client';
 import { v4 as uuidv4 } from 'uuid';
-import { ChatRoom, ChatMessage, ChatUser, UIMessage } from '../contexts/ChatContext';
+import { ChatMessage, ChatUser, UIMessage } from 'src/types/nestSpace.types';
+import { ChatRoom } from 'src/features/nest-space/chat-space/types/chat.types';
 
 /**
  * チャットサービス

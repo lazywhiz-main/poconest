@@ -65,6 +65,12 @@ const LazySpaceComponents = {
   [SpaceType.ANALYSIS]: lazy(() => import("../../analysis-space/components/AnalysisSpace").catch((err) => { console.error('Failed to load AnalysisSpace:', err); return { default: () => <MockSpaceComponent name="分析空間" color="#fff3e0" /> }; })),
   
   [SpaceType.USER_PROFILE]: lazy(() => import("../../user-profile/components/UserProfileSpace").catch((err) => { console.error('Failed to load UserProfileSpace:', err); return { default: () => <MockSpaceComponent name="プロフィール設定" color="#f5f5f5" /> }; })),
+  
+  [SpaceType.ZOOM]: React.lazy(() => Promise.resolve({ default: () => <MockSpaceComponent name="Zoom空間" color="#e3f2fd" /> })),
+  
+  [SpaceType.SETTINGS]: React.lazy(() => Promise.resolve({ default: () => <MockSpaceComponent name="設定空間" color="#f5f5f5" /> })),
+  
+  [SpaceType.INSIGHTS]: React.lazy(() => Promise.resolve({ default: () => <MockSpaceComponent name="インサイト空間" color="#ede7f6" /> })),
 };
 
 // Loading fallback component

@@ -125,7 +125,7 @@ class NestRealtimeService {
     // 現在の実装では通知チャネルを最優先に維持し、それ以外は一時停止
     this.nestChannels.forEach((channel, nestId) => {
       // 通知関連のサブスクリプションのみ維持する場合の例
-      channel.subscription.unsubscribe();
+      channel.unsubscribe();
     });
   }
 
@@ -246,9 +246,9 @@ class NestRealtimeService {
     );
 
     // チャネルを開始
-    const status = await channel.subscribe();
+    const subscribedChannel = await channel.subscribe();
 
-    if (status !== 'SUBSCRIBED') {
+    if (!subscribedChannel) {
       throw new Error(`Failed to subscribe to nest ${nestId}`);
     }
 
@@ -303,9 +303,9 @@ class NestRealtimeService {
     });
     
     // チャネルを開始
-    const status = await channel.subscribe();
+    const subscribedChannel = await channel.subscribe();
     
-    if (status !== 'SUBSCRIBED') {
+    if (!subscribedChannel) {
       throw new Error(`Failed to subscribe to presence ${nestId}`);
     }
     

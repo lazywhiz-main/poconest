@@ -62,7 +62,7 @@ const UserProfileSpace: React.FC = () => {
         onPress={handleLogout} 
         title="ログアウト" 
         style={styles.logoutButton}
-        variant="outline"
+        variant="default"
       />
     </View>
   );
@@ -172,7 +172,7 @@ const UserProfileSpace: React.FC = () => {
           onPress={() => console.log('Download data')} 
           title="自分のデータをダウンロード"
           style={styles.dataButton}
-          variant="outline"
+          variant="default"
         />
       </Card>
     </View>

@@ -97,7 +97,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       <View style={styles.titleContainer}>
         <View style={styles.titleRow}>
           {showEmoji && <Text style={styles.emoji}>{emoji}</Text>}
-          <View style={styles.titleTextContainer}>
+          <View style={styles.titleContainer}>
             <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
               {title}
             </Text>

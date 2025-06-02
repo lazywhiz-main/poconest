@@ -372,68 +372,68 @@ const LoginScreen: React.FC = () => {
                   >
                     <Text style={[styles.authTabText, !isLogin && styles.authTabTextActive]}>Sign Up</Text>
                   </TouchableOpacity>
-                </View>
+        </View>
               )}
 
-              {errorMessage ? (
-                <View style={styles.errorContainer}>
-                  <Text style={styles.errorText}>{errorMessage}</Text>
-                </View>
-              ) : null}
-
+          {errorMessage ? (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{errorMessage}</Text>
+            </View>
+          ) : null}
+          
               <View style={styles.authForm}>
                 <Text style={styles.formTitle}>
                   {isLogin ? 'システムにアクセス' : '新規アカウント作成'}
                 </Text>
 
-                {!isLogin && (
+          {!isLogin && (
                   <View style={styles.formGroup}>
                     <Text style={styles.formLabel}>Full Name</Text>
-                    <TextInput
+            <TextInput
                       style={styles.formInput}
                       placeholder="田中 太郎"
-                      placeholderTextColor={theme.colors.text.hint}
-                      value={displayName}
-                      onChangeText={setDisplayName}
-                    />
-                  </View>
-                )}
-
+                  placeholderTextColor={theme.colors.text.hint}
+              value={displayName}
+              onChangeText={setDisplayName}
+                />
+              </View>
+            )}
+            
                 <View style={styles.formGroup}>
                   <Text style={styles.formLabel}>Email Address</Text>
-                  <TextInput
+              <TextInput
                     style={styles.formInput}
                     placeholder="user@example.com"
-                    placeholderTextColor={theme.colors.text.hint}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    value={email}
-                    onChangeText={setEmail}
-                  />
-                </View>
-
+                placeholderTextColor={theme.colors.text.hint}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={email}
+                onChangeText={setEmail}
+            />
+            </View>
+            
                 <View style={styles.formGroup}>
                   <Text style={styles.formLabel}>Password</Text>
                   <View style={styles.passwordField}>
-                    <TextInput
+          <TextInput
                       style={styles.formInput}
                       placeholder="••••••••"
-                      placeholderTextColor={theme.colors.text.hint}
-                      secureTextEntry={!showPassword}
-                      value={password}
-                      onChangeText={setPassword}
-                    />
-                    <TouchableOpacity
+                placeholderTextColor={theme.colors.text.hint}
+                secureTextEntry={!showPassword}
+            value={password}
+            onChangeText={setPassword}
+              />
+              <TouchableOpacity
                       style={styles.passwordToggle}
-                      onPress={() => setShowPassword(!showPassword)}
+                onPress={() => setShowPassword(!showPassword)}
                     >
                       <Text style={styles.passwordToggleText}>
                         {showPassword ? '🙈' : '👁'}
                       </Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-
+              </TouchableOpacity>
+            </View>
+          </View>
+          
                 {isLogin && (
                   <View style={styles.formCheckbox}>
                     <TouchableOpacity style={styles.checkboxInput}>
@@ -465,19 +465,19 @@ const LoginScreen: React.FC = () => {
                     {isLoading ? '...' : (isLogin ? 'Sign In' : 'アカウント作成')}
                   </button>
                 ) : (
-                  <TouchableOpacity 
+          <TouchableOpacity 
                     style={[styles.formButton, isLoading && styles.formButtonLoading]} 
-                    onPress={handleLogin}
-                    disabled={isLoading}
-                  >
-                    {isLoading ? (
+            onPress={handleLogin}
+            disabled={isLoading}
+          >
+            {isLoading ? (
                       <ActivityIndicator color="#0f0f23" size="small" />
-                    ) : (
+            ) : (
                       <Text style={styles.formButtonText}>
                         {isLogin ? 'Sign In' : 'アカウント作成'}
-                      </Text>
-                    )}
-                  </TouchableOpacity>
+              </Text>
+            )}
+          </TouchableOpacity>
                 )}
 
                 <View style={styles.divider}>
@@ -504,11 +504,11 @@ const LoginScreen: React.FC = () => {
                   <TouchableOpacity onPress={toggleAuthMode}>
                     <Text style={styles.authFooterLink}>
                       {isLogin ? 'こちら' : 'ログイン'}
-                    </Text>
+            </Text>
                   </TouchableOpacity>
                 </View>
 
-                <TouchableOpacity
+            <TouchableOpacity
                   style={styles.demoButton}
                   onPress={handleDemoLogin}
                   disabled={isLoading}
@@ -823,19 +823,19 @@ const LoginScreen: React.FC = () => {
                   <TouchableOpacity onPress={toggleAuthMode}>
                     <Text style={styles.authFooterLink}>
                       {isLogin ? 'こちら' : 'ログイン'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                <TouchableOpacity
-                  style={styles.demoButton}
-                  onPress={handleDemoLogin}
-                  disabled={isLoading}
-                >
-                  <Text style={styles.demoButtonText}>デモモードで入る</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
+              </Text>
+            </TouchableOpacity>
+          </View>
+          
+          <TouchableOpacity
+            style={styles.demoButton}
+            onPress={handleDemoLogin}
+            disabled={isLoading}
+          >
+            <Text style={styles.demoButtonText}>デモモードで入る</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
           </View>
         </View>
       )}

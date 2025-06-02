@@ -8,7 +8,7 @@ import {
   Platform,
   useWindowDimensions
 } from 'react-native';
-import { ChatRoom } from '@contexts/ChatContext';
+import { ChatRoom } from 'src/features/nest-space/chat-space/types/chat.types';
 import { COLORS, SPACING, BREAKPOINTS } from '@constants/config';
 
 interface ChatRoomListProps {

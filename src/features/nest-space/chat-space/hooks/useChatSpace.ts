@@ -1,8 +1,9 @@
 import { useCallback, useState, useEffect } from 'react';
-import { useChat, ChatMessage, ChatRoom } from '@contexts/ChatContext';
-// import { useNestSpace } from '../../contexts/_NestSpaceContext.tsx';
+import { useChat } from '@contexts/ChatContext';
 import { useNestSpace } from '@contexts/NestSpaceContext';
-import { SpaceType } from 'src/types/nestSpace.types';
+import { SpaceType, ChatMessage } from 'src/types/nestSpace.types';
+import { ChatRoom } from '../types/chat.types';
+// import { useNestSpace } from '../../contexts/_NestSpaceContext.tsx';
 
 export interface Thread {
   id: string;

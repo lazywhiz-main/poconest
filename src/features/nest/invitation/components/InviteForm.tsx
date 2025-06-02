@@ -10,7 +10,7 @@ import {
   Alert,
   useWindowDimensions
 } from 'react-native';
-import { useNest } from '../../../contexts/NestContext';
+import { useNest } from '../../contexts/NestContext';
 import invitationService from '../services/invitationService';
 console.log('[InviteForm] invitationService:', invitationService);
 import { COLORS, BRAND_COLORS } from '@constants/Colors';
@@ -104,7 +104,7 @@ const InviteForm: React.FC<InviteFormProps> = ({ onInviteSent }) => {
           keyboardType="email-address"
           autoCapitalize="none"
           autoCorrect={false}
-          disabled={loading}
+          editable={!loading}
           accessibilityLabel="招待するメールアドレス"
         />
         
@@ -191,6 +191,9 @@ const styles = StyleSheet.create({
     ...COMPONENT_STYLES.button,
     paddingVertical: responsive.mediaQuery.isMobile() ? SPACING.sm : SPACING.md,
     minWidth: responsive.mediaQuery.isMobile() ? '100%' : 120,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    flexDirection: 'row' as const,
   },
   buttonDisabled: {
     backgroundColor: BRAND_COLORS.gray,

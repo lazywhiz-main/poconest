@@ -337,7 +337,7 @@ const styles = StyleSheet.create({
   },
   spaceHeader: {
     padding: 16,
-    backgroundColor: theme.colors.spaces.zoom.primary,
+    backgroundColor: theme.colors.spaces.meeting.primary,
     flexDirection: 'row',
     alignItems: 'center',
   },

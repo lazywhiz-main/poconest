@@ -89,6 +89,9 @@ const icons = {
   [SpaceType.MEETING]: 'meeting',
   [SpaceType.ANALYSIS]: 'analytics',
   [SpaceType.USER_PROFILE]: 'profile',
+  [SpaceType.ZOOM]: 'video',
+  [SpaceType.SETTINGS]: 'settings',
+  [SpaceType.INSIGHTS]: 'insights',
 };
 
 // アイコンの名前
@@ -98,15 +101,21 @@ const spaceNames = {
   [SpaceType.MEETING]: 'ミーティング',
   [SpaceType.ANALYSIS]: '分析',
   [SpaceType.USER_PROFILE]: 'プロフィール',
+  [SpaceType.ZOOM]: 'Zoom',
+  [SpaceType.SETTINGS]: '設定',
+  [SpaceType.INSIGHTS]: 'インサイト',
 };
 
 // スペースごとのカラー
 const spaceColors = {
-  [SpaceType.CHAT]: theme.colors.spaces.chat.primary,      // コーラル
-  [SpaceType.BOARD]: theme.colors.spaces.board.primary,    // 黄色
-  [SpaceType.MEETING]: theme.colors.spaces.meeting.primary,      // ミント
-  [SpaceType.ANALYSIS]: theme.colors.spaces.analysis.primary,  // ディープグリーン
-  [SpaceType.USER_PROFILE]: theme.colors.spaces.settings.primary, // 濃いグレー
+  [SpaceType.CHAT]: theme.colors.spaces.chat.primary,
+  [SpaceType.BOARD]: theme.colors.spaces.board.primary,
+  [SpaceType.MEETING]: theme.colors.spaces.meeting.primary,
+  [SpaceType.ANALYSIS]: theme.colors.spaces.analysis.primary,
+  [SpaceType.USER_PROFILE]: theme.colors.spaces.settings.primary,
+  [SpaceType.ZOOM]: '#2196f3', // info color
+  [SpaceType.SETTINGS]: theme.colors.spaces.settings.primary,
+  [SpaceType.INSIGHTS]: '#7e57c2', // purple for insights
 };
 
 interface AppNavigationProps {

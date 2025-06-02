@@ -11,7 +11,7 @@ import {
   Platform,
   useWindowDimensions
 } from 'react-native';
-import { UIMessage } from '@contexts/ChatContext';
+import { UIMessage } from 'src/types/nestSpace.types';
 import { COLORS, SPACING } from '@constants/config';
 
 interface MessageBubbleProps {

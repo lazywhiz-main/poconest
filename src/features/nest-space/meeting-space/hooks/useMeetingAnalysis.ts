@@ -138,7 +138,7 @@ export const useMeetingAnalysis = (selectedMeeting?: ZoomMeeting | null) => {
         const words = Object.entries(selectedMeeting.analysis.wordFrequency).map(([word, count]) => ({
           word,
           count,
-          importance: count / Math.max(...Object.values(selectedMeeting.analysis.wordFrequency))
+          importance: count / Math.max(...Object.values(selectedMeeting.analysis?.wordFrequency ?? {}), 1)
         }));
         setWordFrequencyData(words);
       } else {

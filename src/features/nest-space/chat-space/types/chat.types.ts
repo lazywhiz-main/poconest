@@ -1,18 +1,6 @@
-import { SpaceType, Nest, Thread, UIMessage, ChatUser, ChatMessage } from 'src/types/nestSpace.types';
-
-/**
- * チャット関連の型定義
- */
-
-/**
- * チャットユーザーの型定義
- */
-export interface ChatUser {
-  id: string;
-  name: string;
-  isBot: boolean;
-  avatarUrl?: string;
-}
+export type { UIMessage, Thread, ChatUser, ChatMessage } from 'src/types/nestSpace.types';
+import type { UIMessage, Thread } from 'src/types/nestSpace.types';
+import { SpaceType, Nest } from 'src/types/nestSpace.types';
 
 /**
  * チャットルームの型定義
@@ -26,42 +14,6 @@ export interface ChatRoom {
   unreadCount: number;
   spaceId?: string;
   nestId?: string;
-}
-
-/**
- * チャットメッセージの型定義
- */
-export interface ChatMessage {
-  id: string;
-  chatId: string;
-  content: string;
-  sender: ChatUser;
-  created_at: string;
-  is_read: boolean;
-}
-
-/**
- * UI表示用のメッセージ型
- */
-export interface UIMessage extends ChatMessage {
-  pending?: boolean;
-}
-
-/**
- * スレッドの型定義
- */
-export interface Thread {
-  id: string;
-  parentMessageId: string;
-  roomId: string;
-  participants: string[];
-  lastMessage?: UIMessage;
-  messageCount: number;
-  createdAt: string;
-  updatedAt: string;
-  messages: UIMessage[];
-  title: string;
-  isActive: boolean;
 }
 
 /**

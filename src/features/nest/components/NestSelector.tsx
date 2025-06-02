@@ -229,7 +229,7 @@ const NestSelector: React.FC<NestSelectorProps> = ({ onSelectNest, onCreateNest 
         updated_at: container.updatedAt.toISOString(),
         color: theme.colors.primary,
         icon: '🏠',
-        space_ids: container.spaces.map(s => s.id)
+        space_ids: container.spaces.map((s: { id: string }) => s.id)
       })) as Nest[];
       
       setNests(convertedNests);

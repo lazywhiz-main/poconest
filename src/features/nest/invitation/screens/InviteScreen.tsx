@@ -12,24 +12,28 @@ import {
   ActivityIndicator
 } from 'react-native';
 import { BRAND_COLORS } from '@constants/Colors';
-import { SPACING, FONT_SIZE, COMPONENT_STYLES } from '@constants/Styles';
+import { SPACING, FONT_SIZE, COMPONENT_STYLES, BORDER_RADIUS } from '@constants/Styles';
 import responsive from '@utils/responsive';
 import InviteForm from '../components/InviteForm';
 import InviteLink from '../components/InviteLink';
 import PendingInvitations from '../components/PendingInvitations';
 import { useNest } from '@features/nest/contexts/NestContext';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, NavigationProp } from '@react-navigation/native';
 import { acceptInviteByEmail } from '../services/invitationService';
 
 // タブの種類
 type TabType = 'email' | 'link' | 'pending';
+
+type RootStackParamList = {
+  NestDetail: { nestId: string };
+};
 
 const InviteScreen: React.FC = () => {
   const { currentNest } = useNest();
   const [activeTab, setActiveTab] = useState<TabType>('email');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { width, height } = useWindowDimensions();
   
   // 画面サイズからレイアウトを判断
@@ -266,7 +270,7 @@ const styles = StyleSheet.create({
   errorContainer: {
     backgroundColor: BRAND_COLORS.error + '20',
     padding: SPACING.md,
-    borderRadius: COMPONENT_STYLES.BORDER_RADIUS.md,
+    borderRadius: BORDER_RADIUS.md,
     marginBottom: SPACING.md,
   },
   errorText: {

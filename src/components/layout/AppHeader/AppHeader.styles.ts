@@ -73,6 +73,14 @@ export const createStyles = (
       alignItems: 'center',
       justifyContent: 'center',
     },
+    emoji: {
+      fontSize: 24,
+      marginRight: 8,
+    },
+    titleTextContainer: {
+      flexDirection: 'column',
+      justifyContent: 'center',
+    },
     title: {
       fontSize: Platform.select({
         web: screenType === 'desktop' ? 24 : 20,

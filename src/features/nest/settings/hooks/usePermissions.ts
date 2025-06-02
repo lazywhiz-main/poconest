@@ -11,6 +11,14 @@ import {
   PermissionUpdateResponse 
 } from '../types/permissions.types';
 
+// ユーザー情報の型定義を追加
+interface UserData {
+  id: string;
+  display_name: string;
+  email: string;
+  avatar_url: string | null;
+}
+
 /**
  * NEST権限を管理するカスタムフック
  */
@@ -301,8 +309,8 @@ export const usePermissions = (nestId?: string) => {
   const getMemberWithPermissions = useCallback(async (
     userId: string,
     nestId: string = targetNestId || ''
-  ): Promise<NestMemberWithPermissions | null> => {
-    if (!nestId) return null;
+  ): Promise<NestMemberWithPermissions | undefined> => {
+    if (!nestId) return undefined;
     
     try {
       // メンバー情報を取得
@@ -325,7 +333,7 @@ export const usePermissions = (nestId?: string) => {
         .eq('user_id', userId)
         .single();
       
-      if (memberError || !memberData) return null;
+      if (memberError || !memberData) return undefined;
       
       // カスタム権限を取得
       const { data: customPermissions } = await supabase
@@ -362,14 +370,14 @@ export const usePermissions = (nestId?: string) => {
       }
       
       // ユーザー情報を取得
-      const user = memberData.users || {};
+      const userData = Array.isArray(memberData.users) ? memberData.users[0] : memberData.users as UserData;
       
       // メンバー情報を整形
       return {
         userId: memberData.user_id,
-        displayName: user.display_name || '',
-        email: user.email,
-        avatarUrl: user.avatar_url,
+        displayName: userData?.display_name || '',
+        email: userData?.email || '',
+        avatarUrl: userData?.avatar_url || null,
         role,
         permissions,
         joinedDate: memberData.joined_at,
@@ -378,7 +386,7 @@ export const usePermissions = (nestId?: string) => {
       };
     } catch (err) {
       console.error('メンバー情報の取得に失敗しました:', err);
-      return null;
+      return undefined;
     }
   }, [targetNestId]);
 
@@ -423,7 +431,7 @@ export const usePermissions = (nestId?: string) => {
       const membersWithPermissions = membersData.map(member => {
         const userId = member.user_id;
         const role = member.role as NestRole;
-        const user = member.users || {};
+        const userData = Array.isArray(member.users) ? member.users[0] : member.users as UserData;
         
         // ロールに基づく権限
         let permissions = [...(DefaultRolePermissions[role] || [])];
@@ -452,9 +460,9 @@ export const usePermissions = (nestId?: string) => {
         
         return {
           userId,
-          displayName: user.display_name || '',
-          email: user.email,
-          avatarUrl: user.avatar_url,
+          displayName: userData?.display_name || '',
+          email: userData?.email || '',
+          avatarUrl: userData?.avatar_url || null,
           role,
           permissions,
           joinedDate: member.joined_at,

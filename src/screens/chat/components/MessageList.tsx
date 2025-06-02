@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   Platform
 } from 'react-native';
-import { UIMessage } from '@contexts/ChatContext';
+import { UIMessage } from 'src/types/nestSpace.types';
 import MessageBubble from './MessageBubble';
 import DateDivider from './DateDivider';
 import TypingIndicator from './TypingIndicator';

@@ -174,13 +174,13 @@ const InsightDetailView: React.FC<InsightDetailViewProps> = ({ insight, onClose 
           </View>
         </View>
         
-        {(insight.relatedItemIds?.cardIds?.length > 0 || 
-          insight.relatedItemIds?.messageIds?.length > 0 || 
-          insight.relatedItemIds?.chatRoomIds?.length > 0) && (
+        {((insight.relatedItemIds?.cardIds?.length ?? 0) > 0 ||
+          (insight.relatedItemIds?.messageIds?.length ?? 0) > 0 ||
+          (insight.relatedItemIds?.chatRoomIds?.length ?? 0) > 0) && (
           <View style={styles.detailSection}>
             <Text style={styles.sectionTitle}>関連アイテム</Text>
             
-            {insight.relatedItemIds?.cardIds?.length > 0 && (
+            {(insight.relatedItemIds?.cardIds?.length ?? 0) > 0 && (
               <View style={styles.relatedItemSection}>
                 <Text style={styles.relatedItemTitle}>カード</Text>
                 {insight.relatedItemIds?.cardIds?.map((cardId, index) => (
@@ -195,7 +195,7 @@ const InsightDetailView: React.FC<InsightDetailViewProps> = ({ insight, onClose 
               </View>
             )}
             
-            {insight.relatedItemIds?.chatRoomIds?.length > 0 && (
+            {(insight.relatedItemIds?.chatRoomIds?.length ?? 0) > 0 && (
               <View style={styles.relatedItemSection}>
                 <Text style={styles.relatedItemTitle}>チャットルーム</Text>
                 {insight.relatedItemIds?.chatRoomIds?.map((roomId, index) => (
@@ -210,7 +210,7 @@ const InsightDetailView: React.FC<InsightDetailViewProps> = ({ insight, onClose 
               </View>
             )}
             
-            {insight.relatedItemIds?.messageIds?.length > 0 && (
+            {(insight.relatedItemIds?.messageIds?.length ?? 0) > 0 && (
               <View style={styles.relatedItemSection}>
                 <Text style={styles.relatedItemTitle}>メッセージ</Text>
                 {insight.relatedItemIds?.messageIds?.map((messageId, index) => (

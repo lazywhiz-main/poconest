@@ -7,7 +7,7 @@ import {
   SafeAreaView,
   StatusBar
 } from 'react-native';
-import { useNavigation, useRoute, RouteProp, ParamListBase } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp, NavigationProp } from '@react-navigation/native';
 import CreateNestWizard from '../components/CreateNestWizard';
 import { BRAND_COLORS } from '@constants/Colors';
 
@@ -16,11 +16,16 @@ type CreateNestScreenParams = {
   redirectScreen?: string;
 };
 
+type RootStackParamList = {
+  TabsScreen: { reload?: boolean };
+  [key: string]: { nestId?: string; reload?: boolean } | undefined;
+};
+
 /**
  * NEST作成画面
  */
 const CreateNestScreen: React.FC = () => {
-  const navigation = useNavigation<ParamListBase>();
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<Record<string, CreateNestScreenParams>, string>>();
 
   // ウィザードが完了したときの処理

@@ -4,38 +4,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { chatService } from '../services/ChatService';
 import { supabase } from '../services/supabase/client';
 import { useNest } from '../features/nest/contexts/NestContext';
-
-// チャットメッセージの型定義
-export interface ChatUser {
-  id: string;
-  name: string;
-  isBot: boolean;
-  avatarUrl?: string;
-}
-
-export interface ChatMessage {
-  id: string;
-  chatId: string;
-  content: string;
-  sender: ChatUser;
-  created_at: string;
-  is_read: boolean;
-}
-
-export interface UIMessage extends ChatMessage {
-  pending?: boolean;
-}
-
-export interface ChatRoom {
-  id: string;
-  name: string;
-  description?: string;
-  lastMessage?: UIMessage;
-  lastActivity: string;
-  unreadCount: number;
-  spaceId?: string;
-  nestId?: string;
-}
+import { ChatMessage, UIMessage, ChatUser } from 'src/types/nestSpace.types';
+import { ChatRoom } from 'src/features/nest-space/chat-space/types/chat.types';
 
 // コンテキストの型定義
 interface ChatContextProps {

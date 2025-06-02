@@ -7,6 +7,7 @@ import { BoardColumnType, Card, BoardViewSettings } from '../../../../types/boar
 import { useChatSpace } from '../../chat-space/hooks/useChatSpace';
 import { getCardSources } from '../../../../services/BoardService';
 import type { BoardItem } from '../../../board-space/contexts/BoardContext';
+import { v4 as uuidv4 } from 'uuid';
 
 export interface BoardFilter {
   tags?: string[];
@@ -440,11 +441,12 @@ export const useBoardSpace = () => {
       // Create a new card from the message
       const now = new Date().toISOString();
       const newCard: BoardItem = {
-        id: '', // サーバー側で付与される場合は空文字
+        id: uuidv4(),
         board_id: state.boardId ?? '',
         title: message.content.length > 50 
           ? `${message.content.substring(0, 47)}...` 
           : message.content,
+        description: message.content,
         content: message.content,
         column_type: BoardColumnType.INBOX,
         created_by: message.sender.id,

@@ -15,7 +15,7 @@ import {
 import { BRAND_COLORS } from '@constants/Colors';
 import { SPACING, FONT_SIZE, BORDER_RADIUS, COMPONENT_STYLES } from '@constants/Styles';
 import responsive from '@utils/responsive';
-import { useNest } from '../../../contexts/NestContext';
+import { useNest } from '../../contexts/NestContext';
 import invitationService from '../services/invitationService';
 
 // Tauriが利用可能か確認するためのヘルパー関数
@@ -388,6 +388,11 @@ const styles = StyleSheet.create({
     ...COMPONENT_STYLES.button,
     backgroundColor: BRAND_COLORS.primary,
     paddingVertical: SPACING.md,
+    borderRadius: BORDER_RADIUS.md,
+    padding: SPACING.md,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    flexDirection: 'row' as const,
   },
   buttonDisabled: {
     backgroundColor: BRAND_COLORS.gray,

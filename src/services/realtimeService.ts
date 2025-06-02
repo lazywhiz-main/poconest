@@ -318,12 +318,13 @@ class RealtimeServiceImpl implements RealtimeService {
                 };
               } 
               // usersがオブジェクトの場合
-              else if (item.users && typeof item.users === 'object') {
+              else if (item.users && typeof item.users === 'object' && !Array.isArray(item.users)) {
+                const user = item.users as { id: string; display_name: string; avatar_url: string; email: string };
                 userInfo = {
-                  id: item.users.id || '',
-                  display_name: item.users.display_name || '',
-                  avatar_url: item.users.avatar_url || '',
-                  email: item.users.email || ''
+                  id: user.id || '',
+                  display_name: user.display_name || '',
+                  avatar_url: user.avatar_url || '',
+                  email: user.email || ''
                 };
               }
               

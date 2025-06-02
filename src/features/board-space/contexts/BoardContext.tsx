@@ -283,6 +283,7 @@ export const BoardProvider: React.FC<BoardProviderProps> = ({ children, currentN
         id: string; 
         board_id: string; 
         title: string; 
+        description: string;
         content: string; 
         column_type: BoardColumnType; 
         created_by: string; 
@@ -307,6 +308,7 @@ export const BoardProvider: React.FC<BoardProviderProps> = ({ children, currentN
           board_id: item.board_id,
           nest_id: nestId,
           title: item.title,
+          description: item.description,
           content: item.content,
           column_type: item.column_type,
           created_by: item.created_by,
@@ -443,6 +445,7 @@ export interface BoardItem {
   id: string;
   board_id: string;
   title: string;
+  description: string;
   content: string;
   column_type: BoardColumnType;
   created_by: string;
