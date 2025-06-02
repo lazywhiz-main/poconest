@@ -1,14 +1,5 @@
 import { Dimensions } from 'react-native';
 import {
-  NestSpace,
-  NestSpaceContainer,
-  NestSpaceNavigationState,
-  LayoutType,
-  SpaceType,
-  MemberPresence,
-  NestSpaceView,
-  SpaceRoleType,
-  SpaceActionType,
   // hasPermission // This seems to be used by canPerformAction, which might stay in context or be passed around
 } from '../types'; // Assuming these are from a central types index
 
@@ -31,32 +22,32 @@ export enum NestSpaceActionType {
 
 // State type (moved from NestSpaceContext)
 export interface NestSpaceState {
-  container: NestSpaceContainer | null;
-  spaces: Record<string, NestSpace>;
-  navigation: NestSpaceNavigationState;
-  currentUserRole: SpaceRoleType;
+  container: any;
+  spaces: Record<string, any>;
+  navigation: any;
+  currentUserRole: any;
   isLoading: boolean;
   error: string | null;
 }
 
 // Action types (moved from NestSpaceContext)
 export type NestSpaceAction =
-  | { type: NestSpaceActionType.SET_CONTAINER; payload: NestSpaceContainer }
-  | { type: NestSpaceActionType.ADD_SPACE; payload: NestSpace }
-  | { type: NestSpaceActionType.UPDATE_SPACE; payload: { id: string; updates: Partial<NestSpace> } }
+  | { type: NestSpaceActionType.SET_CONTAINER; payload: any }
+  | { type: NestSpaceActionType.ADD_SPACE; payload: any }
+  | { type: NestSpaceActionType.UPDATE_SPACE; payload: { id: string; updates: Partial<any> } }
   | { type: NestSpaceActionType.REMOVE_SPACE; payload: string }
   | { type: NestSpaceActionType.NAVIGATE_TO_SPACE; payload: string }
   | { type: NestSpaceActionType.GO_BACK; payload?: undefined }
-  | { type: NestSpaceActionType.UPDATE_LAYOUT; payload: LayoutType }
-  | { type: NestSpaceActionType.UPDATE_VIEW; payload: NestSpaceView }
+  | { type: NestSpaceActionType.UPDATE_LAYOUT; payload: any }
+  | { type: NestSpaceActionType.UPDATE_VIEW; payload: any }
   | { type: NestSpaceActionType.TOGGLE_SPLIT_VIEW; payload: { spaceId: string; secondarySpaceId?: string; isEnabled?: boolean; splitRatio?: number } }
-  | { type: NestSpaceActionType.UPDATE_MEMBER_PRESENCE; payload: MemberPresence }
-  | { type: NestSpaceActionType.SET_USER_ROLE; payload: SpaceRoleType }
+  | { type: NestSpaceActionType.UPDATE_MEMBER_PRESENCE; payload: any }
+  | { type: NestSpaceActionType.SET_USER_ROLE; payload: any }
   | { type: NestSpaceActionType.SET_LOADING; payload: boolean }
   | { type: NestSpaceActionType.SET_ERROR; payload: string | null };
 
 // Helper function to determine layout based on screen width (moved from NestSpaceContext)
-export const determineLayout = (): LayoutType => {
+export const determineLayout = (): any => {
   const { width } = Dimensions.get('window');
   if (width < 768) return LayoutType.MOBILE;
   if (width < 1024) return LayoutType.TABLET;
@@ -112,7 +103,7 @@ export const nestSpaceReducer = (state: NestSpaceState, action: NestSpaceAction)
       const viewToUpdate = state.navigation.views.find(view => view.spaceId === action.payload.spaceId);
       if (!viewToUpdate) return state;
       const isEnabled = action.payload.isEnabled !== undefined ? action.payload.isEnabled : !viewToUpdate.splitView?.isEnabled;
-      const updatedView: NestSpaceView = { ...viewToUpdate, splitView: { isEnabled, splitRatio: action.payload.splitRatio || 0.5, secondarySpaceId: action.payload.secondarySpaceId } };
+      const updatedView: any = { ...viewToUpdate, splitView: { isEnabled, splitRatio: action.payload.splitRatio || 0.5, secondarySpaceId: action.payload.secondarySpaceId } };
       return { ...state, navigation: { ...state.navigation, views: state.navigation.views.map(view => view.spaceId === action.payload.spaceId ? updatedView : view) } };
     }
     case NestSpaceActionType.UPDATE_MEMBER_PRESENCE: {

@@ -23,11 +23,7 @@ const NavigationDemo: React.FC = () => {
             </Text>
             
             {/* ナビゲーターコンポーネント */}
-            <NestSpaceNavigator 
-              defaultSpace={SpaceType.ZOOM}
-              enableMultitasking={true}
-              enableAnimations={true}
-            >
+            <NestSpaceNavigator enableMultitasking={true} enableAnimations={true}>
               {/* Zoom空間のコンテンツを直接表示 */}
               {/* <ZoomSpaceScreen /> */}
             </NestSpaceNavigator>
