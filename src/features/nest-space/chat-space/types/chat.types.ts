@@ -59,7 +59,7 @@ export interface Thread {
   updatedAt: string;
   messages: UIMessage[];
   title: string;
-  isActive?: boolean;
+  isActive: boolean;
 }
 
 /**

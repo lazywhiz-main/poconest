@@ -168,7 +168,8 @@ export const ChatSpace: React.FC<ChatSpaceProps> = ({ nestId }) => {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         messages: [],
-        title: `Thread ${Date.now()}`
+        title: `Thread ${Date.now()}`,
+        isActive: false
       };
       setThreads(prev => ({ ...prev, [newThread.id]: newThread }));
       setActiveThreadId(newThread.id);
