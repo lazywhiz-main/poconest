@@ -1,6 +1,12 @@
 // Supabase Configuration
-export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://ecqkfcgtmabtfozfcvfr.supabase.co';
-export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVjcWtmY2d0bWFidGZvemZjdmZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY5NjE3MjQsImV4cCI6MjA2MjUzNzcyNH0.1fj7lpHMYyBv1mMGxn8igtE9SFBnmJFh-Zp8Nb-jzdE';
+export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
+export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+export const SUPABASE_FUNCTION_URL = import.meta.env.VITE_SUPABASE_FUNCTION_URL;
+
+// 環境変数が未設定の場合はエラーを投げる
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  throw new Error('Supabase環境変数が未設定です');
+}
 
 // App Configuration
 export const APP_NAME = 'ポコの巣';
