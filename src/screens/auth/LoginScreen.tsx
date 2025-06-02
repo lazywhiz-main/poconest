@@ -372,7 +372,7 @@ const LoginScreen: React.FC = () => {
                   >
                     <Text style={[styles.authTabText, !isLogin && styles.authTabTextActive]}>Sign Up</Text>
                   </TouchableOpacity>
-        </View>
+                </View>
               )}
 
           {errorMessage ? (
@@ -846,7 +846,7 @@ const LoginScreen: React.FC = () => {
 const styles = StyleSheet.create({
   leftSimplePanel: {
     flex: 1.1,
-    backgroundColor: 'transparent',
+    backgroundColor: '#0f0f23',
     padding: 0,
     position: 'relative',
     alignItems: 'center',
