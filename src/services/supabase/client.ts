@@ -108,18 +108,6 @@ if (typeof window !== 'undefined') {
   });
 }
 
-// サーバータイムアウトを10秒に設定
-const customFetch = (input: RequestInfo | URL, init?: RequestInit) => {
-  const newInit = {
-    ...init,
-    headers: {
-      ...(init?.headers || {}),
-      'Accept': 'application/json',
-    },
-  };
-  return fetch(input, newInit);
-};
-
 // Supabaseクライアントの設定オプション
 const supabaseOptions = {
   auth: {
@@ -127,10 +115,6 @@ const supabaseOptions = {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true,
-  },
-  // サーバータイムアウトを10秒に設定
-  global: {
-    fetch: customFetch
   },
   // デバッグモードを設定（開発環境のみ）
   debug: process.env.NODE_ENV === 'development',
