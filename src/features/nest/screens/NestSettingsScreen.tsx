@@ -120,8 +120,18 @@ const NestSettingsScreen: React.FC<NestSettingsScreenProps> = ({
   }
 
   return (
-    <div style={{ background: '#0f0f23', minHeight: '100vh', padding: '40px 0' }}>
-      <div style={{ maxWidth: 900, margin: '0 auto', padding: '0 24px' }}>
+    <div style={{ 
+      backgroundColor: '#0f0f23',
+      height: '100vh',
+      overflowY: 'auto',
+      overflowX: 'hidden'
+    }}>
+      <div style={{ 
+        maxWidth: 900, 
+        margin: '0 auto', 
+        padding: '20px 24px',
+        minHeight: 'calc(100vh - 80px)'
+      }}>
         <div style={{ marginBottom: 40 }}>
           {/* 基本情報セクション */}
           <div style={{ 
