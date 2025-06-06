@@ -1,6 +1,6 @@
 import { useCallback, useState, useEffect, useMemo } from 'react';
 import { useBoardSpace } from './useBoardSpace';
-import { BoardColumnType } from '../../../../types/board';
+import { BoardColumnType } from 'src/types/board';
 
 export interface CardNavigationState {
   history: string[];
@@ -23,7 +23,7 @@ export const useCardNavigation = () => {
   const [navigationState, setNavigationState] = useState<CardNavigationState>({
     history: [],
     currentCardId: null,
-    expandedColumns: [BoardColumnType.INBOX], // Start with Inbox expanded
+    expandedColumns: ['INBOX'], // Start with Inbox expanded
     searchResults: [],
     isSearching: false,
     selectedTag: null,
@@ -135,10 +135,10 @@ export const useCardNavigation = () => {
   // Group cards by column for organized display
   const groupedCards = useMemo(() => {
     const groups: Record<BoardColumnType, typeof filteredCards> = {
-      [BoardColumnType.INBOX]: [],
-      [BoardColumnType.INSIGHTS]: [],
-      [BoardColumnType.THEMES]: [],
-      [BoardColumnType.ZOOM]: [],
+      'INBOX': [],
+      'INSIGHTS': [],
+      'THEMES': [],
+      'ZOOM': [],
     };
     
     filteredCards.forEach(card => {

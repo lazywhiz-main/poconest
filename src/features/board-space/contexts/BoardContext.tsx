@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useReducer, useCallback, useState, useEffect } from 'react';
 import { supabase } from '../../../services/supabase/client';
 import { getBoardCardsWithTags, Source } from '../../../services/BoardService';
+import { BoardColumnType } from 'src/types/board';
 
 // ボード空間の状態定義
 interface BoardState {
@@ -32,7 +33,8 @@ type BoardAction =
   | { type: 'UPDATE_FILTER'; payload: Partial<BoardState['filter']> }
   | { type: 'DELETE_CARD'; payload: string }
   | { type: 'UPDATE_CARD'; payload: Partial<BoardItem> & { id: string } }
-  | { type: 'SET_BOARD_ID'; payload: string | null };
+  | { type: 'SET_BOARD_ID'; payload: string | null }
+  | { type: 'SET_CURRENT_NEST_ID'; payload: string | null };
 
 // ボードコンテキスト型定義
 interface BoardContextType {
@@ -140,6 +142,11 @@ const boardReducer = (state: BoardState, action: BoardAction): BoardState => {
         ...state,
         boardId: action.payload,
       };
+    case 'SET_CURRENT_NEST_ID':
+      return {
+        ...state,
+        currentNestId: action.payload,
+      };
     default:
       return state;
   }
@@ -159,6 +166,22 @@ export const BoardProvider: React.FC<BoardProviderProps> = ({ children, currentN
   const [isLoading, setIsLoading] = useState(false);
   const [boardNotFound, setBoardNotFound] = useState(false);
   const [isCreatingBoard, setIsCreatingBoard] = useState(false);
+
+  // currentNestId prop が変更されたら state を更新
+  useEffect(() => {
+    if (currentNestId !== state.currentNestId) {
+      console.log('[BoardProvider] Setting currentNestId:', currentNestId);
+      dispatch({ type: 'SET_CURRENT_NEST_ID', payload: currentNestId });
+    }
+  }, [currentNestId, state.currentNestId]);
+
+  // currentNestId が設定されたら自動的にデータを読み込む
+  useEffect(() => {
+    if (currentNestId && !state.boardId && !isLoading) {
+      console.log('[BoardProvider] Auto-loading data for nest:', currentNestId);
+      loadNestData(currentNestId);
+    }
+  }, [currentNestId, state.boardId, isLoading]);
 
   // アクションをラップしたヘルパー関数
   const addCards = useCallback((cards: BoardItem[]) => {
@@ -185,8 +208,27 @@ export const BoardProvider: React.FC<BoardProviderProps> = ({ children, currentN
     dispatch({ type: 'UPDATE_FILTER', payload: filter });
   }, []);
 
-  const updateCard = useCallback((card: Partial<BoardItem> & { id: string }) => {
-    dispatch({ type: 'UPDATE_CARD', payload: card });
+  const updateCard = useCallback(async (card: Partial<BoardItem> & { id: string }) => {
+    try {
+      // DBに存在するカラムだけを抽出
+      const { id, title, content, column_type, order_index, is_archived, metadata } = card;
+      const updatePayload: any = {
+        updated_at: new Date().toISOString(),
+      };
+      if (title !== undefined) updatePayload.title = title;
+      if (content !== undefined) updatePayload.content = content;
+      if (column_type !== undefined) updatePayload.column_type = column_type.toUpperCase();
+      if (order_index !== undefined) updatePayload.order_index = order_index;
+      if (is_archived !== undefined) updatePayload.is_archived = is_archived;
+      if (metadata !== undefined) updatePayload.metadata = metadata;
+      await supabase
+        .from('board_cards')
+        .update(updatePayload)
+        .eq('id', id);
+      dispatch({ type: 'UPDATE_CARD', payload: card });
+    } catch (error) {
+      console.error('Failed to update card:', error);
+    }
   }, []);
 
   const deleteCard = useCallback((id: string) => {
@@ -336,16 +378,6 @@ export const BoardProvider: React.FC<BoardProviderProps> = ({ children, currentN
     setIsLoading(false);
   }, [ensureBoardExists]);
 
-  // NEST切り替え時に自動でデータロード
-  useEffect(() => {
-    if (currentNestId) {
-      loadNestData(currentNestId);
-    } else {
-      dispatch({ type: 'SET_CARDS', payload: [] });
-      setBoardNotFound(false);
-    }
-  }, [currentNestId, loadNestData]);
-
   // カードの保存
   const saveCard = useCallback(async (card: Partial<BoardItem> & { id: string }) => {
     try {
@@ -432,14 +464,6 @@ export const useBoardContext = (): BoardContextType => {
   return context;
 };
 
-// カラム種別
-export enum BoardColumnType {
-  INBOX = 'inbox',
-  INSIGHTS = 'insights',
-  THEMES = 'themes',
-  ZOOM = 'zoom',
-}
-
 // カード型
 export interface BoardItem {
   id: string;
@@ -460,4 +484,5 @@ export interface BoardItem {
   related_cards?: BoardItem[];
   created_by_display_name?: string;
   updated_by?: string;
+  updated_by_display_name?: string;
 } 

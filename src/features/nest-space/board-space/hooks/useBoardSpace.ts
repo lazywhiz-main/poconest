@@ -71,7 +71,7 @@ export const useBoardSpace = () => {
   
   // Board space specific state
   const [boardSpaceState, setBoardSpaceState] = useState<BoardSpaceState>({
-    activeColumn: BoardColumnType.INBOX,
+    activeColumn: 'INBOX',
     filters: {},
     selectedCardIds: [],
     isSelectionMode: false,
@@ -100,7 +100,7 @@ export const useBoardSpace = () => {
   // Sync active column with the main board context
   useEffect(() => {
     if (state.filter.columns[0] !== boardSpaceState.activeColumn) {
-      dispatch({ type: 'UPDATE_FILTER', payload: { columns: [state.filter.columns[0] || BoardColumnType.INBOX] } });
+      dispatch({ type: 'UPDATE_FILTER', payload: { columns: [state.filter.columns[0] || 'INBOX'] } });
     }
   }, [state.filter.columns, dispatch, boardSpaceState.activeColumn]);
   
@@ -448,7 +448,7 @@ export const useBoardSpace = () => {
           : message.content,
         description: message.content,
         content: message.content,
-        column_type: BoardColumnType.INBOX,
+        column_type: 'INBOX',
         created_by: message.sender.id,
         created_by_display_name: message.sender.name || '',
         created_at: now,
@@ -520,7 +520,7 @@ export const useBoardSpace = () => {
     
     // Add relationships from cards in the same theme
     sortedCards.forEach(card => {
-      if (card.column_type === BoardColumnType.THEMES && card.metadata?.relatedInsightIds) {
+      if (card.column_type === 'THEMES' && card.metadata?.relatedInsightIds) {
         const relatedIds = card.metadata.relatedInsightIds as string[];
         relatedIds.forEach(relatedId => {
           if (!edges.some(e => (e.from === card.id && e.to === relatedId) || (e.from === relatedId && e.to === card.id))) {

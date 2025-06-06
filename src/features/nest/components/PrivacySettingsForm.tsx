@@ -1,16 +1,7 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Switch,
-  Alert,
-  ActivityIndicator,
-  Platform
-} from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useNest, NestPrivacySettings } from '../contexts/NestContext';
-import { COLORS, SPACING } from '@constants/config';
+import FormGroup from '../../../components/ui/FormGroup';
 
 interface PrivacySettingsFormProps {
   nestId: string;
@@ -43,7 +34,7 @@ const PrivacySettingsForm: React.FC<PrivacySettingsFormProps> = ({ nestId }) => 
     setUpdating(false);
     
     if (error) {
-      Alert.alert('エラー', error.message || '設定の更新に失敗しました');
+      console.error('設定の更新に失敗しました:', error);
     }
   };
 
@@ -54,275 +45,130 @@ const PrivacySettingsForm: React.FC<PrivacySettingsFormProps> = ({ nestId }) => 
     options: Array<{ value: string; label: string; description: string }>
   ) => {
     return (
-      <View style={styles.settingSection}>
-        <Text style={styles.settingTitle}>{title}</Text>
-        
-        {options.map((option) => (
-          <TouchableOpacity
-            key={option.value}
-            style={[
-              styles.option,
-              privacySettings[key] === option.value && styles.selectedOption
-            ]}
-            onPress={() => handleSettingChange(key, option.value)}
-            disabled={updating || loading}
-            accessibilityRole="radio"
-            accessibilityState={{ checked: privacySettings[key] === option.value }}
-            accessibilityLabel={option.label}
-            accessibilityHint={option.description}
-          >
-            <View style={styles.optionHeader}>
-              <View 
-                style={[
-                  styles.radioButton,
-                  privacySettings[key] === option.value && styles.radioButtonSelected
-                ]}
-              >
-                {privacySettings[key] === option.value && (
-                  <View style={styles.radioButtonDot} />
-                )}
-              </View>
-              
-              <Text 
-                style={[
-                  styles.optionLabel,
-                  privacySettings[key] === option.value && styles.selectedLabel
-                ]}
-              >
-                {option.label}
-              </Text>
-            </View>
-            
-            <Text style={styles.optionDescription}>{option.description}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ 
+          display: 'block',
+          fontSize: 11, 
+          fontWeight: 600, 
+          color: '#a6adc8',
+          textTransform: 'uppercase',
+          letterSpacing: '1px',
+          marginBottom: 6
+        }}>
+          {title}
+        </label>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {options.map((option) => (
+            <label 
+              key={option.value} 
+              style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 8, 
+                cursor: 'pointer',
+                padding: '12px 16px',
+                backgroundColor: privacySettings[key] === option.value ? '#2c2e33' : 'transparent',
+                borderRadius: 8,
+                border: `1px solid ${privacySettings[key] === option.value ? '#00ff88' : '#3a3b3e'}`,
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <input
+                type="radio"
+                name={key}
+                value={option.value}
+                checked={privacySettings[key] === option.value}
+                onChange={() => handleSettingChange(key, option.value)}
+                disabled={updating || loading}
+                style={{ 
+                  accentColor: '#00ff88',
+                  width: 16,
+                  height: 16,
+                  margin: 0
+                }}
+              />
+              <div style={{ flex: 1 }}>
+                <div style={{ 
+                  fontWeight: 500, 
+                  color: privacySettings[key] === option.value ? '#00ff88' : '#e2e8f0',
+                  fontSize: 14,
+                  marginBottom: 2
+                }}>
+                  {option.label}
+                </div>
+                <div style={{ 
+                  color: '#6c7086', 
+                  fontSize: 12 
+                }}>
+                  {option.description}
+                </div>
+              </div>
+            </label>
+          ))}
+        </div>
+      </div>
     );
   };
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-        <Text style={styles.loadingText}>設定を読み込み中...</Text>
-      </View>
+      <div style={{ 
+        background: '#1a1a2e',
+        border: '1px solid #333366',
+        borderRadius: 4,
+        padding: 20, 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center' 
+      }}>
+        <div style={{ color: '#6c7086', fontSize: 12 }}>設定を読み込み中...</div>
+      </div>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.sectionTitle}>プライバシー設定</Text>
-      
+    <div style={{ marginBottom: 0 }}>
       {updating && (
-        <View style={styles.updatingOverlay}>
-          <ActivityIndicator size="small" color={COLORS.primary} />
-          <Text style={styles.updatingText}>更新中...</Text>
-        </View>
+        <div style={{ color: '#00ff88', fontSize: 12, marginBottom: 16 }}>更新中...</div>
       )}
-      
       {renderOptionSelector(
-        '招待権限',
+        'INVITATION PERMISSION',
         'inviteRestriction',
         [
-          {
-            value: 'owner_only',
-            label: 'オーナーのみ',
-            description: 'NESTのオーナーだけがメンバーを招待できます'
-          },
-          {
-            value: 'members',
-            label: '全メンバー',
-            description: 'すべてのメンバーが新しいメンバーを招待できます'
-          }
+          { value: 'owner_only', label: 'オーナーのみ', description: 'NESTのオーナーだけがメンバーを招待できます' },
+          { value: 'members', label: '全メンバー', description: 'すべてのメンバーが新しいメンバーを招待できます' }
         ]
       )}
-      
       {renderOptionSelector(
-        'コンテンツの公開範囲',
+        'CONTENT VISIBILITY',
         'contentVisibility',
         [
-          {
-            value: 'members_only',
-            label: 'メンバーのみ',
-            description: 'NEST内のコンテンツはメンバーのみが閲覧できます'
-          },
-          {
-            value: 'public',
-            label: '公開',
-            description: '招待された人も一部のコンテンツを閲覧できます'
-          }
+          { value: 'members_only', label: 'メンバーのみ', description: 'NEST内のコンテンツはメンバーのみが閲覧できます' },
+          { value: 'public', label: '公開', description: '招待された人も一部のコンテンツを閲覧できます' }
         ]
       )}
-      
       {renderOptionSelector(
-        'メンバーリストの公開範囲',
+        'MEMBER LIST VISIBILITY',
         'memberListVisibility',
         [
-          {
-            value: 'members_only',
-            label: 'メンバーのみ',
-            description: 'メンバーリストはNESTのメンバーのみが閲覧できます'
-          },
-          {
-            value: 'public',
-            label: '公開',
-            description: '招待された人もメンバーリストを閲覧できます'
-          }
+          { value: 'members_only', label: 'メンバーのみ', description: 'メンバーリストはNESTのメンバーのみが閲覧できます' },
+          { value: 'public', label: '公開', description: '招待された人もメンバーリストを閲覧できます' }
         ]
       )}
-      
-      {Platform.OS === 'web' && (
-        <View style={styles.keyboardShortcuts}>
-          <Text style={styles.shortcutTitle}>キーボードショートカット</Text>
-          <Text style={styles.shortcutText}>Alt+P: プライバシー設定を開く</Text>
-          <Text style={styles.shortcutText}>Alt+S: 設定を保存</Text>
-        </View>
-      )}
-    </View>
+    </div>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    padding: SPACING.md,
-    position: 'relative',
-  },
   loadingContainer: {
-    padding: SPACING.lg,
+    padding: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },
   loadingText: {
-    marginTop: SPACING.md,
+    marginTop: 8,
     fontSize: 14,
-    color: COLORS.gray,
-  },
-  updatingOverlay: {
-    position: 'absolute',
-    top: SPACING.md,
-    right: SPACING.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.white,
-    padding: SPACING.sm,
-    borderRadius: 8,
-    ...Platform.select({
-      web: {
-        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-      },
-      default: {
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
-      }
-    }),
-  },
-  updatingText: {
-    marginLeft: SPACING.xs,
-    fontSize: 14,
-    color: COLORS.text,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: SPACING.lg,
-    color: COLORS.text,
-  },
-  settingSection: {
-    marginBottom: SPACING.xl,
-  },
-  settingTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: SPACING.md,
-    color: COLORS.text,
-  },
-  option: {
-    backgroundColor: COLORS.white,
-    borderRadius: 8,
-    padding: SPACING.md,
-    marginBottom: SPACING.sm,
-    borderWidth: 1,
-    borderColor: COLORS.lightGray,
-    ...Platform.select({
-      web: {
-        transition: 'all 0.2s ease',
-        cursor: 'pointer',
-      }
-    }),
-  },
-  selectedOption: {
-    borderColor: COLORS.primary,
-    backgroundColor: COLORS.primary + '10', // 透明度10%
-    ...Platform.select({
-      web: {
-        boxShadow: '0 0 0 1px ' + COLORS.primary,
-      },
-      default: {
-        // ネイティブの場合は既に境界線の色を変更しているのでOK
-      }
-    }),
-  },
-  optionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  radioButton: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: COLORS.gray,
-    marginRight: SPACING.sm,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  radioButtonSelected: {
-    borderColor: COLORS.primary,
-  },
-  radioButtonDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: COLORS.primary,
-  },
-  optionLabel: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: COLORS.text,
-  },
-  selectedLabel: {
-    color: COLORS.primary,
-    fontWeight: '600',
-  },
-  optionDescription: {
-    fontSize: 14,
-    color: COLORS.gray,
-    marginLeft: SPACING.lg + 14, // ラジオボタンの幅+マージン+少し余分に
-  },
-  keyboardShortcuts: {
-    marginTop: SPACING.lg,
-    padding: SPACING.md,
-    backgroundColor: COLORS.white,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: COLORS.lightGray,
-    borderStyle: 'dashed',
-  },
-  shortcutTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginBottom: SPACING.xs,
-  },
-  shortcutText: {
-    fontSize: 13,
-    color: COLORS.gray,
-    fontFamily: Platform.OS === 'web' ? 'monospace' : 'monospace',
-    marginBottom: 2,
+    color: '#6c7086',
   },
 });
 

@@ -1,0 +1,1641 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Circular Node Network Map</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        /* CSS Variables - モダンテックデザインシステム */
+        :root {
+            /* Colors */
+            --primary-green: #00ff88;
+            --primary-green-dark: #00cc6a;
+            --primary-blue: #64b5f6;
+            --primary-orange: #ffa500;
+            --primary-red: #ff6b6b;
+            --primary-purple: #9c27b0;
+            --primary-cyan: #26c6da;
+            --primary-yellow: #ffd93d;
+            
+            /* Background */
+            --bg-primary: #0f0f23;
+            --bg-secondary: #1a1a2e;
+            --bg-tertiary: #333366;
+            --bg-quaternary: #45475a;
+            
+            /* Text */
+            --text-primary: #e2e8f0;
+            --text-secondary: #a6adc8;
+            --text-muted: #6c7086;
+            --text-inverse: #0f0f23;
+            
+            /* Border */
+            --border-primary: #333366;
+            --border-secondary: #45475a;
+            
+            /* Typography */
+            --font-family-text: 'Space Grotesk', sans-serif;
+            --font-family-mono: 'JetBrains Mono', monospace;
+            
+            /* Transitions */
+            --transition-fast: 0.15s ease;
+            --transition-normal: 0.2s ease;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: var(--font-family-text);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .network-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            cursor: grab;
+        }
+
+        .network-container.dragging {
+            cursor: grabbing;
+        }
+
+        .network-canvas {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .network-svg {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .network-nodes {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+        }
+
+        /* Circular Node Styles */
+        .node {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-primary);
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            transform-origin: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(8px);
+        }
+
+        .node:hover {
+            transform: scale(1.2);
+            box-shadow: 0 8px 24px rgba(0, 255, 136, 0.4);
+            border-color: var(--primary-green);
+            z-index: 10;
+        }
+
+        .node.selected {
+            border-color: var(--primary-green);
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.6);
+            z-index: 15;
+            background: rgba(0, 255, 136, 0.1);
+        }
+
+        .node.highlighted {
+            border-color: var(--primary-yellow);
+            box-shadow: 0 0 15px rgba(255, 211, 61, 0.5);
+            animation: pulse-highlight 2s infinite;
+        }
+
+        /* Node size variations based on importance/connections */
+        .node.size-small {
+            width: 45px;
+            height: 45px;
+        }
+
+        .node.size-medium {
+            width: 60px;
+            height: 60px;
+        }
+
+        .node.size-large {
+            width: 80px;
+            height: 80px;
+        }
+
+        .node.size-xlarge {
+            width: 100px;
+            height: 100px;
+        }
+
+        /* Node types with different color schemes */
+        .node.type-insight {
+            background: radial-gradient(circle, rgba(156, 39, 176, 0.2) 0%, var(--bg-secondary) 70%);
+            border-color: var(--primary-purple);
+        }
+
+        .node.type-theme {
+            background: radial-gradient(circle, rgba(100, 181, 246, 0.2) 0%, var(--bg-secondary) 70%);
+            border-color: var(--primary-blue);
+        }
+
+        .node.type-concept {
+            background: radial-gradient(circle, rgba(38, 198, 218, 0.2) 0%, var(--bg-secondary) 70%);
+            border-color: var(--primary-cyan);
+        }
+
+        .node.type-action {
+            background: radial-gradient(circle, rgba(255, 165, 0, 0.2) 0%, var(--bg-secondary) 70%);
+            border-color: var(--primary-orange);
+        }
+
+        .node.type-question {
+            background: radial-gradient(circle, rgba(255, 211, 61, 0.2) 0%, var(--bg-secondary) 70%);
+            border-color: var(--primary-yellow);
+        }
+
+        /* Node inner content */
+        .node-icon {
+            font-size: 18px;
+            color: var(--text-primary);
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .node.size-small .node-icon {
+            font-size: 14px;
+        }
+
+        .node.size-large .node-icon {
+            font-size: 24px;
+        }
+
+        .node.size-xlarge .node-icon {
+            font-size: 32px;
+        }
+
+        /* Node labels */
+        .node-label {
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            margin-top: 8px;
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-align: center;
+            background: rgba(15, 15, 35, 0.8);
+            padding: 4px 8px;
+            border-radius: 12px;
+            backdrop-filter: blur(4px);
+            border: 1px solid var(--border-primary);
+            max-width: 120px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            opacity: 0;
+            transition: all var(--transition-normal);
+            pointer-events: none;
+            font-family: var(--font-family-mono);
+        }
+
+        .node:hover .node-label {
+            opacity: 1;
+        }
+
+        .node.selected .node-label {
+            opacity: 1;
+            color: var(--primary-green);
+            border-color: var(--primary-green);
+        }
+
+        /* Connection lines */
+        .connection-line {
+            stroke: var(--text-muted);
+            stroke-width: 1.5;
+            fill: none;
+            opacity: 0.4;
+            transition: all var(--transition-normal);
+        }
+
+        .connection-line.active {
+            opacity: 0.9;
+            stroke-width: 3;
+            stroke: var(--primary-green);
+            filter: drop-shadow(0 0 4px var(--primary-green));
+        }
+
+        .connection-line.related {
+            opacity: 0.7;
+            stroke: var(--primary-blue);
+            stroke-width: 2;
+        }
+
+        .connection-line.strong {
+            stroke-width: 3;
+            opacity: 0.6;
+        }
+
+        /* Directional arrows for connections */
+        .connection-arrow {
+            fill: var(--text-muted);
+            opacity: 0.4;
+            transition: all var(--transition-normal);
+        }
+
+        .connection-arrow.active {
+            fill: var(--primary-green);
+            opacity: 0.9;
+        }
+
+        .connection-arrow.related {
+            fill: var(--primary-blue);
+            opacity: 0.7;
+        }
+
+        /* Cluster highlights */
+        .cluster-highlight {
+            fill: none;
+            stroke: var(--primary-green);
+            stroke-width: 2;
+            stroke-dasharray: 15,8;
+            opacity: 0.6;
+            filter: drop-shadow(0 0 8px var(--primary-green));
+            animation: dash-flow 3s linear infinite;
+        }
+
+        @keyframes dash-flow {
+            0% { stroke-dashoffset: 0; }
+            100% { stroke-dashoffset: 23; }
+        }
+
+        @keyframes pulse-highlight {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        /* Cluster labels */
+        .cluster-label {
+            position: absolute;
+            background: rgba(0, 255, 136, 0.9);
+            color: var(--text-inverse);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            font-family: var(--font-family-mono);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            pointer-events: none;
+            z-index: 20;
+            backdrop-filter: blur(8px);
+            border: 2px solid var(--primary-green);
+            box-shadow: 0 6px 16px rgba(0, 255, 136, 0.3);
+            transition: all var(--transition-normal);
+        }
+
+        .cluster-label.theme-ux {
+            background: rgba(100, 181, 246, 0.9);
+            border-color: var(--primary-blue);
+            box-shadow: 0 6px 16px rgba(100, 181, 246, 0.3);
+        }
+
+        .cluster-label.theme-psychology {
+            background: rgba(156, 39, 176, 0.9);
+            border-color: var(--primary-purple);
+            box-shadow: 0 6px 16px rgba(156, 39, 176, 0.3);
+        }
+
+        .cluster-label.theme-design {
+            background: rgba(255, 165, 0, 0.9);
+            border-color: var(--primary-orange);
+            box-shadow: 0 6px 16px rgba(255, 165, 0, 0.3);
+        }
+
+        .cluster-label.theme-research {
+            background: rgba(38, 198, 218, 0.9);
+            border-color: var(--primary-cyan);
+            box-shadow: 0 6px 16px rgba(38, 198, 218, 0.3);
+        }
+
+        /* Density indicators */
+        .density-indicator {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: var(--primary-green);
+            border-radius: 50%;
+            opacity: 0.6;
+            pointer-events: none;
+            z-index: 5;
+            animation: pulse-density 2.5s infinite;
+        }
+
+        .density-indicator.high {
+            background: var(--primary-red);
+            width: 18px;
+            height: 18px;
+            animation-duration: 1.5s;
+        }
+
+        .density-indicator.medium {
+            background: var(--primary-orange);
+            width: 15px;
+            height: 15px;
+            animation-duration: 2s;
+        }
+
+        .density-indicator.low {
+            background: var(--primary-cyan);
+            width: 10px;
+            height: 10px;
+            animation-duration: 3s;
+        }
+
+        @keyframes pulse-density {
+            0%, 100% { opacity: 0.4; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.2); }
+        }
+
+        /* Controls */
+        .controls {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .control-btn {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: 10px;
+            color: var(--text-secondary);
+            padding: 12px 16px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            font-family: var(--font-family-mono);
+            min-width: 140px;
+            text-align: center;
+            backdrop-filter: blur(8px);
+        }
+
+        .control-btn:hover {
+            background: var(--primary-green);
+            color: var(--text-inverse);
+            border-color: var(--primary-green);
+            transform: translateY(-2px);
+        }
+
+        .control-btn.active {
+            background: var(--primary-green);
+            color: var(--text-inverse);
+            border-color: var(--primary-green);
+        }
+
+        /* Info panel */
+        .info-panel {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 380px;
+            opacity: 0;
+            transform: translateX(30px);
+            transition: all var(--transition-normal);
+            backdrop-filter: blur(12px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        }
+
+        .info-panel.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .info-title {
+            color: var(--primary-green);
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            font-family: var(--font-family-text);
+        }
+
+        .info-content {
+            color: var(--text-secondary);
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 18px;
+        }
+
+        .info-metadata {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-family: var(--font-family-mono);
+            background: var(--bg-tertiary);
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+
+        .info-connections {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-primary);
+        }
+
+        .info-connections-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .connection-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+            font-size: 11px;
+            color: var(--text-secondary);
+            padding: 6px;
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+        }
+
+        .connection-type {
+            background: var(--primary-green);
+            color: var(--text-inverse);
+            padding: 3px 8px;
+            border-radius: 8px;
+            font-size: 9px;
+            font-weight: 600;
+        }
+
+        /* Filter panel */
+        .filter-panel {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 10;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: 16px;
+            padding: 20px;
+            min-width: 220px;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        }
+
+        .filter-title {
+            color: var(--text-primary);
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            font-family: var(--font-family-mono);
+        }
+
+        .filter-group {
+            margin-bottom: 16px;
+        }
+
+        .filter-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+            font-family: var(--font-family-mono);
+        }
+
+        .filter-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .filter-tag {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-secondary);
+            color: var(--text-secondary);
+            padding: 6px 12px;
+            border-radius: 12px;
+            font-size: 10px;
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            font-family: var(--font-family-mono);
+        }
+
+        .filter-tag:hover,
+        .filter-tag.active {
+            background: var(--primary-green);
+            color: var(--text-inverse);
+            border-color: var(--primary-green);
+            transform: translateY(-1px);
+        }
+
+        /* Zoom controls */
+        .zoom-controls {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .zoom-btn {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: 12px;
+            color: var(--text-secondary);
+            padding: 12px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(8px);
+        }
+
+        .zoom-btn:hover {
+            background: var(--primary-green);
+            color: var(--text-inverse);
+            border-color: var(--primary-green);
+            transform: translateY(-2px);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: row;
+                flex-wrap: wrap;
+            }
+
+            .control-btn {
+                min-width: 100px;
+                padding: 10px 12px;
+                font-size: 11px;
+            }
+
+            .filter-panel {
+                bottom: 90px;
+                min-width: 180px;
+                padding: 16px;
+            }
+
+            .info-panel {
+                max-width: 300px;
+                padding: 20px;
+            }
+
+            .node {
+                width: 50px;
+                height: 50px;
+            }
+
+            .node.size-large {
+                width: 65px;
+                height: 65px;
+            }
+
+            .node.size-xlarge {
+                width: 80px;
+                height: 80px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="network-container" id="networkContainer">
+        <div class="network-canvas" id="networkCanvas">
+            <svg class="network-svg" id="networkSvg">
+                <defs>
+                    <marker id="arrowhead" markerWidth="12" markerHeight="8" 
+                            refX="11" refY="4" orient="auto">
+                        <polygon points="0 0, 12 4, 0 8" fill="#6c7086" class="connection-arrow" />
+                    </marker>
+                    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                        <feMerge> 
+                            <feMergeNode in="coloredBlur"/>
+                            <feMergeNode in="SourceGraphic"/>
+                        </feMerge>
+                    </filter>
+                </defs>
+            </svg>
+            <div class="network-nodes" id="networkNodes"></div>
+        </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+        <button class="control-btn" onclick="NetworkMap.resetView()">Reset View</button>
+        <button class="control-btn" onclick="NetworkMap.showClusters()">Show Clusters</button>
+        <button class="control-btn" onclick="NetworkMap.generateLabels()">Auto Labels</button>
+        <button class="control-btn" onclick="NetworkMap.analyzeDensity()">Analyze Density</button>
+        <button class="control-btn" onclick="NetworkMap.rearrangeNodes()">Auto Layout</button>
+        <button class="control-btn" onclick="NetworkMap.exportNetwork()">Export</button>
+    </div>
+
+    <!-- Info Panel -->
+    <div class="info-panel" id="infoPanel">
+        <div class="info-title" id="infoTitle">Select a Node</div>
+        <div class="info-content" id="infoContent">
+            Click on any node to see detailed information and connections.
+        </div>
+        <div class="info-metadata" id="infoMetadata"></div>
+        <div class="info-connections" id="infoConnections"></div>
+    </div>
+
+    <!-- Filter Panel -->
+    <div class="filter-panel">
+        <div class="filter-title">Filters</div>
+        <div class="filter-group">
+            <div class="filter-label">Tags</div>
+            <div class="filter-tags" id="filterTags">
+                <span class="filter-tag" data-tag="ux">UX</span>
+                <span class="filter-tag" data-tag="psychology">Psychology</span>
+                <span class="filter-tag" data-tag="design">Design</span>
+                <span class="filter-tag" data-tag="research">Research</span>
+                <span class="filter-tag" data-tag="behavior">Behavior</span>
+            </div>
+        </div>
+        <div class="filter-group">
+            <div class="filter-label">Type</div>
+            <div class="filter-tags" id="filterTypes">
+                <span class="filter-tag" data-type="insight">Insight</span>
+                <span class="filter-tag" data-type="theme">Theme</span>
+                <span class="filter-tag" data-type="concept">Concept</span>
+                <span class="filter-tag" data-type="action">Action</span>
+                <span class="filter-tag" data-type="question">Question</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Zoom Controls -->
+    <div class="zoom-controls">
+        <button class="zoom-btn" onclick="NetworkMap.zoomIn()">+</button>
+        <button class="zoom-btn" onclick="NetworkMap.zoomOut()">−</button>
+    </div>
+
+    <script>
+        // Network Map Class to avoid global function conflicts
+        class CircularNetworkMap {
+            constructor() {
+                this.nodes = [];
+                this.connections = [];
+                this.selectedNode = null;
+                this.isDragging = false;
+                this.dragStart = { x: 0, y: 0 };
+                this.transform = { x: 0, y: 0, scale: 1 };
+                this.activeFilters = { tags: [], types: [] };
+                this.detectedClusters = [];
+
+                // Sample node data
+                this.sampleNodes = [
+                    {
+                        id: 'node_001',
+                        title: 'ユーザーの潜在ニーズ',
+                        content: '「使いやすい」という言葉の奥にある真の感情を理解する必要がある。表面的な要求ではなく、深層心理に潜む本当のニーズを探る。',
+                        type: 'insight',
+                        tags: ['ux', 'psychology'],
+                        author: '田中',
+                        createdAt: '2025-01-15',
+                        x: 300, y: 200,
+                        size: 'medium',
+                        icon: '💡'
+                    },
+                    {
+                        id: 'node_002',
+                        title: '感情 vs 機能',
+                        content: '機能的価値と感情的価値のバランスが重要。完璧な機能があっても感情的な共感がなければ愛されないプロダクトになる。',
+                        type: 'theme',
+                        tags: ['design', 'psychology'],
+                        author: '佐藤',
+                        createdAt: '2025-01-14',
+                        x: 500, y: 250,
+                        size: 'large',
+                        icon: '⚖️'
+                    },
+                    {
+                        id: 'node_003',
+                        title: 'コンテキストの重要性',
+                        content: 'ユーザーが置かれている状況や文脈によって、同じ機能でも価値が大きく変わる。',
+                        type: 'insight',
+                        tags: ['ux', 'research'],
+                        author: '山田',
+                        createdAt: '2025-01-13',
+                        x: 200, y: 350,
+                        size: 'medium',
+                        icon: '🔍'
+                    },
+                    {
+                        id: 'node_004',
+                        title: 'プロトタイプ検証',
+                        content: 'アイデアを素早く形にして、実際のユーザーと対話しながら改善サイクルを回す。',
+                        type: 'action',
+                        tags: ['design', 'research'],
+                        author: '鈴木',
+                        createdAt: '2025-01-12',
+                        x: 450, y: 400,
+                        size: 'medium',
+                        icon: '🔧'
+                    },
+                    {
+                        id: 'node_005',
+                        title: '認知負荷の軽減',
+                        content: 'ユーザーの認知負荷を下げることで、より直感的で使いやすい体験を提供できる。',
+                        type: 'concept',
+                        tags: ['ux', 'psychology'],
+                        author: '田中',
+                        createdAt: '2025-01-11',
+                        x: 350, y: 300,
+                        size: 'large',
+                        icon: '🧠'
+                    },
+                    {
+                        id: 'node_006',
+                        title: 'なぜ愛されないのか？',
+                        content: '機能は完璧なのに、なぜユーザーに愛されないプロダクトになってしまうのか？',
+                        type: 'question',
+                        tags: ['psychology', 'behavior'],
+                        author: '高橋',
+                        createdAt: '2025-01-10',
+                        x: 600, y: 200,
+                        size: 'medium',
+                        icon: '❓'
+                    },
+                    {
+                        id: 'node_007',
+                        title: 'エモーショナルデザイン',
+                        content: 'ユーザーの感情に訴えかけるデザインの力。機能だけでなく、体験全体を設計する。',
+                        type: 'theme',
+                        tags: ['design', 'psychology'],
+                        author: '林',
+                        createdAt: '2025-01-09',
+                        x: 700, y: 300,
+                        size: 'xlarge',
+                        icon: '❤️'
+                    },
+                    {
+                        id: 'node_008',
+                        title: 'ユーザビリティテスト',
+                        content: '定期的なユーザビリティテストで、想定と現実のギャップを発見し続ける。',
+                        type: 'action',
+                        tags: ['research', 'ux'],
+                        author: '佐藤',
+                        createdAt: '2025-01-08',
+                        x: 150, y: 450,
+                        size: 'medium',
+                        icon: '📊'
+                    },
+                    {
+                        id: 'node_009',
+                        title: 'データドリブン',
+                        content: 'データに基づいた意思決定で、より効果的なプロダクト開発を行う。',
+                        type: 'concept',
+                        tags: ['research', 'behavior'],
+                        author: '中村',
+                        createdAt: '2025-01-07',
+                        x: 250, y: 150,
+                        size: 'small',
+                        icon: '📈'
+                    },
+                    {
+                        id: 'node_010',
+                        title: 'ユーザージャーニー',
+                        content: 'ユーザーの体験全体を通して一貫した価値を提供する設計思想。',
+                        type: 'theme',
+                        tags: ['ux', 'design'],
+                        author: '伊藤',
+                        createdAt: '2025-01-06',
+                        x: 550, y: 150,
+                        size: 'large',
+                        icon: '🗺️'
+                    }
+                ];
+
+                this.sampleConnections = [
+                    { from: 'node_001', to: 'node_002', type: 'relates_to', strength: 0.8 },
+                    { from: 'node_001', to: 'node_005', type: 'supports', strength: 0.7 },
+                    { from: 'node_002', to: 'node_007', type: 'leads_to', strength: 0.9 },
+                    { from: 'node_003', to: 'node_001', type: 'supports', strength: 0.6 },
+                    { from: 'node_004', to: 'node_008', type: 'relates_to', strength: 0.8 },
+                    { from: 'node_005', to: 'node_007', type: 'enables', strength: 0.7 },
+                    { from: 'node_006', to: 'node_001', type: 'questions', strength: 0.9 },
+                    { from: 'node_006', to: 'node_002', type: 'questions', strength: 0.8 },
+                    { from: 'node_007', to: 'node_001', type: 'implements', strength: 0.7 },
+                    { from: 'node_008', to: 'node_003', type: 'validates', strength: 0.6 },
+                    { from: 'node_009', to: 'node_008', type: 'supports', strength: 0.7 },
+                    { from: 'node_010', to: 'node_003', type: 'includes', strength: 0.8 },
+                    { from: 'node_010', to: 'node_007', type: 'relates_to', strength: 0.6 },
+                    { from: 'node_009', to: 'node_001', type: 'validates', strength: 0.5 }
+                ];
+
+                this.init();
+            }
+
+            init() {
+                this.nodes = [...this.sampleNodes];
+                this.connections = [...this.sampleConnections];
+                
+                this.setupEventListeners();
+                this.render();
+                this.setupFilters();
+                
+                console.log('🌐 Circular Node Network Map initialized');
+                console.log('Nodes:', this.nodes.length);
+                console.log('Connections:', this.connections.length);
+            }
+
+            setupEventListeners() {
+                const container = document.getElementById('networkContainer');
+                
+                // Mouse events for pan and zoom
+                container.addEventListener('mousedown', (e) => this.startDrag(e));
+                container.addEventListener('mousemove', (e) => this.drag(e));
+                container.addEventListener('mouseup', (e) => this.endDrag(e));
+                container.addEventListener('wheel', (e) => this.zoom(e));
+                
+                // Touch events for mobile
+                container.addEventListener('touchstart', (e) => this.startDrag(e));
+                container.addEventListener('touchmove', (e) => this.drag(e));
+                container.addEventListener('touchend', (e) => this.endDrag(e));
+                
+                // Prevent context menu
+                container.addEventListener('contextmenu', e => e.preventDefault());
+
+                // Keyboard shortcuts
+                document.addEventListener('keydown', (e) => this.handleKeyboard(e));
+            }
+
+            render() {
+                console.log('Rendering nodes and connections...');
+                this.renderNodes();
+                this.renderConnections();
+            }
+
+            renderNodes() {
+                const container = document.getElementById('networkNodes');
+                if (!container) {
+                    console.error('networkNodes container not found');
+                    return;
+                }
+                
+                container.innerHTML = '';
+                const filteredNodes = this.applyFilters(this.nodes);
+                console.log('Rendering', filteredNodes.length, 'nodes');
+
+                filteredNodes.forEach(node => {
+                    const nodeEl = document.createElement('div');
+                    nodeEl.className = `node type-${node.type} size-${node.size}`;
+                    nodeEl.style.left = `${node.x - (this.getNodeSize(node.size) / 2)}px`;
+                    nodeEl.style.top = `${node.y - (this.getNodeSize(node.size) / 2)}px`;
+                    nodeEl.onclick = () => this.selectNode(node);
+                    
+                    nodeEl.innerHTML = `
+                        <div class="node-icon">${node.icon}</div>
+                        <div class="node-label">${node.title}</div>
+                    `;
+                    
+                    container.appendChild(nodeEl);
+                });
+            }
+
+            getNodeSize(size) {
+                const sizes = {
+                    'small': 45,
+                    'medium': 60,
+                    'large': 80,
+                    'xlarge': 100
+                };
+                return sizes[size] || 60;
+            }
+
+            renderConnections() {
+                const svg = document.getElementById('networkSvg');
+                const defs = svg.querySelector('defs');
+                svg.innerHTML = defs.outerHTML;
+
+                const filteredNodes = this.applyFilters(this.nodes);
+                const filteredNodeIds = new Set(filteredNodes.map(n => n.id));
+
+                this.connections.forEach(conn => {
+                    if (!filteredNodeIds.has(conn.from) || !filteredNodeIds.has(conn.to)) return;
+
+                    const fromNode = this.nodes.find(n => n.id === conn.from);
+                    const toNode = this.nodes.find(n => n.id === conn.to);
+                    
+                    if (fromNode && toNode) {
+                        // Calculate connection points on circle edges
+                        const angle = Math.atan2(toNode.y - fromNode.y, toNode.x - fromNode.x);
+                        const fromRadius = this.getNodeSize(fromNode.size) / 2;
+                        const toRadius = this.getNodeSize(toNode.size) / 2;
+                        
+                        const fromX = fromNode.x + Math.cos(angle) * fromRadius;
+                        const fromY = fromNode.y + Math.sin(angle) * fromRadius;
+                        const toX = toNode.x - Math.cos(angle) * toRadius;
+                        const toY = toNode.y - Math.sin(angle) * toRadius;
+
+                        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                        line.setAttribute('x1', fromX);
+                        line.setAttribute('y1', fromY);
+                        line.setAttribute('x2', toX);
+                        line.setAttribute('y2', toY);
+                        line.setAttribute('class', `connection-line ${conn.strength > 0.7 ? 'strong' : ''}`);
+                        line.setAttribute('marker-end', 'url(#arrowhead)');
+                        
+                        svg.appendChild(line);
+                    }
+                });
+            }
+
+            applyFilters(nodesToFilter) {
+                return nodesToFilter.filter(node => {
+                    const tagMatch = this.activeFilters.tags.length === 0 || 
+                                    this.activeFilters.tags.some(tag => node.tags.includes(tag));
+                    const typeMatch = this.activeFilters.types.length === 0 || 
+                                     this.activeFilters.types.includes(node.type);
+                    return tagMatch && typeMatch;
+                });
+            }
+
+            selectNode(node) {
+                // Update selection
+                document.querySelectorAll('.node').forEach(el => el.classList.remove('selected'));
+                event.target.closest('.node').classList.add('selected');
+                
+                this.selectedNode = node;
+                
+                // Update info panel
+                this.updateInfoPanel(node);
+                
+                // Highlight connections
+                this.highlightConnections(node.id);
+            }
+
+            updateInfoPanel(node) {
+                const infoPanel = document.getElementById('infoPanel');
+                const infoTitle = document.getElementById('infoTitle');
+                const infoContent = document.getElementById('infoContent');
+                const infoMetadata = document.getElementById('infoMetadata');
+                const infoConnections = document.getElementById('infoConnections');
+                
+                infoTitle.textContent = node.title;
+                infoContent.textContent = node.content;
+                infoMetadata.innerHTML = `
+                    <strong>Author:</strong> ${node.author}<br>
+                    <strong>Created:</strong> ${this.formatDate(node.createdAt)}<br>
+                    <strong>Type:</strong> ${node.type}<br>
+                    <strong>Size:</strong> ${node.size}<br>
+                    <strong>Tags:</strong> ${node.tags.join(', ')}
+                `;
+                
+                const relatedConnections = this.connections.filter(c => c.from === node.id || c.to === node.id);
+                const connectionsHtml = relatedConnections.map(conn => {
+                    const otherNodeId = conn.from === node.id ? conn.to : conn.from;
+                    const otherNode = this.nodes.find(n => n.id === otherNodeId);
+                    const direction = conn.from === node.id ? '→' : '←';
+                    const strengthBadge = conn.strength > 0.7 ? 'Strong' : conn.strength > 0.5 ? 'Medium' : 'Weak';
+                    return `
+                        <div class="connection-item">
+                            <span class="connection-type">${conn.type}</span>
+                            <span>${direction} ${otherNode?.title || 'Unknown'}</span>
+                            <small>(${strengthBadge})</small>
+                        </div>
+                    `;
+                }).join('');
+                
+                infoConnections.innerHTML = `
+                    <div class="info-connections-title">Connections (${relatedConnections.length})</div>
+                    ${connectionsHtml}
+                `;
+                
+                infoPanel.classList.add('show');
+            }
+
+            highlightConnections(nodeId) {
+                document.querySelectorAll('.connection-line').forEach(line => {
+                    line.classList.remove('active', 'related');
+                });
+
+                document.querySelectorAll('.node').forEach(node => {
+                    node.classList.remove('highlighted');
+                });
+                
+                const relatedConnections = this.connections.filter(c => c.from === nodeId || c.to === nodeId);
+                const relatedNodeIds = new Set();
+                
+                relatedConnections.forEach(conn => {
+                    relatedNodeIds.add(conn.from === nodeId ? conn.to : conn.from);
+                });
+
+                // Highlight related nodes
+                document.querySelectorAll('.node').forEach(nodeEl => {
+                    const node = this.nodes.find(n => n.title === nodeEl.querySelector('.node-label').textContent);
+                    if (node && relatedNodeIds.has(node.id)) {
+                        nodeEl.classList.add('highlighted');
+                    }
+                });
+
+                // Highlight connection lines
+                const lines = document.querySelectorAll('.connection-line');
+                relatedConnections.forEach((conn, index) => {
+                    const lineIndex = this.connections.indexOf(conn);
+                    if (lines[lineIndex]) {
+                        lines[lineIndex].classList.add('active');
+                    }
+                });
+            }
+
+            formatDate(dateString) {
+                const date = new Date(dateString);
+                return date.toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' });
+            }
+
+            setupFilters() {
+                // Tag filters
+                document.querySelectorAll('#filterTags .filter-tag').forEach(tag => {
+                    tag.addEventListener('click', () => {
+                        const tagName = tag.getAttribute('data-tag');
+                        this.toggleFilter('tags', tagName);
+                        tag.classList.toggle('active');
+                        this.render();
+                    });
+                });
+
+                // Type filters
+                document.querySelectorAll('#filterTypes .filter-tag').forEach(tag => {
+                    tag.addEventListener('click', () => {
+                        const typeName = tag.getAttribute('data-type');
+                        this.toggleFilter('types', typeName);
+                        tag.classList.toggle('active');
+                        this.render();
+                    });
+                });
+            }
+
+            toggleFilter(filterType, value) {
+                const filterArray = this.activeFilters[filterType];
+                const index = filterArray.indexOf(value);
+                if (index > -1) {
+                    filterArray.splice(index, 1);
+                } else {
+                    filterArray.push(value);
+                }
+            }
+
+            // Pan and Zoom functionality
+            startDrag(e) {
+                if (e.target.closest('.node')) return;
+                
+                this.isDragging = true;
+                const container = document.getElementById('networkContainer');
+                container.classList.add('dragging');
+                
+                const clientX = e.clientX || e.touches[0].clientX;
+                const clientY = e.clientY || e.touches[0].clientY;
+                
+                this.dragStart.x = clientX - this.transform.x;
+                this.dragStart.y = clientY - this.transform.y;
+            }
+
+            drag(e) {
+                if (!this.isDragging) return;
+                
+                e.preventDefault();
+                const clientX = e.clientX || e.touches[0].clientX;
+                const clientY = e.clientY || e.touches[0].clientY;
+                
+                this.transform.x = clientX - this.dragStart.x;
+                this.transform.y = clientY - this.dragStart.y;
+                
+                this.updateTransform();
+            }
+
+            endDrag() {
+                this.isDragging = false;
+                const container = document.getElementById('networkContainer');
+                container.classList.remove('dragging');
+            }
+
+            zoom(e) {
+                e.preventDefault();
+                
+                const delta = e.deltaY > 0 ? 0.9 : 1.1;
+                const newScale = Math.max(0.2, Math.min(3, this.transform.scale * delta));
+                
+                if (newScale !== this.transform.scale) {
+                    this.transform.scale = newScale;
+                    this.updateTransform();
+                }
+            }
+
+            updateTransform() {
+                const canvas = document.getElementById('networkCanvas');
+                canvas.style.transform = `translate(${this.transform.x}px, ${this.transform.y}px) scale(${this.transform.scale})`;
+            }
+
+            // Control functions
+            resetView() {
+                this.transform = { x: 0, y: 0, scale: 1 };
+                this.updateTransform();
+                
+                document.querySelectorAll('.node').forEach(el => el.classList.remove('selected', 'highlighted'));
+                document.getElementById('infoPanel').classList.remove('show');
+                
+                // Clear all visual overlays
+                this.clearLabels();
+                this.clearDensityIndicators();
+                document.querySelectorAll('.cluster-highlight').forEach(el => el.remove());
+                
+                // Clear filters
+                this.activeFilters = { tags: [], types: [] };
+                document.querySelectorAll('.filter-tag').forEach(tag => tag.classList.remove('active'));
+                this.render();
+            }
+
+            generateLabels() {
+                this.clearLabels();
+                
+                // Detect clusters first
+                const currentClusters = this.detectClusters();
+                
+                // Generate labels for each cluster
+                currentClusters.forEach((cluster, index) => {
+                    const clusterNodes = cluster.map(id => this.nodes.find(n => n.id === id)).filter(n => n);
+                    if (clusterNodes.length < 2) return;
+
+                    const label = this.generateClusterLabel(clusterNodes, index);
+                    const position = this.calculateLabelPosition(clusterNodes);
+                    const theme = this.detectClusterTheme(clusterNodes);
+                    
+                    this.createClusterLabel(label, position, theme, clusterNodes.length);
+                });
+                
+                console.log(`Generated labels for ${currentClusters.length} clusters`);
+            }
+
+            generateClusterLabel(clusterNodes, clusterIndex) {
+                // Analyze tags frequency
+                const tagFreq = {};
+                const typeFreq = {};
+
+                clusterNodes.forEach(node => {
+                    // Count tags
+                    node.tags.forEach(tag => {
+                        tagFreq[tag] = (tagFreq[tag] || 0) + 1;
+                    });
+                    
+                    // Count types
+                    typeFreq[node.type] = (typeFreq[node.type] || 0) + 1;
+                });
+
+                // Find most common elements
+                const topTag = Object.keys(tagFreq).reduce((a, b) => tagFreq[a] > tagFreq[b] ? a : b, '');
+                const topType = Object.keys(typeFreq).reduce((a, b) => typeFreq[a] > typeFreq[b] ? a : b, '');
+
+                // Generate intelligent label
+                const labelStrategies = [
+                    // Tag-based labels
+                    () => {
+                        const tagLabels = {
+                            'ux': 'UX Research',
+                            'psychology': 'Psychology',
+                            'design': 'Design',
+                            'research': 'Research',
+                            'behavior': 'Behavior'
+                        };
+                        return tagLabels[topTag] || topTag.toUpperCase();
+                    },
+                    
+                    // Type-based labels
+                    () => {
+                        const typeLabels = {
+                            'insight': 'Insights',
+                            'theme': 'Themes',
+                            'concept': 'Concepts',
+                            'action': 'Actions',
+                            'question': 'Questions'
+                        };
+                        return typeLabels[topType] || topType;
+                    },
+                    
+                    // Combination labels
+                    () => {
+                        if (topTag && topType) {
+                            return `${topTag.toUpperCase()} ${topType}s`;
+                        }
+                        return null;
+                    },
+                    
+                    // Fallback
+                    () => `Cluster ${clusterIndex + 1}`
+                ];
+
+                // Try strategies in order
+                for (const strategy of labelStrategies) {
+                    const label = strategy();
+                    if (label && label.length > 0) {
+                        return label;
+                    }
+                }
+
+                return `Group ${clusterIndex + 1}`;
+            }
+
+            detectClusterTheme(clusterNodes) {
+                const tagCounts = {};
+                clusterNodes.forEach(node => {
+                    node.tags.forEach(tag => {
+                        tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+                    });
+                });
+
+                const dominantTag = Object.keys(tagCounts).reduce((a, b) => 
+                    tagCounts[a] > tagCounts[b] ? a : b, '');
+
+                const themeMapping = {
+                    'ux': 'ux',
+                    'psychology': 'psychology',
+                    'design': 'design',
+                    'research': 'research',
+                    'behavior': 'psychology'
+                };
+
+                return themeMapping[dominantTag] || 'default';
+            }
+
+            calculateLabelPosition(clusterNodes) {
+                const centerX = clusterNodes.reduce((sum, node) => sum + node.x, 0) / clusterNodes.length;
+                const centerY = clusterNodes.reduce((sum, node) => sum + node.y, 0) / clusterNodes.length;
+                
+                // Find the topmost position for label placement
+                const minY = Math.min(...clusterNodes.map(node => node.y));
+                
+                return {
+                    x: centerX,
+                    y: minY - 40 // Place label above the cluster
+                };
+            }
+
+            createClusterLabel(text, position, theme, nodeCount) {
+                const label = document.createElement('div');
+                label.className = `cluster-label theme-${theme}`;
+                
+                label.textContent = text;
+                label.style.left = `${position.x - 60}px`;
+                label.style.top = `${position.y}px`;
+                
+                // Add to network nodes container
+                document.getElementById('networkNodes').appendChild(label);
+            }
+
+            analyzeDensity() {
+                this.clearDensityIndicators();
+                
+                const densityPoints = this.calculateDensityMap();
+                
+                densityPoints.forEach(point => {
+                    this.createDensityIndicator(point);
+                });
+                
+                console.log(`Analyzed ${densityPoints.length} density points`);
+            }
+
+            calculateDensityMap() {
+                const gridSize = 120;
+                const densityPoints = [];
+                
+                for (let x = 60; x < 800; x += gridSize) {
+                    for (let y = 60; y < 600; y += gridSize) {
+                        const radius = 100;
+                        const nearbyNodes = this.nodes.filter(node => {
+                            const distance = Math.sqrt(
+                                Math.pow(node.x - x, 2) + Math.pow(node.y - y, 2)
+                            );
+                            return distance <= radius;
+                        });
+                        
+                        if (nearbyNodes.length > 0) {
+                            let densityLevel;
+                            if (nearbyNodes.length >= 4) densityLevel = 'high';
+                            else if (nearbyNodes.length >= 2) densityLevel = 'medium';
+                            else densityLevel = 'low';
+                            
+                            densityPoints.push({
+                                x, y,
+                                density: nearbyNodes.length,
+                                level: densityLevel,
+                                nodes: nearbyNodes
+                            });
+                        }
+                    }
+                }
+                
+                return densityPoints;
+            }
+
+            createDensityIndicator(point) {
+                const indicator = document.createElement('div');
+                indicator.className = `density-indicator ${point.level}`;
+                indicator.style.left = `${point.x - 6}px`;
+                indicator.style.top = `${point.y - 6}px`;
+                indicator.title = `Density: ${point.density} nodes`;
+                
+                document.getElementById('networkNodes').appendChild(indicator);
+            }
+
+            clearLabels() {
+                document.querySelectorAll('.cluster-label').forEach(el => el.remove());
+            }
+
+            clearDensityIndicators() {
+                document.querySelectorAll('.density-indicator').forEach(el => el.remove());
+            }
+
+            showClusters() {
+                // Clear existing visual elements
+                this.clearLabels();
+                this.clearDensityIndicators();
+                
+                // Detect clusters based on connection density
+                this.detectedClusters = this.detectClusters();
+                this.visualizeClusters();
+            }
+
+            detectClusters() {
+                // Build adjacency list for connected nodes
+                const adjacencyList = {};
+                this.nodes.forEach(node => {
+                    adjacencyList[node.id] = [];
+                });
+
+                this.connections.forEach(conn => {
+                    adjacencyList[conn.from].push(conn.to);
+                    adjacencyList[conn.to].push(conn.from);
+                });
+
+                const visited = new Set();
+                const clusters = [];
+
+                const dfs = (nodeId, cluster) => {
+                    if (visited.has(nodeId)) return;
+                    visited.add(nodeId);
+                    cluster.push(nodeId);
+
+                    adjacencyList[nodeId].forEach(neighborId => {
+                        if (!visited.has(neighborId)) {
+                            dfs(neighborId, cluster);
+                        }
+                    });
+                };
+
+                this.nodes.forEach(node => {
+                    if (!visited.has(node.id)) {
+                        const cluster = [];
+                        dfs(node.id, cluster);
+                        if (cluster.length > 1) {
+                            clusters.push(cluster);
+                        }
+                    }
+                });
+
+                return clusters;
+            }
+
+            visualizeClusters() {
+                const svg = document.getElementById('networkSvg');
+                
+                // Remove existing cluster highlights
+                svg.querySelectorAll('.cluster-highlight').forEach(el => el.remove());
+
+                this.detectedClusters.forEach((cluster, index) => {
+                    const clusterNodes = cluster.map(id => this.nodes.find(n => n.id === id)).filter(n => n);
+                    if (clusterNodes.length < 2) return;
+
+                    // Calculate cluster bounds with padding for node sizes
+                    const padding = 50;
+                    const minX = Math.min(...clusterNodes.map(n => n.x - this.getNodeSize(n.size)/2)) - padding;
+                    const maxX = Math.max(...clusterNodes.map(n => n.x + this.getNodeSize(n.size)/2)) + padding;
+                    const minY = Math.min(...clusterNodes.map(n => n.y - this.getNodeSize(n.size)/2)) - padding;
+                    const maxY = Math.max(...clusterNodes.map(n => n.y + this.getNodeSize(n.size)/2)) + padding;
+
+                    // Create cluster boundary
+                    const ellipse = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+                    const centerX = (minX + maxX) / 2;
+                    const centerY = (minY + maxY) / 2;
+                    const radiusX = (maxX - minX) / 2;
+                    const radiusY = (maxY - minY) / 2;
+                    
+                    ellipse.setAttribute('cx', centerX);
+                    ellipse.setAttribute('cy', centerY);
+                    ellipse.setAttribute('rx', radiusX);
+                    ellipse.setAttribute('ry', radiusY);
+                    ellipse.setAttribute('class', 'cluster-highlight');
+                    
+                    svg.appendChild(ellipse);
+                });
+
+                console.log(`Found ${this.detectedClusters.length} clusters:`, this.detectedClusters);
+            }
+
+            rearrangeNodes() {
+                // Enhanced force-directed layout for circular nodes
+                const iterations = 150;
+                const repulsion = 60000;
+                const attraction = 0.02;
+                const damping = 0.85;
+
+                this.nodes.forEach(node => {
+                    node.vx = 0;
+                    node.vy = 0;
+                });
+
+                for (let i = 0; i < iterations; i++) {
+                    // Repulsion between all nodes
+                    for (let a = 0; a < this.nodes.length; a++) {
+                        for (let b = a + 1; b < this.nodes.length; b++) {
+                            const nodeA = this.nodes[a];
+                            const nodeB = this.nodes[b];
+                            
+                            const dx = nodeB.x - nodeA.x;
+                            const dy = nodeB.y - nodeA.y;
+                            const distance = Math.sqrt(dx * dx + dy * dy) || 1;
+                            
+                            // Consider node sizes in repulsion
+                            const sizeFactorA = this.getNodeSize(nodeA.size) / 60;
+                            const sizeFactorB = this.getNodeSize(nodeB.size) / 60;
+                            const sizeFactor = (sizeFactorA + sizeFactorB) / 2;
+                            
+                            const force = (repulsion * sizeFactor) / (distance * distance);
+                            const fx = (dx / distance) * force;
+                            const fy = (dy / distance) * force;
+                            
+                            nodeA.vx -= fx;
+                            nodeA.vy -= fy;
+                            nodeB.vx += fx;
+                            nodeB.vy += fy;
+                        }
+                    }
+
+                    // Attraction for connected nodes
+                    this.connections.forEach(conn => {
+                        const nodeA = this.nodes.find(n => n.id === conn.from);
+                        const nodeB = this.nodes.find(n => n.id === conn.to);
+                        
+                        if (nodeA && nodeB) {
+                            const dx = nodeB.x - nodeA.x;
+                            const dy = nodeB.y - nodeA.y;
+                            
+                            const fx = dx * attraction * conn.strength;
+                            const fy = dy * attraction * conn.strength;
+                            
+                            nodeA.vx += fx;
+                            nodeA.vy += fy;
+                            nodeB.vx -= fx;
+                            nodeB.vy -= fy;
+                        }
+                    });
+
+                    // Update positions
+                    this.nodes.forEach(node => {
+                        node.x += node.vx;
+                        node.y += node.vy;
+                        node.vx *= damping;
+                        node.vy *= damping;
+
+                        // Keep nodes within bounds considering their size
+                        const nodeRadius = this.getNodeSize(node.size) / 2;
+                        node.x = Math.max(nodeRadius + 50, Math.min(750 - nodeRadius, node.x));
+                        node.y = Math.max(nodeRadius + 50, Math.min(550 - nodeRadius, node.y));
+                    });
+                }
+
+                this.render();
+            }
+
+            exportNetwork() {
+                const data = { 
+                    nodes: this.nodes.map(node => ({
+                        ...node,
+                        vx: undefined,
+                        vy: undefined
+                    })), 
+                    connections: this.connections, 
+                    transform: this.transform,
+                    filters: this.activeFilters
+                };
+                
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'circular-network.json';
+                a.click();
+                
+                URL.revokeObjectURL(url);
+                console.log('Circular network exported');
+            }
+
+            zoomIn() {
+                this.transform.scale = Math.min(3, this.transform.scale * 1.2);
+                this.updateTransform();
+            }
+
+            zoomOut() {
+                this.transform.scale = Math.max(0.2, this.transform.scale / 1.2);
+                this.updateTransform();
+            }
+
+            handleKeyboard(e) {
+                switch(e.key) {
+                    case 'r':
+                    case 'R':
+                        this.resetView();
+                        break;
+                    case 'c':
+                    case 'C':
+                        this.showClusters();
+                        break;
+                    case 'l':
+                    case 'L':
+                        break;
+                    case 'd':
+                    case 'D':
+                        this.analyzeDensity();
+                        break;
+                    case 'a':
+                    case 'A':
+                        if (e.ctrlKey || e.metaKey) return; // Allow browser shortcuts
+                        this.rearrangeNodes();
+                        break;
+                    case '+':
+                    case '=':
+                        this.zoomIn();
+                        break;
+                    case '-':
+                        this.zoomOut();
+                        break;
+                    case 'Escape':
+                        document.querySelectorAll('.node').forEach(el => el.classList.remove('selected', 'highlighted'));
+                        document.getElementById('infoPanel').classList.remove('show');
+                        break;
+                }
+            }
+        }
+
+        // Create global instance
+        const NetworkMap = new CircularNetworkMap();
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM loaded, initializing network map...');
+        });
+    </script>
+</body>
+</html>
+                        

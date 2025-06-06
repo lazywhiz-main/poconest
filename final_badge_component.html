@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Final Badge Component</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* Base Colors */
+            --primary-green: #00ff88;
+            --primary-blue: #64b5f6;
+            --primary-orange: #ffa500;
+            --primary-red: #ff6b6b;
+            --primary-purple: #9c27b0;
+            --primary-cyan: #26c6da;
+            --primary-yellow: #ffd93d;
+            
+            /* Background */
+            --bg-primary: #0f0f23;
+            --bg-secondary: #1a1a2e;
+            --bg-tertiary: #333366;
+            --bg-quaternary: #45475a;
+            
+            /* Text */
+            --text-primary: #e2e8f0;
+            --text-secondary: #a6adc8;
+            --text-muted: #6c7086;
+            --text-inverse: #ffffff;
+            
+            /* Border */
+            --border-primary: #333366;
+            --border-secondary: #45475a;
+            
+            /* Typography */
+            --font-family-text: 'Space Grotesk', sans-serif;
+            --font-family-mono: 'JetBrains Mono', monospace;
+            
+            /* Transitions */
+            --transition-fast: 0.15s ease;
+            --transition-normal: 0.2s ease;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 40px;
+            font-family: var(--font-family-text);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+        }
+
+        .showcase-container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .showcase-title {
+            color: var(--primary-green);
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .showcase-subtitle {
+            color: var(--text-secondary);
+            font-size: 14px;
+            text-align: center;
+            margin-bottom: 40px;
+            font-family: var(--font-family-mono);
+        }
+
+        .section-title {
+            color: var(--primary-green);
+            font-size: 18px;
+            font-weight: 600;
+            margin: 40px 0 20px 0;
+            font-family: var(--font-family-mono);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* ===================
+           カードタイプバッジ
+           =================== */
+
+        .card-type-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: var(--bg-tertiary);
+            padding: 2px 6px;
+            border-radius: 2px;
+            font-size: 10px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-family: var(--font-family-mono);
+            border: 1px solid var(--border-secondary);
+            flex-shrink: 0;
+            cursor: pointer;
+            transition: all var(--transition-normal);
+        }
+
+        .card-type-badge:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 255, 136, 0.2);
+        }
+
+        .card-type-icon {
+            font-size: 10px;
+        }
+
+        /* Card Type Colors */
+        .card-type-badge.type-insight {
+            background: rgba(156, 39, 176, 0.2);
+            color: var(--primary-purple);
+            border-color: var(--primary-purple);
+        }
+
+        .card-type-badge.type-theme {
+            background: rgba(100, 181, 246, 0.2);
+            color: var(--primary-blue);
+            border-color: var(--primary-blue);
+        }
+
+        .card-type-badge.type-question {
+            background: rgba(255, 211, 61, 0.2);
+            color: var(--primary-yellow);
+            border-color: var(--primary-yellow);
+        }
+
+        .card-type-badge.type-action {
+            background: rgba(255, 165, 0, 0.2);
+            color: var(--primary-orange);
+            border-color: var(--primary-orange);
+        }
+
+        .card-type-badge.type-observation {
+            background: rgba(38, 198, 218, 0.2);
+            color: var(--primary-cyan);
+            border-color: var(--primary-cyan);
+        }
+
+        .card-type-badge.type-outcome {
+            background: rgba(0, 255, 136, 0.2);
+            color: var(--primary-green);
+            border-color: var(--primary-green);
+        }
+
+        .card-type-badge.type-inbox {
+            background: rgba(117, 117, 117, 0.2);
+            color: var(--text-muted);
+            border-color: var(--text-muted);
+        }
+
+        /* ===================
+           タグバッジ
+           =================== */
+
+        .tag-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: var(--bg-tertiary);
+            padding: 2px 6px;
+            border-radius: 2px;
+            font-size: 10px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-family: var(--font-family-mono);
+            border: 1px solid var(--border-secondary);
+            flex-shrink: 0;
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            color: var(--text-secondary);
+        }
+
+        .tag-badge:hover {
+            transform: translateY(-1px);
+            background: var(--primary-green);
+            color: var(--text-inverse);
+            border-color: var(--primary-green);
+            box-shadow: 0 4px 12px rgba(0, 255, 136, 0.3);
+        }
+
+        .tag-badge:active {
+            transform: translateY(0);
+        }
+
+        /* カテゴリ別色分け（微調整版） */
+        .tag-badge.category-ux {
+            background: rgba(100, 181, 246, 0.08);
+            color: rgba(100, 181, 246, 0.8);
+            border-color: rgba(100, 181, 246, 0.3);
+        }
+
+        .tag-badge.category-psychology {
+            background: rgba(156, 39, 176, 0.08);
+            color: rgba(156, 39, 176, 0.8);
+            border-color: rgba(156, 39, 176, 0.3);
+        }
+
+        .tag-badge.category-design {
+            background: rgba(255, 165, 0, 0.08);
+            color: rgba(255, 165, 0, 0.8);
+            border-color: rgba(255, 165, 0, 0.3);
+        }
+
+        .tag-badge.category-research {
+            background: rgba(38, 198, 218, 0.08);
+            color: rgba(38, 198, 218, 0.8);
+            border-color: rgba(38, 198, 218, 0.3);
+        }
+
+        .tag-badge.category-tech {
+            background: rgba(0, 255, 136, 0.08);
+            color: rgba(0, 255, 136, 0.8);
+            border-color: rgba(0, 255, 136, 0.3);
+        }
+
+        /* 選択状態 */
+        .tag-badge.selected {
+            background: var(--primary-green);
+            color: var(--text-inverse);
+            border-color: var(--primary-green);
+            box-shadow: 0 0 8px rgba(0, 255, 136, 0.4);
+        }
+
+        /* ===================
+           デモ用レイアウト
+           =================== */
+
+        .badge-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            border: 1px solid var(--border-primary);
+        }
+
+        .usage-example {
+            background: var(--bg-secondary);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border-primary);
+            margin-bottom: 30px;
+        }
+
+        .comparison-title {
+            color: var(--text-primary);
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            font-family: var(--font-family-mono);
+            text-align: center;
+        }
+
+        .mock-card {
+            background: var(--bg-tertiary);
+            padding: 16px;
+            border-radius: 12px;
+            border: 1px solid var(--border-secondary);
+            margin-bottom: 20px;
+        }
+
+        .mock-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            gap: 12px;
+        }
+
+        .mock-card-title {
+            color: var(--text-primary);
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .mock-card-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .code-example {
+            background: var(--bg-quaternary);
+            padding: 16px;
+            border-radius: 8px;
+            font-family: var(--font-family-mono);
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 16px;
+            overflow-x: auto;
+        }
+
+        .highlight {
+            background: var(--primary-green);
+            color: var(--text-inverse);
+            padding: 2px 4px;
+            border-radius: 2px;
+        }
+
+        /* レスポンシブ */
+        @media (max-width: 768px) {
+            .mock-card-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="showcase-container">
+        <h1 class="showcase-title">最終バッジコンポーネント</h1>
+        <p class="showcase-subtitle">カードタイプバッジ + タグバッジの2種類のみ</p>
+
+        <div class="section-title">カードタイプバッジ</div>
+        
+        <div class="usage-example">
+            <h3 class="comparison-title">システムの基本分類用（鮮やかな色彩）</h3>
+            <div class="badge-grid">
+                <div class="card-type-badge type-insight">
+                    <span class="card-type-icon">💡</span>
+                    Insight
+                </div>
+                <div class="card-type-badge type-theme">
+                    <span class="card-type-icon">🎯</span>
+                    Theme
+                </div>
+                <div class="card-type-badge type-question">
+                    <span class="card-type-icon">❓</span>
+                    Question
+                </div>
+                <div class="card-type-badge type-action">
+                    <span class="card-type-icon">⚡</span>
+                    Action
+                </div>
+                <div class="card-type-badge type-observation">
+                    <span class="card-type-icon">👁️</span>
+                    Observation
+                </div>
+                <div class="card-type-badge type-outcome">
+                    <span class="card-type-icon">📊</span>
+                    Outcome
+                </div>
+                <div class="card-type-badge type-inbox">
+                    <span class="card-type-icon">📥</span>
+                    Inbox
+                </div>
+            </div>
+        </div>
+
+        <div class="section-title">タグバッジ</div>
+        
+        <div class="usage-example">
+            <h3 class="comparison-title">コンテンツ分類用（控えめな色彩）</h3>
+            <div class="badge-grid">
+                <div class="tag-badge category-ux">UX</div>
+                <div class="tag-badge category-psychology">Psychology</div>
+                <div class="tag-badge category-design">Design</div>
+                <div class="tag-badge category-research">Research</div>
+                <div class="tag-badge category-tech">Tech</div>
+                <div class="tag-badge">Marketing</div>
+                <div class="tag-badge">Strategy</div>
+                <div class="tag-badge">Analytics</div>
+                <div class="tag-badge">Frontend</div>
+                <div class="tag-badge">Backend</div>
+                <div class="tag-badge">Prototyping</div>
+                <div class="tag-badge">User-Testing</div>
+            </div>
+        </div>
+
+        <div class="section-title">実際のカードでの使用例</div>
+        
+        <div class="mock-card">
+            <div class="mock-card-header">
+                <div class="card-type-badge type-insight">
+                    <span class="card-type-icon">💡</span>
+                    Insight
+                </div>
+            </div>
+            <div class="mock-card-title">ユーザーの潜在ニーズを理解する重要性</div>
+            <div class="mock-card-tags">
+                <div class="tag-badge category-ux">UX</div>
+                <div class="tag-badge category-psychology">Psychology</div>
+                <div class="tag-badge">User Research</div>
+                <div class="tag-badge">Behavioral Analysis</div>
+            </div>
+        </div>
+
+        <div class="mock-card">
+            <div class="mock-card-header">
+                <div class="card-type-badge type-action">
+                    <span class="card-type-icon">⚡</span>
+                    Action
+                </div>
+            </div>
+            <div class="mock-card-title">プロトタイプによる仮説検証の実施</div>
+            <div class="mock-card-tags">
+                <div class="tag-badge category-design">Design</div>
+                <div class="tag-badge category-research">Research</div>
+                <div class="tag-badge">Prototyping</div>
+                <div class="tag-badge">Validation</div>
+                <div class="tag-badge">Iteration</div>
+            </div>
+        </div>
+
+        <div class="mock-card">
+            <div class="mock-card-header">
+                <div class="card-type-badge type-question">
+                    <span class="card-type-icon">❓</span>
+                    Question
+                </div>
+            </div>
+            <div class="mock-card-title">なぜユーザーは競合他社を選ぶのか？</div>
+            <div class="mock-card-tags">
+                <div class="tag-badge category-research">Research</div>
+                <div class="tag-badge category-psychology">Psychology</div>
+                <div class="tag-badge">Competitive Analysis</div>
+                <div class="tag-badge">Market Research</div>
+            </div>
+        </div>
+
+        <div class="section-title">CSS実装コード</div>
+        
+        <div class="usage-example">
+            <div class="code-example">
+/* カードタイプバッジ（鮮やかな色彩） */
+.card-type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-tertiary);
+  padding: 2px 6px;
+  border-radius: 2px;
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-family: 'JetBrains Mono', monospace;
+  border: 1px solid var(--border-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.card-type-badge.type-insight {
+  background: rgba(156, 39, 176, 0.2);
+  color: #9c27b0;
+  border-color: #9c27b0;
+}
+
+/* タグバッジ（控えめな色彩） */
+.tag-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-tertiary);
+  padding: 2px 6px;
+  border-radius: 2px;
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-family: 'JetBrains Mono', monospace;
+  border: 1px solid var(--border-secondary);
+  color: var(--text-secondary); /* 控えめな色 */
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tag-badge:hover {
+  transform: translateY(-1px);
+  background: #00ff88;
+  color: white;
+  border-color: #00ff88;
+  box-shadow: 0 4px 12px rgba(0, 255, 136, 0.3);
+}
+
+/* カテゴリ別微調整（オプション） */
+.tag-badge.category-ux {
+  background: rgba(100, 181, 246, 0.08);
+  color: rgba(100, 181, 246, 0.8);
+  border-color: rgba(100, 181, 246, 0.3);
+}
+            </div>
+        </div>
+
+        <div class="section-title">使い分け</div>
+        
+        <div class="usage-example">
+            <p style="color: var(--text-secondary); line-height: 1.6; text-align: center;">
+                <span class="highlight">カードタイプバッジ</span>: システムの基本分類（Insight, Action等）<br>
+                <span class="highlight">タグバッジ</span>: コンテンツの詳細分類（UX, Psychology等）<br><br>
+                両方とも <strong>padding: 2px 6px; border-radius: 2px; font-size: 10px; font-weight: 500;</strong> で統一
+            </p>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // タグバッジのクリック処理
+            const tagBadges = document.querySelectorAll('.tag-badge');
+            
+            tagBadges.forEach(badge => {
+                badge.addEventListener('click', function() {
+                    this.classList.toggle('selected');
+                    
+                    // クリック効果
+                    this.style.transform = 'translateY(0)';
+                    setTimeout(() => {
+                        this.style.transform = '';
+                    }, 100);
+                });
+            });
+
+            // カードタイプバッジのクリック処理
+            const cardTypeBadges = document.querySelectorAll('.card-type-badge');
+            
+            cardTypeBadges.forEach(badge => {
+                badge.addEventListener('click', function() {
+                    // クリック効果
+                    this.style.transform = 'translateY(0)';
+                    setTimeout(() => {
+                        this.style.transform = '';
+                    }, 100);
+                });
+            });
+
+            console.log('🏷️ Final Badge Component initialized');
+        });
+    </script>
+</body>
+</html>

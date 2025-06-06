@@ -17,13 +17,14 @@ import { Layout } from './components/Layout';
 import './styles/common.css';
 import ChatSpace from './features/chat-space/components/ChatSpace';
 import BoardSpace from './features/board-space/components/BoardSpace';
-import MeetingSpace from './features/meeting-space/components/MeetingSpace';
+import MeetingSpace from './features/nest-space/meeting-space/components/MeetingSpace';
 import AnalysisSpace from './features/analysis-space/components/AnalysisSpace';
 import UserProfileSpace from './features/user-profile/components/UserProfileSpace';
 import { MeetingProvider } from './features/meeting-space/contexts/MeetingContext';
 import { NestListScreen } from './screens/NestListScreen';
 import WelcomeScreen from '@screens/auth/WelcomeScreen';
 import AuthenticatedRoutes from './navigation';
+import Icon from './components/ui/Icon';
 // Webではreact-native-screensを無効化
 if (typeof window !== 'undefined') {
   // @ts-ignore
@@ -36,7 +37,7 @@ if (typeof window !== 'undefined') {
 type Nest = ImportedNestType;
 
 // SVGアイコンコンポーネント
-const Icon = ({ name, size = 24, color = 'currentColor', style = {} }: { 
+const IconComponent = ({ name, size = 24, color = 'currentColor', style = {} }: { 
   name: string; 
   size?: number; 
   color?: string; 
@@ -106,6 +107,8 @@ const getIconPath = (name: string) => {
       );
     case 'chevron-down':
       return <polyline points="6 9 12 15 18 9"></polyline>;
+    case 'settings':
+      return <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>;
     default:
       return <circle cx="12" cy="12" r="10"></circle>;
   }
@@ -133,14 +136,14 @@ const NestHeader: React.FC<{
 
   return (
     <View style={styles.nestHeader}>
-      <Icon name="gear" size={32} color="#FFF" style={styles.nestHeaderIcon} />
+      <IconComponent name="gear" size={32} color="#FFF" style={styles.nestHeaderIcon} />
       <TouchableOpacity 
         style={styles.nestSelector}
         onPress={handleNestSelect}
         ref={buttonRef}
       >
         <Text style={styles.nestName}>{selectedNest.name}</Text>
-        <Icon name="chevron-down" size={16} color="#FFF" style={styles.chevronIcon} />
+        <IconComponent name="chevron-down" size={16} color="#FFF" style={styles.chevronIcon} />
       </TouchableOpacity>
       
       <View style={styles.headerActions}>
@@ -148,13 +151,13 @@ const NestHeader: React.FC<{
           style={styles.actionButton}
           onPress={onOpenSettings}
         >
-          <Icon name="gear" size={18} color="#FFF" />
+          <IconComponent name="gear" size={18} color="#FFF" />
         </TouchableOpacity>
         <TouchableOpacity 
           style={styles.actionButton}
           onPress={() => setDarkMode(!darkMode)}
         >
-          <Icon name={darkMode ? 'light' : 'dark'} size={18} color="#FFF" />
+          <IconComponent name={darkMode ? 'light' : 'dark'} size={18} color="#FFF" />
         </TouchableOpacity>
       </View>
     </View>
@@ -412,11 +415,11 @@ const AppContent: React.FC = () => {
       {
         title: '',
         items: [
-          { id: 'chat', icon: '💬', text: 'チャット', isActive: space === 'chat' },
-          { id: 'board', icon: '📋', text: 'ボード', isActive: space === 'board' },
-          { id: 'meeting', icon: '📅', text: 'ミーティング', isActive: space === 'meeting' },
-          { id: 'analytics', icon: '📊', text: '分析', isActive: space === 'analytics' },
-          { id: 'profile', icon: '👤', text: 'プロフィール', isActive: space === 'profile' },
+          { id: 'chat', icon: <Icon name="chat" size={18} />, text: 'チャット', isActive: space === 'chat' },
+          { id: 'meeting', icon: <Icon name="meeting" size={18} />, text: 'ミーティング', isActive: space === 'meeting' },
+          { id: 'board', icon: <Icon name="board" size={18} />, text: 'ボード', isActive: space === 'board' },
+          { id: 'analytics', icon: <Icon name="analysis" size={18} />, text: '分析', isActive: space === 'analytics' },
+          { id: 'settings', icon: <Icon name="settings" size={18} />, text: '設定', isActive: space === 'settings' },
         ],
       },
     ];
@@ -451,10 +454,14 @@ const AppContent: React.FC = () => {
         );
         break;
       case 'analytics':
-        SpaceComponent = <AnalysisSpace />;
+        SpaceComponent = (
+          <BoardProvider currentNestId={currentNest.id}>
+            <AnalysisSpace />
+          </BoardProvider>
+        );
         break;
-      case 'profile':
-        SpaceComponent = <UserProfileSpace />;
+      case 'settings':
+        SpaceComponent = <NestSettingsScreen nestId={currentNest.id} />;
         break;
       default:
         SpaceComponent = (
@@ -535,10 +542,14 @@ const NestTopScreen: React.FC = () => {
       );
       break;
     case 'analytics':
-      SpaceComponent = <AnalysisSpace />;
+      SpaceComponent = (
+        <BoardProvider currentNestId={nest.id}>
+          <AnalysisSpace />
+        </BoardProvider>
+      );
       break;
-    case 'profile':
-      SpaceComponent = <UserProfileSpace />;
+    case 'settings':
+      SpaceComponent = <NestSettingsScreen nestId={nest.id} />;
       break;
     default:
       SpaceComponent = (
@@ -554,11 +565,11 @@ const NestTopScreen: React.FC = () => {
     {
       title: '',
       items: [
-        { id: 'chat', icon: '💬', text: 'チャット', isActive: space === 'chat' },
-        { id: 'board', icon: '📋', text: 'ボード', isActive: space === 'board' },
-        { id: 'meeting', icon: '📅', text: 'ミーティング', isActive: space === 'meeting' },
-        { id: 'analytics', icon: '📊', text: '分析', isActive: space === 'analytics' },
-        { id: 'profile', icon: '👤', text: 'プロフィール', isActive: space === 'profile' },
+        { id: 'chat', icon: <Icon name="chat" size={18} />, text: 'チャット', isActive: space === 'chat' },
+        { id: 'meeting', icon: <Icon name="meeting" size={18} />, text: 'ミーティング', isActive: space === 'meeting' },
+        { id: 'board', icon: <Icon name="board" size={18} />, text: 'ボード', isActive: space === 'board' },
+        { id: 'analytics', icon: <Icon name="analysis" size={18} />, text: '分析', isActive: space === 'analytics' },
+        { id: 'settings', icon: <Icon name="settings" size={18} />, text: '設定', isActive: space === 'settings' },
       ],
     },
   ];

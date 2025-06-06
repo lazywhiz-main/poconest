@@ -1,352 +1,222 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
-  FlatList,
-  Alert,
-  Platform,
-  Clipboard
-} from 'react-native';
-import { useNest } from '../contexts/NestContext';
-import theme from '../../../styles/theme';
+import { View, Text, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { useNest, NestInvitation } from '../contexts/NestContext';
+import Button from '../../../components/ui/Button';
+import FormGroup from '../../../components/ui/FormGroup';
+import Input from '../../../components/ui/Input';
+import Card from '../../../components/ui/Card';
 
 interface InvitationFormProps {
   nestId: string;
 }
 
 const InvitationForm: React.FC<InvitationFormProps> = ({ nestId }) => {
-  const { inviteMember, pendingInvitations, cancelInvitation, resendInvitation, loading } = useNest();
+  const { pendingInvitations, inviteMember, resendInvitation, cancelInvitation, loading } = useNest();
   const [email, setEmail] = useState('');
   const [inviteLoading, setInviteLoading] = useState(false);
 
-  // 招待送信
+  // 現在のNESTの招待リストをフィルタリング
+  const filteredInvitations = pendingInvitations.filter((invitation: NestInvitation) => invitation.nest_id === nestId);
+
   const handleInvite = async () => {
-    if (!email || !email.includes('@')) {
-      Alert.alert('エラー', '有効なメールアドレスを入力してください');
-      return;
-    }
-
+    if (!email.trim()) return;
+    
     setInviteLoading(true);
-    const { error, invitation } = await inviteMember(nestId, email);
+    const { error } = await inviteMember(nestId, email.trim());
     setInviteLoading(false);
-
+    
     if (error) {
       Alert.alert('エラー', error.message || '招待の送信に失敗しました');
-      return;
+    } else {
+      setEmail('');
     }
-
-    Alert.alert('成功', `${email}に招待を送信しました`);
-    setEmail('');
   };
 
-  // 招待キャンセル
-  const handleCancelInvitation = (invitationId: string) => {
-    Alert.alert(
-      '招待のキャンセル',
-      '招待をキャンセルしますか？',
-      [
-        {
-          text: 'キャンセル',
-          style: 'cancel'
-        },
-        {
-          text: '招待を取り消す',
-          style: 'destructive',
-          onPress: async () => {
-            const { error } = await cancelInvitation(invitationId);
-            if (error) {
-              Alert.alert('エラー', error.message || '招待のキャンセルに失敗しました');
-            } else {
-              Alert.alert('成功', '招待をキャンセルしました');
-            }
-          }
-        }
-      ]
-    );
-  };
-
-  // 招待再送信
   const handleResendInvitation = async (invitationId: string) => {
     const { error } = await resendInvitation(invitationId);
     if (error) {
-      Alert.alert('エラー', error.message || '招待の再送信に失敗しました');
-    } else {
-      Alert.alert('成功', '招待を再送信しました');
+      Alert.alert('エラー', error.message || '招待の再送に失敗しました');
     }
   };
 
-  // 招待リンクのコピー (デスクトップ用)
-  const handleCopyInviteLink = (token: string) => {
-    const inviteLink = `https://poconest.app/invite/${token}`;
-    
-    if (Platform.OS === 'web') {
-      // Webブラウザの場合
-      navigator.clipboard.writeText(inviteLink).then(() => {
-        Alert.alert('成功', '招待リンクをクリップボードにコピーしました');
-      }).catch(err => {
-        console.error('クリップボードへのコピーに失敗:', err);
-        Alert.alert('エラー', 'リンクのコピーに失敗しました');
-      });
-    } else {
-      // ネイティブの場合
-      Clipboard.setString(inviteLink);
+  const handleCancelInvitation = async (invitationId: string) => {
+    const { error } = await cancelInvitation(invitationId);
+    if (error) {
+      Alert.alert('エラー', error.message || '招待の取消に失敗しました');
+    }
+  };
+
+  const handleCopyInviteLink = async (token: string) => {
+    const inviteLink = `${window.location.origin}/invite/${token}`;
+    try {
+      await navigator.clipboard.writeText(inviteLink);
       Alert.alert('成功', '招待リンクをクリップボードにコピーしました');
+    } catch (error) {
+      Alert.alert('エラー', 'クリップボードへのコピーに失敗しました');
     }
   };
 
-  // 日付フォーマット
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('ja-JP', {
       year: 'numeric',
-      month: 'short',
+      month: 'numeric',
       day: 'numeric'
     });
   };
 
-  // フィルター: 現在のNestに関する招待のみ表示
-  const filteredInvitations = pendingInvitations.filter(
-    invitation => invitation.nest_id === nestId
-  );
-
   return (
-    <View style={styles.container}>
-      <Text style={styles.sectionTitle}>メンバーを招待</Text>
-      
-      <View style={styles.formContainer}>
-        <TextInput
-          style={styles.input}
-          value={email}
-          onChangeText={setEmail}
-          placeholder="メールアドレスを入力"
-          placeholderTextColor={theme.colors.text.disabled}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          editable={!inviteLoading}
-          accessibilityLabel="招待するメールアドレス"
-        />
-        
-        <TouchableOpacity
-          style={[
-            styles.inviteButton,
-            inviteLoading && styles.disabledButton
-          ]}
-          onPress={handleInvite}
-          disabled={inviteLoading || !email}
-          accessibilityLabel="招待を送信"
-          accessibilityHint="入力したメールアドレスに招待を送ります"
-        >
-          {inviteLoading ? (
-            <ActivityIndicator size="small" color={theme.colors.background.paper} />
-          ) : (
-            <Text style={styles.inviteButtonText}>招待</Text>
-          )}
-        </TouchableOpacity>
-      </View>
-      
-      <View style={styles.pendingInvitationsContainer}>
-        <View style={styles.pendingHeader}>
-          <Text style={styles.pendingTitle}>保留中の招待 ({filteredInvitations.length})</Text>
-          {Platform.OS === 'web' && (
-            <Text style={styles.keyboard}>ショートカット: Alt+I</Text>
-          )}
-        </View>
-        
-        {loading ? (
-          <ActivityIndicator style={styles.loader} color={theme.colors.primary} />
-        ) : filteredInvitations.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>保留中の招待はありません</Text>
-          </View>
-        ) : (
-          <FlatList
-            data={filteredInvitations}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              (() => { console.log('[InvitationForm] renderItem item:', item); return null; })() ||
-              <View style={styles.invitationItem}>
-                <View style={styles.invitationInfo}>
-                  <Text style={styles.invitationEmail} numberOfLines={1}>
-                    {item.invited_email}
-                  </Text>
-                  <Text style={styles.invitationDate}>
-                    送信日: {formatDate(item.created_at)}
-                    {item.expires_at ? ` (有効期限: ${formatDate(item.expires_at)})` : ''}
-                  </Text>
-                </View>
-                
-                <View style={styles.invitationActions}>
-                  {/* 招待リンク常時表示・コピー */}
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Text style={{ fontSize: 12, color: theme.colors.text.disabled, marginRight: 4 }}>リンク:</Text>
-                    <Text style={{ fontSize: 12, color: theme.colors.primary, maxWidth: 120 }} numberOfLines={1} ellipsizeMode="middle">
-                      https://poconest.app/invite/{item.token}
-                    </Text>
-                    <TouchableOpacity
-                      style={styles.invitationAction}
-                      onPress={() => handleCopyInviteLink(item.token)}
-                      accessibilityLabel="招待リンクをコピー"
-                    >
-                      <Text style={[styles.actionIcon, { color: theme.colors.accent }]}>📋</Text>
-                    </TouchableOpacity>
-                  </View>
-                  
-                  <TouchableOpacity
-                    style={styles.invitationAction}
-                    onPress={() => handleResendInvitation(item.id)}
-                    accessibilityLabel="招待を再送信"
-                  >
-                    <Text style={styles.actionIcon}>🔄</Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity
-                    style={[styles.invitationAction, styles.cancelAction]}
-                    onPress={() => handleCancelInvitation(item.id)}
-                    accessibilityLabel="招待をキャンセル"
-                  >
-                    <Text style={styles.actionIcon}>✕</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
-            style={styles.invitationsList}
+    <div style={{ marginBottom: 0 }}>
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ 
+          display: 'block',
+          fontSize: 11, 
+          fontWeight: 600, 
+          color: '#a6adc8',
+          textTransform: 'uppercase',
+          letterSpacing: '1px',
+          marginBottom: 6
+        }}>
+          EMAIL ADDRESS
+        </label>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+          <div style={{ flex: 1 }}>
+            <Input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="メールアドレスを入力"
+              disabled={inviteLoading}
+            />
+          </div>
+          <Button
+            title={inviteLoading ? '送信中...' : '招待'}
+            onPress={handleInvite}
+            variant="primary"
+            size="md"
+            disabled={inviteLoading || !email.trim()}
+            loading={inviteLoading}
+            style={{ minWidth: 100, flexShrink: 0, height: 40 }}
           />
+        </div>
+      </div>
+
+      <div style={{ marginTop: 32 }}>
+        <div style={{ 
+          fontSize: 11, 
+          fontWeight: 600, 
+          color: '#a6adc8',
+          textTransform: 'uppercase',
+          letterSpacing: '1px',
+          marginBottom: 16 
+        }}>
+          保留中の招待 ({filteredInvitations.length})
+        </div>
+        
+        {filteredInvitations.length === 0 ? (
+          <div style={{ 
+            background: '#1a1a2e',
+            border: '1px solid #333366',
+            borderRadius: 4,
+            padding: 20, 
+            display: 'flex', 
+            justifyContent: 'center', 
+            alignItems: 'center' 
+          }}>
+            <div style={{ color: '#6c7086', fontSize: 12 }}>保留中の招待はありません</div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {filteredInvitations.map((item: NestInvitation) => (
+              <div 
+                key={item.id} 
+                style={{ 
+                  background: '#1a1a2e',
+                  border: '1px solid #333366',
+                  borderRadius: 4,
+                  padding: 16,
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.borderColor = '#45475a';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = '#333366';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <div style={{ 
+                    width: 48, 
+                    height: 48, 
+                    borderRadius: 8, 
+                    backgroundColor: '#6c7086', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    marginRight: 16,
+                    flexShrink: 0
+                  }}>
+                    <span style={{ color: '#fff', fontSize: 18, fontWeight: 700 }}>
+                      {item.invited_email && item.invited_email.length > 0 ? item.invited_email[0].toUpperCase() : '?'}
+                    </span>
+                  </div>
+                  
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ 
+                      fontSize: 14, 
+                      fontWeight: 500, 
+                      color: '#e2e8f0', 
+                      marginBottom: 2 
+                    }}>
+                      {item.invited_email}
+                    </div>
+                    <div style={{ 
+                      fontSize: 12, 
+                      color: '#6c7086', 
+                      marginBottom: 2 
+                    }}>
+                      送信日: {formatDate(item.created_at)}
+                    </div>
+                    {item.expires_at && (
+                      <div style={{ 
+                        fontSize: 11, 
+                        color: '#6c7086' 
+                      }}>
+                        有効期限: {formatDate(item.expires_at)}
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div style={{ display: 'flex', gap: 8, marginLeft: 16 }}>
+                    <Button 
+                      title="コピー" 
+                      onPress={() => handleCopyInviteLink(item.token)} 
+                      variant="default" 
+                      size="sm" 
+                    />
+                    <Button 
+                      title="再送" 
+                      onPress={() => handleResendInvitation(item.id)} 
+                      variant="default" 
+                      size="sm" 
+                    />
+                    <Button 
+                      title="取消" 
+                      onPress={() => handleCancelInvitation(item.id)} 
+                      variant="danger" 
+                      size="sm" 
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         )}
-      </View>
-    </View>
+      </div>
+    </div>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: theme.colors.background.paper,
-    borderRadius: theme.borderRadius.lg,
-    padding: theme.spacing.md,
-    marginBottom: theme.spacing.lg,
-    ...theme.shadows.sm,
-  },
-  sectionTitle: {
-    fontSize: theme.fontSizes.lg,
-    fontWeight: theme.fontWeights.bold as any,
-    color: theme.colors.text.primary,
-    marginBottom: theme.spacing.md,
-  },
-  formContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: theme.spacing.md,
-  },
-  input: {
-    flex: 1,
-    backgroundColor: theme.colors.background.paper,
-    borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.sm,
-    fontSize: theme.fontSizes.md,
-    color: theme.colors.text.primary,
-    borderWidth: 1,
-    borderColor: theme.colors.divider,
-  },
-  inviteButton: {
-    backgroundColor: theme.colors.action,
-    borderRadius: theme.borderRadius.md,
-    paddingVertical: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.lg,
-    marginLeft: theme.spacing.sm,
-    ...theme.shadows.sm,
-  },
-  inviteButtonText: {
-    color: theme.colors.background.paper,
-    fontWeight: theme.fontWeights.bold as any,
-    fontSize: theme.fontSizes.md,
-  },
-  disabledButton: {
-    opacity: 0.5,
-  },
-  pendingInvitationsContainer: {
-    marginTop: theme.spacing.md,
-  },
-  pendingHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: theme.spacing.sm,
-  },
-  pendingTitle: {
-    fontSize: theme.fontSizes.md,
-    fontWeight: theme.fontWeights.bold as any,
-    color: theme.colors.text.primary,
-  },
-  keyboard: {
-    fontSize: theme.fontSizes.xs,
-    color: theme.colors.text.disabled,
-  },
-  loader: {
-    marginTop: 8,
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    padding: 16,
-  },
-  emptyText: {
-    color: theme.colors.text.disabled,
-    fontSize: 14,
-  },
-  invitationsList: {
-    maxHeight: 300,
-  },
-  invitationItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: theme.colors.background.default,
-    borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.sm,
-    marginBottom: theme.spacing.sm,
-  },
-  invitationInfo: {
-    flex: 1,
-  },
-  invitationEmail: {
-    fontWeight: theme.fontWeights.bold as any,
-    color: theme.colors.text.primary,
-    fontSize: 15,
-  },
-  invitationDate: {
-    color: theme.colors.text.disabled,
-    fontSize: 12,
-  },
-  invitationActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginLeft: 8,
-  },
-  invitationAction: {
-    marginLeft: 8,
-    padding: 4,
-    borderRadius: theme.borderRadius.sm,
-    backgroundColor: theme.colors.background.paper,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Platform.select({
-      web: {
-        boxShadow: '0 1px 4px rgba(20,184,166,0.04)',
-      },
-      default: {
-        elevation: 1,
-      }
-    }),
-  },
-  actionIcon: {
-    fontSize: 18,
-    color: theme.colors.text.disabled,
-  },
-  cancelAction: {
-    backgroundColor: theme.colors.status.error + '20', // 透明度20%
-  },
-});
 
 export default InvitationForm; 

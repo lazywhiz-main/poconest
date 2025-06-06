@@ -1,14 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  TextInput,
-  TouchableOpacity,
   Alert,
   Platform,
-  KeyboardAvoidingView,
   ActivityIndicator,
   useWindowDimensions
 } from 'react-native';
@@ -17,17 +14,12 @@ import NestMemberList from '../components/NestMemberList';
 import InvitationForm from '../components/InvitationForm';
 import PrivacySettingsForm from '../components/PrivacySettingsForm';
 import theme from '../../../styles/theme';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../../../contexts/AuthContext';
-import ChatSpace from '../../chat-space/components/ChatSpace';
-import BoardSpace from '../../board-space/components/BoardSpace';
-import MeetingSpace from '../../nest-space/meeting-space/components/MeetingSpace';
-import AnalysisSpace from '../../analysis-space/components/AnalysisSpace';
-import UserProfileSpace from '../../user-profile/components/UserProfileSpace';
-// import NestSelectorModal from '../components/NestSelectorModal';
-// import NestHeader from '../components/NestHeader';
+import { useNavigate } from 'react-router-dom';
+import Card from '../../../components/ui/Card';
+import Button from '../../../components/ui/Button';
+import FormGroup from '../../../components/ui/FormGroup';
+import Input from '../../../components/ui/Input';
 
-// シミュレートされたナビゲーションのためのタイプ
 interface NestSettingsScreenProps {
   nestId?: string;
   onBack?: () => void;
@@ -42,7 +34,6 @@ const NestSettingsScreen: React.FC<NestSettingsScreenProps> = ({
   const [description, setDescription] = useState('');
   const [color, setColor] = useState('');
   const [savingBasicInfo, setSavingBasicInfo] = useState(false);
-  const [activeTab, setActiveTab] = useState<'basic' | 'members' | 'privacy'>('basic');
   
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
@@ -51,9 +42,6 @@ const NestSettingsScreen: React.FC<NestSettingsScreenProps> = ({
   const nestId = propNestId || currentNest?.id;
   
   const navigate = useNavigate();
-  const location = useLocation();
-  const params = new URLSearchParams(location.search);
-  const space = params.get('space') || 'chat';
   
   // 現在のNestの情報をフォームにセット
   useEffect(() => {
@@ -102,20 +90,6 @@ const NestSettingsScreen: React.FC<NestSettingsScreenProps> = ({
           event.preventDefault();
           handleSaveBasicInfo();
         }
-        
-        // Tab navigation with Alt+1, Alt+2, Alt+3
-        if (event.altKey) {
-          if (event.key === '1') {
-            event.preventDefault();
-            setActiveTab('basic');
-          } else if (event.key === '2') {
-            event.preventDefault();
-            setActiveTab('members');
-          } else if (event.key === '3' || event.key === 'p') {
-            event.preventDefault();
-            setActiveTab('privacy');
-          }
-        }
       };
       
       window.addEventListener('keydown', handleKeyDown);
@@ -139,561 +113,236 @@ const NestSettingsScreen: React.FC<NestSettingsScreenProps> = ({
   if (!nestId || loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={theme.colors.accent} />
+        <ActivityIndicator size="large" color="#00ff88" />
         <Text style={styles.loadingText}>設定を読み込み中...</Text>
       </View>
     );
   }
 
-  // モバイル用のタブ切り替えUI
-  const renderMobileTabs = () => (
-    <View style={styles.mobileTabContainer}>
-      <TouchableOpacity
-        style={[styles.mobileTab, activeTab === 'basic' && styles.activeTab]}
-        onPress={() => setActiveTab('basic')}
-        accessibilityRole="tab"
-        accessibilityState={{ selected: activeTab === 'basic' }}
-      >
-        <Text 
-          style={[
-            styles.mobileTabText, 
-            activeTab === 'basic' && styles.activeTabText
-          ]}
-        >
-          基本情報
-        </Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity
-        style={[styles.mobileTab, activeTab === 'members' && styles.activeTab]}
-        onPress={() => setActiveTab('members')}
-        accessibilityRole="tab"
-        accessibilityState={{ selected: activeTab === 'members' }}
-      >
-        <Text 
-          style={[
-            styles.mobileTabText, 
-            activeTab === 'members' && styles.activeTabText
-          ]}
-        >
-          メンバー
-        </Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity
-        style={[styles.mobileTab, activeTab === 'privacy' && styles.activeTab]}
-        onPress={() => setActiveTab('privacy')}
-        accessibilityRole="tab"
-        accessibilityState={{ selected: activeTab === 'privacy' }}
-      >
-        <Text 
-          style={[
-            styles.mobileTabText, 
-            activeTab === 'privacy' && styles.activeTabText
-          ]}
-        >
-          プライバシー
-        </Text>
-      </TouchableOpacity>
-    </View>
-  );
-
-  // 戻るボタンのハンドラ
-  const handleBack = () => {
-    if (onBack) {
-      onBack();
-    } else {
-      navigate(`/nest-top?nestId=${nestId}`);
-    }
-  };
-
-  // デスクトップ用のサイドナビゲーション
-  const renderDesktopNavigation = () => (
-    <View style={styles.desktopSidebar}>
-      <TouchableOpacity
-        style={styles.sidebarBackButton}
-        onPress={handleBack}
-        accessibilityLabel="NESTトップへ戻る"
-      >
-        <Text style={styles.sidebarBackButtonText}>← NESTトップへ</Text>
-      </TouchableOpacity>
-      <View style={styles.menuGroup}>
-        <TouchableOpacity
-          style={[styles.sidebarItem, activeTab === 'basic' && styles.activeSidebarItem]}
-          onPress={() => setActiveTab('basic')}
-          accessibilityRole="tab"
-          accessibilityState={{ selected: activeTab === 'basic' }}
-        >
-          <Text 
-            style={[
-              styles.sidebarItemText, 
-              activeTab === 'basic' && styles.activeSidebarItemText
-            ]}
-          >
-            基本情報
-          </Text>
-          <Text style={styles.shortcutText}>Alt+1</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.sidebarItem, activeTab === 'members' && styles.activeSidebarItem]}
-          onPress={() => setActiveTab('members')}
-          accessibilityRole="tab"
-          accessibilityState={{ selected: activeTab === 'members' }}
-        >
-          <Text 
-            style={[
-              styles.sidebarItemText, 
-              activeTab === 'members' && styles.activeSidebarItemText
-            ]}
-          >
-            メンバー管理
-          </Text>
-          <Text style={styles.shortcutText}>Alt+2</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.sidebarItem, activeTab === 'privacy' && styles.activeSidebarItem]}
-          onPress={() => setActiveTab('privacy')}
-          accessibilityRole="tab"
-          accessibilityState={{ selected: activeTab === 'privacy' }}
-        >
-          <Text 
-            style={[
-              styles.sidebarItemText, 
-              activeTab === 'privacy' && styles.activeSidebarItemText
-            ]}
-          >
-            プライバシー設定
-          </Text>
-          <Text style={styles.shortcutText}>Alt+3</Text>
-        </TouchableOpacity>
-      </View>
-      <TouchableOpacity
-        style={styles.saveButton}
-        onPress={handleSaveBasicInfo}
-        disabled={savingBasicInfo}
-        accessibilityLabel="設定を保存"
-        accessibilityHint="Alt+Sでも保存できます"
-      >
-        {savingBasicInfo ? (
-          <ActivityIndicator size="small" color={theme.colors.background.paper} />
-        ) : (
-          <Text style={styles.saveButtonText}>保存 (Alt+S)</Text>
-        )}
-      </TouchableOpacity>
-    </View>
-  );
-
-  // 基本設定フォームの表示
-  const renderBasicSettingsForm = () => (
-    <View style={styles.basicSettingsContainer}>
-      <Text style={styles.sectionTitle}>基本情報</Text>
-      
-      <View style={styles.formGroup}>
-        <Text style={styles.label}>NEST名</Text>
-        <TextInput
-          style={styles.input}
+  return (
+    <div style={{ background: '#0f0f23', minHeight: '100vh', padding: '40px 0' }}>
+      <div style={{ maxWidth: 900, margin: '0 auto', padding: '0 24px' }}>
+        <div style={{ marginBottom: 40 }}>
+          {/* 基本情報セクション */}
+          <div style={{ 
+            marginBottom: 60,
+            background: '#1a1a2e',
+            border: '1px solid #333366',
+            borderRadius: 4,
+            padding: 30
+          }}>
+            <div style={{ 
+              fontSize: 18, 
+              fontWeight: 600, 
+              color: '#00ff88', 
+              marginBottom: 20,
+              textTransform: 'uppercase',
+              letterSpacing: '2px',
+              borderBottom: '1px solid #333366',
+              paddingBottom: '10px'
+            }}>
+              BASIC INFORMATION
+            </div>
+            
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ 
+                display: 'block',
+                fontSize: 11, 
+                fontWeight: 600, 
+                color: '#a6adc8',
+                textTransform: 'uppercase',
+                letterSpacing: '1px',
+                marginBottom: 6
+              }}>
+                NEST NAME
+              </label>
+              <Input
+                type="text"
           value={name}
-          onChangeText={setName}
+                onChange={e => setName(e.target.value)}
           placeholder="NESTの名前を入力"
           maxLength={50}
-          editable={!savingBasicInfo}
-          accessibilityLabel="NEST名"
-        />
-        <Text style={styles.charCount}>{name.length}/50</Text>
-      </View>
-      
-      <View style={styles.formGroup}>
-        <Text style={styles.label}>説明</Text>
-        <TextInput
-          style={[styles.input, styles.textArea]}
+                disabled={savingBasicInfo}
+                style={{ marginBottom: 8 }}
+              />
+              <div style={{ textAlign: 'right', color: '#6c7086', fontSize: 12 }}>
+                {name.length}/50
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ 
+                display: 'block',
+                fontSize: 11, 
+                fontWeight: 600, 
+                color: '#a6adc8',
+                textTransform: 'uppercase',
+                letterSpacing: '1px',
+                marginBottom: 6
+              }}>
+                DESCRIPTION
+              </label>
+              <textarea
           value={description}
-          onChangeText={setDescription}
+                onChange={e => setDescription(e.target.value)}
           placeholder="NESTの説明を入力"
-          multiline
-          numberOfLines={4}
           maxLength={200}
-          editable={!savingBasicInfo}
-          accessibilityLabel="NEST説明"
-        />
-        <Text style={styles.charCount}>{description.length}/200</Text>
-      </View>
-      
-      <View style={styles.formGroup}>
-        <Text style={styles.label}>カラー</Text>
-        <View style={styles.colorOptions}>
+                rows={4}
+                disabled={savingBasicInfo}
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  backgroundColor: '#0f0f23',
+                  border: '1px solid #313244',
+                  borderRadius: 2,
+                  color: '#e2e8f0',
+                  fontSize: 13,
+                  fontFamily: 'inherit',
+                  resize: 'vertical',
+                  marginBottom: 8,
+                  outline: 'none',
+                  transition: 'all 0.2s ease'
+                }}
+                onFocus={e => e.target.style.borderColor = '#00ff88'}
+                onBlur={e => e.target.style.borderColor = '#313244'}
+              />
+              <div style={{ textAlign: 'right', color: '#6c7086', fontSize: 12 }}>
+                {description.length}/200
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ 
+                display: 'block',
+                fontSize: 11, 
+                fontWeight: 600, 
+                color: '#a6adc8',
+                textTransform: 'uppercase',
+                letterSpacing: '1px',
+                marginBottom: 6
+              }}>
+                COLOR
+              </label>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {colorOptions.map(option => (
-            <TouchableOpacity
+                  <button
               key={option.value}
-              style={[
-                styles.colorOption,
-                { backgroundColor: option.value },
-                color === option.value && styles.selectedColorOption
-              ]}
-              onPress={() => setColor(option.value)}
-              accessibilityLabel={`${option.label}カラーを選択`}
-              accessibilityRole="radio"
-              accessibilityState={{ checked: color === option.value }}
+                    type="button"
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 16,
+                      border: color === option.value ? '3px solid #00ff88' : '1px solid #333366',
+                      background: option.value,
+                      cursor: 'pointer',
+                      outline: 'none',
+                      boxShadow: color === option.value ? '0 0 0 2px #00ff88' : 'none'
+                    }}
+                    onClick={() => setColor(option.value)}
+                    aria-checked={color === option.value}
             />
           ))}
-        </View>
-      </View>
+              </div>
+            </div>
       
-      {isMobile && (
-        <TouchableOpacity
-          style={[styles.mobileFormSubmit, savingBasicInfo && styles.disabledButton]}
+            <Button
+              title="保存"
           onPress={handleSaveBasicInfo}
+              variant="primary"
+              size="md"
           disabled={savingBasicInfo}
-        >
-          {savingBasicInfo ? (
-            <ActivityIndicator size="small" color={theme.colors.background.paper} />
-          ) : (
-            <Text style={styles.mobileFormSubmitText}>保存</Text>
-          )}
-        </TouchableOpacity>
-      )}
-    </View>
-  );
+              loading={savingBasicInfo}
+              style={{ width: '100%', marginTop: 16 }}
+            />
+          </div>
 
-  // メンバー管理セクションの表示
-  const renderMembersSection = () => (
-    <View style={styles.membersContainer}>
+          {/* 招待管理セクション */}
+          <div style={{ 
+            marginBottom: 60,
+            background: '#1a1a2e',
+            border: '1px solid #333366',
+            borderRadius: 4,
+            padding: 30
+          }}>
+            <div style={{ 
+              fontSize: 18, 
+              fontWeight: 600, 
+              color: '#00ff88', 
+              marginBottom: 20,
+              textTransform: 'uppercase',
+              letterSpacing: '2px',
+              borderBottom: '1px solid #333366',
+              paddingBottom: '10px'
+            }}>
+              INVITATION MANAGEMENT
+            </div>
       <InvitationForm nestId={nestId} />
+          </div>
+
+          {/* メンバー管理セクション */}
+          <div style={{ 
+            marginBottom: 60,
+            background: '#1a1a2e',
+            border: '1px solid #333366',
+            borderRadius: 4,
+            padding: 30
+          }}>
+            <div style={{ 
+              fontSize: 18, 
+              fontWeight: 600, 
+              color: '#00ff88', 
+              marginBottom: 20,
+              textTransform: 'uppercase',
+              letterSpacing: '2px',
+              borderBottom: '1px solid #333366',
+              paddingBottom: '10px'
+            }}>
+              MEMBER MANAGEMENT
+            </div>
       <NestMemberList nestId={nestId} />
-    </View>
-  );
+          </div>
 
-  // プライバシー設定セクションの表示
-  const renderPrivacySection = () => (
-    <View style={styles.privacyContainer}>
+          {/* プライバシー設定セクション */}
+          <div style={{ 
+            marginBottom: 60,
+            background: '#1a1a2e',
+            border: '1px solid #333366',
+            borderRadius: 4,
+            padding: 30
+          }}>
+            <div style={{ 
+              fontSize: 18, 
+              fontWeight: 600, 
+              color: '#00ff88', 
+              marginBottom: 20,
+              textTransform: 'uppercase',
+              letterSpacing: '2px',
+              borderBottom: '1px solid #333366',
+              paddingBottom: '10px'
+            }}>
+              PRIVACY SETTINGS
+            </div>
       <PrivacySettingsForm nestId={nestId} />
-    </View>
-  );
-
-  // デスクトップレイアウト
-  if (!isMobile) {
-    return (
-      <View style={styles.desktopContainer}>
-        {renderDesktopNavigation()}
-        
-        <ScrollView style={styles.desktopContent}>
-          <KeyboardAvoidingView 
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.contentContainer}
-          >
-            {activeTab === 'basic' && renderBasicSettingsForm()}
-            {activeTab === 'members' && renderMembersSection()}
-            {activeTab === 'privacy' && renderPrivacySection()}
-          </KeyboardAvoidingView>
-        </ScrollView>
-      </View>
-    );
-  }
-
-  // モバイルレイアウト
-  return (
-    <View style={styles.mobileContainer}>
-      <View style={styles.mobileHeader}>
-        <TouchableOpacity 
-          style={styles.mobileBackButton}
-          onPress={handleBack}
-          accessibilityLabel="NESTトップへ戻る"
-        >
-          <Text style={styles.mobileBackButtonText}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.mobileHeaderTitle}>NEST設定</Text>
-        <View style={styles.mobileHeaderRight} />
-      </View>
-      
-      {renderMobileTabs()}
-      
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.mobileContent}
-      >
-        <ScrollView>
-          {activeTab === 'basic' && renderBasicSettingsForm()}
-          {activeTab === 'members' && renderMembersSection()}
-          {activeTab === 'privacy' && renderPrivacySection()}
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </View>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 
 const styles = StyleSheet.create({
-  // 共通スタイル
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: theme.spacing.lg,
+    backgroundColor: '#0f0f23',
   },
   loadingText: {
     marginTop: theme.spacing.md,
     fontSize: theme.fontSizes.md,
-    color: theme.colors.text.secondary,
-  },
-  sectionTitle: {
-    fontSize: theme.fontSizes.xl,
-    fontWeight: theme.fontWeights.bold as any,
-    marginBottom: theme.spacing.lg,
-    color: theme.colors.text.primary,
-  },
-  formGroup: {
-    marginBottom: theme.spacing.lg,
-  },
-  label: {
-    fontSize: theme.fontSizes.md,
-    fontWeight: theme.fontWeights.medium as any,
-    marginBottom: theme.spacing.xs,
-    color: theme.colors.text.primary,
-  },
-  input: {
-    backgroundColor: theme.colors.background.paper,
-    borderWidth: 1,
-    borderColor: theme.colors.divider,
-    borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.md,
-    fontSize: theme.fontSizes.md,
-    color: theme.colors.text.primary,
-  },
-  textArea: {
-    minHeight: 100,
-    textAlignVertical: 'top',
-  },
-  charCount: {
-    fontSize: theme.fontSizes.xs,
-    color: theme.colors.text.disabled,
-    alignSelf: 'flex-end',
-    marginTop: 4,
-  },
-  colorOptions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: theme.spacing.xs,
-  },
-  colorOption: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    marginRight: theme.spacing.sm,
-    marginBottom: theme.spacing.sm,
-  },
-  selectedColorOption: {
-    borderWidth: 3,
-    borderColor: theme.colors.background.paper,
-    ...Platform.select({
-      web: {
-        boxShadow: '0 0 0 2px ' + theme.colors.accent,
-      },
-      default: {
-        shadowColor: theme.colors.accent,
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 1,
-        shadowRadius: 4,
-        elevation: 4,
-      }
-    }),
-  },
-  
-  // デスクトップ版スタイル
-  desktopContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    backgroundColor: theme.colors.background.default,
-  },
-  desktopSidebar: {
-    width: 240,
-    backgroundColor: theme.colors.background.paper,
-    borderRightWidth: 1,
-    borderRightColor: theme.colors.divider,
-    padding: theme.spacing.md,
-    paddingTop: theme.spacing.lg,
-    height: '100%',
-    flexDirection: 'column',
-    justifyContent: 'space-between',
-  },
-  sidebarBackButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: theme.spacing.sm,
-    marginBottom: theme.spacing.xs,
-    borderRadius: theme.borderRadius.md,
-  },
-  sidebarBackButtonText: {
-    fontSize: theme.fontSizes.md,
-    fontWeight: theme.fontWeights.medium as any,
-    color: theme.colors.text.primary,
-  },
-  saveButton: {
-    backgroundColor: theme.colors.action,
-    padding: theme.spacing.md,
-    borderRadius: theme.borderRadius.md,
-    alignItems: 'center',
-    marginBottom: theme.spacing.sm,
-  },
-  saveButtonText: {
-    color: theme.colors.background.paper,
-    fontSize: theme.fontSizes.md,
-    fontWeight: theme.fontWeights.semibold as any,
-  },
-  desktopContent: {
-    flex: 1,
-    padding: theme.spacing.lg,
-  },
-  contentContainer: {
-    flex: 1,
-  },
-  basicSettingsContainer: {
-    padding: theme.spacing.md,
-    backgroundColor: theme.colors.background.paper,
-    borderRadius: theme.borderRadius.lg,
-    ...Platform.select({
-      web: {
-        boxShadow: '0 2px 8px rgba(20, 184, 166, 0.08)',
-      },
-      default: {
-        ...theme.shadows.md,
-      }
-    }),
-    marginBottom: theme.spacing.lg,
-  },
-  membersContainer: {
-    padding: theme.spacing.md,
-    backgroundColor: theme.colors.background.paper,
-    borderRadius: theme.borderRadius.lg,
-    ...Platform.select({
-      web: {
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-      },
-      default: {
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 3,
-      }
-    }),
-    marginBottom: theme.spacing.lg,
-  },
-  privacyContainer: {
-    padding: theme.spacing.md,
-    backgroundColor: theme.colors.background.paper,
-    borderRadius: theme.borderRadius.lg,
-    ...Platform.select({
-      web: {
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-      },
-      default: {
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 3,
-      }
-    }),
-    marginBottom: theme.spacing.lg,
-  },
-  
-  // モバイル版スタイル
-  mobileContainer: {
-    flex: 1,
-    backgroundColor: theme.colors.background.default,
-  },
-  mobileHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: theme.colors.background.paper,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.divider,
-  },
-  mobileBackButton: {
-    padding: theme.spacing.sm,
-  },
-  mobileBackButtonText: {
-    fontSize: 20,
-    color: theme.colors.primary,
-  },
-  mobileHeaderTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: theme.colors.text.primary,
-  },
-  mobileHeaderRight: {
-    width: 40, // スペース確保用
-  },
-  mobileTabContainer: {
-    flexDirection: 'row',
-    backgroundColor: theme.colors.background.paper,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.divider,
-  },
-  mobileTab: {
-    flex: 1,
-    paddingVertical: theme.spacing.md,
-    alignItems: 'center',
-  },
-  activeTab: {
-    borderBottomWidth: 2,
-    borderBottomColor: theme.colors.primary,
-  },
-  mobileTabText: {
-    fontSize: 14,
-    color: theme.colors.text.disabled,
-  },
-  activeTabText: {
-    color: theme.colors.primary,
-    fontWeight: '600',
-  },
-  mobileContent: {
-    flex: 1,
-  },
-  mobileFormSubmit: {
-    backgroundColor: theme.colors.primary,
-    padding: theme.spacing.md,
-    borderRadius: theme.borderRadius.md,
-    alignItems: 'center',
-    marginTop: theme.spacing.md,
-  },
-  mobileFormSubmitText: {
-    color: theme.colors.background.paper,
-    fontSize: theme.fontSizes.md,
-    fontWeight: theme.fontWeights.semibold as any,
-  },
-  disabledButton: {
-    opacity: 0.5,
-  },
-  sidebarItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: theme.spacing.sm,
-    marginBottom: theme.spacing.xs,
-    borderRadius: theme.borderRadius.md,
-  },
-  activeSidebarItem: {
-    backgroundColor: theme.colors.primary,
-  },
-  sidebarItemText: {
-    fontSize: theme.fontSizes.md,
-    fontWeight: theme.fontWeights.medium as any,
-    color: theme.colors.text.primary,
-  },
-  activeSidebarItemText: {
-    color: theme.colors.background.paper,
-    fontWeight: theme.fontWeights.semibold as any,
-  },
-  shortcutText: {
-    fontSize: theme.fontSizes.xs,
-    color: theme.colors.text.disabled,
-  },
-  menuGroup: {
-    marginTop: theme.spacing.lg,
-    marginBottom: 'auto',
-  },
+    color: '#6c7086',
+  }
 });
 
 export default NestSettingsScreen; 

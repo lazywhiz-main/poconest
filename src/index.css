@@ -69,8 +69,6 @@ body, html, #root {
 
 /* Modern Tech Design System - Global CSS (Best Practice) */
 
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&family=Montserrat:wght@400;500;600;700&family=Roboto+Mono&display=swap');
-
 :root {
   /* Modern Tech Markdown Design Variables */
   --primary-green: #00ff88;

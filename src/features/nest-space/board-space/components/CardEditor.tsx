@@ -12,8 +12,10 @@ import {
   TextInputKeyPressEventData
 } from 'react-native';
 import { useBoardSpace } from '../hooks/useBoardSpace';
-import { BoardColumnType, Card } from '../../../../types/board';
+import { BoardColumnType } from 'src/types/board';
 import type { BoardItem } from '../../../board-space/contexts/BoardContext';
+
+const BOARD_COLUMN_TYPES = ['INBOX', 'QUESTIONS', 'INSIGHTS', 'THEMES', 'ACTIONS'] as const;
 
 interface CardEditorProps {
   isVisible: boolean;
@@ -26,7 +28,7 @@ const CardEditor: React.FC<CardEditorProps> = ({
   isVisible,
   onClose,
   initialCardId,
-  initialColumn = BoardColumnType.INBOX
+  initialColumn = 'INBOX'
 }) => {
   const { 
     allCards, 
@@ -171,14 +173,14 @@ const CardEditor: React.FC<CardEditorProps> = ({
             {/* Column Selection */}
             <Text style={styles.inputLabel}>Column</Text>
             <View style={styles.columnSelector}>
-              {Object.values(BoardColumnType).map((column) => (
+              {BOARD_COLUMN_TYPES.map((column) => (
                 <TouchableOpacity 
                   key={column}
                   style={[
                     styles.columnOption,
                     selectedColumn === column && styles.selectedColumnOption
                   ]}
-                  onPress={() => setSelectedColumn(column)}
+                  onPress={() => setSelectedColumn(column as BoardColumnType)}
                 >
                   <Text 
                     style={[
@@ -186,9 +188,10 @@ const CardEditor: React.FC<CardEditorProps> = ({
                       selectedColumn === column && styles.selectedColumnOptionText
                     ]}
                   >
-                    {column === BoardColumnType.INBOX ? 'Inbox' :
-                     column === BoardColumnType.INSIGHTS ? 'Insights' :
-                     column === BoardColumnType.THEMES ? 'Themes' : 'Zoom'}
+                    {column === 'INBOX' ? 'Inbox' :
+                     column === 'QUESTIONS' ? 'Questions' :
+                     column === 'INSIGHTS' ? 'Insights' :
+                     column === 'THEMES' ? 'Themes' : 'Zoom'}
                   </Text>
                 </TouchableOpacity>
               ))}

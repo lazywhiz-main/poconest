@@ -1,4 +1,5 @@
 import React from 'react';
+import Icon from './ui/Icon';
 
 interface LayoutProps {
     children?: React.ReactNode;
@@ -7,7 +8,7 @@ interface LayoutProps {
         title: string;
         items: {
             id: string;
-            icon: string;
+            icon: React.ReactNode;
             text: string;
             badge?: number;
             isActive?: boolean;
@@ -41,10 +42,10 @@ export const Layout: React.FC<LayoutProps> = ({
                 </div>
                 <div className="workspace-controls" style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
                     <div className="workspace-btn" onClick={onSettingsClick}>
-                        ⚙
+                        <Icon name="settings" size={18} />
                     </div>
                     <div className="workspace-btn" onClick={() => setDarkMode(dm => !dm)}>
-                        {darkMode ? '☀️' : '🌙'}
+                        <Icon name={darkMode ? 'sun' : 'moon'} size={18} />
                     </div>
                     {/*
                     <div className="workspace-btn">◉</div>
@@ -98,7 +99,7 @@ export const Layout: React.FC<LayoutProps> = ({
                     ))}
                 </nav>
                 {/* children（スペース本体） */}
-                <main style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>{children}</main>
+                <main style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>{children}</main>
             </div>
         </div>
     );

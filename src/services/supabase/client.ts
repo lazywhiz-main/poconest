@@ -136,6 +136,25 @@ export const createSupabaseClient = () => {
     client._isOffline = isOffline;
     client._pendingOperations = [];
     
+    // 認証状態の変更を監視
+    client.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event, session?.user?.email);
+      
+      // 認証エラーが発生した場合のハンドリング
+      if (event === 'TOKEN_REFRESHED' && !session) {
+        console.warn('トークンリフレッシュに失敗しました。ログアウトします。');
+        await client.auth.signOut();
+      }
+    });
+    
+    // 初期化時に無効なセッションをクリア
+    client.auth.getSession().then(({ data: { session }, error }) => {
+      if (error && error.message.includes('Invalid Refresh Token')) {
+        console.warn('無効なリフレッシュトークンを検出。セッションをクリアします。');
+        client.auth.signOut();
+      }
+    });
+    
     return client;
   } catch (error) {
     console.error('Supabaseクライアントの初期化に失敗しました:', error);

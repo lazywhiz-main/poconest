@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, useWin
 // import DraggableFlatList, { RenderItemParams } from 'react-native-draggable-flatlist';
 import theme from '../../../styles/theme';
 import Card from '../../../components/Card';
-import { BoardItem, BoardColumnType, useBoardContext } from '../contexts/BoardContext';
+import { BoardItem, useBoardContext } from '../contexts/BoardContext';
+import { BoardColumnType } from 'src/types/board';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Markdown from 'react-markdown';
 import { createPortal } from 'react-dom';
@@ -92,6 +93,8 @@ const markdownComponents = {
   img: (props: any) => <img {...props} />,
 };
 
+const BOARD_COLUMN_TYPES = ['INBOX', 'QUESTIONS', 'INSIGHTS', 'THEMES', 'ACTIONS'] as const;
+
 const CardModal: React.FC<CardModalProps> = ({
   open,
   onClose,
@@ -110,7 +113,7 @@ const CardModal: React.FC<CardModalProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
-  const { getCardsByColumn } = useBoardContext();
+  const { getCardsByColumn, state } = useBoardContext();
   const [relatedDropdownOpen, setRelatedDropdownOpen] = useState(false);
   const [relatedFilter, setRelatedFilter] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -126,68 +129,11 @@ const CardModal: React.FC<CardModalProps> = ({
   const modalRef = useRef<HTMLDivElement>(null);
   const [isEditingContent, setIsEditingContent] = useState(true);
 
-  useEffect(() => {
-    if (isEditingContent && contentRef.current) {
-      contentRef.current.style.height = 'auto';
-      contentRef.current.style.height = (contentRef.current.scrollHeight || 80) + 'px';
-    }
-  }, [isEditingContent, content]);
-
   // 関連カードの候補を取得
-  const allCards = useMemo(() => {
-    const cards = new Map();
-    // 各カラムのカードを追加
-    [...getCardsByColumn(BoardColumnType.INBOX),
-     ...getCardsByColumn(BoardColumnType.INSIGHTS),
-     ...getCardsByColumn(BoardColumnType.THEMES)].forEach(card => {
-      cards.set(card.id, card);
-    });
-    
-    // 初期データの関連カードを追加
-    if (initialData?.related_cards) {
-      initialData.related_cards.forEach((card: any) => {
-        cards.set(card.id, card);
-      });
-    }
-    
-    // 初期データの関連カードIDを追加
-    if (initialData?.related_card_ids) {
-      initialData.related_card_ids.forEach(id => {
-        if (!cards.has(id)) {
-          cards.set(id, { id, title: '(取得中)', column_type: 'inbox' });
-        }
-      });
-    }
-    
-    return Array.from(cards.values()).filter(card => card.id !== initialData?.id);
-  }, [initialData, getCardsByColumn]);
-
-  useEffect(() => {
-    if (initialData) {
-      setTitle(initialData.title || '');
-      setContent(initialData.content || '');
-      setTags(initialData.tags || []);
-      setSources(initialData.sources || []);
-      
-      // 関連カードIDの初期化
-      const ids = initialData.related_card_ids || 
-                 (initialData.related_cards || []).map((c: any) => c.id);
-      setRelatedCardIds(ids);
-      // 内容テキストエリアの高さ自動調整
-      setTimeout(() => {
-        if (contentRef.current) {
-          contentRef.current.style.height = 'auto';
-          contentRef.current.style.height = (contentRef.current.scrollHeight || 80) + 'px';
-        }
-      }, 0);
-    } else {
-      setTitle('');
-      setContent('');
-      setTags([]);
-      setSources([]);
-      setRelatedCardIds([]);
-    }
-  }, [initialData]);
+  const allCardsForModal = useMemo(() => {
+    // 全カラムのカードから自分自身を除外
+    return state.cards.filter(card => card.id !== initialData?.id);
+  }, [state.cards, initialData]);
 
   // ドロップダウン外クリックで閉じる
   useEffect(() => {
@@ -202,7 +148,7 @@ const CardModal: React.FC<CardModalProps> = ({
   }, []);
 
   // フィルタ適用
-  const filteredCards = allCards.filter(card =>
+  const filteredCards = allCardsForModal.filter(card =>
     card.title.toLowerCase().includes(relatedFilter.toLowerCase())
   );
 
@@ -306,6 +252,33 @@ const CardModal: React.FC<CardModalProps> = ({
     setRelatedDropdownOpen(true);
   };
 
+  // フォーム初期値を編集時にセット
+  useEffect(() => {
+    if (initialData) {
+      setTitle(initialData.title || '');
+      setContent(initialData.content || '');
+      setTags(initialData.tags || []);
+      setSources(initialData.sources || []);
+      setRelatedCardIds(initialData.related_card_ids || (initialData.related_cards || []).map((c: any) => c.id) || []);
+      setIsEditingContent(false);
+    } else {
+      setTitle('');
+      setContent('');
+      setTags([]);
+      setSources([]);
+      setRelatedCardIds([]);
+      setIsEditingContent(true);
+    }
+  }, [initialData]);
+
+  // 本文エリアの高さを内容に合わせて自動調整
+  useEffect(() => {
+    if (isEditingContent && contentRef.current) {
+      contentRef.current.style.height = 'auto';
+      contentRef.current.style.height = (contentRef.current.scrollHeight || 80) + 'px';
+    }
+  }, [content, open, isEditingContent]);
+
   if (typeof window === 'undefined') return null;
   return (
     open ? (
@@ -369,22 +342,24 @@ const CardModal: React.FC<CardModalProps> = ({
                   {initialData.updated_at && (
                     <div>最終更新: {new Date(initialData.updated_at).toLocaleString()}</div>
                   )}
-                  <div>作成者: {(initialData as any)?.created_by_display_name || initialData.created_by || '-'}</div>
+                  <div>作成者: {(initialData as any)?.created_by_display_name || '不明'}</div>
                 </div>
               )}
               {/* カード種別選択 */}
               <div className="form-group" style={{ marginBottom: 16 }}>
                 <label className="form-label" style={{ fontSize: 11, fontWeight: 600, color: '#a6adc8', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, display: 'block' }}>カード種別</label>
                 <div style={{ display: 'flex', gap: 24, flexDirection: 'row', marginTop: 4 }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
-                    <input type="radio" name="columnType" value="inbox" checked={columnType === BoardColumnType.INBOX} onChange={() => setColumnType(BoardColumnType.INBOX)} /> Inbox
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
-                    <input type="radio" name="columnType" value="insights" checked={columnType === BoardColumnType.INSIGHTS} onChange={() => setColumnType(BoardColumnType.INSIGHTS)} /> Insights
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
-                    <input type="radio" name="columnType" value="themes" checked={columnType === BoardColumnType.THEMES} onChange={() => setColumnType(BoardColumnType.THEMES)} /> Themes
-                  </label>
+                  {BOARD_COLUMN_TYPES.map(type => (
+                    <label key={type} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
+                      <input
+                        type="radio"
+                        name="columnType"
+                        value={type}
+                        checked={columnType === (type as BoardColumnType)}
+                        onChange={() => setColumnType(type as BoardColumnType)}
+                      /> {type}
+                    </label>
+                  ))}
                 </div>
               </div>
               {/* タイトル */}
@@ -573,7 +548,7 @@ const CardModal: React.FC<CardModalProps> = ({
                 {/* 選択済みカードタグ表示（バッジUI） */}
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
                   {relatedCardIds.map(id => {
-                    const card = allCards.find(c => c.id === id);
+                    const card = allCardsForModal.find(c => c.id === id);
                     if (!card) return null;
                     return (
                       <span key={id} style={{
@@ -717,13 +692,21 @@ const BoardSpace: React.FC<BoardSpaceProps> = ({ nestId }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isCardModalVisible, setIsCardModalVisible] = useState(false);
   const [selectedCard, setSelectedCard] = useState<BoardItem | null>(null);
-  const [selectedColumn, setSelectedColumn] = useState<BoardColumnType>(BoardColumnType.INBOX);
+  const [selectedColumn, setSelectedColumn] = useState<BoardColumnType>('INBOX');
   const [previewCard, setPreviewCard] = useState<BoardItem | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteTargetCardId, setDeleteTargetCardId] = useState<string | null>(null);
 
-  // タブ切り替え用の状態
-  const [activeTab, setActiveTab] = useState<'all' | 'inbox' | 'insights' | 'themes'>('all');
+  // タブ定義
+  const TABS = [
+    { key: 'all', label: 'All' },
+    { key: 'INBOX', label: 'INBOX' },
+    { key: 'QUESTIONS', label: 'QUESTIONS' },
+    { key: 'INSIGHTS', label: 'INSIGHTS' },
+    { key: 'THEMES', label: 'THEMES' },
+    { key: 'ACTIONS', label: 'ACTIONS' },
+  ];
+  const [activeTab, setActiveTab] = useState('all');
 
   const { user } = useAuth();
 
@@ -734,9 +717,9 @@ const BoardSpace: React.FC<BoardSpaceProps> = ({ nestId }) => {
   }, [nestId, loadNestData]);
 
   // 3カラムのみ取得
-  const inboxCards = getCardsByColumn(BoardColumnType.INBOX);
-  const insightCards = getCardsByColumn(BoardColumnType.INSIGHTS);
-  const themeCards = getCardsByColumn(BoardColumnType.THEMES);
+  const inboxCards = getCardsByColumn('INBOX');
+  const insightCards = getCardsByColumn('INSIGHTS');
+  const themeCards = getCardsByColumn('THEMES');
 
   // D&D用のローカル状態を同期
   // useEffect(() => {
@@ -754,10 +737,10 @@ const BoardSpace: React.FC<BoardSpaceProps> = ({ nestId }) => {
 
   // ＋ボタン押下時のカラム初期値をタブに応じてセット
   const handleCreateCard = () => {
-    let initialColumn: BoardColumnType = BoardColumnType.INBOX;
-    if (activeTab === 'inbox') initialColumn = BoardColumnType.INBOX;
-    else if (activeTab === 'insights') initialColumn = BoardColumnType.INSIGHTS;
-    else if (activeTab === 'themes') initialColumn = BoardColumnType.THEMES;
+    let initialColumn: BoardColumnType = 'INBOX';
+    if (activeTab === 'INBOX') initialColumn = 'INBOX';
+    else if (activeTab === 'INSIGHTS') initialColumn = 'INSIGHTS';
+    else if (activeTab === 'THEMES') initialColumn = 'THEMES';
     setSelectedColumn(initialColumn);
     setSelectedCard(null);
     setIsCardModalVisible(true);
@@ -818,11 +801,16 @@ const BoardSpace: React.FC<BoardSpaceProps> = ({ nestId }) => {
       }
     } else {
       // 新規カードの作成
+      if (!state.boardId) {
+        alert('ボードIDが取得できません。ページを再読み込みしてください。');
+        return;
+      }
+      
       const newCard = {
         board_id: state.boardId,
         title: cardData.title || '',
         content: cardData.content || '',
-        column_type: cardData.column_type || BoardColumnType.INBOX,
+        column_type: cardData.column_type || 'INBOX',
         created_by: user.id,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -867,40 +855,16 @@ const BoardSpace: React.FC<BoardSpaceProps> = ({ nestId }) => {
 
   // カードの昇格ハンドラ
   const handlePromoteToInsights = (card: BoardItem) => {
-    updateCard({ ...card, column_type: BoardColumnType.INSIGHTS, id: card.id });
+    updateCard({ ...card, column_type: 'INSIGHTS', id: card.id });
   };
   const handlePromoteToThemes = (card: BoardItem) => {
-    updateCard({ ...card, column_type: BoardColumnType.THEMES, id: card.id });
+    updateCard({ ...card, column_type: 'THEMES', id: card.id });
   };
 
   // タブごとのカードフィルタリング
   const filteredCards = (() => {
-    if (activeTab === 'all') {
-      // IDで重複除去
-      const seen = new Set();
-      const all = [...inboxCards, ...insightCards, ...themeCards]
-        .filter(card => {
-          if (seen.has(card.id)) return false;
-          seen.add(card.id);
-          return true;
-        })
-        .sort((a, b) => a.order_index - b.order_index);
-      console.log('[BoardSpace] filteredCards (all):', JSON.stringify(all, null, 2));
-      return all;
-    }
-    if (activeTab === 'inbox') {
-      console.log('[BoardSpace] filteredCards (inbox):', JSON.stringify(inboxCards, null, 2));
-      return inboxCards;
-    }
-    if (activeTab === 'insights') {
-      console.log('[BoardSpace] filteredCards (insights):', JSON.stringify(insightCards, null, 2));
-      return insightCards;
-    }
-    if (activeTab === 'themes') {
-      console.log('[BoardSpace] filteredCards (themes):', JSON.stringify(themeCards, null, 2));
-      return themeCards;
-    }
-    return [];
+    if (activeTab === 'all') return state.cards;
+    return state.cards.filter(card => card.column_type === activeTab);
   })();
 
   // --- カードグリッド描画直前でデバッグ出力 ---
@@ -909,13 +873,22 @@ const BoardSpace: React.FC<BoardSpaceProps> = ({ nestId }) => {
   // Web用: デザインシステム完全準拠の新カードUI
   const renderCardWeb = (card: BoardItem) => {
     console.log('[BoardSpace] renderCardWeb card:', JSON.stringify(card, null, 2));
+    const typeBadgeInfo: Record<string, { className: string; icon: string; label: string }> = {
+      INBOX:      { className: 'type-inbox',     icon: '📥', label: 'Inbox' },
+      INSIGHTS:   { className: 'type-insight',   icon: '💡', label: 'Insight' },
+      THEMES:     { className: 'type-theme',     icon: '🎯', label: 'Theme' },
+      QUESTIONS:  { className: 'type-question',  icon: '❓', label: 'Question' },
+      ACTIONS:    { className: 'type-action',    icon: '⚡', label: 'Action' },
+    };
+    const badgeType = typeBadgeInfo[card.column_type] || typeBadgeInfo['INBOX'];
     const columnBadge = (
-      <span className="card-tag primary" key="type-badge">
-        {card.column_type?.toUpperCase()}
+      <span className={`card-type-badge ${badgeType.className}`} key="type-badge">
+        <span className="card-type-icon">{badgeType.icon}</span>
+        {badgeType.label}
       </span>
     );
     const tagBadges = card.tags?.map(tag => (
-      <span className="card-tag" key={tag}>{tag}</span>
+      <span className="tag-badge" key={tag}>{tag}</span>
     )) || [];
 
     // --- 出典・関連カードバッジの合算省略ロジック ---
@@ -958,12 +931,10 @@ const BoardSpace: React.FC<BoardSpaceProps> = ({ nestId }) => {
         {/* タイトル */}
         <div className="card-title">{card.title}</div>
         {/* タイプバッジ＋タグ */}
-        {(card.tags?.length || 0) > 0 && (
-          <div className="card-tags" style={{ marginTop: 6, marginBottom: 8 }}>
-            {columnBadge}
-            {tagBadges}
-          </div>
-        )}
+        <div className="card-tags" style={{ marginTop: 6, marginBottom: 8 }}>
+          {columnBadge}
+          {tagBadges}
+        </div>
         {/* 本文 */}
         <div className="card-content" style={{ flex: 1, marginBottom: 8, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }}>{card.content}</div>
         {/* 出典・関連カードリンク（省略+N対応） */}
@@ -977,8 +948,8 @@ const BoardSpace: React.FC<BoardSpaceProps> = ({ nestId }) => {
         )}
         {/* メタ情報 */}
         <div className="card-meta" style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 0 }}>
-          <span>{`Created: ${new Date(card.created_at).toLocaleDateString()} | ${card.created_by_display_name || card.created_by}`}</span>
-          <span>{`Updated: ${new Date(card.updated_at).toLocaleDateString()} | ${card.updated_by || card.created_by}`}</span>
+          <span>{`Created: ${new Date(card.created_at).toLocaleDateString()} | ${card.created_by_display_name || '不明'}`}</span>
+          <span>{`Updated: ${new Date(card.updated_at).toLocaleDateString()} | ${card.updated_by_display_name || card.created_by_display_name || '不明'}`}</span>
         </div>
       </div>
     );
@@ -1048,12 +1019,7 @@ const BoardSpace: React.FC<BoardSpaceProps> = ({ nestId }) => {
         }
       `}</style>
       <div className="tab-container">
-        {[
-          { key: 'all', label: 'All' },
-          { key: 'inbox', label: 'INBOX' },
-          { key: 'insights', label: 'INSIGHTS' },
-          { key: 'themes', label: 'THEMES' },
-        ].map(tab => (
+        {TABS.map(tab => (
           <div
             key={tab.key}
             className={"tab" + (activeTab === tab.key ? " active" : "")}
@@ -1090,94 +1056,105 @@ const BoardSpace: React.FC<BoardSpaceProps> = ({ nestId }) => {
   return (
     <>
       <style>{`
-        .card-list-grid {
-          padding: 24px 24px 0 24px;
-          display: grid;
-          grid-template-columns: repeat(auto-fill, 360px);
-          gap: 24px;
-          justify-content: center;
-          max-width: 100%;
-          margin: 0 auto;
-          overflow-y: auto;
-          max-height: calc(100vh - 120px);
-        }
-        .card {
-          background: #1a1a2e;
-          border: 1px solid #333366;
-          border-radius: 4px;
-          padding: 16px;
-          margin-bottom: 16px;
-          transition: all 0.2s ease;
-        }
-        .card:hover {
-          border-color: #45475a;
-          transform: translateY(-1px);
-        }
-        .card-header {
-          display: flex;
-          justify-content: space-between;
-          alignItems: 'flex-start';
-          margin-bottom: 12px;
-        }
-        .card-title {
-          font-size: 14px;
-          font-weight: 600;
-          color: #e2e8f0;
-          margin-bottom: 4px;
-          font-family: 'Space Grotesk', sans-serif;
-        }
-        .card-tags {
-          display: flex;
-          gap: 6px;
-          flex-wrap: wrap;
-        }
-        .card-tag {
+        /* ===== バッジデザイン: final_badge_component準拠 ===== */
+        .card-type-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
           background: #333366;
-          color: #a6adc8;
           padding: 2px 6px;
           border-radius: 2px;
           font-size: 10px;
           font-weight: 500;
           text-transform: uppercase;
-          font-family: 'Space Grotesk', sans-serif;
-        }
-        .card-tag.primary {
-          background: #00ff88;
-          color: #0f0f23;
-        }
-        .card-content {
-          color: #a6adc8;
-          font-size: 12px;
-          line-height: 1.5;
-          margin-bottom: 12px;
-          font-family: 'Space Grotesk', sans-serif;
-        }
-        .card-meta {
-          display: flex;
-          justify-content: space-between;
-          font-size: 10px;
-          color: #6c7086;
+          letter-spacing: 0.5px;
           font-family: 'JetBrains Mono', monospace;
-          border-top: 1px solid #333366;
-          padding-top: 8px;
+          border: 1px solid #45475a;
+          flex-shrink: 0;
+          cursor: pointer;
+          transition: all 0.2s;
         }
-        .card-links {
-          margin-top: 8px;
-          display: flex;
-          gap: 8px;
+        .card-type-badge.type-inbox {
+          background: rgba(117,117,117,0.2);
+          color: #6c7086;
+          border-color: #6c7086;
         }
-        .card-link {
-          color: #00ff88;
+        .card-type-badge.type-insight {
+          background: rgba(156,39,176,0.2);
+          color: #9c27b0;
+          border-color: #9c27b0;
+        }
+        .card-type-badge.type-theme {
+          background: rgba(100,181,246,0.2);
+          color: #64b5f6;
+          border-color: #64b5f6;
+        }
+        .card-type-badge.type-question {
+          background: rgba(255,211,61,0.2);
+          color: #ffd93d;
+          border-color: #ffd93d;
+        }
+        .card-type-badge.type-action {
+          background: rgba(255,165,0,0.2);
+          color: #ffa500;
+          border-color: #ffa500;
+        }
+        .card-type-badge:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(0,255,136,0.2);
+        }
+        .card-type-icon {
           font-size: 10px;
-          text-decoration: none;
-          padding: 2px 4px;
-          border: 1px solid #00ff88;
-          border-radius: 2px;
-          transition: all 0.2s ease;
         }
-        .card-link:hover {
+        .tag-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          background: #333366;
+          padding: 2px 6px;
+          border-radius: 2px;
+          font-size: 10px;
+          font-weight: 500;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          font-family: 'JetBrains Mono', monospace;
+          border: 1px solid #45475a;
+          color: #a6adc8;
+          flex-shrink: 0;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .tag-badge:hover {
+          transform: translateY(-1px);
           background: #00ff88;
-          color: #0f0f23;
+          color: #fff;
+          border-color: #00ff88;
+          box-shadow: 0 4px 12px rgba(0,255,136,0.3);
+        }
+        .tag-badge.category-ux {
+          background: rgba(100,181,246,0.08);
+          color: rgba(100,181,246,0.8);
+          border-color: rgba(100,181,246,0.3);
+        }
+        .tag-badge.category-psychology {
+          background: rgba(156,39,176,0.08);
+          color: rgba(156,39,176,0.8);
+          border-color: rgba(156,39,176,0.3);
+        }
+        .tag-badge.category-design {
+          background: rgba(255,165,0,0.08);
+          color: rgba(255,165,0,0.8);
+          border-color: rgba(255,165,0,0.3);
+        }
+        .tag-badge.category-research {
+          background: rgba(38,198,218,0.08);
+          color: rgba(38,198,218,0.8);
+          border-color: rgba(38,198,218,0.3);
+        }
+        .tag-badge.category-tech {
+          background: rgba(0,255,136,0.08);
+          color: rgba(0,255,136,0.8);
+          border-color: rgba(0,255,136,0.3);
         }
       `}</style>
       {renderTabs()}
@@ -1574,4 +1551,5 @@ const styles = StyleSheet.create({
   },
 });
 
+export { CardModal };
 export default BoardSpace; 

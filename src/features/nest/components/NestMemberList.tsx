@@ -1,16 +1,9 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  Modal,
-  Platform,
-  Alert
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, Platform, Alert } from 'react-native';
 import { useNest, NestMember } from '../contexts/NestContext';
-import { COLORS, SPACING } from '@constants/config';
+import Card from '../../../components/ui/Card';
+import Button from '../../../components/ui/Button';
+import Icon from '../../../components/ui/Icon';
 
 interface NestMemberListProps {
   nestId: string;
@@ -37,7 +30,7 @@ const NestMemberList: React.FC<NestMemberListProps> = ({ nestId }) => {
 
   // メンバーの最終アクティブ日時をフォーマット
   const formatLastActive = (date?: string) => {
-    if (!date) return '活動なし';
+    if (!date) return '未アクセス';
     
     const lastActive = new Date(date);
     const now = new Date();
@@ -60,6 +53,64 @@ const NestMemberList: React.FC<NestMemberListProps> = ({ nestId }) => {
     return lastActive.toLocaleDateString();
   };
 
+  // メンバーのオンライン状態を判定（仮の実装）
+  const getMemberStatus = (lastActive?: string) => {
+    if (!lastActive) return 'offline';
+    const lastActiveDate = new Date(lastActive);
+    const now = new Date();
+    const diffMinutes = (now.getTime() - lastActiveDate.getTime()) / (1000 * 60);
+    
+    if (diffMinutes < 5) return 'online';
+    if (diffMinutes < 30) return 'away';
+    return 'offline';
+  };
+
+  // プロフィール画像の背景色を生成（ユーザーIDに基づく）
+  const getAvatarColor = (userId: string) => {
+    const colors = [
+      '#00ff88', // Green
+      '#64b5f6', // Blue
+      '#ff6b6b', // Red
+      '#ffa500', // Orange
+      '#9c27b0', // Purple
+      '#26c6da', // Cyan
+      '#ffeb3b', // Yellow
+      '#4caf50', // Dark Green
+      '#e91e63', // Pink
+      '#795548'  // Brown
+    ];
+    
+    // ユーザーIDのハッシュ値を計算して色を決定
+    let hash = 0;
+    for (let i = 0; i < userId.length; i++) {
+      hash = userId.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return colors[Math.abs(hash) % colors.length];
+  };
+
+  // ステータスインジケーターコンポーネント
+  const StatusIndicator = ({ status }: { status: string }) => {
+    const colors = {
+      online: '#00ff88',
+      away: '#ffa500',
+      busy: '#ff6b6b',
+      offline: '#6c7086'
+    };
+    
+    return (
+      <div style={{
+        position: 'absolute',
+        bottom: -2,
+        right: -2,
+        width: 16,
+        height: 16,
+        borderRadius: '50%',
+        backgroundColor: colors[status as keyof typeof colors] || colors.offline,
+        border: '2px solid #1a1a2e'
+      }} />
+    );
+  };
+
   // メンバー詳細モーダルを表示
   const handleMemberPress = (member: NestMember) => {
     setSelectedMember(member);
@@ -70,7 +121,6 @@ const NestMemberList: React.FC<NestMemberListProps> = ({ nestId }) => {
   const handleAction = (action: 'promote' | 'demote' | 'remove') => {
     if (!selectedMember) return;
     
-    // ここでAPI呼び出し
     const actionLabels = {
       promote: '管理者に昇格',
       demote: 'メンバーに降格',
@@ -88,9 +138,7 @@ const NestMemberList: React.FC<NestMemberListProps> = ({ nestId }) => {
         {
           text: '実行',
           onPress: () => {
-            // 実際の実装ではAPIを呼び出す
             console.log(`${action} action on member ${selectedMember.user_id}`);
-            // 成功したらモーダルを閉じる
             setModalVisible(false);
           },
           style: 'destructive'
@@ -114,24 +162,52 @@ const NestMemberList: React.FC<NestMemberListProps> = ({ nestId }) => {
         animationType="fade"
         onRequestClose={() => setModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+        <View style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: 'rgba(15, 15, 35, 0.8)',
+          ...Platform.select({
+            web: { backdropFilter: 'blur(4px)' },
+            default: {}
+          })
+        }}>
+          <div style={{
+            width: Platform.OS === 'web' ? 480 : '90%',
+            maxWidth: 480,
+            background: '#1a1a2e',
+            border: '1px solid #333366',
+            borderRadius: 4,
+            padding: 24,
+            opacity: 1
+          }}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>メンバー詳細</Text>
               <TouchableOpacity 
                 onPress={() => setModalVisible(false)}
                 accessibilityLabel="閉じる"
               >
-                <Text style={styles.closeButton}>✕</Text>
+                <Icon name="close" size={20} color="#6c7086" />
               </TouchableOpacity>
             </View>
             
             <View style={styles.memberDetail}>
-              <View style={styles.avatarPlaceholder}>
-                <Text style={styles.avatarInitial}>
-                  {(selectedMember.users?.display_name || '?')[0].toUpperCase()}
-                </Text>
-              </View>
+              <div style={{ 
+                width: 64, 
+                height: 64, 
+                borderRadius: 8, 
+                backgroundColor: getAvatarColor(selectedMember.user_id), 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                marginRight: 20,
+                position: 'relative'
+              }}>
+                <span style={{ color: '#0f0f23', fontSize: 28, fontWeight: 700 }}>
+                  {selectedMember.users?.display_name && selectedMember.users.display_name.length > 0 ? selectedMember.users.display_name[0].toUpperCase() : '?'}
+                </span>
+                <StatusIndicator status={getMemberStatus(selectedMember.last_active_at)} />
+              </div>
               
               <View style={styles.memberInfo}>
                 <Text style={styles.memberName}>
@@ -154,33 +230,35 @@ const NestMemberList: React.FC<NestMemberListProps> = ({ nestId }) => {
             
             <View style={styles.actionButtons}>
               {!isOwner && isMember && (
-                <TouchableOpacity 
-                  style={styles.actionButton}
+                <Button
+                  title="管理者に昇格"
                   onPress={() => handleAction('promote')}
-                >
-                  <Text style={styles.actionButtonText}>管理者に昇格</Text>
-                </TouchableOpacity>
+                  variant="primary"
+                  size="md"
+                  style={{ marginBottom: 8 }}
+                />
               )}
               
               {!isOwner && isAdmin && (
-                <TouchableOpacity 
-                  style={styles.actionButton}
+                <Button
+                  title="メンバーに降格"
                   onPress={() => handleAction('demote')}
-                >
-                  <Text style={styles.actionButtonText}>メンバーに降格</Text>
-                </TouchableOpacity>
+                  variant="default"
+                  size="md"
+                  style={{ marginBottom: 8 }}
+                />
               )}
               
               {!isOwner && (
-                <TouchableOpacity 
-                  style={[styles.actionButton, styles.removeButton]}
+                <Button
+                  title="NESTから削除"
                   onPress={() => handleAction('remove')}
-                >
-                  <Text style={styles.removeButtonText}>NESTから削除</Text>
-                </TouchableOpacity>
+                  variant="danger"
+                  size="md"
+                />
               )}
             </View>
-          </View>
+          </div>
         </View>
       </Modal>
     );
@@ -188,176 +266,125 @@ const NestMemberList: React.FC<NestMemberListProps> = ({ nestId }) => {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>メンバーを読み込み中...</Text>
-      </View>
+      <div style={{ 
+        background: '#1a1a2e',
+        border: '1px solid #333366',
+        borderRadius: 4,
+        padding: 20, 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center' 
+      }}>
+        <div style={{ color: '#6c7086', fontSize: 12 }}>メンバーを読み込み中...</div>
+      </div>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.sectionTitle}>メンバー ({nestMembers.length})</Text>
+    <div style={{ marginBottom: 0 }}>
+      <div style={{ 
+        fontSize: 11, 
+        fontWeight: 600, 
+        color: '#a6adc8',
+        textTransform: 'uppercase',
+        letterSpacing: '1px',
+        marginBottom: 16 
+      }}>
+        メンバー ({nestMembers.length})
+      </div>
       
-      <FlatList
-        data={nestMembers}
-        keyExtractor={(item) => `${item.nest_id}-${item.user_id}`}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.memberItem}
-            onPress={() => handleMemberPress(item)}
-            accessibilityRole="button"
-            accessibilityLabel={`${item.users?.display_name || '名前なし'} - ${getMemberRoleLabel(item.role)}`}
-            accessibilityHint="タップするとメンバー詳細を表示します"
-          >
-            <View style={styles.memberAvatar}>
-              <Text style={styles.avatarText}>
-                {(item.users?.display_name || '?')[0].toUpperCase()}
-              </Text>
-            </View>
-            
-            <View style={styles.memberItemInfo}>
-              <Text style={styles.memberItemName} numberOfLines={1}>
-                {item.users?.display_name || '名前なし'}
-              </Text>
-              <Text style={styles.memberItemRole}>
-                {getMemberRoleLabel(item.role)}
-              </Text>
-            </View>
-            
-            <View style={styles.memberStatus}>
-              <View 
-                style={[
-                  styles.statusIndicator, 
-                  item.last_active_at ? styles.activeStatus : styles.inactiveStatus
-                ]} 
-              />
-              <Text style={styles.lastActiveText} numberOfLines={1}>
-                {item.last_active_at 
-                  ? formatLastActive(item.last_active_at)
-                  : '未アクセス'
-                }
-              </Text>
-            </View>
-          </TouchableOpacity>
-        )}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>メンバーがいません</Text>
-          </View>
-        }
-      />
-      
+      {nestMembers.length === 0 ? (
+        <div style={{ 
+          background: '#1a1a2e',
+          border: '1px solid #333366',
+          borderRadius: 4,
+          padding: 20, 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center' 
+        }}>
+          <div style={{ color: '#6c7086', fontSize: 12 }}>メンバーがいません</div>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {nestMembers.map((item) => {
+            const name = item.users?.display_name || '名前なし';
+            const memberStatus = getMemberStatus(item.last_active_at);
+            return (
+              <div
+                key={item.nest_id + '-' + item.user_id} 
+                style={{ 
+                  background: '#1a1a2e',
+                  border: '1px solid #333366',
+                  borderRadius: 4,
+                  padding: 16,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+                onClick={() => handleMemberPress(item)}
+                onMouseEnter={e => {
+                  e.currentTarget.style.borderColor = '#45475a';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = '#333366';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <div style={{ 
+                    width: 48, 
+                    height: 48, 
+                    borderRadius: 8, 
+                    backgroundColor: getAvatarColor(item.user_id), 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    marginRight: 16, 
+                    flexShrink: 0,
+                    position: 'relative'
+                  }}>
+                    <span style={{ color: '#0f0f23', fontSize: 18, fontWeight: 700 }}>
+                      {name && name.length > 0 ? name[0].toUpperCase() : '?'}
+                    </span>
+                    <StatusIndicator status={memberStatus} />
+                  </div>
+                  
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ 
+                      fontSize: 14, 
+                      fontWeight: 500, 
+                      color: '#e2e8f0', 
+                      marginBottom: 2 
+                    }}>
+                      {name}
+                    </div>
+                    <div style={{ 
+                      fontSize: 12, 
+                      color: '#6c7086', 
+                      marginBottom: 2 
+                    }}>
+                      {getMemberRoleLabel(item.role)}
+                    </div>
+                    <div style={{ 
+                      fontSize: 11, 
+                      color: '#6c7086' 
+                    }}>
+                      {formatLastActive(item.last_active_at)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
       {renderMemberModal()}
-    </View>
+    </div>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: SPACING.md,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: SPACING.md,
-  },
-  loadingText: {
-    fontSize: 14,
-    color: COLORS.gray,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: SPACING.md,
-    color: COLORS.text,
-  },
-  memberItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: SPACING.md,
-    backgroundColor: COLORS.white,
-    borderRadius: 8,
-    marginBottom: SPACING.sm,
-    ...Platform.select({
-      web: {
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-        cursor: 'pointer',
-        transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-        ':hover': {
-          transform: 'translateY(-2px)',
-          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-        }
-      },
-      default: {
-        elevation: 1,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
-      }
-    }),
-  },
-  memberAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: COLORS.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: SPACING.sm,
-  },
-  avatarText: {
-    color: COLORS.white,
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  memberItemInfo: {
-    flex: 1,
-  },
-  memberItemName: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: COLORS.text,
-  },
-  memberItemRole: {
-    fontSize: 13,
-    color: COLORS.gray,
-  },
-  memberStatus: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  statusIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: SPACING.xs,
-  },
-  activeStatus: {
-    backgroundColor: COLORS.success,
-  },
-  inactiveStatus: {
-    backgroundColor: COLORS.gray,
-  },
-  lastActiveText: {
-    fontSize: 12,
-    color: COLORS.gray,
-    maxWidth: 80,
-  },
-  emptyContainer: {
-    padding: SPACING.lg,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyText: {
-    fontSize: 14,
-    color: COLORS.gray,
-    textAlign: 'center',
-  },
-  
-  // モーダル関連スタイル
   modalOverlay: {
     flex: 1,
     justifyContent: 'center',
@@ -366,55 +393,22 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     width: Platform.OS === 'web' ? 480 : '90%',
-    backgroundColor: COLORS.white,
-    borderRadius: 12,
-    padding: SPACING.lg,
-    ...Platform.select({
-      web: {
-        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
-      },
-      default: {
-        elevation: 5,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 10,
-      }
-    }),
+    padding: 24,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SPACING.lg,
+    marginBottom: 24,
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.text,
-  },
-  closeButton: {
-    fontSize: 20,
-    color: COLORS.gray,
-    padding: SPACING.sm,
+    color: '#e2e8f0',
   },
   memberDetail: {
     flexDirection: 'row',
-    marginBottom: SPACING.lg,
-  },
-  avatarPlaceholder: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: COLORS.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: SPACING.lg,
-  },
-  avatarInitial: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: COLORS.white,
+    marginBottom: 24,
   },
   memberInfo: {
     flex: 1,
@@ -423,51 +417,31 @@ const styles = StyleSheet.create({
   memberName: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: '#e2e8f0',
     marginBottom: 2,
   },
   memberEmail: {
     fontSize: 14,
-    color: COLORS.gray,
-    marginBottom: SPACING.sm,
+    color: '#a6adc8',
+    marginBottom: 8,
   },
   memberRole: {
     fontSize: 14,
     fontWeight: '500',
-    color: COLORS.text,
+    color: '#e2e8f0',
     marginBottom: 2,
   },
   memberJoinDate: {
     fontSize: 13,
-    color: COLORS.gray,
+    color: '#6c7086',
     marginBottom: 2,
   },
   memberLastActive: {
     fontSize: 13,
-    color: COLORS.gray,
+    color: '#6c7086',
   },
   actionButtons: {
-    marginTop: SPACING.md,
-  },
-  actionButton: {
-    backgroundColor: COLORS.primary,
-    padding: SPACING.md,
-    borderRadius: 8,
-    marginBottom: SPACING.sm,
-    alignItems: 'center',
-  },
-  actionButtonText: {
-    color: COLORS.white,
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  removeButton: {
-    backgroundColor: COLORS.error,
-  },
-  removeButtonText: {
-    color: COLORS.white,
-    fontWeight: '600',
-    fontSize: 16,
+    marginTop: 16,
   },
 });
 

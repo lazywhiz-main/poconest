@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import '../styles/nestlist.css';
 import { useAuth } from '../contexts/AuthContext';
+import Icon from './ui/Icon';
 
 export const ServiceHeader: React.FC = () => {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -44,12 +45,12 @@ export const ServiceHeader: React.FC = () => {
             <span className="nav-label">NEST LIST</span>
           </a>
           <a href="#" className="nav-item">
-            <span className="nav-icon">⚙️</span>
+            <span className="nav-icon"><Icon name="settings" size={16} /></span>
             <span className="nav-label">設定</span>
           </a>
         </nav>
         <div className="search-box" role="search">
-          <span className="search-icon" aria-hidden="true">🔍</span>
+          <span className="search-icon" aria-hidden="true"><Icon name="search" size={16} /></span>
           <input
             type="text"
             className="search-input"
@@ -60,7 +61,7 @@ export const ServiceHeader: React.FC = () => {
         </div>
         <div className="header-actions" ref={menuRef}>
           <button className="notification-btn" title="通知" aria-label="通知を確認">
-            <span className="notification-icon">🔔</span>
+            <span className="notification-icon"><Icon name="bell" size={18} /></span>
             <span className="notification-badge">3</span>
           </button>
           <button className="user-menu" aria-label="ユーザーメニューを開く" onClick={() => setMenuOpen((v) => !v)}>

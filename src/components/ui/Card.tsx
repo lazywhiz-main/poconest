@@ -2,6 +2,9 @@ import React, { ReactNode } from 'react';
 import { View, Text, StyleSheet, ViewStyle, TextStyle, TouchableOpacity } from 'react-native';
 import theme from '../../styles/theme';
 
+// ダークモード判定（シンプルなwindow.matchMediaで対応）
+const isDarkMode = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+
 interface CardProps {
   title?: string;
   children: ReactNode;
@@ -34,11 +37,30 @@ const Card: React.FC<CardProps> = ({
   border = false,
   borderColor,
 }) => {
-  // スタイルの計算
+  // ダーク/ライトで色を切り替え
+  const cardBg = isDarkMode ? '#18192a' : theme.colors.background.card;
+  const cardBorder = isDarkMode ? '#333366' : (borderColor || theme.colors.divider);
+  const cardText = isDarkMode ? '#e2e8f0' : theme.colors.text.primary;
+  const cardShadow = isDarkMode
+    ? {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 12,
+        elevation: 8,
+      }
+    : theme.shadows[elevation];
+
   const cardStyles = [
-    styles.card,
-    theme.shadows[elevation],
-    border && { borderWidth: 1, borderColor: borderColor || theme.colors.divider },
+    {
+      backgroundColor: cardBg,
+      borderRadius: theme.borderRadius.md,
+      overflow: 'hidden',
+      marginVertical: theme.spacing.sm,
+      borderWidth: border ? 1 : 0,
+      borderColor: border ? cardBorder : 'transparent',
+      ...cardShadow,
+    },
     style,
   ];
 
@@ -51,8 +73,8 @@ const Card: React.FC<CardProps> = ({
         activeOpacity={0.7}
       >
         {title && (
-          <View style={styles.titleContainer}>
-            <Text style={[styles.title, titleStyle]}>{title}</Text>
+          <View style={[styles.titleContainer, { borderBottomColor: cardBorder }] }>
+            <Text style={[styles.title, { color: cardText }, titleStyle]}>{title}</Text>
           </View>
         )}
         
@@ -61,7 +83,7 @@ const Card: React.FC<CardProps> = ({
         </View>
         
         {footer && (
-          <View style={[styles.footer, footerStyle]}>
+          <View style={[styles.footer, { borderTopColor: cardBorder, backgroundColor: cardBg }, footerStyle]}>
             {footer}
           </View>
         )}
@@ -73,8 +95,8 @@ const Card: React.FC<CardProps> = ({
   return (
     <View style={cardStyles}>
       {title && (
-        <View style={styles.titleContainer}>
-          <Text style={[styles.title, titleStyle]}>{title}</Text>
+        <View style={[styles.titleContainer, { borderBottomColor: cardBorder }] }>
+          <Text style={[styles.title, { color: cardText }, titleStyle]}>{title}</Text>
         </View>
       )}
       
@@ -83,7 +105,7 @@ const Card: React.FC<CardProps> = ({
       </View>
       
       {footer && (
-        <View style={[styles.footer, footerStyle]}>
+        <View style={[styles.footer, { borderTopColor: cardBorder, backgroundColor: cardBg }, footerStyle]}>
           {footer}
         </View>
       )}
@@ -93,20 +115,15 @@ const Card: React.FC<CardProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: theme.colors.background.card,
-    borderRadius: theme.borderRadius.md,
-    overflow: 'hidden',
-    marginVertical: theme.spacing.sm,
+    // ここは使わず、上で分岐
   },
   titleContainer: {
     padding: theme.spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: theme.colors.divider,
   },
   title: {
     fontSize: theme.fontSizes.lg,
     fontWeight: theme.fontWeights.semibold as any,
-    color: theme.colors.text.primary,
   },
   content: {
     padding: theme.spacing.md,
@@ -114,8 +131,6 @@ const styles = StyleSheet.create({
   footer: {
     padding: theme.spacing.md,
     borderTopWidth: 1,
-    borderTopColor: theme.colors.divider,
-    backgroundColor: theme.colors.background.default,
   },
 });
 

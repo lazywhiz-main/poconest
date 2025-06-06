@@ -12,6 +12,7 @@ import Modal from '../../../components/ui/Modal';
 import Button from '../../../components/ui/Button';
 import Spinner from '../../../components/ui/Spinner';
 import { useChatToBoard } from '../../../hooks/useChatToBoard';
+import Icon from '../../../components/ui/Icon';
 // import { Channel, Message } from '../../../types/chat';
 // import { createPortal } from 'react-dom';
 // import { SUPABASE_FUNCTION_URL } from '../../../constants/config';
@@ -24,109 +25,6 @@ interface ChatSpaceProps {
   nestId: string;
   // 必要に応じて他のpropsを追加
 }
-
-// SVGアイコンコンポーネント
-interface IconProps {
-  name: string;
-  size?: number;
-  color?: string;
-  style?: any;
-}
-
-const Icon: React.FC<IconProps> = ({ name, size = 24, color = 'currentColor', style = {} }) => {
-  return (
-    <View style={style}>
-      <svg 
-        width={size} 
-        height={size} 
-        viewBox="0 0 24 24" 
-        fill="none" 
-        stroke={color} 
-        strokeWidth="2"
-        strokeLinecap="round" 
-        strokeLinejoin="round"
-      >
-        {getIconPath(name)}
-      </svg>
-    </View>
-  );
-};
-
-// アイコンパス定義
-const getIconPath = (name: string) => {
-  switch (name) {
-    case 'mail':
-      return (
-        <>
-          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
-          <polyline points="22,6 12,13 2,6"></polyline>
-        </>
-      );
-    case 'send':
-      return (
-        <>
-          <line x1="22" y1="2" x2="11" y2="13"></line>
-          <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-        </>
-      );
-    case 'hash':
-      return (
-        <>
-          <line x1="4" y1="9" x2="20" y2="9"></line>
-          <line x1="4" y1="15" x2="20" y2="15"></line>
-          <line x1="10" y1="3" x2="8" y2="21"></line>
-          <line x1="16" y1="3" x2="14" y2="21"></line>
-        </>
-      );
-    case 'plus':
-      return (
-        <>
-          <line x1="12" y1="5" x2="12" y2="19"></line>
-          <line x1="5" y1="12" x2="19" y2="12"></line>
-        </>
-      );
-    case 'lock':
-      return (
-        <>
-          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-        </>
-      );
-    case 'unlock':
-      return (
-        <>
-          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-          <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
-        </>
-      );
-    case 'search':
-      return (
-        <>
-          <circle cx="11" cy="11" r="8"></circle>
-          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-        </>
-      );
-    case 'more-vertical':
-      return (
-        <>
-          <circle cx="12" cy="12" r="1"></circle>
-          <circle cx="12" cy="5" r="1"></circle>
-          <circle cx="12" cy="19" r="1"></circle>
-        </>
-      );
-    case 'trash':
-      return (
-        <>
-          <path d="M3 6h18"></path>
-          <path d="M8 6V4c0-1.1.9-2 2-2h4c1.1 0 2 .9 2 2v2"></path>
-          <path d="M10 11v6"></path>
-          <path d="M14 11v6"></path>
-        </>
-      );
-    default:
-      return <circle cx="12" cy="12" r="10"></circle>;
-  }
-};
 
 // チャネル作成モーダル
 type CreateChannelModalProps = {
@@ -1040,41 +938,48 @@ const ChatSpace: React.FC<ChatSpaceProps> = ({ nestId }) => {
                         <span style={{ fontSize: 12, color: '#6c7086', marginTop: 2 }}>{currentChannel.description}</span>
                       </div>
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                        <button style={{
-                          width: 28,
-                          height: 28,
-                          background: '#1a1a2e',
-                          border: '1px solid #333366',
-                          borderRadius: 2,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          cursor: 'pointer',
-                          fontSize: 14,
-                          color: '#a6adc8',
-                          transition: 'all 0.2s',
-                        }} onClick={handleAnalyzeClick} disabled={status?.isAnalyzing}>
-                          <Icon name="hash" size={18} color="#a6adc8" />
+                        <button
+                          style={{
+                            background: '#333366',
+                            color: '#e2e8f0',
+                            border: 'none',
+                            borderRadius: 2,
+                            padding: '8px 16px',
+                            fontSize: 12,
+                            fontWeight: 600,
+                            cursor: status?.isAnalyzing ? 'not-allowed' : 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            opacity: status?.isAnalyzing ? 0.5 : 1,
+                            height: 36,
+                          }}
+                          onClick={handleAnalyzeClick}
+                          disabled={status?.isAnalyzing}
+                        >
+                          <Icon name="card-extract" size={14} color="#e2e8f0" />
+                          カード抽出
                         </button>
                         <button
                           style={{
-                            width: 28,
-                            height: 28,
                             background: '#1a1a2e',
+                            color: '#ff6b6b',
                             border: '1px solid #333366',
                             borderRadius: 2,
+                            padding: '8px 16px',
+                            fontSize: 12,
+                            fontWeight: 600,
                             display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'center',
+                            gap: 6,
+                            height: 36,
                             cursor: 'pointer',
-                            fontSize: 14,
-                            color: '#a6adc8',
                             transition: 'all 0.2s',
                           }}
                           onClick={() => setShowDeleteConfirm(true)}
                           title="チャネルを削除"
                         >
-                          <Icon name="trash" size={18} color="#ff6b6b" />
+                          <Icon name="delete" size={18} color="#ff6b6b" style={{ margin: 0, verticalAlign: 'middle' }} />
                         </button>
                       </div>
                     </div>
@@ -1270,41 +1175,48 @@ const ChatSpace: React.FC<ChatSpaceProps> = ({ nestId }) => {
                     <span style={{ fontSize: 12, color: '#6c7086', marginTop: 2 }}>{currentChannel.description}</span>
                   </div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <button style={{
-                      width: 28,
-                      height: 28,
-                      background: '#1a1a2e',
-                      border: '1px solid #333366',
-                      borderRadius: 2,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      fontSize: 14,
-                      color: '#a6adc8',
-                      transition: 'all 0.2s',
-                    }} onClick={handleAnalyzeClick} disabled={status?.isAnalyzing}>
-                      <Icon name="hash" size={18} color="#a6adc8" />
+                    <button
+                      style={{
+                        background: '#333366',
+                        color: '#e2e8f0',
+                        border: 'none',
+                        borderRadius: 2,
+                        padding: '8px 16px',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        cursor: status?.isAnalyzing ? 'not-allowed' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        opacity: status?.isAnalyzing ? 0.5 : 1,
+                        height: 36,
+                      }}
+                      onClick={handleAnalyzeClick}
+                      disabled={status?.isAnalyzing}
+                    >
+                      <Icon name="card-extract" size={14} color="#e2e8f0" />
+                      カード抽出
                     </button>
                     <button
                       style={{
-                        width: 28,
-                        height: 28,
                         background: '#1a1a2e',
+                        color: '#ff6b6b',
                         border: '1px solid #333366',
                         borderRadius: 2,
+                        padding: '8px 16px',
+                        fontSize: 12,
+                        fontWeight: 600,
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center',
+                        gap: 6,
+                        height: 36,
                         cursor: 'pointer',
-                        fontSize: 14,
-                        color: '#a6adc8',
                         transition: 'all 0.2s',
                       }}
                       onClick={() => setShowDeleteConfirm(true)}
                       title="チャネルを削除"
                     >
-                      <Icon name="trash" size={18} color="#ff6b6b" />
+                      <Icon name="delete" size={18} color="#ff6b6b" style={{ margin: 0, verticalAlign: 'middle' }} />
                     </button>
                   </div>
                 </div>

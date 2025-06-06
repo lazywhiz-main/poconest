@@ -1,6 +1,7 @@
 import { useEffect, useCallback, useState } from 'react';
 import { useAutoInsightExtraction } from './useAutoInsightExtraction';
-import { useBoardContext, BoardColumnType } from '../features/board-space/contexts/BoardContext';
+import { useBoardContext } from '../features/board-space/contexts/BoardContext';
+import { BoardColumnType } from 'src/types/board';
 import { Message } from '../types/chat';
 import { v4 as uuidv4 } from 'uuid';
 import { addBoardCards, addSource, addCardSource, Source } from '../services/BoardService';
@@ -69,7 +70,7 @@ export const useChatToBoard = ({
             p_board_id: boardId,
             p_title: insight.title,
             p_content: insight.content,
-            p_column_type: BoardColumnType.INBOX,
+            p_column_type: 'INBOX',
             p_created_by: user?.id || 'ai',
             p_created_at: nowStr,
             p_updated_at: nowStr,

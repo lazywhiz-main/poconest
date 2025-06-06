@@ -372,7 +372,7 @@ const LoginScreen: React.FC = () => {
                   >
                     <Text style={[styles.authTabText, !isLogin && styles.authTabTextActive]}>Sign Up</Text>
                   </TouchableOpacity>
-                </View>
+        </View>
               )}
 
           {errorMessage ? (

@@ -22,6 +22,13 @@ export const Icon: React.FC<IconProps> = ({ name, size = 24, color = 'currentCol
         return (
           <path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 6a6 6 0 1 1 0 12 6 6 0 0 1 0-12z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         );
+      case 'plus':
+        return (
+          <g>
+            <line x1="12" y1="5" x2="12" y2="19" strokeWidth="2" strokeLinecap="round" />
+            <line x1="5" y1="12" x2="19" y2="12" strokeWidth="2" strokeLinecap="round" />
+          </g>
+        );
       default:
         return null;
     }

@@ -1,0 +1,1573 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Card Network Map</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        /* CSS Variables - モダンテックデザインシステム */
+        :root {
+            /* Colors */
+            --primary-green: #00ff88;
+            --primary-green-dark: #00cc6a;
+            --primary-blue: #64b5f6;
+            --primary-orange: #ffa500;
+            --primary-red: #ff6b6b;
+            --primary-purple: #9c27b0;
+            --primary-cyan: #26c6da;
+            --primary-yellow: #ffd93d;
+            
+            /* Background */
+            --bg-primary: #0f0f23;
+            --bg-secondary: #1a1a2e;
+            --bg-tertiary: #333366;
+            --bg-quaternary: #45475a;
+            
+            /* Text */
+            --text-primary: #e2e8f0;
+            --text-secondary: #a6adc8;
+            --text-muted: #6c7086;
+            --text-inverse: #0f0f23;
+            
+            /* Border */
+            --border-primary: #333366;
+            --border-secondary: #45475a;
+            
+            /* Typography */
+            --font-family-text: 'Space Grotesk', sans-serif;
+            --font-family-mono: 'JetBrains Mono', monospace;
+            
+            /* Transitions */
+            --transition-fast: 0.15s ease;
+            --transition-normal: 0.2s ease;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: var(--font-family-text);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .network-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            cursor: grab;
+        }
+
+        .network-container.dragging {
+            cursor: grabbing;
+        }
+
+        .network-canvas {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .network-svg {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .network-cards {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+        }
+
+        .card {
+            position: absolute;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: 12px;
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            transform-origin: center;
+            min-width: 120px;
+            max-width: 200px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .card:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 20px rgba(0, 255, 136, 0.3);
+            border-color: var(--primary-green);
+            z-index: 10;
+        }
+
+        .card.selected {
+            border-color: var(--primary-green);
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.5);
+            z-index: 15;
+        }
+
+        .card.highlighted {
+            border-color: var(--primary-yellow);
+            box-shadow: 0 0 12px rgba(255, 211, 61, 0.4);
+        }
+
+        /* Card types with subtle visual differences */
+        .card.type-insight {
+            border-left: 4px solid var(--primary-purple);
+        }
+
+        .card.type-theme {
+            border-left: 4px solid var(--primary-blue);
+        }
+
+        .card.type-concept {
+            border-left: 4px solid var(--primary-cyan);
+        }
+
+        .card.type-action {
+            border-left: 4px solid var(--primary-orange);
+        }
+
+        .card.type-question {
+            border-left: 4px solid var(--primary-yellow);
+        }
+
+        .card-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 6px;
+            line-height: 1.3;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+
+        .card-meta {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 10px;
+            color: var(--text-muted);
+            font-family: var(--font-family-mono);
+            margin-bottom: 8px;
+        }
+
+        .card-author {
+            background: var(--bg-tertiary);
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 9px;
+        }
+
+        .card-date {
+            opacity: 0.7;
+        }
+
+        .card-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-top: 6px;
+        }
+
+        .card-tag {
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            padding: 2px 6px;
+            border-radius: 8px;
+            font-size: 9px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-family: var(--font-family-mono);
+        }
+
+        .card-tag.tag-ux { background: rgba(100, 181, 246, 0.2); color: var(--primary-blue); }
+        .card-tag.tag-psychology { background: rgba(156, 39, 176, 0.2); color: var(--primary-purple); }
+        .card-tag.tag-design { background: rgba(255, 165, 0, 0.2); color: var(--primary-orange); }
+        .card-tag.tag-research { background: rgba(38, 198, 218, 0.2); color: var(--primary-cyan); }
+
+        /* Connection lines */
+        .connection-line {
+            stroke: var(--text-muted);
+            stroke-width: 1;
+            fill: none;
+            opacity: 0.3;
+            transition: all var(--transition-normal);
+        }
+
+        .connection-line.active {
+            opacity: 0.8;
+            stroke-width: 2;
+            stroke: var(--primary-green);
+            filter: drop-shadow(0 0 3px var(--primary-green));
+        }
+
+        .connection-line.related {
+            opacity: 0.6;
+            stroke: var(--primary-blue);
+            stroke-width: 1.5;
+        }
+
+        .connection-line.strong {
+            stroke-width: 2;
+            opacity: 0.6;
+        }
+
+        /* Cluster highlights */
+        .cluster-highlight {
+            fill: none;
+            stroke: var(--primary-green);
+            stroke-width: 2;
+            stroke-dasharray: 10,5;
+            opacity: 0.6;
+            filter: drop-shadow(0 0 6px var(--primary-green));
+        }
+
+        /* Cluster labels */
+        .cluster-label {
+            position: absolute;
+            background: rgba(0, 255, 136, 0.9);
+            color: var(--text-inverse);
+            padding: 6px 12px;
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: 600;
+            font-family: var(--font-family-mono);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            pointer-events: none;
+            z-index: 20;
+            backdrop-filter: blur(4px);
+            border: 1px solid var(--primary-green);
+            box-shadow: 0 4px 12px rgba(0, 255, 136, 0.3);
+            transition: all var(--transition-normal);
+        }
+
+        .cluster-label.theme-ux {
+            background: rgba(100, 181, 246, 0.9);
+            border-color: var(--primary-blue);
+            box-shadow: 0 4px 12px rgba(100, 181, 246, 0.3);
+        }
+
+        .cluster-label.theme-psychology {
+            background: rgba(156, 39, 176, 0.9);
+            border-color: var(--primary-purple);
+            box-shadow: 0 4px 12px rgba(156, 39, 176, 0.3);
+        }
+
+        .cluster-label.theme-design {
+            background: rgba(255, 165, 0, 0.9);
+            border-color: var(--primary-orange);
+            box-shadow: 0 4px 12px rgba(255, 165, 0, 0.3);
+        }
+
+        .cluster-label.theme-research {
+            background: rgba(38, 198, 218, 0.9);
+            border-color: var(--primary-cyan);
+            box-shadow: 0 4px 12px rgba(38, 198, 218, 0.3);
+        }
+
+        .cluster-label.size-large {
+            font-size: 14px;
+            padding: 8px 16px;
+        }
+
+        .cluster-label.size-small {
+            font-size: 10px;
+            padding: 4px 8px;
+        }
+
+        /* Auto-generated region labels */
+        .region-label {
+            position: absolute;
+            background: rgba(15, 15, 35, 0.8);
+            color: var(--text-secondary);
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+            font-family: var(--font-family-text);
+            pointer-events: none;
+            z-index: 15;
+            backdrop-filter: blur(8px);
+            border: 1px solid var(--border-primary);
+            opacity: 0.8;
+        }
+
+        /* Density indicators */
+        .density-indicator {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: var(--primary-green);
+            border-radius: 50%;
+            opacity: 0.6;
+            pointer-events: none;
+            z-index: 5;
+            animation: pulse 2s infinite;
+        }
+
+        .density-indicator.high {
+            background: var(--primary-red);
+            width: 12px;
+            height: 12px;
+        }
+
+        .density-indicator.medium {
+            background: var(--primary-orange);
+            width: 10px;
+            height: 10px;
+        }
+
+        .density-indicator.low {
+            background: var(--primary-cyan);
+            width: 6px;
+            height: 6px;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+
+        /* Controls */
+        .controls {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .control-btn {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            padding: 12px 16px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            font-family: var(--font-family-mono);
+            min-width: 140px;
+            text-align: center;
+        }
+
+        .control-btn:hover {
+            background: var(--primary-green);
+            color: var(--text-inverse);
+            border-color: var(--primary-green);
+        }
+
+        .control-btn.active {
+            background: var(--primary-green);
+            color: var(--text-inverse);
+            border-color: var(--primary-green);
+        }
+
+        /* Info panel */
+        .info-panel {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: 12px;
+            padding: 20px;
+            max-width: 350px;
+            opacity: 0;
+            transform: translateX(20px);
+            transition: all var(--transition-normal);
+        }
+
+        .info-panel.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .info-title {
+            color: var(--primary-green);
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            font-family: var(--font-family-text);
+        }
+
+        .info-content {
+            color: var(--text-secondary);
+            font-size: 14px;
+            line-height: 1.5;
+            margin-bottom: 16px;
+        }
+
+        .info-metadata {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-family: var(--font-family-mono);
+        }
+
+        .info-connections {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border-primary);
+        }
+
+        .info-connections-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .connection-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .connection-type {
+            background: var(--bg-tertiary);
+            padding: 2px 6px;
+            border-radius: 6px;
+            font-size: 9px;
+            color: var(--primary-green);
+        }
+
+        /* Filter panel */
+        .filter-panel {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 10;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: 12px;
+            padding: 16px;
+            min-width: 200px;
+        }
+
+        .filter-title {
+            color: var(--text-primary);
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            font-family: var(--font-family-mono);
+        }
+
+        .filter-group {
+            margin-bottom: 12px;
+        }
+
+        .filter-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+            font-family: var(--font-family-mono);
+        }
+
+        .filter-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+
+        .filter-tag {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-secondary);
+            color: var(--text-secondary);
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 10px;
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            font-family: var(--font-family-mono);
+        }
+
+        .filter-tag:hover,
+        .filter-tag.active {
+            background: var(--primary-green);
+            color: var(--text-inverse);
+            border-color: var(--primary-green);
+        }
+
+        /* Zoom controls */
+        .zoom-controls {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .zoom-btn {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            padding: 8px 12px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .zoom-btn:hover {
+            background: var(--primary-green);
+            color: var(--text-inverse);
+            border-color: var(--primary-green);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: row;
+                flex-wrap: wrap;
+            }
+
+            .control-btn {
+                min-width: 100px;
+                padding: 8px 12px;
+                font-size: 11px;
+            }
+
+            .filter-panel {
+                bottom: 80px;
+                min-width: 160px;
+            }
+
+            .info-panel {
+                max-width: 280px;
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="network-container" id="networkContainer">
+        <div class="network-canvas" id="networkCanvas">
+            <svg class="network-svg" id="networkSvg">
+                <defs>
+                    <marker id="arrowhead" markerWidth="10" markerHeight="7" 
+                            refX="9" refY="3.5" orient="auto">
+                        <polygon points="0 0, 10 3.5, 0 7" fill="#6c7086" />
+                    </marker>
+                </defs>
+            </svg>
+            <div class="network-cards" id="networkCards"></div>
+        </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+        <button class="control-btn" onclick="resetView()">Reset View</button>
+        <button class="control-btn" onclick="showClusters()">Show Clusters</button>
+        <button class="control-btn" onclick="generateLabels()">Auto Labels</button>
+        <button class="control-btn" onclick="analyzeDensity()">Analyze Density</button>
+        <button class="control-btn" onclick="rearrangeCards()">Auto Layout</button>
+        <button class="control-btn" onclick="exportNetwork()">Export</button>
+    </div>
+
+    <!-- Info Panel -->
+    <div class="info-panel" id="infoPanel">
+        <div class="info-title" id="infoTitle">Select a Card</div>
+        <div class="info-content" id="infoContent">
+            Click on any card to see detailed information and connections.
+        </div>
+        <div class="info-metadata" id="infoMetadata"></div>
+        <div class="info-connections" id="infoConnections"></div>
+    </div>
+
+    <!-- Filter Panel -->
+    <div class="filter-panel">
+        <div class="filter-title">Filters</div>
+        <div class="filter-group">
+            <div class="filter-label">Tags</div>
+            <div class="filter-tags" id="filterTags">
+                <span class="filter-tag" data-tag="ux">UX</span>
+                <span class="filter-tag" data-tag="psychology">Psychology</span>
+                <span class="filter-tag" data-tag="design">Design</span>
+                <span class="filter-tag" data-tag="research">Research</span>
+                <span class="filter-tag" data-tag="behavior">Behavior</span>
+            </div>
+        </div>
+        <div class="filter-group">
+            <div class="filter-label">Type</div>
+            <div class="filter-tags" id="filterTypes">
+                <span class="filter-tag" data-type="insight">Insight</span>
+                <span class="filter-tag" data-type="theme">Theme</span>
+                <span class="filter-tag" data-type="concept">Concept</span>
+                <span class="filter-tag" data-type="action">Action</span>
+                <span class="filter-tag" data-type="question">Question</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Zoom Controls -->
+    <div class="zoom-controls">
+        <button class="zoom-btn" onclick="zoomIn()">+</button>
+        <button class="zoom-btn" onclick="zoomOut()">−</button>
+    </div>
+
+    <script>
+        // Global variables
+        let cards = [];
+        let connections = [];
+        let selectedCard = null;
+        let isDragging = false;
+        let dragStart = { x: 0, y: 0 };
+        let transform = { x: 0, y: 0, scale: 1 };
+        let activeFilters = { tags: [], types: [] };
+        let detectedClusters = [];
+
+        // Sample card data
+        const sampleCards = [
+            {
+                id: 'card_001',
+                title: 'ユーザーの潜在ニーズ',
+                content: '「使いやすい」という言葉の奥にある真の感情を理解する必要がある。表面的な要求ではなく、深層心理に潜む本当のニーズを探る。',
+                type: 'insight',
+                tags: ['ux', 'psychology'],
+                author: '田中',
+                createdAt: '2025-01-15',
+                x: 300, y: 200
+            },
+            {
+                id: 'card_002',
+                title: '感情 vs 機能',
+                content: '機能的価値と感情的価値のバランスが重要。完璧な機能があっても感情的な共感がなければ愛されないプロダクトになる。',
+                type: 'theme',
+                tags: ['design', 'psychology'],
+                author: '佐藤',
+                createdAt: '2025-01-14',
+                x: 500, y: 250
+            },
+            {
+                id: 'card_003',
+                title: 'コンテキストの重要性',
+                content: 'ユーザーが置かれている状況や文脈によって、同じ機能でも価値が大きく変わる。',
+                type: 'insight',
+                tags: ['ux', 'research'],
+                author: '山田',
+                createdAt: '2025-01-13',
+                x: 200, y: 350
+            },
+            {
+                id: 'card_004',
+                title: 'プロトタイプ検証',
+                content: 'アイデアを素早く形にして、実際のユーザーと対話しながら改善サイクルを回す。',
+                type: 'action',
+                tags: ['design', 'research'],
+                author: '鈴木',
+                createdAt: '2025-01-12',
+                x: 450, y: 400
+            },
+            {
+                id: 'card_005',
+                title: '認知負荷の軽減',
+                content: 'ユーザーの認知負荷を下げることで、より直感的で使いやすい体験を提供できる。',
+                type: 'concept',
+                tags: ['ux', 'psychology'],
+                author: '田中',
+                createdAt: '2025-01-11',
+                x: 350, y: 300
+            },
+            {
+                id: 'card_006',
+                title: 'なぜ愛されないのか？',
+                content: '機能は完璧なのに、なぜユーザーに愛されないプロダクトになってしまうのか？',
+                type: 'question',
+                tags: ['psychology', 'behavior'],
+                author: '高橋',
+                createdAt: '2025-01-10',
+                x: 600, y: 200
+            },
+            {
+                id: 'card_007',
+                title: 'エモーショナルデザイン',
+                content: 'ユーザーの感情に訴えかけるデザインの力。機能だけでなく、体験全体を設計する。',
+                type: 'theme',
+                tags: ['design', 'psychology'],
+                author: '林',
+                createdAt: '2025-01-09',
+                x: 700, y: 300
+            },
+            {
+                id: 'card_008',
+                title: 'ユーザビリティテスト',
+                content: '定期的なユーザビリティテストで、想定と現実のギャップを発見し続ける。',
+                type: 'action',
+                tags: ['research', 'ux'],
+                author: '佐藤',
+                createdAt: '2025-01-08',
+                x: 150, y: 450
+            }
+        ];
+
+        const sampleConnections = [
+            { from: 'card_001', to: 'card_002', type: 'relates_to', strength: 0.8 },
+            { from: 'card_001', to: 'card_005', type: 'supports', strength: 0.7 },
+            { from: 'card_002', to: 'card_007', type: 'leads_to', strength: 0.9 },
+            { from: 'card_003', to: 'card_001', type: 'supports', strength: 0.6 },
+            { from: 'card_004', to: 'card_008', type: 'relates_to', strength: 0.8 },
+            { from: 'card_005', to: 'card_007', type: 'enables', strength: 0.7 },
+            { from: 'card_006', to: 'card_001', type: 'questions', strength: 0.9 },
+            { from: 'card_006', to: 'card_002', type: 'questions', strength: 0.8 },
+            { from: 'card_007', to: 'card_001', type: 'implements', strength: 0.7 },
+            { from: 'card_008', to: 'card_003', type: 'validates', strength: 0.6 }
+        ];
+
+        // Initialize
+        function init() {
+            cards = [...sampleCards];
+            connections = [...sampleConnections];
+            
+            setupEventListeners();
+            render();
+            setupFilters();
+            
+            console.log('🕸️ Card Network Map initialized');
+        }
+
+        function setupEventListeners() {
+            const container = document.getElementById('networkContainer');
+            
+            // Mouse events for pan and zoom
+            container.addEventListener('mousedown', startDrag);
+            container.addEventListener('mousemove', drag);
+            container.addEventListener('mouseup', endDrag);
+            container.addEventListener('wheel', zoom);
+            
+            // Touch events for mobile
+            container.addEventListener('touchstart', startDrag);
+            container.addEventListener('touchmove', drag);
+            container.addEventListener('touchend', endDrag);
+            
+            // Prevent context menu
+            container.addEventListener('contextmenu', e => e.preventDefault());
+        }
+
+        function render() {
+            renderCards();
+            renderConnections();
+        }
+
+        function renderCards() {
+            const container = document.getElementById('networkCards');
+            container.innerHTML = '';
+
+            const filteredCards = applyFilters(cards);
+
+            filteredCards.forEach(card => {
+                const cardEl = document.createElement('div');
+                cardEl.className = `card type-${card.type}`;
+                cardEl.style.left = `${card.x - 60}px`;
+                cardEl.style.top = `${card.y - 40}px`;
+                cardEl.onclick = () => selectCard(card);
+                
+                cardEl.innerHTML = `
+                    <div class="card-meta">
+                        <span class="card-author">${card.author}</span>
+                        <span class="card-date">${formatDate(card.createdAt)}</span>
+                    </div>
+                    <div class="card-title">${card.title}</div>
+                    <div class="card-tags">
+                        ${card.tags.map(tag => `<span class="card-tag tag-${tag}">${tag}</span>`).join('')}
+                    </div>
+                `;
+                
+                container.appendChild(cardEl);
+            });
+        }
+
+        function renderConnections() {
+            const svg = document.getElementById('networkSvg');
+            svg.innerHTML = svg.querySelector('defs').outerHTML;
+
+            const filteredCards = applyFilters(cards);
+            const filteredCardIds = new Set(filteredCards.map(c => c.id));
+
+            connections.forEach(conn => {
+                if (!filteredCardIds.has(conn.from) || !filteredCardIds.has(conn.to)) return;
+
+                const fromCard = cards.find(c => c.id === conn.from);
+                const toCard = cards.find(c => c.id === conn.to);
+                
+                if (fromCard && toCard) {
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line.setAttribute('x1', fromCard.x);
+                    line.setAttribute('y1', fromCard.y);
+                    line.setAttribute('x2', toCard.x);
+                    line.setAttribute('y2', toCard.y);
+                    line.setAttribute('class', `connection-line ${conn.strength > 0.7 ? 'strong' : ''}`);
+                    
+                    svg.appendChild(line);
+                }
+            });
+        }
+
+        function applyFilters(cardsToFilter) {
+            return cardsToFilter.filter(card => {
+                const tagMatch = activeFilters.tags.length === 0 || 
+                                activeFilters.tags.some(tag => card.tags.includes(tag));
+                const typeMatch = activeFilters.types.length === 0 || 
+                                 activeFilters.types.includes(card.type);
+                return tagMatch && typeMatch;
+            });
+        }
+
+        function selectCard(card) {
+            // Update selection
+            document.querySelectorAll('.card').forEach(el => el.classList.remove('selected'));
+            event.target.closest('.card').classList.add('selected');
+            
+            selectedCard = card;
+            
+            // Update info panel
+            updateInfoPanel(card);
+            
+            // Highlight connections
+            highlightConnections(card.id);
+        }
+
+        function updateInfoPanel(card) {
+            const infoPanel = document.getElementById('infoPanel');
+            const infoTitle = document.getElementById('infoTitle');
+            const infoContent = document.getElementById('infoContent');
+            const infoMetadata = document.getElementById('infoMetadata');
+            const infoConnections = document.getElementById('infoConnections');
+            
+            infoTitle.textContent = card.title;
+            infoContent.textContent = card.content;
+            infoMetadata.innerHTML = `
+                <strong>Author:</strong> ${card.author}<br>
+                <strong>Created:</strong> ${formatDate(card.createdAt)}<br>
+                <strong>Type:</strong> ${card.type}<br>
+                <strong>Tags:</strong> ${card.tags.join(', ')}
+            `;
+            
+            const relatedConnections = connections.filter(c => c.from === card.id || c.to === card.id);
+            const connectionsHtml = relatedConnections.map(conn => {
+                const otherCardId = conn.from === card.id ? conn.to : conn.from;
+                const otherCard = cards.find(c => c.id === otherCardId);
+                const direction = conn.from === card.id ? '→' : '←';
+                return `
+                    <div class="connection-item">
+                        <span class="connection-type">${conn.type}</span>
+                        <span>${direction} ${otherCard?.title || 'Unknown'}</span>
+                    </div>
+                `;
+            }).join('');
+            
+            infoConnections.innerHTML = `
+                <div class="info-connections-title">Connections (${relatedConnections.length})</div>
+                ${connectionsHtml}
+            `;
+            
+            infoPanel.classList.add('show');
+        }
+
+        function highlightConnections(cardId) {
+            document.querySelectorAll('.connection-line').forEach(line => {
+                line.classList.remove('active', 'related');
+            });
+
+            document.querySelectorAll('.card').forEach(card => {
+                card.classList.remove('highlighted');
+            });
+            
+            const relatedConnections = connections.filter(c => c.from === cardId || c.to === cardId);
+            const relatedCardIds = new Set();
+            
+            relatedConnections.forEach(conn => {
+                relatedCardIds.add(conn.from === cardId ? conn.to : conn.from);
+            });
+
+            // Highlight related cards
+            document.querySelectorAll('.card').forEach(cardEl => {
+                const card = cards.find(c => c.title === cardEl.querySelector('.card-title').textContent);
+                if (card && relatedCardIds.has(card.id)) {
+                    cardEl.classList.add('highlighted');
+                }
+            });
+
+            // Highlight connection lines
+            const lines = document.querySelectorAll('.connection-line');
+            relatedConnections.forEach((conn, index) => {
+                const lineIndex = connections.indexOf(conn);
+                if (lines[lineIndex]) {
+                    lines[lineIndex].classList.add('active');
+                }
+            });
+        }
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' });
+        }
+
+        function setupFilters() {
+            // Tag filters
+            document.querySelectorAll('#filterTags .filter-tag').forEach(tag => {
+                tag.addEventListener('click', function() {
+                    const tagName = this.getAttribute('data-tag');
+                    toggleFilter('tags', tagName);
+                    this.classList.toggle('active');
+                    render();
+                });
+            });
+
+            // Type filters
+            document.querySelectorAll('#filterTypes .filter-tag').forEach(tag => {
+                tag.addEventListener('click', function() {
+                    const typeName = this.getAttribute('data-type');
+                    toggleFilter('types', typeName);
+                    this.classList.toggle('active');
+                    render();
+                });
+            });
+        }
+
+        function toggleFilter(filterType, value) {
+            const filterArray = activeFilters[filterType];
+            const index = filterArray.indexOf(value);
+            if (index > -1) {
+                filterArray.splice(index, 1);
+            } else {
+                filterArray.push(value);
+            }
+        }
+
+        // Pan and Zoom functionality
+        function startDrag(e) {
+            if (e.target.closest('.card')) return;
+            
+            isDragging = true;
+            const container = document.getElementById('networkContainer');
+            container.classList.add('dragging');
+            
+            const clientX = e.clientX || e.touches[0].clientX;
+            const clientY = e.clientY || e.touches[0].clientY;
+            
+            dragStart.x = clientX - transform.x;
+            dragStart.y = clientY - transform.y;
+        }
+
+        function drag(e) {
+            if (!isDragging) return;
+            
+            e.preventDefault();
+            const clientX = e.clientX || e.touches[0].clientX;
+            const clientY = e.clientY || e.touches[0].clientY;
+            
+            transform.x = clientX - dragStart.x;
+            transform.y = clientY - dragStart.y;
+            
+            updateTransform();
+        }
+
+        function endDrag() {
+            isDragging = false;
+            const container = document.getElementById('networkContainer');
+            container.classList.remove('dragging');
+        }
+
+        function zoom(e) {
+            e.preventDefault();
+            
+            const delta = e.deltaY > 0 ? 0.9 : 1.1;
+            const newScale = Math.max(0.2, Math.min(3, transform.scale * delta));
+            
+            if (newScale !== transform.scale) {
+                transform.scale = newScale;
+                updateTransform();
+            }
+        }
+
+        function updateTransform() {
+            const canvas = document.getElementById('networkCanvas');
+            canvas.style.transform = `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`;
+        }
+
+        // Control functions
+        function resetView() {
+            transform = { x: 0, y: 0, scale: 1 };
+            updateTransform();
+            
+            document.querySelectorAll('.card').forEach(el => el.classList.remove('selected', 'highlighted'));
+            document.getElementById('infoPanel').classList.remove('show');
+            
+            // Clear all visual overlays
+            clearLabels();
+            clearDensityIndicators();
+            document.querySelectorAll('.cluster-highlight').forEach(el => el.remove());
+            
+            // Clear filters
+            activeFilters = { tags: [], types: [] };
+            document.querySelectorAll('.filter-tag').forEach(tag => tag.classList.remove('active'));
+            render();
+        }
+
+        function generateLabels() {
+            clearLabels();
+            
+            // Detect clusters first
+            const currentClusters = detectClusters();
+            
+            // Generate labels for each cluster
+            currentClusters.forEach((cluster, index) => {
+                const clusterCards = cluster.map(id => cards.find(c => c.id === id)).filter(c => c);
+                if (clusterCards.length < 2) return;
+
+                const label = generateClusterLabel(clusterCards, index);
+                const position = calculateLabelPosition(clusterCards);
+                const theme = detectClusterTheme(clusterCards);
+                
+                createClusterLabel(label, position, theme, clusterCards.length);
+            });
+
+            // Generate region labels for sparse areas
+            generateRegionLabels();
+            
+            console.log(`Generated labels for ${currentClusters.length} clusters`);
+        }
+
+        function generateClusterLabel(clusterCards, clusterIndex) {
+            // Analyze tags frequency
+            const tagFreq = {};
+            const typeFreq = {};
+            const keywordFreq = {};
+
+            clusterCards.forEach(card => {
+                // Count tags
+                card.tags.forEach(tag => {
+                    tagFreq[tag] = (tagFreq[tag] || 0) + 1;
+                });
+                
+                // Count types
+                typeFreq[card.type] = (typeFreq[card.type] || 0) + 1;
+                
+                // Extract keywords from titles
+                const keywords = extractKeywords(card.title);
+                keywords.forEach(keyword => {
+                    keywordFreq[keyword] = (keywordFreq[keyword] || 0) + 1;
+                });
+            });
+
+            // Find most common elements
+            const topTag = Object.keys(tagFreq).reduce((a, b) => tagFreq[a] > tagFreq[b] ? a : b, '');
+            const topType = Object.keys(typeFreq).reduce((a, b) => typeFreq[a] > typeFreq[b] ? a : b, '');
+            const topKeyword = Object.keys(keywordFreq).reduce((a, b) => keywordFreq[a] > keywordFreq[b] ? a : b, '');
+
+            // Generate intelligent label
+            const labelStrategies = [
+                // Tag-based labels
+                () => {
+                    const tagLabels = {
+                        'ux': 'UX Research',
+                        'psychology': 'Psychology',
+                        'design': 'Design',
+                        'research': 'Research',
+                        'behavior': 'Behavior'
+                    };
+                    return tagLabels[topTag] || topTag.toUpperCase();
+                },
+                
+                // Type-based labels
+                () => {
+                    const typeLabels = {
+                        'insight': 'Insights',
+                        'theme': 'Themes',
+                        'concept': 'Concepts',
+                        'action': 'Actions',
+                        'question': 'Questions'
+                    };
+                    return typeLabels[topType] || topType;
+                },
+                
+                // Keyword-based labels
+                () => topKeyword && topKeyword.length > 2 ? topKeyword : null,
+                
+                // Combination labels
+                () => {
+                    if (topTag && topType) {
+                        return `${topTag.toUpperCase()} ${topType}s`;
+                    }
+                    return null;
+                },
+                
+                // Fallback
+                () => `Cluster ${clusterIndex + 1}`
+            ];
+
+            // Try strategies in order
+            for (const strategy of labelStrategies) {
+                const label = strategy();
+                if (label && label.length > 0) {
+                    return label;
+                }
+            }
+
+            return `Group ${clusterIndex + 1}`;
+        }
+
+        function extractKeywords(title) {
+            // Simple keyword extraction
+            const stopWords = ['の', 'を', 'に', 'は', 'が', 'と', 'で', 'から', 'まで', 'について', 'による'];
+            const words = title.toLowerCase()
+                .replace(/[^\w\s]/g, '')
+                .split(/\s+/)
+                .filter(word => word.length > 2 && !stopWords.includes(word));
+            
+            return words;
+        }
+
+        function detectClusterTheme(clusterCards) {
+            const tagCounts = {};
+            clusterCards.forEach(card => {
+                card.tags.forEach(tag => {
+                    tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+                });
+            });
+
+            const dominantTag = Object.keys(tagCounts).reduce((a, b) => 
+                tagCounts[a] > tagCounts[b] ? a : b, '');
+
+            const themeMapping = {
+                'ux': 'ux',
+                'psychology': 'psychology',
+                'design': 'design',
+                'research': 'research',
+                'behavior': 'psychology'
+            };
+
+            return themeMapping[dominantTag] || 'default';
+        }
+
+        function calculateLabelPosition(clusterCards) {
+            const centerX = clusterCards.reduce((sum, card) => sum + card.x, 0) / clusterCards.length;
+            const centerY = clusterCards.reduce((sum, card) => sum + card.y, 0) / clusterCards.length;
+            
+            // Find the topmost position for label placement
+            const minY = Math.min(...clusterCards.map(card => card.y));
+            
+            return {
+                x: centerX,
+                y: minY - 30 // Place label above the cluster
+            };
+        }
+
+        function createClusterLabel(text, position, theme, cardCount) {
+            const label = document.createElement('div');
+            label.className = `cluster-label theme-${theme}`;
+            
+            // Size based on cluster size
+            if (cardCount >= 5) {
+                label.classList.add('size-large');
+            } else if (cardCount <= 2) {
+                label.classList.add('size-small');
+            }
+            
+            label.textContent = text;
+            label.style.left = `${position.x - 50}px`;
+            label.style.top = `${position.y}px`;
+            
+            // Add to network cards container
+            document.getElementById('networkCards').appendChild(label);
+        }
+
+        function generateRegionLabels() {
+            // Divide canvas into regions and analyze card density
+            const regions = analyzeRegions();
+            
+            regions.forEach(region => {
+                if (region.cards.length > 0 && region.cards.length < 3) {
+                    const label = generateRegionDescription(region);
+                    if (label) {
+                        createRegionLabel(label, region.center);
+                    }
+                }
+            });
+        }
+
+        function analyzeRegions() {
+            const gridSize = 150;
+            const regions = [];
+            
+            for (let x = 0; x < 800; x += gridSize) {
+                for (let y = 0; y < 600; y += gridSize) {
+                    const regionCards = cards.filter(card => 
+                        card.x >= x && card.x < x + gridSize &&
+                        card.y >= y && card.y < y + gridSize
+                    );
+                    
+                    if (regionCards.length > 0) {
+                        regions.push({
+                            bounds: { x, y, width: gridSize, height: gridSize },
+                            center: { x: x + gridSize/2, y: y + gridSize/2 },
+                            cards: regionCards,
+                            density: regionCards.length
+                        });
+                    }
+                }
+            }
+            
+            return regions;
+        }
+
+        function generateRegionDescription(region) {
+            const cards = region.cards;
+            const types = [...new Set(cards.map(c => c.type))];
+            const tags = [...new Set(cards.flatMap(c => c.tags))];
+            
+            if (cards.length === 1) {
+                return `Isolated ${cards[0].type}`;
+            }
+            
+            if (types.length === 1) {
+                return `${types[0]}s`;
+            }
+            
+            if (tags.length === 1) {
+                return tags[0].toUpperCase();
+            }
+            
+            return null;
+        }
+
+        function createRegionLabel(text, position) {
+            const label = document.createElement('div');
+            label.className = 'region-label';
+            label.textContent = text;
+            label.style.left = `${position.x - 30}px`;
+            label.style.top = `${position.y}px`;
+            
+            document.getElementById('networkCards').appendChild(label);
+        }
+
+        function analyzeDensity() {
+            clearDensityIndicators();
+            
+            const densityPoints = calculateDensityMap();
+            
+            densityPoints.forEach(point => {
+                createDensityIndicator(point);
+            });
+            
+            console.log(`Analyzed ${densityPoints.length} density points`);
+        }
+
+        function calculateDensityMap() {
+            const gridSize = 100;
+            const densityPoints = [];
+            
+            for (let x = 50; x < 750; x += gridSize) {
+                for (let y = 50; y < 550; y += gridSize) {
+                    const radius = 80;
+                    const nearbyCards = cards.filter(card => {
+                        const distance = Math.sqrt(
+                            Math.pow(card.x - x, 2) + Math.pow(card.y - y, 2)
+                        );
+                        return distance <= radius;
+                    });
+                    
+                    if (nearbyCards.length > 0) {
+                        let densityLevel;
+                        if (nearbyCards.length >= 4) densityLevel = 'high';
+                        else if (nearbyCards.length >= 2) densityLevel = 'medium';
+                        else densityLevel = 'low';
+                        
+                        densityPoints.push({
+                            x, y,
+                            density: nearbyCards.length,
+                            level: densityLevel,
+                            cards: nearbyCards
+                        });
+                    }
+                }
+            }
+            
+            return densityPoints;
+        }
+
+        function createDensityIndicator(point) {
+            const indicator = document.createElement('div');
+            indicator.className = `density-indicator ${point.level}`;
+            indicator.style.left = `${point.x - 4}px`;
+            indicator.style.top = `${point.y - 4}px`;
+            indicator.title = `Density: ${point.density} cards`;
+            
+            document.getElementById('networkCards').appendChild(indicator);
+        }
+
+        function clearLabels() {
+            document.querySelectorAll('.cluster-label, .region-label').forEach(el => el.remove());
+        }
+
+        function clearDensityIndicators() {
+            document.querySelectorAll('.density-indicator').forEach(el => el.remove());
+        }
+
+        function showClusters() {
+            // Clear existing visual elements
+            clearLabels();
+            clearDensityIndicators();
+            
+            // Detect clusters based on connection density
+            detectedClusters = detectClusters();
+            visualizeClusters();
+        }
+
+        function detectClusters() {
+            // Build adjacency list for connected cards
+            const adjacencyList = {};
+            cards.forEach(card => {
+                adjacencyList[card.id] = [];
+            });
+
+            connections.forEach(conn => {
+                adjacencyList[conn.from].push(conn.to);
+                adjacencyList[conn.to].push(conn.from);
+            });
+
+            const visited = new Set();
+            const clusters = [];
+
+            function dfs(cardId, cluster) {
+                if (visited.has(cardId)) return;
+                visited.add(cardId);
+                cluster.push(cardId);
+
+                adjacencyList[cardId].forEach(neighborId => {
+                    if (!visited.has(neighborId)) {
+                        dfs(neighborId, cluster);
+                    }
+                });
+            }
+
+            cards.forEach(card => {
+                if (!visited.has(card.id)) {
+                    const cluster = [];
+                    dfs(card.id, cluster);
+                    if (cluster.length > 1) {
+                        clusters.push(cluster);
+                    }
+                }
+            });
+
+            return clusters;
+        }
+
+        function visualizeClusters() {
+            const svg = document.getElementById('networkSvg');
+            
+            // Remove existing cluster highlights
+            svg.querySelectorAll('.cluster-highlight').forEach(el => el.remove());
+
+            detectedClusters.forEach((cluster, index) => {
+                const clusterCards = cluster.map(id => cards.find(c => c.id === id)).filter(c => c);
+                if (clusterCards.length < 2) return;
+
+                // Calculate cluster bounds
+                const minX = Math.min(...clusterCards.map(c => c.x)) - 80;
+                const maxX = Math.max(...clusterCards.map(c => c.x)) + 80;
+                const minY = Math.min(...clusterCards.map(c => c.y)) - 60;
+                const maxY = Math.max(...clusterCards.map(c => c.y)) + 60;
+
+                // Create cluster boundary
+                const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                rect.setAttribute('x', minX);
+                rect.setAttribute('y', minY);
+                rect.setAttribute('width', maxX - minX);
+                rect.setAttribute('height', maxY - minY);
+                rect.setAttribute('class', 'cluster-highlight');
+                rect.setAttribute('rx', '20');
+                
+                svg.appendChild(rect);
+            });
+
+            console.log(`Found ${detectedClusters.length} clusters:`, detectedClusters);
+        }
+
+        function rearrangeCards() {
+            // Simple force-directed layout
+            const iterations = 100;
+            const repulsion = 50000;
+            const attraction = 0.01;
+            const damping = 0.9;
+
+            cards.forEach(card => {
+                card.vx = 0;
+                card.vy = 0;
+            });
+
+            for (let i = 0; i < iterations; i++) {
+                // Repulsion between all cards
+                for (let a = 0; a < cards.length; a++) {
+                    for (let b = a + 1; b < cards.length; b++) {
+                        const cardA = cards[a];
+                        const cardB = cards[b];
+                        
+                        const dx = cardB.x - cardA.x;
+                        const dy = cardB.y - cardA.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy) || 1;
+                        
+                        const force = repulsion / (distance * distance);
+                        const fx = (dx / distance) * force;
+                        const fy = (dy / distance) * force;
+                        
+                        cardA.vx -= fx;
+                        cardA.vy -= fy;
+                        cardB.vx += fx;
+                        cardB.vy += fy;
+                    }
+                }
+
+                // Attraction for connected cards
+                connections.forEach(conn => {
+                    const cardA = cards.find(c => c.id === conn.from);
+                    const cardB = cards.find(c => c.id === conn.to);
+                    
+                    if (cardA && cardB) {
+                        const dx = cardB.x - cardA.x;
+                        const dy = cardB.y - cardA.y;
+                        
+                        const fx = dx * attraction * conn.strength;
+                        const fy = dy * attraction * conn.strength;
+                        
+                        cardA.vx += fx;
+                        cardA.vy += fy;
+                        cardB.vx -= fx;
+                        cardB.vy -= fy;
+                    }
+                });
+
+                // Update positions
+                cards.forEach(card => {
+                    card.x += card.vx;
+                    card.y += card.vy;
+                    card.vx *= damping;
+                    card.vy *= damping;
+
+                    // Keep cards within bounds
+                    card.x = Math.max(100, Math.min(700, card.x));
+                    card.y = Math.max(100, Math.min(500, card.y));
+                });
+            }
+
+            render();
+        }
+
+        function exportNetwork() {
+            const data = { 
+                cards: cards.map(card => ({
+                    ...card,
+                    vx: undefined,
+                    vy: undefined
+                })), 
+                connections, 
+                transform,
+                filters: activeFilters
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'card-network.json';
+            a.click();
+            
+            URL.revokeObjectURL(url);
+            console.log('Network exported');
+        }
+
+        function zoomIn() {
+            transform.scale = Math.min(3, transform.scale * 1.2);
+            updateTransform();
+        }
+
+        function zoomOut() {
+            transform.scale = Math.max(0.2, transform.scale / 1.2);
+            updateTransform();
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            switch(e.key) {
+                case 'r':
+                case 'R':
+                    resetView();
+                    break;
+                case 'c':
+                case 'C':
+                    showClusters();
+                    break;
+                case 'l':
+                case 'L':
+                    generateLabels();
+                    break;
+                case 'd':
+                case 'D':
+                    analyzeDensity();
+                    break;
+                case 'a':
+                case 'A':
+                    rearrangeCards();
+                    break;
+                case '+':
+                case '=':
+                    zoomIn();
+                    break;
+                case '-':
+                    zoomOut();
+                    break;
+                case 'Escape':
+                    document.querySelectorAll('.card').forEach(el => el.classList.remove('selected', 'highlighted'));
+                    document.getElementById('infoPanel').classList.remove('show');
+                    break;
+            }
+        });
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

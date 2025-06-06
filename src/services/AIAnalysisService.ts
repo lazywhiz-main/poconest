@@ -1,4 +1,6 @@
 import { Message } from '../types/chat';
+import { supabase } from './supabase/client';
+import type { BoardItem } from '../features/board-space/contexts/BoardContext';
 
 export interface AIInsight {
   id: string;
@@ -22,18 +24,39 @@ export interface AIAnalysisResult {
   messageCount: number;
 }
 
+export interface SuggestedRelationship {
+  sourceCardId: string;
+  targetCardId: string;
+  relationshipType: 'semantic' | 'topical' | 'conceptual';
+  similarity: number;
+  confidence: number;
+  explanation: string;
+  suggestedStrength: number;
+}
+
+export interface CardEmbedding {
+  cardId: string;
+  embedding: number[];
+  textContent: string;
+  lastUpdated: string;
+}
+
 /**
  * AIAnalysisService - チャットメッセージからの自動洞察抽出
  * 
  * チャット会話を分析し、重要な洞察や知見を自動的に抽出する
  */
-class AIAnalysisService {
+export class AIAnalysisService {
   private isProcessing: boolean = false;
   private analysisQueue: Array<{
     messages: Message[];
     channelId: string;
     callback: (result: AIAnalysisResult) => void;
   }> = [];
+
+  // OpenAI API設定
+  private static readonly OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
+  private static readonly OPENAI_API_URL = 'https://api.openai.com/v1/embeddings';
 
   /**
    * 会話からの洞察抽出をリクエスト
@@ -244,6 +267,387 @@ class AIAnalysisService {
         !commonWords.includes(word.toLowerCase())
       )
       .slice(0, 10); // 最大10個のキーワードを返す
+  }
+
+  /**
+   * カードのテキストコンテンツから埋め込みベクターを生成
+   */
+  static async generateEmbedding(text: string): Promise<number[] | null> {
+    try {
+      console.log('[AIAnalysisService] Generating embedding for text length:', text.length);
+      
+      // Supabase Edge Function経由でOpenAI APIを呼び出し
+      const response = await fetch('https://ecqkfcgtmabtfozfcvfr.supabase.co/functions/v1/ai-embeddings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({ text }),
+      });
+
+      console.log('[AIAnalysisService] Edge Function response status:', response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[AIAnalysisService] Edge Function error:', response.status, errorText);
+        throw new Error(`Edge Function error: ${response.status} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log('[AIAnalysisService] Edge Function response:', data.success ? 'success' : 'failed');
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Unknown embedding error');
+      }
+
+      console.log('[AIAnalysisService] Generated embedding vector length:', data.embeddings?.length || 0);
+      return data.embeddings;
+    } catch (error) {
+      console.error('[AIAnalysisService] Failed to generate embedding via Edge Function:', error);
+      return null;
+    }
+  }
+
+  /**
+   * カードの統合テキストを生成（タイトル + コンテンツ + タグ）
+   */
+  static generateCardText(card: BoardItem): string {
+    const title = card.title || '';
+    const content = card.content || '';
+    const tags = card.tags ? card.tags.join(' ') : '';
+    const type = card.column_type || '';
+    
+    return `${title} ${content} ${tags} ${type}`.trim();
+  }
+
+  /**
+   * カードの埋め込みベクターを生成・保存
+   */
+  static async generateCardEmbedding(card: BoardItem): Promise<CardEmbedding | null> {
+    const textContent = this.generateCardText(card);
+    
+    // 既存の埋め込みをチェック（更新時刻ベース）
+    try {
+      const { data: existingEmbedding } = await supabase
+        .from('card_embeddings')
+        .select('*')
+        .eq('card_id', card.id)
+        .single();
+      
+      if (existingEmbedding) {
+        const cardUpdatedAt = new Date(card.updated_at || card.created_at);
+        const embeddingUpdatedAt = new Date(existingEmbedding.last_updated);
+        
+        // カードの更新時刻が埋め込みの更新時刻より新しい場合のみ再生成
+        if (cardUpdatedAt <= embeddingUpdatedAt && existingEmbedding.text_content === textContent) {
+          console.log(`[AIAnalysisService] Using cached embedding for card ${card.id}`);
+          return {
+            cardId: card.id,
+            embedding: JSON.parse(existingEmbedding.embedding),
+            textContent: existingEmbedding.text_content,
+            lastUpdated: existingEmbedding.last_updated,
+          };
+        } else {
+          console.log(`[AIAnalysisService] Card ${card.id} content changed, regenerating embedding`);
+          console.log(`  Card updated: ${cardUpdatedAt.toISOString()}`);
+          console.log(`  Embedding updated: ${embeddingUpdatedAt.toISOString()}`);
+          console.log(`  Text content changed: ${existingEmbedding.text_content !== textContent}`);
+        }
+      }
+    } catch (error) {
+      console.log(`[AIAnalysisService] No cached embedding found for card ${card.id}, generating new one`);
+    }
+
+    const embedding = await this.generateEmbedding(textContent);
+    
+    if (!embedding) {
+      return null;
+    }
+
+    const cardEmbedding: CardEmbedding = {
+      cardId: card.id,
+      embedding,
+      textContent,
+      lastUpdated: new Date().toISOString(),
+    };
+
+    // Supabaseに埋め込みベクターを保存
+    try {
+      await supabase
+        .from('card_embeddings')
+        .upsert({
+          card_id: card.id,
+          embedding: JSON.stringify(embedding),
+          text_content: textContent,
+          last_updated: cardEmbedding.lastUpdated,
+        });
+      console.log(`[AIAnalysisService] Saved new embedding for card ${card.id}`);
+    } catch (error) {
+      console.warn('Failed to save embedding to database:', error);
+    }
+
+    return cardEmbedding;
+  }
+
+  /**
+   * 2つのベクター間のコサイン類似度を計算
+   */
+  static calculateCosineSimilarity(vecA: number[], vecB: number[]): number {
+    if (vecA.length !== vecB.length) {
+      throw new Error('Vector dimensions must match');
+    }
+
+    let dotProduct = 0;
+    let normA = 0;
+    let normB = 0;
+
+    for (let i = 0; i < vecA.length; i++) {
+      dotProduct += vecA[i] * vecB[i];
+      normA += vecA[i] * vecA[i];
+      normB += vecB[i] * vecB[i];
+    }
+
+    const denominator = Math.sqrt(normA) * Math.sqrt(normB);
+    return denominator === 0 ? 0 : dotProduct / denominator;
+  }
+
+  /**
+   * カード間の関係性を自動提案
+   */
+  static async suggestRelationships(
+    cards: BoardItem[],
+    minSimilarity: number = 0.7,
+    maxSuggestions: number = 10
+  ): Promise<SuggestedRelationship[]> {
+    console.log(`[AIAnalysisService] Analyzing ${cards.length} cards for relationships...`);
+    console.log(`[AIAnalysisService] Cards:`, cards.map(c => ({ id: c.id, title: c.title, updated_at: c.updated_at })));
+    
+    // 1. 全カードの埋め込みベクターを生成
+    const embeddings: CardEmbedding[] = [];
+    for (const card of cards) {
+      const embedding = await this.generateCardEmbedding(card);
+      if (embedding) {
+        embeddings.push(embedding);
+      }
+    }
+
+    console.log(`[AIAnalysisService] Generated embeddings for ${embeddings.length} cards`);
+
+    // 2. カード間の類似性を計算
+    const suggestions: SuggestedRelationship[] = [];
+    const similarityMatrix: Array<{ cardA: string, cardB: string, similarity: number }> = [];
+    
+    for (let i = 0; i < embeddings.length; i++) {
+      for (let j = i + 1; j < embeddings.length; j++) {
+        const embeddingA = embeddings[i];
+        const embeddingB = embeddings[j];
+        
+        const similarity = this.calculateCosineSimilarity(
+          embeddingA.embedding,
+          embeddingB.embedding
+        );
+
+        // デバッグ用に類似度マトリックスを保存
+        similarityMatrix.push({
+          cardA: embeddingA.cardId,
+          cardB: embeddingB.cardId,
+          similarity
+        });
+
+        if (similarity >= minSimilarity) {
+          const cardA = cards.find(c => c.id === embeddingA.cardId);
+          const cardB = cards.find(c => c.id === embeddingB.cardId);
+          
+          if (cardA && cardB) {
+            const suggestion: SuggestedRelationship = {
+              sourceCardId: embeddingA.cardId,
+              targetCardId: embeddingB.cardId,
+              relationshipType: this.determineRelationshipType(cardA, cardB, similarity),
+              similarity,
+              confidence: this.calculateConfidence(similarity, cardA, cardB),
+              explanation: this.generateExplanation(cardA, cardB, similarity),
+              suggestedStrength: Math.min(0.9, similarity * 1.2), // 類似度を強度に変換
+            };
+            
+            suggestions.push(suggestion);
+          }
+        }
+      }
+    }
+
+    // デバッグ情報を詳細出力
+    console.log(`[AIAnalysisService] Similarity matrix (top 10):`, 
+      similarityMatrix
+        .sort((a, b) => b.similarity - a.similarity)
+        .slice(0, 10)
+        .map(item => ({
+          ...item,
+          cardATitle: cards.find(c => c.id === item.cardA)?.title,
+          cardBTitle: cards.find(c => c.id === item.cardB)?.title
+        }))
+    );
+
+    console.log(`[AIAnalysisService] Found ${suggestions.length} potential relationships above threshold ${minSimilarity}`);
+
+    // 3. 信頼度でソート & 上位のみ返す
+    const sortedSuggestions = suggestions
+      .sort((a, b) => b.confidence - a.confidence)
+      .slice(0, maxSuggestions);
+
+    console.log(`[AIAnalysisService] Returning top ${sortedSuggestions.length} suggestions:`, 
+      sortedSuggestions.map(s => ({
+        source: cards.find(c => c.id === s.sourceCardId)?.title,
+        target: cards.find(c => c.id === s.targetCardId)?.title,
+        type: s.relationshipType,
+        similarity: s.similarity.toFixed(3),
+        confidence: s.confidence.toFixed(3)
+      }))
+    );
+
+    return sortedSuggestions;
+  }
+
+  /**
+   * 関係性タイプを推定
+   */
+  private static determineRelationshipType(
+    cardA: BoardItem,
+    cardB: BoardItem,
+    similarity: number
+  ): 'semantic' | 'topical' | 'conceptual' {
+    // タグの重複があれば topical
+    const tagsA = new Set(cardA.tags || []);
+    const tagsB = new Set(cardB.tags || []);
+    const tagOverlap = [...tagsA].filter(tag => tagsB.has(tag)).length;
+    
+    if (tagOverlap > 0) {
+      return 'topical';
+    }
+    
+    // 同じカラムタイプで高類似度なら conceptual
+    if (cardA.column_type === cardB.column_type && similarity > 0.8) {
+      return 'conceptual';
+    }
+    
+    // デフォルトは semantic
+    return 'semantic';
+  }
+
+  /**
+   * 信頼度を計算
+   */
+  private static calculateConfidence(
+    similarity: number,
+    cardA: BoardItem,
+    cardB: BoardItem
+  ): number {
+    let confidence = similarity;
+    
+    // コンテンツ長による調整（長いコンテンツほど信頼性が高い）
+    const avgContentLength = ((cardA.content?.length || 0) + (cardB.content?.length || 0)) / 2;
+    const lengthBonus = Math.min(0.1, avgContentLength / 1000);
+    confidence += lengthBonus;
+    
+    // タグ重複による調整
+    const tagsA = new Set(cardA.tags || []);
+    const tagsB = new Set(cardB.tags || []);
+    const tagOverlap = [...tagsA].filter(tag => tagsB.has(tag)).length;
+    if (tagOverlap > 0) {
+      confidence += 0.1 * tagOverlap;
+    }
+    
+    return Math.min(1.0, confidence);
+  }
+
+  /**
+   * 関係性の説明を生成
+   */
+  private static generateExplanation(
+    cardA: BoardItem,
+    cardB: BoardItem,
+    similarity: number
+  ): string {
+    const similarityPercent = Math.round(similarity * 100);
+    
+    // タグ重複チェック
+    const tagsA = new Set(cardA.tags || []);
+    const tagsB = new Set(cardB.tags || []);
+    const commonTags = [...tagsA].filter(tag => tagsB.has(tag));
+    
+    if (commonTags.length > 0) {
+      return `共通タグ「${commonTags.join(', ')}」により関連性が検出されました（類似度: ${similarityPercent}%）`;
+    }
+    
+    if (cardA.column_type === cardB.column_type) {
+      return `同じカテゴリ「${cardA.column_type}」で高い意味的類似性があります（類似度: ${similarityPercent}%）`;
+    }
+    
+    return `テキスト内容に高い意味的類似性が検出されました（類似度: ${similarityPercent}%）`;
+  }
+
+  /**
+   * 既存の関係性データと重複チェック
+   */
+  static async filterExistingRelationships(
+    suggestions: SuggestedRelationship[],
+    boardId: string
+  ): Promise<SuggestedRelationship[]> {
+    try {
+      console.log(`[AIAnalysisService] Filtering ${suggestions.length} suggestions against existing relationships for board ${boardId}`);
+      
+      // より包括的な既存関係性取得：boardIdに基づいてカードを特定してから関係性を取得
+      const { data: boardCards } = await supabase
+        .from('board_cards')
+        .select('id')
+        .eq('board_id', boardId)
+        .eq('is_archived', false);
+
+      if (!boardCards || boardCards.length === 0) {
+        console.log(`[AIAnalysisService] No cards found for board ${boardId}`);
+        return suggestions;
+      }
+
+      const cardIds = boardCards.map(card => card.id);
+      console.log(`[AIAnalysisService] Found ${cardIds.length} cards in board ${boardId}`);
+
+      // そのボードのカード間の既存関係性を全て取得
+      const { data: existingRels } = await supabase
+        .from('board_card_relations')
+        .select('card_id, related_card_id, relationship_type')
+        .in('card_id', cardIds);
+
+      console.log(`[AIAnalysisService] Found ${existingRels?.length || 0} existing relationships`);
+
+      const existingPairs = new Set(
+        (existingRels || []).flatMap(rel => [
+          `${rel.card_id}-${rel.related_card_id}`,
+          `${rel.related_card_id}-${rel.card_id}` // 双方向チェック
+        ])
+      );
+
+      console.log(`[AIAnalysisService] Existing relationship pairs:`, Array.from(existingPairs));
+
+      // 既存でない提案のみを返す
+      const filteredSuggestions = suggestions.filter(suggestion => {
+        const pairKey = `${suggestion.sourceCardId}-${suggestion.targetCardId}`;
+        const reversePairKey = `${suggestion.targetCardId}-${suggestion.sourceCardId}`;
+        const exists = existingPairs.has(pairKey) || existingPairs.has(reversePairKey);
+        
+        if (exists) {
+          console.log(`[AIAnalysisService] Filtering out existing relationship: ${pairKey}`);
+        }
+        
+        return !exists;
+      });
+
+      console.log(`[AIAnalysisService] Filtered to ${filteredSuggestions.length} new relationship suggestions`);
+      
+      return filteredSuggestions;
+    } catch (error) {
+      console.error('Error filtering existing relationships:', error);
+      return suggestions; // エラー時は全て返す
+    }
   }
 }
 

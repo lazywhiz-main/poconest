@@ -1,647 +1,522 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
-import theme from '../../../styles/theme';
+import React, { useState, useEffect } from 'react';
+import NetworkVisualization from '../../nest-space/analysis-space/components/NetworkVisualization';
+import { AnalysisService, type NetworkAnalysisData } from '../../../services/AnalysisService';
+import { useBoardContext } from '../../board-space/contexts/BoardContext';
 
 interface AnalysisSpaceProps {
-  // 必要に応じてpropsを追加
+  onReturnToSearch?: () => void;
 }
 
-// SVGアイコンコンポーネント
-interface IconProps {
-  name: string;
-  size?: number;
-  color?: string;
-  style?: any;
-}
+const AnalysisSpace: React.FC<AnalysisSpaceProps> = ({ onReturnToSearch }) => {
+  const { state: boardState, isLoading: boardLoading } = useBoardContext();
+  const [analysisData, setAnalysisData] = useState<NetworkAnalysisData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-const Icon: React.FC<IconProps> = ({ name, size = 24, color = 'currentColor', style = {} }) => {
-  return (
-    <View style={style}>
-      <svg 
-        width={size} 
-        height={size} 
-        viewBox="0 0 24 24" 
-        fill="none" 
-        stroke={color} 
-        strokeWidth="2"
-        strokeLinecap="round" 
-        strokeLinejoin="round"
-      >
-        {getIconPath(name)}
-      </svg>
-    </View>
-  );
-};
+  // 現在のNest IDからBoard IDを取得
+  const currentNestId = boardState.currentNestId;
+  const currentBoardId = boardState.boardId;
+  const hasCards = boardState.cards.length > 0;
 
-// アイコンパス定義
-const getIconPath = (name: string) => {
-  switch (name) {
-    case 'bar-chart':
-      return (
-        <>
-          <line x1="18" y1="20" x2="18" y2="10"></line>
-          <line x1="12" y1="20" x2="12" y2="4"></line>
-          <line x1="6" y1="20" x2="6" y2="14"></line>
-          <line x1="2" y1="20" x2="22" y2="20"></line>
-        </>
-      );
-    case 'pie-chart':
-      return (
-        <>
-          <path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path>
-          <path d="M22 12A10 10 0 0 0 12 2v10z"></path>
-        </>
-      );
-    case 'activity':
-      return (
-        <>
-          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-        </>
-      );
-    case 'calendar':
-      return (
-        <>
-          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-          <line x1="16" y1="2" x2="16" y2="6"></line>
-          <line x1="8" y1="2" x2="8" y2="6"></line>
-          <line x1="3" y1="10" x2="21" y2="10"></line>
-        </>
-      );
-    case 'message-square':
-      return (
-        <>
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-        </>
-      );
-    case 'video':
-      return (
-        <>
-          <polygon points="23 7 16 12 23 17 23 7"></polygon>
-          <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
-        </>
-      );
-    case 'download':
-      return (
-        <>
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-          <polyline points="7 10 12 15 17 10"></polyline>
-          <line x1="12" y1="15" x2="12" y2="3"></line>
-        </>
-      );
-    default:
-      return <circle cx="12" cy="12" r="10"></circle>;
-  }
-};
+  // デバッグ情報を追加
+  console.log('[AnalysisSpace] Current state:', {
+    currentNestId,
+    currentBoardId,
+    hasCards,
+    cardsLength: boardState.cards.length,
+    boardLoading,
+    loading
+  });
 
-// モックデータの定義
-const getActivityData = () => {
-  return {
-    dailyStats: [
-      { date: '6/1', messages: 15, meetings: 1, activity: 65 },
-      { date: '6/2', messages: 23, meetings: 2, activity: 75 },
-      { date: '6/3', messages: 18, meetings: 1, activity: 70 },
-      { date: '6/4', messages: 10, meetings: 0, activity: 40 },
-      { date: '6/5', messages: 5, meetings: 0, activity: 30 },
-      { date: '6/6', messages: 8, meetings: 0, activity: 35 },
-      { date: '6/7', messages: 30, meetings: 3, activity: 85 },
-      { date: '6/8', messages: 22, meetings: 1, activity: 75 },
-      { date: '6/9', messages: 20, meetings: 1, activity: 70 },
-      { date: '6/10', messages: 25, meetings: 2, activity: 80 },
-      { date: '6/11', messages: 18, meetings: 1, activity: 65 },
-      { date: '6/12', messages: 12, meetings: 0, activity: 45 },
-      { date: '6/13', messages: 10, meetings: 1, activity: 50 },
-      { date: '6/14', messages: 28, meetings: 2, activity: 82 },
-    ],
-    weeklyActivity: {
-      chat: 210,
-      meetings: 15,
-      calls: 8,
-      fileShares: 23,
-    },
-    timeDistribution: {
-      chat: 35,
-      meetings: 25,
-      planning: 15,
-      development: 25,
-    },
-    topContacts: [
-      { name: '山田 太郎', interactions: 45, avatar: 'https://i.pravatar.cc/150?img=32' },
-      { name: '鈴木 花子', interactions: 32, avatar: 'https://i.pravatar.cc/150?img=44' },
-      { name: '佐藤 健', interactions: 28, avatar: 'https://i.pravatar.cc/150?img=67' },
-    ],
+  // URLからのNest ID取得も確認
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const urlNestId = params.get('nestId');
+      console.log('[AnalysisSpace] URL nestId:', urlNestId);
+      console.log('[AnalysisSpace] BoardState nestId:', currentNestId);
+    }
+  }, [currentNestId]);
+
+  // スピナーアニメーション用のCSS注入
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const style = document.createElement('style');
+      style.textContent = `
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.3; }
+        }
+      `;
+      document.head.appendChild(style);
+      
+      return () => {
+        document.head.removeChild(style);
+      };
+    }
+  }, []);
+
+  // 分析データを取得する関数
+  const fetchNetworkData = async (boardId: string) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      console.log('[AnalysisSpace] Fetching network data for board:', boardId);
+      const data: NetworkAnalysisData = await AnalysisService.getNetworkAnalysisData(boardId);
+      
+      console.log('[AnalysisSpace] Retrieved data:', {
+        cardsCount: data.cards.length,
+        relationshipsCount: data.relationships.length,
+        cards: data.cards.map(c => ({ id: c.id, title: c.title })),
+        relationships: data.relationships.map(r => ({ 
+          id: r.id, 
+          from: r.card_id, 
+          to: r.related_card_id, 
+          type: r.relationship_type 
+        }))
+      });
+      
+      if (data.cards.length === 0) {
+        console.log('[AnalysisSpace] No cards found for analysis');
+        setError('このボードにはカードがありません。まずボードにカードを追加してください。');
+        return;
+      }
+
+      // 関係性がない場合はサンプルを作成
+      if (data.relationships.length === 0) {
+        console.log('[AnalysisSpace] No relationships found, creating sample relationships');
+        await AnalysisService.createSampleRelationships(boardId);
+        // サンプル作成後に再取得
+        const updatedData = await AnalysisService.getNetworkAnalysisData(boardId);
+        data.relationships = updatedData.relationships;
+        console.log('[AnalysisSpace] After sample creation:', {
+          relationshipsCount: data.relationships.length
+        });
+      }
+
+      setAnalysisData(data);
+      
+      console.log('[AnalysisSpace] Network data loaded successfully:', {
+        cards: data.cards.length,
+        relationships: data.relationships.length
+      });
+    } catch (err) {
+      console.error('[AnalysisSpace] Failed to fetch network data:', err);
+      setError('ネットワークデータの取得に失敗しました。もう一度お試しください。');
+    } finally {
+      setLoading(false);
+    }
   };
-};
 
-// バーチャートコンポーネント（簡易版）
-const SimpleBarChart = ({ data, maxValue, barColor }: { data: { date: string; value: number }[], maxValue: number, barColor: string }) => {
-  const { width } = Dimensions.get('window');
-  const chartWidth = Math.min(width - 40, 600);
-  const barWidth = chartWidth / data.length - 4;
-  
+  // Board IDが利用可能になったら分析データを取得
+  useEffect(() => {
+    console.log('[AnalysisSpace] Analysis data fetch check:', {
+      currentBoardId,
+      hasCards,
+      shouldFetch: currentBoardId && hasCards
+    });
+
+    if (currentBoardId && hasCards) {
+      fetchNetworkData(currentBoardId);
+    } else if (currentBoardId && !hasCards) {
+      console.log('[AnalysisSpace] Board ID exists but no cards found in BoardContext');
+    }
+  }, [currentBoardId, hasCards]);
+
+  // サンプルデータ再生成
+  const handleRegenerateData = async () => {
+    if (!currentBoardId) return;
+    
+    if (window.confirm('新しいサンプル関係性データを生成しますか？既存の関係性は保持されます。')) {
+      setLoading(true);
+      try {
+        await AnalysisService.createSampleRelationships(currentBoardId);
+        await fetchNetworkData(currentBoardId);
+      } catch (err) {
+        console.error('Failed to regenerate data:', err);
+        setError('データの生成に失敗しました。');
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  // Board へのナビゲーション
+  const handleNavigateToBoard = () => {
+    if (typeof window !== 'undefined' && currentNestId) {
+      const currentUrl = new URL(window.location.href);
+      currentUrl.searchParams.set('space', 'board');
+      window.location.href = currentUrl.toString();
+    }
+  };
+
+  // ローディング状態
+  if (boardLoading || loading) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.loadingContainer}>
+          <div style={styles.loadingContent}>
+            {/* ローディングスピナー */}
+            <div style={styles.spinnerContainer}>
+              <div style={styles.spinner}>
+                <div style={styles.spinnerRing}></div>
+                <div style={styles.spinnerRingDelay}></div>
+              </div>
+            </div>
+            
+            {/* ローディングテキスト */}
+            <div style={styles.loadingTitle}>思考の地図を生成中</div>
+            <div style={styles.loadingSubtitle}>
+              {boardLoading ? 'ボード情報を読み込み中...' : 'カードネットワークを分析しています...'}
+            </div>
+            
+            {/* ステータス表示 */}
+            <div style={styles.statusContainer}>
+              <div style={styles.statusDot}></div>
+              <div style={styles.statusText}>データ取得完了</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Nest が選択されていない
+  if (!currentNestId) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.centerContent}>
+          <div style={styles.emptyIcon}>🏠</div>
+          <div style={styles.emptyTitle}>Nest を選択してください</div>
+          <div style={styles.emptyDescription}>
+            分析を開始するには、まず Nest を選択する必要があります。
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // カードがない場合
+  if (!hasCards) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.centerContent}>
+          <div style={styles.emptyIcon}>📊</div>
+          <div style={styles.emptyTitle}>カードがありません</div>
+          <div style={styles.emptyDescription}>
+            ネットワーク分析を行うには、まずボードにカードを追加してください。
+            カード間の関係性を分析して、視覚的なネットワークを生成します。
+          </div>
+          <button style={styles.primaryButton} onClick={handleNavigateToBoard}>
+            ボードでカードを作成
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // エラー状態
+  if (error) {
   return (
-    <View style={styles.chartContainer}>
-      <View style={styles.chartBars}>
-        {data.map((item, index) => (
-          <View key={index} style={styles.barColumn}>
-            <View 
-              style={[
-                styles.bar, 
-                { 
-                  height: `${(item.value / maxValue) * 100}%`,
-                  width: barWidth,
-                  backgroundColor: barColor 
-                }
-              ]} 
-            />
-            <Text style={styles.barLabel}>{item.date}</Text>
-          </View>
-        ))}
-      </View>
-    </View>
+      <div style={styles.container}>
+        <div style={styles.centerContent}>
+          <div style={styles.errorIcon}>⚠️</div>
+          <div style={styles.errorTitle}>データの取得に失敗</div>
+          <div style={styles.errorDescription}>{error}</div>
+          <div style={styles.buttonGroup}>
+            <button 
+              style={styles.primaryButton} 
+              onClick={() => currentBoardId && fetchNetworkData(currentBoardId)}
+            >
+              再試行
+            </button>
+            <button style={styles.secondaryButton} onClick={handleRegenerateData}>
+              サンプル生成
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // データなし
+  if (!analysisData || analysisData.cards.length === 0) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.centerContent}>
+          <div style={styles.emptyIcon}>🔗</div>
+          <div style={styles.emptyTitle}>分析データがありません</div>
+          <div style={styles.emptyDescription}>
+            カードは存在しますが、ネットワーク分析用のデータが見つかりませんでした。
+            サンプルデータを生成して分析を開始できます。
+          </div>
+          <button style={styles.primaryButton} onClick={handleRegenerateData}>
+            サンプルデータを生成
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // メイン表示
+  return (
+    <div style={styles.container}>
+      <div style={styles.networkContainer}>
+        <NetworkVisualization 
+          cards={analysisData.cards}
+          relationships={analysisData.relationships}
+          config={analysisData.config}
+          onNodeSelect={(nodeId) => console.log('Selected node:', nodeId)}
+        />
+      </div>
+    </div>
   );
 };
 
-// 円グラフコンポーネント（簡易版）
-const SimplePieChart = ({ data }: { data: { label: string; value: number; color: string }[] }) => {
-  const total = data.reduce((sum, item) => sum + item.value, 0);
-  let startAngle = 0;
-  
-  return (
-    <View style={styles.pieChartContainer}>
-      <View style={styles.pieChart}>
-        {data.map((item, index) => {
-          const angle = (item.value / total) * 360;
-          const endAngle = startAngle + angle;
-          
-          // 円グラフの扇形部分をSVGで表現
-          const slice = (
-            <View key={index} style={styles.pieSlice}>
-              <svg width="100" height="100" viewBox="0 0 100 100">
-                <path
-                  d={`M 50 50 L ${50 + 40 * Math.cos(startAngle * Math.PI / 180)} ${50 + 40 * Math.sin(startAngle * Math.PI / 180)} A 40 40 0 ${angle > 180 ? 1 : 0} 1 ${50 + 40 * Math.cos(endAngle * Math.PI / 180)} ${50 + 40 * Math.sin(endAngle * Math.PI / 180)} Z`}
-                  fill={item.color}
-                />
-              </svg>
-            </View>
-          );
-          
-          startAngle = endAngle;
-          return slice;
-        })}
-      </View>
-      
-      <View style={styles.pieLegend}>
-        {data.map((item, index) => (
-          <View key={index} style={styles.legendItem}>
-            <View style={[styles.legendColor, { backgroundColor: item.color }]} />
-            <Text style={styles.legendLabel}>{item.label}</Text>
-            <Text style={styles.legendValue}>{item.value}%</Text>
-          </View>
-        ))}
-      </View>
-    </View>
-  );
-};
-
-// 統計カードコンポーネント
-const StatCard = ({ icon, title, value, change, positive }: { icon: string, title: string, value: string | number, change?: string, positive?: boolean }) => {
-  return (
-    <View style={styles.statCard}>
-      <View style={styles.statIconContainer}>
-        <Icon name={icon} size={20} color="white" />
-      </View>
-      <Text style={styles.statTitle}>{title}</Text>
-      <Text style={styles.statValue}>{value}</Text>
-      {change && (
-        <View style={styles.changeContainer}>
-          <Text style={[styles.changeValue, positive ? styles.positiveChange : styles.negativeChange]}>
-            {positive ? '↑' : '↓'} {change}
-          </Text>
-        </View>
-      )}
-    </View>
-  );
-};
-
-const AnalysisSpace: React.FC<AnalysisSpaceProps> = () => {
-  const [periodFilter, setPeriodFilter] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
-  const activityData = getActivityData();
-  
-  // アクティビティデータをチャート用にフォーマット
-  const activityChartData = activityData.dailyStats.map(day => ({
-    date: day.date,
-    value: day.activity
-  }));
-  
-  // メッセージデータをチャート用にフォーマット
-  const messageChartData = activityData.dailyStats.map(day => ({
-    date: day.date,
-    value: day.messages
-  }));
-  
-  // 時間配分のデータを円グラフ用にフォーマット
-  const timeDistributionData = [
-    { label: 'チャット', value: activityData.timeDistribution.chat, color: '#4CAF50' },
-    { label: '会議', value: activityData.timeDistribution.meetings, color: '#2196F3' },
-    { label: '計画', value: activityData.timeDistribution.planning, color: '#FFC107' },
-    { label: '開発', value: activityData.timeDistribution.development, color: '#9C27B0' },
-  ];
-  
-  return (
-    <View style={styles.container}>
-      {/* ヘッダー */}
-      {/* <View style={styles.spaceHeader}>
-        <View>
-          <Text style={styles.title}>分析空間</Text>
-          <Text style={styles.subtitle}>活動統計とレポート</Text>
-        </View>
-        
-        <View style={styles.periodSelector}>
-          <TouchableOpacity
-            style={[styles.periodButton, periodFilter === 'daily' && styles.activePeriod]}
-            onPress={() => setPeriodFilter('daily')}
-          >
-            <Text style={[styles.periodButtonText, periodFilter === 'daily' && styles.activePeriodText]}>
-              日次
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[styles.periodButton, periodFilter === 'weekly' && styles.activePeriod]}
-            onPress={() => setPeriodFilter('weekly')}
-          >
-            <Text style={[styles.periodButtonText, periodFilter === 'weekly' && styles.activePeriodText]}>
-              週次
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[styles.periodButton, periodFilter === 'monthly' && styles.activePeriod]}
-            onPress={() => setPeriodFilter('monthly')}
-          >
-            <Text style={[styles.periodButtonText, periodFilter === 'monthly' && styles.activePeriodText]}>
-              月次
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View> */}
-      
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* 統計カード */}
-        <View style={styles.statsRow}>
-          <StatCard 
-            icon="message-square" 
-            title="チャットメッセージ" 
-            value={activityData.weeklyActivity.chat} 
-            change="12%" 
-            positive={true} 
-          />
-          
-          <StatCard 
-            icon="video" 
-            title="ミーティング" 
-            value={activityData.weeklyActivity.meetings} 
-            change="5%" 
-            positive={true} 
-          />
-          
-          <StatCard 
-            icon="download" 
-            title="共有ファイル" 
-            value={activityData.weeklyActivity.fileShares} 
-            change="3%" 
-            positive={false} 
-          />
-        </View>
-        
-        {/* アクティビティチャート */}
-        <View style={styles.chartSection}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>アクティビティの推移</Text>
-            <TouchableOpacity style={styles.downloadReportButton}>
-              <Icon name="download" size={16} color={theme.colors.primary} style={styles.downloadIcon} />
-              <Text style={styles.downloadText}>レポートを保存</Text>
-            </TouchableOpacity>
-          </View>
-          
-          <View style={styles.chartCard}>
-            <SimpleBarChart 
-              data={activityChartData} 
-              maxValue={100} 
-              barColor={theme.colors.primary} 
-            />
-          </View>
-        </View>
-        
-        {/* メッセージチャート */}
-        <View style={styles.chartSection}>
-          <Text style={styles.sectionTitle}>メッセージ数の推移</Text>
-          <View style={styles.chartCard}>
-            <SimpleBarChart 
-              data={messageChartData} 
-              maxValue={30} 
-              barColor="#4CAF50" 
-            />
-          </View>
-        </View>
-        
-        {/* 時間配分円グラフ */}
-        <View style={styles.chartSection}>
-          <Text style={styles.sectionTitle}>コラボレーション時間の配分</Text>
-          <View style={styles.chartCard}>
-            <SimplePieChart data={timeDistributionData} />
-          </View>
-        </View>
-        
-        {/* トップコンタクト */}
-        <View style={styles.contactSection}>
-          <Text style={styles.sectionTitle}>トップコンタクト</Text>
-          <View style={styles.contactsCard}>
-            {activityData.topContacts.map((contact, index) => (
-              <View key={index} style={styles.contactItem}>
-                <View style={styles.contactRank}>
-                  <Text style={styles.rankText}>{index + 1}</Text>
-                </View>
-                <View style={styles.contactAvatar}>
-                  <Text style={styles.avatarText}>{contact.name.charAt(0)}</Text>
-                </View>
-                <View style={styles.contactInfo}>
-                  <Text style={styles.contactName}>{contact.name}</Text>
-                  <Text style={styles.contactInteractions}>{contact.interactions} インタラクション</Text>
-                </View>
-              </View>
-            ))}
-          </View>
-        </View>
-        
-        <View style={styles.spacer} />
-      </ScrollView>
-    </View>
-  );
-};
-
-const styles = StyleSheet.create({
+// Web用のCSS-in-JSスタイル
+const styles = {
   container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    height: '100%',
+    backgroundColor: '#0f0f23',
+    overflow: 'hidden',
   },
-  spaceHeader: {
-    padding: 16,
-    backgroundColor: theme.colors.spaces.analysis.primary,
-    flexDirection: 'row',
+  centerContent: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column' as const,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: '32px',
+    maxWidth: '480px',
+    alignSelf: 'center',
+  },
+  header: {
+    backgroundColor: '#FFFFFF',
+    borderBottom: '1px solid #F0EDE6',
+    padding: '20px 24px',
+  },
+  headerContent: {
+    display: 'flex',
+    justifyContent: 'space-between',
     alignItems: 'center',
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: 'white',
+    fontSize: '28px',
+    fontWeight: '700',
+    color: '#2D3748',
+    fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
   },
-  subtitle: {
-    fontSize: 14,
-    fontWeight: '400',
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginTop: 4,
-  },
-  periodSelector: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 8,
-    padding: 2,
-  },
-  periodButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-  },
-  activePeriod: {
-    backgroundColor: 'white',
-  },
-  periodButtonText: {
-    color: 'rgba(255, 255, 255, 0.9)',
-    fontWeight: '500',
-    fontSize: 13,
-  },
-  activePeriodText: {
-    color: theme.colors.primary,
-  },
-  content: {
-    flex: 1,
-    padding: 16,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  statCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    flex: 1,
-    marginHorizontal: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  statIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: theme.colors.primary,
-    justifyContent: 'center',
+  statsContainer: {
+    display: 'flex',
     alignItems: 'center',
-    marginBottom: 12,
+    backgroundColor: '#F7F2E8',
+    padding: '8px 16px',
+    borderRadius: '12px',
   },
-  statTitle: {
-    fontSize: 12,
-    color: theme.colors.text.secondary,
-    marginBottom: 4,
+  statItem: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    minWidth: '60px',
   },
   statValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: theme.colors.text.primary,
+    fontSize: '20px',
+    fontWeight: '600',
+    color: '#2D3748',
   },
-  changeContainer: {
-    marginTop: 8,
+  statLabel: {
+    fontSize: '12px',
+    color: '#718096',
+    marginTop: '2px',
   },
-  changeValue: {
-    fontSize: 12,
+  statDivider: {
+    width: '1px',
+    height: '24px',
+    backgroundColor: '#E2D5C7',
+    margin: '0 12px',
+  },
+  networkContainer: {
+    flex: 1,
+    position: 'relative' as const,
+    overflow: 'hidden',
+  },
+  controls: {
+    display: 'flex',
+    padding: '20px',
+    backgroundColor: '#FFFFFF',
+    borderTop: '1px solid #F0EDE6',
+    justifyContent: 'space-around',
+  },
+  controlButton: {
+    padding: '12px 16px',
+    backgroundColor: '#F7F2E8',
+    borderRadius: '10px',
+    border: '1px solid #E2D5C7',
+    minWidth: '100px',
+    textAlign: 'center' as const,
+    cursor: 'pointer',
+    color: '#2D3748',
+    fontSize: '14px',
     fontWeight: '500',
   },
-  positiveChange: {
-    color: '#4CAF50',
+  // Empty/Error States
+  emptyIcon: {
+    fontSize: '64px',
+    marginBottom: '16px',
   },
-  negativeChange: {
-    color: '#F44336',
-  },
-  chartSection: {
-    marginBottom: 20,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  sectionTitle: {
-    fontSize: 16,
+  emptyTitle: {
+    fontSize: '24px',
     fontWeight: '600',
-    color: theme.colors.text.primary,
-    marginBottom: 8,
+    color: '#2D3748',
+    marginBottom: '8px',
+    textAlign: 'center' as const,
   },
-  downloadReportButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  emptyDescription: {
+    fontSize: '16px',
+    color: '#718096',
+    textAlign: 'center' as const,
+    lineHeight: '24px',
+    marginBottom: '24px',
   },
-  downloadIcon: {
-    marginRight: 4,
+  errorIcon: {
+    fontSize: '48px',
+    marginBottom: '16px',
   },
-  downloadText: {
-    fontSize: 13,
-    color: theme.colors.primary,
-    fontWeight: '500',
-  },
-  chartCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  chartContainer: {
-    height: 200,
-    width: '100%',
-  },
-  chartBars: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-  },
-  barColumn: {
-    alignItems: 'center',
-    height: '100%',
-    justifyContent: 'flex-end',
-  },
-  bar: {
-    minHeight: 4,
-    borderTopLeftRadius: 4,
-    borderTopRightRadius: 4,
-  },
-  barLabel: {
-    fontSize: 10,
-    color: theme.colors.text.secondary,
-    marginTop: 4,
-  },
-  pieChartContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 20,
-  },
-  pieChart: {
-    width: 100,
-    height: 100,
-    position: 'relative',
-  },
-  pieSlice: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-  },
-  pieLegend: {
-    flex: 1,
-    paddingLeft: 20,
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  legendColor: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 8,
-  },
-  legendLabel: {
-    flex: 1,
-    fontSize: 14,
-    color: theme.colors.text.primary,
-  },
-  legendValue: {
-    fontSize: 14,
+  errorTitle: {
+    fontSize: '20px',
     fontWeight: '600',
-    color: theme.colors.text.primary,
+    color: '#E53E3E',
+    marginBottom: '8px',
+    textAlign: 'center' as const,
   },
-  contactSection: {
-    marginBottom: 20,
+  errorDescription: {
+    fontSize: '16px',
+    color: '#718096',
+    textAlign: 'center' as const,
+    lineHeight: '24px',
+    marginBottom: '24px',
   },
-  contactsCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+  // Buttons
+  primaryButton: {
+    padding: '14px 24px',
+    backgroundColor: '#D69E2E',
+    borderRadius: '12px',
+    margin: '4px 0',
+    minWidth: '180px',
+    textAlign: 'center' as const,
+    color: '#FFFFFF',
+    fontSize: '16px',
+    fontWeight: '600',
+    border: 'none',
+    cursor: 'pointer',
   },
-  contactItem: {
-    flexDirection: 'row',
+  secondaryButton: {
+    padding: '14px 24px',
+    backgroundColor: '#FFFFFF',
+    border: '2px solid #D69E2E',
+    borderRadius: '12px',
+    margin: '4px 0',
+    minWidth: '180px',
+    textAlign: 'center' as const,
+    color: '#D69E2E',
+    fontSize: '16px',
+    fontWeight: '600',
+    cursor: 'pointer',
+  },
+  buttonGroup: {
+    display: 'flex',
+    flexDirection: 'column' as const,
     alignItems: 'center',
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.divider,
+    gap: '8px',
   },
-  contactRank: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+  loadingContainer: {
+    flex: 1,
+    display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
   },
-  rankText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: theme.colors.text.secondary,
+  loadingContent: {
+    padding: '20px',
+    backgroundColor: 'rgba(26, 26, 46, 0.95)',
+    borderRadius: '12px',
+    border: '1px solid #333366',
+    textAlign: 'center' as const,
+    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)',
+    backdropFilter: 'blur(12px)',
   },
-  contactAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: theme.colors.primary,
+  spinnerContainer: {
+    marginBottom: '20px',
+    display: 'flex',
+    justifyContent: 'center',
+  },
+  spinner: {
+    width: '40px',
+    height: '40px',
+    borderRadius: '50%',
+    backgroundColor: '#1a1a2e',
+    display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    position: 'relative' as const,
   },
-  avatarText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: 'white',
+  spinnerRing: {
+    position: 'absolute' as const,
+    width: '32px',
+    height: '32px',
+    borderRadius: '50%',
+    border: '2px solid #00ff88',
+    borderTopColor: 'transparent',
+    borderRightColor: 'transparent',
+    animation: 'spin 1s linear infinite',
   },
-  contactInfo: {
-    flex: 1,
+  spinnerRingDelay: {
+    position: 'absolute' as const,
+    width: '32px',
+    height: '32px',
+    borderRadius: '50%',
+    border: '2px solid rgba(0, 255, 136, 0.3)',
+    borderTopColor: 'transparent',
+    borderRightColor: 'transparent',
+    animation: 'spin 1.5s linear infinite reverse',
   },
-  contactName: {
-    fontSize: 14,
+  loadingTitle: {
+    fontSize: '18px',
     fontWeight: '600',
-    color: theme.colors.text.primary,
+    color: '#e2e8f0',
+    marginBottom: '4px',
+    fontFamily: 'Space Grotesk, system-ui, sans-serif',
   },
-  contactInteractions: {
-    fontSize: 12,
-    color: theme.colors.text.secondary,
-    marginTop: 2,
+  loadingSubtitle: {
+    fontSize: '14px',
+    color: '#a6adc8',
+    fontFamily: 'JetBrains Mono, monospace',
   },
-  spacer: {
-    height: 20,
+  statusContainer: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: '20px',
   },
-});
+  statusDot: {
+    width: '12px',
+    height: '12px',
+    borderRadius: '50%',
+    backgroundColor: '#00ff88',
+    marginRight: '8px',
+    animation: 'pulse 2s ease-in-out infinite',
+    boxShadow: '0 0 8px rgba(0, 255, 136, 0.5)',
+  },
+  statusText: {
+    fontSize: '12px',
+    color: '#a6adc8',
+  },
+};
 
 export default AnalysisSpace; 

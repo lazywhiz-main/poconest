@@ -10,7 +10,8 @@ import {
 import { useBoardSpace } from '../hooks/useBoardSpace';
 import { useCardNavigation } from '../hooks/useCardNavigation';
 import { useNestSpace } from '@contexts/NestSpaceContext';
-import { BoardColumnType } from '../../../../types/board';
+import { BoardColumnType } from 'src/types/board';
+const BOARD_COLUMN_TYPES = ['INBOX', 'QUESTIONS', 'INSIGHTS', 'THEMES', 'ACTIONS'] as const;
 
 // Placeholder for icons - in a real implementation, you'd import from a library
 const Icon = ({ name, size = 20, color = '#000' }: { name: string; size?: number; color?: string }) => (
@@ -18,11 +19,13 @@ const Icon = ({ name, size = 20, color = '#000' }: { name: string; size?: number
 );
 
 // Column labels for display
-const COLUMN_LABELS = {
-  [BoardColumnType.INBOX]: 'Inbox',
-  [BoardColumnType.INSIGHTS]: 'Insights',
-  [BoardColumnType.THEMES]: 'Themes',
-  [BoardColumnType.ZOOM]: 'Zoom',
+const COLUMN_LABELS: Record<string, string> = {
+  INBOX: 'Inbox',
+  INSIGHTS: 'Insights',
+  THEMES: 'Themes',
+  ZOOM: 'Zoom',
+  QUESTIONS: 'Questions',
+  ACTIONS: 'Actions',
 };
 
 interface BoardHeaderProps {
@@ -78,7 +81,7 @@ const BoardHeader: React.FC<BoardHeaderProps> = ({
     <View style={styles.container}>
       {/* Column tabs */}
       <View style={styles.columnTabs}>
-        {Object.values(BoardColumnType).map((column) => (
+        {BOARD_COLUMN_TYPES.map((column) => (
           <TouchableOpacity
             key={column}
             style={[
