@@ -55,7 +55,7 @@ const Card: React.FC<CardProps> = ({
     {
       backgroundColor: cardBg,
       borderRadius: theme.borderRadius.md,
-      overflow: 'hidden',
+      overflow: 'hidden' as 'hidden',
       marginVertical: theme.spacing.sm,
       borderWidth: border ? 1 : 0,
       borderColor: border ? cardBorder : 'transparent',

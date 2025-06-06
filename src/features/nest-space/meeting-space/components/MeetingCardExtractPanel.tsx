@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { addBoardCards, getOrCreateMeetingSource, addCardSource } from '@/services/BoardService';
+import { addBoardCards, getOrCreateMeetingSource, addCardSource, BoardCardInsert } from '@/services/BoardService';
 
 interface CardCandidate {
   title: string;
@@ -61,12 +61,22 @@ const MeetingCardExtractPanel: React.FC<MeetingCardExtractPanelProps> = ({ meeti
       }
       // 保存するカードデータを整形
       const validTypes = ['INBOX', 'QUESTIONS', 'INSIGHTS', 'THEMES', 'ACTIONS'];
-      const cardsToSave = indices.map(i => {
+      const cardsToSave: BoardCardInsert[] = indices.map(i => {
         const c = candidates[i];
         return {
-          ...c,
+          title: c.title,
+          content: c.content,
           column_type: validTypes.includes((c.column_type || '').toUpperCase()) ? c.column_type.toUpperCase() : 'INBOX',
           sources: [meetingSource],
+          metadata: {
+            meeting_id: meetingId,
+            meeting_title: meetingTitle,
+            source: 'meeting_extraction'
+          },
+          created_by: 'system', // システムで生成されたカード
+          board_id: boardId,
+          order_index: 0,
+          is_archived: false,
         };
       });
       console.log('cardsToSave:', cardsToSave);

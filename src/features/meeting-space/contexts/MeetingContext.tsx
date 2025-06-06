@@ -79,15 +79,15 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         id: uploadData.path,
         type: fileExt === 'txt' ? 'txt' : fileExt === 'mp4' ? 'video' : 'audio',
         url: publicUrl,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       };
 
       // 4. Update meeting record
       const { error: updateError } = await supabase
         .from('meetings')
         .update({
-          uploaded_files: [...(selectedMeeting?.uploadedFiles || []), uploadedFile],
+          uploaded_files: [...(selectedMeeting?.uploaded_files || []), uploadedFile],
         })
         .eq('id', meetingId);
 

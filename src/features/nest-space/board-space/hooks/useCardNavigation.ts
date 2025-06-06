@@ -136,9 +136,10 @@ export const useCardNavigation = () => {
   const groupedCards = useMemo(() => {
     const groups: Record<BoardColumnType, typeof filteredCards> = {
       'INBOX': [],
+      'QUESTIONS': [],
       'INSIGHTS': [],
       'THEMES': [],
-      'ZOOM': [],
+      'ACTIONS': [],
     };
     
     filteredCards.forEach(card => {

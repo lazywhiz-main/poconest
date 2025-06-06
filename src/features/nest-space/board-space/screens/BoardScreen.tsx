@@ -27,10 +27,11 @@ const ColumnView: React.FC<ColumnViewProps> = ({ cards, onCardPress, selectedCar
   
   // Group cards by columns if we're in column view
   const groupedCards: Record<BoardColumnType, Card[]> = {
-    [BoardColumnType.INBOX]: [],
-    [BoardColumnType.INSIGHTS]: [],
-    [BoardColumnType.THEMES]: [],
-    [BoardColumnType.ZOOM]: [],
+    'INBOX': [],
+    'QUESTIONS': [],
+    'INSIGHTS': [],
+    'THEMES': [],
+    'ACTIONS': [],
   };
   
   // Sort cards into their columns
@@ -50,9 +51,10 @@ const ColumnView: React.FC<ColumnViewProps> = ({ cards, onCardPress, selectedCar
         <View key={column} style={styles.column}>
           <View style={styles.columnHeader}>
             <Text style={styles.columnTitle}>
-              {column === BoardColumnType.INBOX ? 'Inbox' :
-               column === BoardColumnType.INSIGHTS ? 'Insights' :
-               column === BoardColumnType.THEMES ? 'Themes' : 'Zoom'}
+              {column === 'INBOX' ? 'Inbox' :
+               column === 'QUESTIONS' ? 'Questions' :
+               column === 'INSIGHTS' ? 'Insights' :
+               column === 'THEMES' ? 'Themes' : 'Actions'}
             </Text>
             <View style={styles.cardCount}>
               <Text style={styles.cardCountText}>{columnCards.length}</Text>
