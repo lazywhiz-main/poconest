@@ -36,8 +36,21 @@ export const ServiceHeader: React.FC = () => {
     <header className="header">
       <div className="header-content">
         <div className="logo">
-          <div className="logo-icon" aria-hidden="true">P</div>
-          <div className="logo-text">poconest</div>
+          <div className="logo-horizontal">
+            <div className="logo-icon-circle">
+              <div className="network-nodes">
+                <div className="network-node node-1"></div>
+                <div className="network-node node-2"></div>
+                <div className="network-node node-3"></div>
+                <div className="network-connection conn-1"></div>
+                <div className="network-connection conn-2"></div>
+              </div>
+            </div>
+            <div className="logo-text-group">
+              <div className="logo-text">poconest</div>
+              <div className="logo-tagline">Connect • Share • Nest</div>
+            </div>
+          </div>
         </div>
         <nav className="main-nav" role="navigation" aria-label="メインナビゲーション">
           <a href="#" className="nav-item active" aria-current="page">
