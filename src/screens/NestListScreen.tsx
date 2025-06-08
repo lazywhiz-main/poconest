@@ -296,11 +296,7 @@ export const NestListScreen: React.FC = () => {
             filteredNests.map((nest) => (
               <article className="workspace-card" key={nest.id} data-status="active" tabIndex={0}>
                 <div className="workspace-header">
-                  <h3 className="nest-header-title">{nest.name}</h3>
-                  <div className="workspace-status">
-                    <span className={`status-indicator ${nest.status ? nest.status.toLowerCase() : 'unknown'}`}></span>
-                    {nest.status}
-                  </div>
+                  <h3 className="workspace-title">{nest.name}</h3>
                 </div>
                 <p className="workspace-description">{nest.description}</p>
                 <div className="nest-stats-box">
