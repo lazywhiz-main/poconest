@@ -22,12 +22,24 @@ body {
     align-items: center;
 }
 
-.workspace-title {
+.nest-header-title {
     font-size: 14px;
     font-weight: 500;
-    color: #00ff88;
+    color: #e2e8f0;
     text-transform: uppercase;
     letter-spacing: 1px;
+    margin: 0;
+    padding: 0;
+}
+
+.workspace-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #00ff88;
+    text-transform: none;
+    letter-spacing: 0;
+    margin: 8px 0 0 0;
+    padding: 0 0 0 16px;
 }
 
 .workspace-controls {

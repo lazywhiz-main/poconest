@@ -660,7 +660,8 @@ const NestSettingsScreenWrapper: React.FC = () => {
 
 const AuthGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
-  if (loading) return null;
+  console.log('AuthGuard:', { isAuthenticated, loading });
+  if (loading) return <div style={{ color: '#718096', fontSize: 18, textAlign: 'center', marginTop: 40 }}>Loading...</div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   return <>{children}</>;
 };
@@ -702,36 +703,76 @@ const App: React.FC = () => {
     <View style={{ flex: 1 }}>
       <Router>
         <AuthProvider>
-          <NestProvider>
-            <NestSpaceProvider>
-              <ChatProvider>
-                <Routes>
-                  <Route path="/login" element={<LoginScreen />} />
-                  <Route path="/nest-list" element={
-                    <AuthGuard>
+          <Routes>
+            <Route path="/login" element={<LoginScreen />} />
+            <Route path="/nest-list" element={
+              <AuthGuard>
+                <NestProvider>
+                  <NestSpaceProvider>
+                    <ChatProvider>
                       <NestListScreen />
-                    </AuthGuard>
-                  } />
-                  <Route path="/nest-top" element={
-                    <AuthGuard>
+                    </ChatProvider>
+                  </NestSpaceProvider>
+                </NestProvider>
+              </AuthGuard>
+            } />
+            <Route path="/nests/:id" element={
+              <AuthGuard>
+                <NestProvider>
+                  <NestSpaceProvider>
+                    <ChatProvider>
                       <NestTopScreen />
-                    </AuthGuard>
-                  } />
-                  <Route path="/create-nest" element={
-                    <AuthGuard>
+                    </ChatProvider>
+                  </NestSpaceProvider>
+                </NestProvider>
+              </AuthGuard>
+            } />
+            <Route path="/nests/create" element={
+              <AuthGuard>
+                <NestProvider>
+                  <NestSpaceProvider>
+                    <ChatProvider>
                       <CreateTestNestScreenWrapper />
-                    </AuthGuard>
-                  } />
-                  <Route path="/nest-settings" element={
-                    <AuthGuard>
+                    </ChatProvider>
+                  </NestSpaceProvider>
+                </NestProvider>
+              </AuthGuard>
+            } />
+            <Route path="/nest-top" element={
+              <AuthGuard>
+                <NestProvider>
+                  <NestSpaceProvider>
+                    <ChatProvider>
+                      <NestTopScreen />
+                    </ChatProvider>
+                  </NestSpaceProvider>
+                </NestProvider>
+              </AuthGuard>
+            } />
+            <Route path="/create-nest" element={
+              <AuthGuard>
+                <NestProvider>
+                  <NestSpaceProvider>
+                    <ChatProvider>
+                      <CreateTestNestScreenWrapper />
+                    </ChatProvider>
+                  </NestSpaceProvider>
+                </NestProvider>
+              </AuthGuard>
+            } />
+            <Route path="/nest-settings" element={
+              <AuthGuard>
+                <NestProvider>
+                  <NestSpaceProvider>
+                    <ChatProvider>
                       <NestSettingsScreenWrapper />
-                    </AuthGuard>
-                  } />
-                  <Route path="*" element={<Navigate to="/login" />} />
-                </Routes>
-              </ChatProvider>
-            </NestSpaceProvider>
-          </NestProvider>
+                    </ChatProvider>
+                  </NestSpaceProvider>
+                </NestProvider>
+              </AuthGuard>
+            } />
+            <Route path="*" element={<Navigate to="/login" />} />
+          </Routes>
         </AuthProvider>
       </Router>
     </View>

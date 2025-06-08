@@ -1,123 +1,22 @@
 import { createClient } from '@supabase/supabase-js';
-import { Platform } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@constants/config';
-import { ExtendedSupabaseClient } from './types';
 
-// スタック追跡を取得する関数（デバッグ用）
-const getStack = () => {
-  const stack = new Error().stack;
-  return stack ? stack.split('\n').slice(2).join('\n') : '';
-};
-
-/**
- * クロスプラットフォーム対応のストレージクラス
- * WebではlocalStorage、ネイティブではAsyncStorageを使用
- */
-class CrossPlatformStorage {
-  private webStorage: typeof localStorage | null = null;
-  private nativeStorage: typeof AsyncStorage | null = null;
-  private prefix: string;
-
-  constructor(prefix: string = 'supabase') {
-    this.prefix = prefix;
-    
-    if (Platform.OS === 'web') {
-      try {
-        // Webの場合はlocalStorageを使用
-        this.webStorage = typeof localStorage !== 'undefined' ? localStorage : null;
-      } catch (e) {
-        console.warn('localStorage is not available:', e);
-      }
-    } else {
-      // ネイティブの場合はAsyncStorageを使用
-      this.nativeStorage = AsyncStorage;
-    }
-  }
-
-  /**
-   * キーに対応する値を取得
-   */
-  async getItem(key: string): Promise<string | null> {
-    try {
-      const prefixedKey = `${this.prefix}.${key}`;
-      
-      if (Platform.OS === 'web' && this.webStorage) {
-        return this.webStorage.getItem(prefixedKey);
-      } else if (this.nativeStorage) {
-        return await this.nativeStorage.getItem(prefixedKey);
-      }
-      
-      return null;
-    } catch (error) {
-      console.error(`Error getting item [${key}]:`, error);
-      return null;
-    }
-  }
-
-  /**
-   * キーに対応する値を設定
-   */
-  async setItem(key: string, value: string): Promise<void> {
-    try {
-      const prefixedKey = `${this.prefix}.${key}`;
-      
-      if (Platform.OS === 'web' && this.webStorage) {
-        this.webStorage.setItem(prefixedKey, value);
-      } else if (this.nativeStorage) {
-        await this.nativeStorage.setItem(prefixedKey, value);
-      }
-    } catch (error) {
-      console.error(`Error setting item [${key}]:`, error);
-    }
-  }
-
-  /**
-   * キーに対応する値を削除
-   */
-  async removeItem(key: string): Promise<void> {
-    try {
-      const prefixedKey = `${this.prefix}.${key}`;
-      
-      if (Platform.OS === 'web' && this.webStorage) {
-        this.webStorage.removeItem(prefixedKey);
-      } else if (this.nativeStorage) {
-        await this.nativeStorage.removeItem(prefixedKey);
-      }
-    } catch (error) {
-      console.error(`Error removing item [${key}]:`, error);
-    }
-  }
-}
-
-// ストレージインスタンスの作成
-const storage = new CrossPlatformStorage('poconest');
-
-// オフライン検出のためのネットワークリスナー
-let isOffline = false;
-
-if (typeof window !== 'undefined') {
-  window.addEventListener('online', () => {
-    isOffline = false;
-    console.log('🌐 オンラインに戻りました');
-  });
-  
-  window.addEventListener('offline', () => {
-    isOffline = true;
-    console.log('🔌 オフラインになりました');
-  });
-}
-
-// Supabaseクライアントの設定オプション
+// Supabaseクライアントの設定オプション（Web用に最適化）
 const supabaseOptions = {
   auth: {
-    storage,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true,
+    flowType: 'pkce' as const,
+    storage: localStorage,
+    storageKey: 'supabase.auth.token',
+    debug: import.meta.env.DEV ? true : false,
   },
-  // デバッグモードを設定（開発環境のみ）
-  debug: process.env.NODE_ENV === 'development',
+  global: {
+    headers: {
+      'X-Client-Info': 'poconest-web',
+    },
+  },
 };
 
 // Supabaseクライアントの初期化
@@ -130,34 +29,17 @@ export const createSupabaseClient = () => {
       );
     }
     
-    const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, supabaseOptions) as ExtendedSupabaseClient;
+    const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, supabaseOptions);
     
-    // オフライン状態の追跡
-    client._isOffline = isOffline;
-    client._pendingOperations = [];
-    
-    // 認証状態の変更を監視
-    client.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event, session?.user?.email);
-      
-      // 認証エラーが発生した場合のハンドリング
-      if (event === 'TOKEN_REFRESHED' && !session) {
-        console.warn('トークンリフレッシュに失敗しました。ログアウトします。');
-        await client.auth.signOut();
-      }
-    });
-    
-    // 初期化時に無効なセッションをクリア
-    client.auth.getSession().then(({ data: { session }, error }) => {
-      if (error && error.message.includes('Invalid Refresh Token')) {
-        console.warn('無効なリフレッシュトークンを検出。セッションをクリアします。');
-        client.auth.signOut();
-      }
+    console.log('✅ Supabase client initialized successfully', {
+      url: SUPABASE_URL,
+      hasAnonKey: !!SUPABASE_ANON_KEY,
+      options: supabaseOptions,
     });
     
     return client;
   } catch (error) {
-    console.error('Supabaseクライアントの初期化に失敗しました:', error);
+    console.error('❌ Supabaseクライアントの初期化に失敗しました:', error);
     throw error;
   }
 };
