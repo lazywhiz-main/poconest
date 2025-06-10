@@ -44,6 +44,8 @@ export interface Nest {
   icon?: string;
   space_ids: string[];
   emoji?: string;  // 絵文字アイコン
+  status: 'active' | 'building' | 'inactive';  // NESTの状態
+  tags?: string[];  // NESTのタグ
 }
 
 /**

@@ -40,19 +40,6 @@ export const Layout: React.FC<LayoutProps> = ({
                 >
                     {workspaceTitle}
                 </div>
-                <div className="workspace-controls" style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
-                    <div className="workspace-btn" onClick={onSettingsClick}>
-                        <Icon name="settings" size={18} />
-                    </div>
-                    <div className="workspace-btn" onClick={() => setDarkMode(dm => !dm)}>
-                        <Icon name={darkMode ? 'sun' : 'moon'} size={18} />
-                    </div>
-                    {/*
-                    <div className="workspace-btn">◉</div>
-                    <div className="workspace-btn">▲</div>
-                    <div className="workspace-btn">■</div>
-                    */}
-                </div>
             </header>
             {/* サイドメニュー＋メインエリア */}
             <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>

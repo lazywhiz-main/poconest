@@ -16,6 +16,8 @@ console.log('[InviteForm] invitationService:', invitationService);
 import { COLORS, BRAND_COLORS } from '@constants/Colors';
 import Styles, { SPACING, FONT_SIZE, BORDER_RADIUS, SHADOW, COMPONENT_STYLES } from '@constants/Styles';
 import responsive from '@utils/responsive';
+import { useAuth } from '../../../contexts/AuthContext';
+import { Navigate } from 'react-router-dom';
 
 interface InviteFormProps {
   onInviteSent?: () => void;
@@ -28,8 +30,21 @@ const InviteForm: React.FC<InviteFormProps> = ({ onInviteSent }) => {
   const [success, setSuccess] = useState<string | null>(null);
   
   const { currentNest } = useNest();
+  const { user } = useAuth();
   const { width } = useWindowDimensions();
   const isMobile = responsive.mediaQuery.isMobile(width);
+  
+  if (!user) {
+    return <Navigate to="/login" />;
+  }
+
+  if (!currentNest) {
+    return (
+      <View style={styles.container}>
+        <Text>NESTが選択されていません。Nest一覧から選択してください。</Text>
+      </View>
+    );
+  }
   
   // メール招待送信処理
   const handleSendInvitation = async () => {

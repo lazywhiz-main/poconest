@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import NetworkVisualization from '../../nest-space/analysis-space/components/NetworkVisualization';
 import { AnalysisService, type NetworkAnalysisData } from '../../../services/AnalysisService';
 import { useBoardContext } from '../../board-space/contexts/BoardContext';
+import CommonButton from '../../../components/CommonButton';
 
 interface AnalysisSpaceProps {
   onReturnToSearch?: () => void;
@@ -206,15 +207,17 @@ const AnalysisSpace: React.FC<AnalysisSpaceProps> = ({ onReturnToSearch }) => {
     return (
       <div style={styles.container}>
         <div style={styles.centerContent}>
-          <div style={styles.emptyIcon}>📊</div>
           <div style={styles.emptyTitle}>カードがありません</div>
           <div style={styles.emptyDescription}>
-            ネットワーク分析を行うには、まずボードにカードを追加してください。
-            カード間の関係性を分析して、視覚的なネットワークを生成します。
+            先に分析のためのカードを作ってください。<br /><br />
+            <b>カードの作り方</b><br />
+            ・直接作成<br />
+            ・チャットの内容から抽出<br />
+            ・ミーティング内容から抽出
           </div>
-          <button style={styles.primaryButton} onClick={handleNavigateToBoard}>
+          <CommonButton variant="primary" onPress={handleNavigateToBoard}>
             ボードでカードを作成
-          </button>
+          </CommonButton>
         </div>
       </div>
     );
@@ -372,18 +375,22 @@ const styles = {
     marginBottom: '16px',
   },
   emptyTitle: {
-    fontSize: '24px',
-    fontWeight: '600',
-    color: '#2D3748',
-    marginBottom: '8px',
+    fontSize: '20px',
+    fontWeight: 700,
+    color: '#e2e8f0',
+    marginBottom: '10px',
     textAlign: 'center' as const,
+    letterSpacing: '0.5px',
+    fontFamily: 'Space Grotesk, system-ui, sans-serif',
   },
   emptyDescription: {
-    fontSize: '16px',
-    color: '#718096',
+    fontSize: '14px',
+    color: '#e2e8f0',
     textAlign: 'center' as const,
-    lineHeight: '24px',
+    lineHeight: '22px',
     marginBottom: '24px',
+    fontWeight: 400,
+    fontFamily: 'Space Grotesk, system-ui, sans-serif',
   },
   errorIcon: {
     fontSize: '48px',

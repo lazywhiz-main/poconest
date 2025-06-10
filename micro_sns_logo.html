@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Micro SNS Logo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        /* CSS Variables - モダンテックデザインシステム */
+        :root {
+            /* Colors */
+            --primary-green: #00ff88;
+            --primary-green-dark: #00cc6a;
+            --primary-blue: #64b5f6;
+            --primary-orange: #ffa500;
+            --primary-red: #ff6b6b;
+            --primary-purple: #9c27b0;
+            --primary-cyan: #26c6da;
+            --primary-yellow: #ffd93d;
+            
+            /* Background */
+            --bg-primary: #0f0f23;
+            --bg-secondary: #1a1a2e;
+            --bg-tertiary: #333366;
+            --bg-quaternary: #45475a;
+            
+            /* Text */
+            --text-primary: #e2e8f0;
+            --text-secondary: #a6adc8;
+            --text-muted: #6c7086;
+            --text-inverse: #0f0f23;
+            
+            /* Border */
+            --border-primary: #333366;
+            --border-secondary: #45475a;
+            
+            /* Typography */
+            --font-family-text: 'Space Grotesk', sans-serif;
+            --font-family-mono: 'JetBrains Mono', monospace;
+            
+            /* Transitions */
+            --transition-fast: 0.15s ease;
+            --transition-normal: 0.2s ease;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: var(--font-family-text);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .logo-showcase {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 40px;
+            padding: 40px;
+            max-width: 1400px;
+            width: 100%;
+        }
+
+        .logo-variant {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            transition: all var(--transition-normal);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .logo-variant::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, 
+                rgba(0, 255, 136, 0.05) 0%, 
+                rgba(100, 181, 246, 0.05) 50%, 
+                rgba(156, 39, 176, 0.05) 100%);
+            opacity: 0;
+            transition: opacity var(--transition-normal);
+            pointer-events: none;
+        }
+
+        .logo-variant:hover::before {
+            opacity: 1;
+        }
+
+        .logo-variant:hover {
+            transform: translateY(-5px);
+            border-color: var(--primary-green);
+            box-shadow: 0 10px 30px rgba(0, 255, 136, 0.2);
+        }
+
+        .logo-title {
+            font-family: var(--font-family-mono);
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-bottom: 30px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Main Logo */
+        .main-logo {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 30px;
+        }
+
+        .logo-circle {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary-green) 0%, var(--primary-blue) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 255, 136, 0.3);
+            animation: pulse-glow 3s ease-in-out infinite;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 8px 32px rgba(0, 255, 136, 0.3); }
+            50% { box-shadow: 0 12px 40px rgba(0, 255, 136, 0.5); }
+        }
+
+        .logo-circle::before {
+            content: '';
+            position: absolute;
+            width: 90%;
+            height: 90%;
+            border-radius: 50%;
+            background: var(--bg-primary);
+            z-index: 1;
+        }
+
+        .logo-icon {
+            position: relative;
+            z-index: 2;
+            color: var(--primary-green);
+            font-size: 48px;
+            font-weight: 700;
+            animation: float 4s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-3px); }
+        }
+
+        /* Network Nodes inside logo */
+        .logo-network {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            height: 80%;
+            z-index: 2;
+        }
+
+        .network-node {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: var(--primary-green);
+            border-radius: 50%;
+            opacity: 0.7;
+            animation: network-pulse 2s ease-in-out infinite;
+        }
+
+        .network-node:nth-child(1) { top: 20%; left: 30%; animation-delay: 0s; }
+        .network-node:nth-child(2) { top: 30%; right: 25%; animation-delay: 0.3s; }
+        .network-node:nth-child(3) { bottom: 35%; left: 20%; animation-delay: 0.6s; }
+        .network-node:nth-child(4) { bottom: 25%; right: 30%; animation-delay: 0.9s; }
+        .network-node:nth-child(5) { top: 50%; left: 10%; animation-delay: 1.2s; }
+
+        .network-connection {
+            position: absolute;
+            height: 1px;
+            background: linear-gradient(90deg, var(--primary-green), transparent);
+            opacity: 0.4;
+            animation: connection-flow 3s ease-in-out infinite;
+        }
+
+        .connection-1 { top: 25%; left: 35%; width: 25%; transform: rotate(15deg); animation-delay: 0s; }
+        .connection-2 { top: 45%; left: 25%; width: 30%; transform: rotate(-25deg); animation-delay: 0.5s; }
+        .connection-3 { bottom: 30%; left: 30%; width: 20%; transform: rotate(45deg); animation-delay: 1s; }
+
+        @keyframes network-pulse {
+            0%, 100% { opacity: 0.7; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.3); }
+        }
+
+        @keyframes connection-flow {
+            0% { opacity: 0.4; }
+            50% { opacity: 0.8; }
+            100% { opacity: 0.4; }
+        }
+
+        /* Logo Text */
+        .logo-text {
+            font-family: var(--font-family-text);
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary-green), var(--primary-blue));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }
+
+        .logo-tagline {
+            font-family: var(--font-family-mono);
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Icon Only Variant */
+        .icon-only {
+            width: 80px;
+            height: 80px;
+        }
+
+        /* Horizontal Variant */
+        .horizontal-logo {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            justify-content: center;
+        }
+
+        .horizontal-logo .main-logo {
+            width: 60px;
+            height: 60px;
+            margin: 0;
+        }
+
+        /* Monogram Variant */
+        .monogram {
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(135deg, var(--primary-green), var(--primary-cyan));
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            box-shadow: 0 8px 32px rgba(0, 255, 136, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .monogram::before {
+            content: '';
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, 
+                transparent, 
+                rgba(255, 255, 255, 0.1), 
+                transparent);
+            top: -50%;
+            left: -50%;
+            animation: shine 3s ease-in-out infinite;
+        }
+
+        @keyframes shine {
+            0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+            50% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+            100% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+        }
+
+        .monogram-text {
+            font-family: var(--font-family-text);
+            font-size: 42px;
+            font-weight: 900;
+            color: var(--text-inverse);
+            position: relative;
+            z-index: 1;
+        }
+
+        /* App Icon Variant */
+        .app-icon {
+            width: 120px;
+            height: 120px;
+            background: linear-gradient(135deg, var(--primary-purple), var(--primary-pink));
+            border-radius: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            box-shadow: 0 12px 40px rgba(156, 39, 176, 0.4);
+            position: relative;
+        }
+
+        .app-icon-content {
+            color: white;
+            font-size: 56px;
+            font-weight: 700;
+        }
+
+        /* Minimal Variant */
+        .minimal-logo {
+            font-family: var(--font-family-mono);
+            font-size: 32px;
+            font-weight: 600;
+            color: var(--primary-green);
+            margin: 40px 0;
+            position: relative;
+        }
+
+        .minimal-logo::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, var(--primary-green), transparent);
+            animation: underline-flow 2s ease-in-out infinite;
+        }
+
+        @keyframes underline-flow {
+            0%, 100% { width: 100%; }
+            50% { width: 60%; }
+        }
+
+        /* Download Buttons */
+        .download-section {
+            margin-top: 30px;
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .download-btn {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-primary);
+            color: var(--text-secondary);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-family: var(--font-family-mono);
+            font-size: 11px;
+            cursor: pointer;
+            transition: all var(--transition-normal);
+        }
+
+        .download-btn:hover {
+            background: var(--primary-green);
+            color: var(--text-inverse);
+            border-color: var(--primary-green);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .logo-showcase {
+                grid-template-columns: 1fr;
+                gap: 30px;
+                padding: 20px;
+            }
+
+            .logo-variant {
+                padding: 30px 20px;
+            }
+
+            .main-logo {
+                width: 100px;
+                height: 100px;
+            }
+
+            .logo-text {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="logo-showcase">
+        <!-- Main Logo -->
+        <div class="logo-variant">
+            <div class="logo-title">Primary Logo</div>
+            <div class="main-logo">
+                <div class="logo-circle">
+                    <div class="logo-network">
+                        <div class="network-node"></div>
+                        <div class="network-node"></div>
+                        <div class="network-node"></div>
+                        <div class="network-node"></div>
+                        <div class="network-node"></div>
+                        <div class="network-connection connection-1"></div>
+                        <div class="network-connection connection-2"></div>
+                        <div class="network-connection connection-3"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="logo-text">poconest</div>
+            <div class="logo-tagline">Connect • Share • Nest</div>
+            <div class="download-section">
+                <button class="download-btn" onclick="downloadSVG('primary')">SVG</button>
+                <button class="download-btn" onclick="downloadPNG('primary')">PNG</button>
+            </div>
+        </div>
+
+        <!-- Icon Only -->
+        <div class="logo-variant">
+            <div class="logo-title">Icon Only</div>
+            <div class="main-logo icon-only">
+                <div class="logo-circle">
+                    <div class="logo-network">
+                        <div class="network-node"></div>
+                        <div class="network-node"></div>
+                        <div class="network-node"></div>
+                        <div class="network-node"></div>
+                        <div class="network-node"></div>
+                        <div class="network-connection connection-1"></div>
+                        <div class="network-connection connection-2"></div>
+                        <div class="network-connection connection-3"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="download-section">
+                <button class="download-btn" onclick="downloadSVG('icon')">SVG</button>
+                <button class="download-btn" onclick="downloadPNG('icon')">PNG</button>
+            </div>
+        </div>
+
+        <!-- Horizontal Layout -->
+        <div class="logo-variant">
+            <div class="logo-title">Horizontal</div>
+            <div class="horizontal-logo">
+                <div class="main-logo">
+                    <div class="logo-circle">
+                        <div class="logo-network">
+                            <div class="network-node"></div>
+                            <div class="network-node"></div>
+                            <div class="network-node"></div>
+                            <div class="network-node"></div>
+                            <div class="network-node"></div>
+                            <div class="network-connection connection-1"></div>
+                            <div class="network-connection connection-2"></div>
+                            <div class="network-connection connection-3"></div>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <div class="logo-text" style="font-size: 24px; margin-bottom: 5px;">poconest</div>
+                    <div class="logo-tagline">Connect • Share • Nest</div>
+                </div>
+            </div>
+            <div class="download-section">
+                <button class="download-btn" onclick="downloadSVG('horizontal')">SVG</button>
+                <button class="download-btn" onclick="downloadPNG('horizontal')">PNG</button>
+            </div>
+        </div>
+
+        <!-- Monogram -->
+        <div class="logo-variant">
+            <div class="logo-title">Monogram</div>
+            <div class="monogram">
+                <div class="monogram-text">p</div>
+            </div>
+            <div class="download-section">
+                <button class="download-btn" onclick="downloadSVG('monogram')">SVG</button>
+                <button class="download-btn" onclick="downloadPNG('monogram')">PNG</button>
+            </div>
+        </div>
+
+        <!-- App Icon -->
+        <div class="logo-variant">
+            <div class="logo-title">App Icon</div>
+            <div class="app-icon">
+                <div class="app-icon-content">🪺</div>
+            </div>
+            <div class="download-section">
+                <button class="download-btn" onclick="downloadSVG('app')">SVG</button>
+                <button class="download-btn" onclick="downloadPNG('app')">PNG</button>
+            </div>
+        </div>
+
+        <!-- Minimal -->
+        <div class="logo-variant">
+            <div class="logo-title">Minimal</div>
+            <div class="minimal-logo">poco</div>
+            <div class="download-section">
+                <button class="download-btn" onclick="downloadSVG('minimal')">SVG</button>
+                <button class="download-btn" onclick="downloadPNG('minimal')">PNG</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Logo download functionality
+        function downloadSVG(variant) {
+            let svgContent = '';
+            
+            switch(variant) {
+                case 'primary':
+                    svgContent = generatePrimarySVG();
+                    break;
+                case 'icon':
+                    svgContent = generateIconSVG();
+                    break;
+                case 'horizontal':
+                    svgContent = generateHorizontalSVG();
+                    break;
+                case 'monogram':
+                    svgContent = generateMonogramSVG();
+                    break;
+                case 'app':
+                    svgContent = generateAppIconSVG();
+                    break;
+                case 'minimal':
+                    svgContent = generateMinimalSVG();
+                    break;
+            }
+            
+            const blob = new Blob([svgContent], { type: 'image/svg+xml' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `microsns-logo-${variant}.svg`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function downloadPNG(variant) {
+            // Create canvas element for PNG conversion
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 400;
+            canvas.height = 400;
+            
+            // For demonstration, we'll show an alert
+            // In a real implementation, you'd use a library like html2canvas
+            alert(`PNG download for ${variant} would be implemented with html2canvas or similar library`);
+        }
+
+        function generatePrimarySVG() {
+            return `<?xml version="1.0" encoding="UTF-8"?>
+<svg width="300" height="400" viewBox="0 0 300 400" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="primary-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00ff88;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#64b5f6;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="text-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00ff88;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#64b5f6;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Main Circle -->
+  <circle cx="150" cy="120" r="60" fill="url(#primary-gradient)" opacity="1"/>
+  <circle cx="150" cy="120" r="54" fill="#0f0f23"/>
+  
+  <!-- Network Nodes -->
+  <circle cx="135" cy="100" r="4" fill="#00ff88" opacity="0.8"/>
+  <circle cx="170" cy="105" r="4" fill="#00ff88" opacity="0.8"/>
+  <circle cx="130" cy="140" r="4" fill="#00ff88" opacity="0.8"/>
+  <circle cx="165" cy="135" r="4" fill="#00ff88" opacity="0.8"/>
+  <circle cx="120" cy="120" r="4" fill="#00ff88" opacity="0.8"/>
+  
+  <!-- Network Connections -->
+  <line x1="135" y1="100" x2="170" y2="105" stroke="#00ff88" stroke-width="1" opacity="0.6"/>
+  <line x1="130" y1="140" x2="135" y2="100" stroke="#00ff88" stroke-width="1" opacity="0.6"/>
+  <line x1="165" y1="135" x2="170" y2="105" stroke="#00ff88" stroke-width="1" opacity="0.6"/>
+  
+  <!-- Logo Text -->
+  <text x="150" y="240" text-anchor="middle" font-family="Space Grotesk" font-size="32" font-weight="700" fill="url(#text-gradient)">poconest</text>
+  <text x="150" y="270" text-anchor="middle" font-family="JetBrains Mono" font-size="12" fill="#6c7086">CONNECT • SHARE • NEST</text>
+</svg>`;
+        }
+
+        function generateIconSVG() {
+            return `<?xml version="1.0" encoding="UTF-8"?>
+<svg width="120" height="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="icon-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00ff88;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#64b5f6;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <circle cx="60" cy="60" r="60" fill="url(#icon-gradient)"/>
+  <circle cx="60" cy="60" r="54" fill="#0f0f23"/>
+  
+  <!-- Network Nodes -->
+  <circle cx="45" cy="40" r="4" fill="#00ff88" opacity="0.8"/>
+  <circle cx="80" cy="45" r="4" fill="#00ff88" opacity="0.8"/>
+  <circle cx="40" cy="80" r="4" fill="#00ff88" opacity="0.8"/>
+  <circle cx="75" cy="75" r="4" fill="#00ff88" opacity="0.8"/>
+  <circle cx="30" cy="60" r="4" fill="#00ff88" opacity="0.8"/>
+  
+  <!-- Network Connections -->
+  <line x1="45" y1="40" x2="80" y2="45" stroke="#00ff88" stroke-width="1" opacity="0.6"/>
+  <line x1="40" y1="80" x2="45" y2="40" stroke="#00ff88" stroke-width="1" opacity="0.6"/>
+  <line x1="75" y1="75" x2="80" y2="45" stroke="#00ff88" stroke-width="1" opacity="0.6"/>
+</svg>`;
+        }
+
+        function generateHorizontalSVG() {
+            return `<?xml version="1.0" encoding="UTF-8"?>
+<svg width="400" height="120" viewBox="0 0 400 120" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="horizontal-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00ff88;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#64b5f6;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="horizontal-text-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00ff88;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#64b5f6;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Icon -->
+  <circle cx="60" cy="60" r="50" fill="url(#horizontal-gradient)"/>
+  <circle cx="60" cy="60" r="45" fill="#0f0f23"/>
+  
+  <!-- Network Nodes -->
+  <circle cx="48" cy="45" r="3" fill="#00ff88" opacity="0.8"/>
+  <circle cx="75" cy="48" r="3" fill="#00ff88" opacity="0.8"/>
+  <circle cx="45" cy="75" r="3" fill="#00ff88" opacity="0.8"/>
+  <circle cx="72" cy="72" r="3" fill="#00ff88" opacity="0.8"/>
+  <circle cx="35" cy="60" r="3" fill="#00ff88" opacity="0.8"/>
+  
+  <!-- Network Connections -->
+  <line x1="48" y1="45" x2="75" y2="48" stroke="#00ff88" stroke-width="1" opacity="0.6"/>
+  <line x1="45" y1="75" x2="48" y2="45" stroke="#00ff88" stroke-width="1" opacity="0.6"/>
+  <line x1="72" y1="72" x2="75" y2="48" stroke="#00ff88" stroke-width="1" opacity="0.6"/>
+  
+  <!-- Text -->
+  <text x="150" y="55" font-family="Space Grotesk" font-size="28" font-weight="700" fill="url(#horizontal-text-gradient)">MicroSNS</text>
+  <text x="150" y="78" font-family="JetBrains Mono" font-size="11" fill="#6c7086">CONNECT • SHARE • DISCOVER</text>
+</svg>`;
+        }
+
+        function generateMonogramSVG() {
+            return `<?xml version="1.0" encoding="UTF-8"?>
+<svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="monogram-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00ff88;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#26c6da;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <rect x="0" y="0" width="100" height="100" rx="24" fill="url(#monogram-gradient)"/>
+  <text x="50" y="65" text-anchor="middle" font-family="Space Grotesk" font-size="48" font-weight="900" fill="#0f0f23">m</text>
+</svg>`;
+        }
+
+        function generateAppIconSVG() {
+            return `<?xml version="1.0" encoding="UTF-8"?>
+<svg width="120" height="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="app-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#9c27b0;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#ff6b6b;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <rect x="0" y="0" width="120" height="120" rx="28" fill="url(#app-gradient)"/>
+  <text x="60" y="80" text-anchor="middle" font-family="Space Grotesk" font-size="64" font-weight="700" fill="white">µ</text>
+</svg>`;
+        }
+
+        function generateMinimalSVG() {
+            return `<?xml version="1.0" encoding="UTF-8"?>
+<svg width="150" height="60" viewBox="0 0 150 60" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="minimal-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#00ff88;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#00ff88;stop-opacity:0" />
+    </linearGradient>
+  </defs>
+  
+  <text x="0" y="35" font-family="JetBrains Mono" font-size="32" font-weight="600" fill="#00ff88">µSNS</text>
+  <rect x="0" y="45" width="150" height="2" fill="url(#minimal-gradient)"/>
+</svg>`;
+        }
+
+        // Add animation control
+        function toggleAnimations() {
+            const body = document.body;
+            body.classList.toggle('no-animations');
+        }
+
+        // Color theme variants
+        function changeTheme(theme) {
+            const root = document.documentElement;
+            
+            switch(theme) {
+                case 'blue':
+                    root.style.setProperty('--primary-green', '#64b5f6');
+                    root.style.setProperty('--primary-blue', '#26c6da');
+                    break;
+                case 'purple':
+                    root.style.setProperty('--primary-green', '#9c27b0');
+                    root.style.setProperty('--primary-blue', '#ff6b6b');
+                    break;
+                case 'orange':
+                    root.style.setProperty('--primary-green', '#ffa500');
+                    root.style.setProperty('--primary-blue', '#ffd93d');
+                    break;
+                default:
+                    root.style.setProperty('--primary-green', '#00ff88');
+                    root.style.setProperty('--primary-blue', '#64b5f6');
+            }
+        }
+
+        // Export all logos as ZIP
+        function exportAll() {
+            const variants = ['primary', 'icon', 'horizontal', 'monogram', 'app', 'minimal'];
+            
+            // In a real implementation, you'd use JSZip library
+            alert('Export all would create a ZIP file with all logo variants in SVG and PNG formats');
+        }
+
+        // Add keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'e' || e.key === 'E') {
+                exportAll();
+            }
+            if (e.key === 'a' || e.key === 'A') {
+                toggleAnimations();
+            }
+            if (e.key >= '1' && e.key <= '4') {
+                const themes = ['default', 'blue', 'purple', 'orange'];
+                changeTheme(themes[parseInt(e.key) - 1]);
+            }
+        });
+
+        // Add interaction hints
+        console.log('🎨 MicroSNS Logo Showcase');
+        console.log('Keyboard shortcuts:');
+        console.log('E - Export all logos');
+        console.log('A - Toggle animations');
+        console.log('1-4 - Change color themes');
+    </script>
+
+    <!-- Control Panel -->
+    <div style="position: fixed; top: 20px; right: 20px; z-index: 100; display: flex; flex-direction: column; gap: 10px;">
+        <button class="download-btn" onclick="exportAll()" style="padding: 12px 16px; font-size: 12px;">
+            📦 Export All
+        </button>
+        <button class="download-btn" onclick="toggleAnimations()" style="padding: 12px 16px; font-size: 12px;">
+            🎭 Toggle Animations
+        </button>
+        <div style="display: flex; gap: 5px;">
+            <button class="download-btn" onclick="changeTheme('default')" style="padding: 8px; background: linear-gradient(45deg, #00ff88, #64b5f6); border: none;" title="Default Theme"></button>
+            <button class="download-btn" onclick="changeTheme('blue')" style="padding: 8px; background: linear-gradient(45deg, #64b5f6, #26c6da); border: none;" title="Blue Theme"></button>
+            <button class="download-btn" onclick="changeTheme('purple')" style="padding: 8px; background: linear-gradient(45deg, #9c27b0, #ff6b6b); border: none;" title="Purple Theme"></button>
+            <button class="download-btn" onclick="changeTheme('orange')" style="padding: 8px; background: linear-gradient(45deg, #ffa500, #ffd93d); border: none;" title="Orange Theme"></button>
+        </div>
+    </div>
+
+    <!-- Usage Guidelines -->
+    <div style="position: fixed; bottom: 20px; left: 20px; z-index: 100; max-width: 300px;">
+        <div style="background: var(--bg-secondary); border: 1px solid var(--border-primary); border-radius: 12px; padding: 16px; font-family: var(--font-family-mono); font-size: 11px; color: var(--text-muted);">
+            <div style="color: var(--primary-green); font-weight: 600; margin-bottom: 8px;">USAGE GUIDELINES</div>
+            <div style="margin-bottom: 6px;">• Maintain minimum clear space</div>
+            <div style="margin-bottom: 6px;">• Use on contrasting backgrounds</div>
+            <div style="margin-bottom: 6px;">• Preserve aspect ratios</div>
+            <div>• Test readability at small sizes</div>
+        </div>
+    </div>
+</body>
+</html>

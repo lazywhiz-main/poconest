@@ -48,6 +48,11 @@ body, html, #root {
   min-height: 100vh;
 }
 
+/* --- 追加: .bg-secondaryクラス --- */
+.bg-secondary {
+  background: var(--bg-secondary) !important;
+}
+
 /* --- Responsive --- */
 @media (max-width: 768px) {
   .container {
@@ -579,4 +584,33 @@ a:hover {
 /* --- Fix: Remove default white background from React Native for Web View wrappers --- */
 div[class^="css-view"] { 
   background: transparent !important; 
+}
+
+.tag-suggestion {
+  background: var(--bg-secondary);
+  border: 1px solid #333366;
+  color: #a6adc8;
+  padding: 3px 8px;
+  border-radius: 2px;
+  font-size: 10px;
+  margin-right: 4px;
+  margin-bottom: 4px;
+  display: inline-block;
+  font-family: 'JetBrains Mono', monospace;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.tag-suggestion:hover {
+  background: #333366;
+  color: #00ff88;
+  border-color: #00ff88;
+}
+
+.form-card-web {
+  background: #1a1a2e !important;
+  border-radius: 8px;
+  border: 1px solid #333366;
+  padding: 40px;
+  margin-bottom: 30px;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.12);
 } 

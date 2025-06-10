@@ -456,8 +456,25 @@ export function NestProvider({ children }: { children: React.ReactNode }) {
         .insert(spacesToInsert)
         .select();
       if (spacesError) throw spacesError;
+
+      // 5. board空間のspace_idを取得し、boardsに1件INSERT
+      const boardSpace = insertedSpaces?.find((s: any) => s.type === 'board');
+      if (boardSpace) {
+        const { error: boardError } = await supabase
+          .from('boards')
+          .insert({
+            nest_id: newNest.id,
+            owner_id: user.id,
+            name: 'メインボード',
+            description: '自動生成されたボード',
+            is_public: false,
+            created_at: now,
+            updated_at: now,
+          });
+        if (boardError) throw boardError;
+      }
       
-      // 5. データをリフレッシュ
+      // 6. データをリフレッシュ
       await refreshData();
       
       return { error: null, nest: newNest as Nest };
@@ -845,8 +862,40 @@ export function NestProvider({ children }: { children: React.ReactNode }) {
     refreshData,
     selectNest: setCurrentNestById,
     deleteNest: async (nestId: string): Promise<void> => {
-      await leaveNest(nestId);
-      return;
+      setError(null);
+      try {
+        console.log('deleteNest called', nestId, user);
+        // 1. nest_members
+        const { error: membersError } = await supabase.from('nest_members').delete().eq('nest_id', nestId);
+        console.log('delete nest_members');
+        if (membersError) throw membersError;
+        // 2. nest_settings
+        const { error: settingsError } = await supabase.from('nest_settings').delete().eq('nest_id', nestId);
+        console.log('delete nest_settings');
+        if (settingsError) throw settingsError;
+        // 3. spaces
+        const { error: spacesError } = await supabase.from('spaces').delete().eq('nest_id', nestId);
+        console.log('delete spaces');
+        if (spacesError) throw spacesError;
+        // 4. nest_invitations
+        const { error: invitationsError } = await supabase.from('nest_invitations').delete().eq('nest_id', nestId);
+        console.log('delete nest_invitations');
+        if (invitationsError) throw invitationsError;
+        // 5. nests
+        const { error: nestError } = await supabase.from('nests').delete().eq('id', nestId);
+        console.log('delete nests');
+        if (nestError) throw nestError;
+        await refreshData();
+        console.log('refreshData done');
+        if (currentNest?.id === nestId) {
+          setCurrentNestState(null);
+          localStorage.removeItem('currentNestId');
+        }
+      } catch (err: any) {
+        console.error('deleteNest内部エラー:', err);
+        setError(err.message || 'Nestの削除に失敗しました');
+        throw err;
+      }
     },
     refreshNests: refreshData
   };

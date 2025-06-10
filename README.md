@@ -99,12 +99,57 @@ src/
 
 ## 環境変数
 
-`.env`ファイルを作成し、以下の変数を設定してください：
+プロジェクトルートに`.env`ファイルを作成し、以下の変数を設定してください：
 
-```
-VITE_SUPABASE_URL=your_supabase_url
+### 必須の環境変数
+
+```bash
+# Supabase Configuration
+VITE_SUPABASE_URL=your_supabase_project_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+
+# AI Provider API Keys
+VITE_OPENAI_API_KEY=your_openai_api_key
+VITE_GEMINI_API_KEY=your_gemini_api_key
 ```
+
+### Supabase Edge Functions用の環境変数
+
+Supabase Edge Functionsを使用する場合、Supabaseダッシュボードで以下の環境変数を設定してください：
+
+```bash
+OPENAI_API_KEY=your_openai_api_key
+GEMINI_API_KEY=your_gemini_api_key
+```
+
+### オプションの環境変数
+
+```bash
+# デフォルトAIプロバイダー（openai または gemini）
+VITE_DEFAULT_AI_PROVIDER=openai
+
+# AI機能の有効/無効
+VITE_ENABLE_AI_FEATURES=true
+```
+
+### AIプロバイダーの設定
+
+このアプリケーションはOpenAIとGemini AIの両方をサポートしています：
+
+#### OpenAI
+1. [OpenAI Platform](https://platform.openai.com/)でアカウントを作成
+2. API Keyを生成し、`VITE_OPENAI_API_KEY`に設定
+
+#### Gemini AI
+1. [Google AI Studio](https://aistudio.google.com/)でアカウントを作成
+2. API Keyを生成し、`VITE_GEMINI_API_KEY`に設定
+
+### 対応するAIモデル
+
+- **OpenAI**: `text-embedding-3-small`, `gpt-4o`
+- **Gemini**: `gemini-embedding-exp-03-07`, `gemini-2.0-flash`
+
+アプリケーション内でAIプロバイダーの切り替えが可能で、自動フォールバック機能も提供されています。
 
 ## ビルド方法
 

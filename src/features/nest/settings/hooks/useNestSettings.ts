@@ -117,10 +117,12 @@ export const useNestSettings = (nestId?: string) => {
       // データベース形式に変換
       const dbData = formatSettingsForDB(newSettings);
       
-      // データベースを更新
+      // データベースを更新 (nest_idを基準にupsert)
       const { error: updateError } = await supabase
         .from('nest_settings')
-        .upsert(dbData);
+        .upsert(dbData, {
+          onConflict: 'nest_id'
+        });
       
       if (updateError) {
         throw updateError;

@@ -7,6 +7,7 @@ import '../styles/nestlist.css';
 import { ServiceHeader } from '../components/ServiceHeader';
 import CommonButton from '../components/CommonButton';
 import Icon from '../components/ui/Icon';
+import { useNest } from '../features/nest/contexts/NestContext';
 
 interface OwnerInfo {
   id: string;
@@ -24,6 +25,7 @@ export const NestListScreen: React.FC = () => {
   const navigate = useNavigate();
   const [nestStats, setNestStats] = useState<Record<string, { cardCount: number; memberCount: number }>>({});
   const [ownerInfo, setOwnerInfo] = useState<Record<string, OwnerInfo>>({});
+  const { setCurrentNestById } = useNest();
 
   // Failsafe timeout to prevent infinite loading
   useEffect(() => {
@@ -225,7 +227,8 @@ export const NestListScreen: React.FC = () => {
     navigate('/nests/create');
   };
 
-  const handleNestClick = (nestId: string) => {
+  const handleNestClick = async (nestId: string) => {
+    await setCurrentNestById(nestId);
     navigate(`/nests/${nestId}`);
   };
 
@@ -296,7 +299,7 @@ export const NestListScreen: React.FC = () => {
             filteredNests.map((nest) => (
               <article className="workspace-card" key={nest.id} data-status="active" tabIndex={0}>
                 <div className="workspace-header">
-                  <h3 className="workspace-title">{nest.name}</h3>
+                  <h3 className="nest-header-title">{nest.name}</h3>
                 </div>
                 <p className="workspace-description">{nest.description}</p>
                 <div className="nest-stats-box">

@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase } from './supabase/client';
 
 /**
  * NestSpaceService - ネストスペース関連の操作を管理するサービス

@@ -1,0 +1,1555 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEST LIST - ワークスペース管理システム</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: #0f0f23;
+            color: #e2e8f0;
+            line-height: 1.4;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* メインヘッダー */
+        .main-header {
+            background: #0f0f23;
+            border-bottom: 1px solid #333366;
+            padding: 16px 0;
+            margin-bottom: 30px;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #00ff88;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+        }
+
+        .header-subtitle {
+            font-size: 11px;
+            color: #6c7086;
+            font-family: 'JetBrains Mono', monospace;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 4px;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 16px;
+            background: #1a1a2e;
+            border: 1px solid #333366;
+            border-radius: 2px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .user-profile:hover {
+            background: #333366;
+            border-color: #45475a;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            background: #00ff88;
+            border-radius: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 600;
+            color: #0f0f23;
+            text-transform: uppercase;
+        }
+
+        .user-info {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .user-name {
+            font-size: 12px;
+            font-weight: 600;
+            color: #e2e8f0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .user-status {
+            font-size: 9px;
+            color: #6c7086;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .user-dropdown-arrow {
+            font-size: 10px;
+            color: #a6adc8;
+            transition: transform 0.2s ease;
+        }
+
+        .user-profile.active .user-dropdown-arrow {
+            transform: rotate(180deg);
+        }
+
+        .user-dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: #1a1a2e;
+            border: 1px solid #333366;
+            border-radius: 4px;
+            min-width: 200px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-8px);
+            transition: all 0.2s ease;
+            margin-top: 8px;
+        }
+
+        .user-profile.active .user-dropdown {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .user-dropdown-section {
+            padding: 8px 0;
+        }
+
+        .user-dropdown-section:not(:last-child) {
+            border-bottom: 1px solid #333366;
+        }
+
+        .user-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 12px;
+            color: #e2e8f0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 500;
+        }
+
+        .user-dropdown-item:hover {
+            background: #333366;
+        }
+
+        .user-dropdown-item.danger {
+            color: #ff6b6b;
+        }
+
+        .user-dropdown-item.danger:hover {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        .user-dropdown-icon {
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+
+        .user-dropdown-text {
+            flex: 1;
+        }
+
+        .notification-badge {
+            background: #ff6b6b;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 2px;
+            font-size: 8px;
+            font-weight: 600;
+            margin-left: auto;
+        }
+
+        .global-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .global-action-btn {
+            width: 36px;
+            height: 36px;
+            background: #1a1a2e;
+            border: 1px solid #333366;
+            border-radius: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: #a6adc8;
+            font-size: 14px;
+            position: relative;
+        }
+
+        .global-action-btn:hover {
+            background: #333366;
+            border-color: #45475a;
+            color: #e2e8f0;
+        }
+
+        .global-action-btn.active {
+            background: #00ff88;
+            border-color: #00ff88;
+            color: #0f0f23;
+        }
+
+        .notification-count {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            background: #ff6b6b;
+            color: white;
+            width: 16px;
+            height: 16px;
+            border-radius: 2px;
+            font-size: 8px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .create-workspace-btn {
+            background: #00ff88;
+            color: #0f0f23;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 2px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+
+        .create-workspace-btn:hover {
+            background: #00cc6a;
+            transform: translateY(-1px);
+        }
+
+        .view-toggle {
+            display: flex;
+            background: #1a1a2e;
+            border: 1px solid #333366;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .view-toggle-btn {
+            background: none;
+            border: none;
+            color: #a6adc8;
+            padding: 8px 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 12px;
+        }
+
+        .view-toggle-btn.active {
+            background: #333366;
+            color: #00ff88;
+        }
+
+        .view-toggle-btn:hover {
+            background: #333366;
+        }
+
+        /* 検索・フィルターエリア */
+        .controls-area {
+            background: #1a1a2e;
+            border: 1px solid #333366;
+            border-radius: 4px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .controls-row {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .search-container {
+            flex: 1;
+            min-width: 300px;
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            background: #0f0f23;
+            border: 1px solid #333366;
+            border-radius: 2px;
+            padding: 10px 40px 10px 16px;
+            color: #e2e8f0;
+            font-size: 13px;
+            font-family: inherit;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .search-input:focus {
+            border-color: #00ff88;
+        }
+
+        .search-input::placeholder {
+            color: #6c7086;
+            font-style: italic;
+        }
+
+        .search-icon {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6c7086;
+            font-size: 14px;
+        }
+
+        .filter-dropdown {
+            position: relative;
+        }
+
+        .filter-btn {
+            background: #333366;
+            border: 1px solid #45475a;
+            border-radius: 2px;
+            padding: 10px 16px;
+            color: #e2e8f0;
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .filter-btn:hover {
+            background: #45475a;
+        }
+
+        .filter-btn.active {
+            border-color: #00ff88;
+            color: #00ff88;
+        }
+
+        .sort-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .sort-btn {
+            background: #333366;
+            border: 1px solid #45475a;
+            border-radius: 2px;
+            padding: 8px 12px;
+            color: #a6adc8;
+            font-size: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .sort-btn:hover {
+            background: #45475a;
+        }
+
+        .sort-btn.active {
+            background: #00ff88;
+            color: #0f0f23;
+            border-color: #00ff88;
+        }
+
+        /* ワークスペースグリッド/リスト */
+        .workspace-container {
+            display: grid;
+            gap: 20px;
+        }
+
+        /* グリッドビュー */
+        .workspace-container.grid-view {
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        }
+
+        /* リストビュー */
+        .workspace-container.list-view {
+            grid-template-columns: 1fr;
+        }
+
+        .workspace-card {
+            background: #1a1a2e;
+            border: 1px solid #333366;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .workspace-card:hover {
+            border-color: #45475a;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .workspace-card.active {
+            border-color: #00ff88;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.1);
+        }
+
+        .workspace-header {
+            background: #333366;
+            padding: 16px 20px;
+            border-bottom: 1px solid #45475a;
+            position: relative;
+        }
+
+        .workspace-status {
+            position: absolute;
+            top: 12px;
+            right: 16px;
+            width: 8px;
+            height: 8px;
+            border-radius: 2px;
+            background: #6c7086;
+        }
+
+        .workspace-status.online {
+            background: #00ff88;
+            box-shadow: 0 0 8px rgba(0, 255, 136, 0.4);
+        }
+
+        .workspace-status.busy {
+            background: #ffa500;
+        }
+
+        .workspace-status.offline {
+            background: #6c7086;
+        }
+
+        .workspace-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #e2e8f0;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .workspace-description {
+            font-size: 11px;
+            color: #a6adc8;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .workspace-content {
+            padding: 20px;
+        }
+
+        .workspace-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-bottom: 16px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: #00ff88;
+            margin-bottom: 4px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .stat-label {
+            font-size: 9px;
+            color: #6c7086;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .workspace-tags {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .workspace-tag {
+            background: #333366;
+            color: #a6adc8;
+            padding: 3px 8px;
+            border-radius: 2px;
+            font-size: 9px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .workspace-tag.primary {
+            background: #00ff88;
+            color: #0f0f23;
+        }
+
+        .workspace-tag.warning {
+            background: #ffa500;
+            color: #0f0f23;
+        }
+
+        .workspace-tag.danger {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        .workspace-progress {
+            margin-bottom: 16px;
+        }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+
+        .progress-label {
+            font-size: 10px;
+            color: #a6adc8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .progress-value {
+            font-size: 10px;
+            color: #00ff88;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: #333366;
+            border-radius: 1px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #00ff88;
+            border-radius: 1px;
+            transition: width 0.3s ease;
+        }
+
+        .workspace-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .action-btn {
+            background: #333366;
+            border: 1px solid #45475a;
+            border-radius: 2px;
+            padding: 6px 12px;
+            color: #a6adc8;
+            font-size: 10px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .action-btn:hover {
+            background: #45475a;
+            color: #e2e8f0;
+        }
+
+        .action-btn.primary {
+            background: #00ff88;
+            color: #0f0f23;
+            border-color: #00ff88;
+        }
+
+        .action-btn.primary:hover {
+            background: #00cc6a;
+        }
+
+        .workspace-meta {
+            font-size: 9px;
+            color: #6c7086;
+            font-family: 'JetBrains Mono', monospace;
+            text-align: right;
+        }
+
+        /* リストビュー専用スタイル */
+        .list-view .workspace-card {
+            display: flex;
+            align-items: center;
+            padding: 16px 20px;
+        }
+
+        .list-view .workspace-header {
+            background: none;
+            border: none;
+            padding: 0;
+            margin-right: 20px;
+            flex: 0 0 200px;
+        }
+
+        .list-view .workspace-content {
+            padding: 0;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .list-view .workspace-stats {
+            display: flex;
+            gap: 20px;
+            margin: 0;
+            flex: 0 0 auto;
+        }
+
+        .list-view .stat-item {
+            text-align: left;
+        }
+
+        .list-view .workspace-tags {
+            margin: 0;
+            flex: 0 0 auto;
+        }
+
+        .list-view .workspace-actions {
+            flex: 0 0 auto;
+            margin-left: auto;
+        }
+
+        /* 空状態 */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6c7086;
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            color: #333366;
+        }
+
+        .empty-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #a6adc8;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .empty-description {
+            font-size: 12px;
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
+
+        /* フィルターパネル */
+        .filter-panel {
+            position: fixed;
+            top: 0;
+            right: -400px;
+            width: 400px;
+            height: 100vh;
+            background: #1a1a2e;
+            border-left: 1px solid #333366;
+            z-index: 1000;
+            transition: right 0.3s ease;
+            overflow-y: auto;
+        }
+
+        .filter-panel.open {
+            right: 0;
+        }
+
+        .filter-panel-header {
+            background: #333366;
+            padding: 20px;
+            border-bottom: 1px solid #45475a;
+        }
+
+        .filter-panel-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #e2e8f0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .filter-panel-content {
+            padding: 20px;
+        }
+
+        .filter-section {
+            margin-bottom: 24px;
+        }
+
+        .filter-section-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: #a6adc8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+            border-bottom: 1px solid #333366;
+            padding-bottom: 8px;
+        }
+
+        .filter-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 0;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .filter-option:hover {
+            color: #00ff88;
+        }
+
+        .filter-checkbox {
+            width: 14px;
+            height: 14px;
+            border: 1px solid #333366;
+            border-radius: 2px;
+            background: #0f0f23;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 8px;
+            color: #0f0f23;
+            transition: all 0.2s ease;
+        }
+
+        .filter-option.checked .filter-checkbox {
+            background: #00ff88;
+            border-color: #00ff88;
+        }
+
+        .filter-option.checked .filter-checkbox::after {
+            content: '✓';
+        }
+
+        .filter-text {
+            font-size: 12px;
+            flex: 1;
+        }
+
+        .filter-count {
+            font-size: 10px;
+            color: #6c7086;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* オーバーレイ */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 15, 35, 0.8);
+            backdrop-filter: blur(4px);
+            z-index: 999;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* レスポンシブ */
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 16px;
+                align-items: stretch;
+            }
+
+            .header-controls {
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .global-actions {
+                order: 3;
+                justify-content: center;
+            }
+
+            .user-profile {
+                order: 1;
+                align-self: center;
+            }
+
+            .view-toggle {
+                order: 2;
+                align-self: center;
+            }
+
+            .create-workspace-btn {
+                order: 4;
+            }
+
+            .controls-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .search-container {
+                min-width: auto;
+            }
+
+            .workspace-container.grid-view {
+                grid-template-columns: 1fr;
+            }
+
+            .list-view .workspace-content {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+
+            .filter-panel {
+                width: 100%;
+                right: -100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- メインヘッダー -->
+        <div class="main-header">
+            <div class="header-content">
+                <div>
+                    <div class="header-title">NEST LIST</div>
+                    <div class="header-subtitle">Workspace Management System</div>
+                </div>
+                <div class="header-controls">
+                    <div class="global-actions">
+                        <button class="global-action-btn" onclick="toggleNotifications(this)" title="Notifications">
+                            🔔
+                            <div class="notification-count">3</div>
+                        </button>
+                        <button class="global-action-btn" onclick="toggleTheme(this)" title="Toggle Theme">
+                            🌙
+                        </button>
+                        <button class="global-action-btn" onclick="openSearch()" title="Global Search">
+                            🔍
+                        </button>
+                    </div>
+                    
+                    <div class="view-toggle">
+                        <button class="view-toggle-btn active" onclick="switchView('grid')">GRID</button>
+                        <button class="view-toggle-btn" onclick="switchView('list')">LIST</button>
+                    </div>
+                    
+                    <button class="create-workspace-btn" onclick="createWorkspace()">
+                        + NEW WORKSPACE
+                    </button>
+                    
+                    <div class="user-profile" onclick="toggleUserDropdown(this)">
+                        <div class="user-avatar">AK</div>
+                        <div class="user-info">
+                            <div class="user-name">Alice Kim</div>
+                            <div class="user-status">Developer • Online</div>
+                        </div>
+                        <div class="user-dropdown-arrow">▼</div>
+                        
+                        <div class="user-dropdown">
+                            <div class="user-dropdown-section">
+                                <div class="user-dropdown-item" onclick="openProfile()">
+                                    <div class="user-dropdown-icon">👤</div>
+                                    <div class="user-dropdown-text">Profile</div>
+                                </div>
+                                <div class="user-dropdown-item" onclick="openAccount()">
+                                    <div class="user-dropdown-icon">⚙</div>
+                                    <div class="user-dropdown-text">Account Settings</div>
+                                </div>
+                                <div class="user-dropdown-item" onclick="openPreferences()">
+                                    <div class="user-dropdown-icon">🎛</div>
+                                    <div class="user-dropdown-text">Preferences</div>
+                                </div>
+                            </div>
+                            
+                            <div class="user-dropdown-section">
+                                <div class="user-dropdown-item" onclick="openActivity()">
+                                    <div class="user-dropdown-icon">📊</div>
+                                    <div class="user-dropdown-text">Activity</div>
+                                </div>
+                                <div class="user-dropdown-item" onclick="openNotifications()">
+                                    <div class="user-dropdown-icon">🔔</div>
+                                    <div class="user-dropdown-text">Notifications</div>
+                                    <div class="notification-badge">3</div>
+                                </div>
+                                <div class="user-dropdown-item" onclick="openBilling()">
+                                    <div class="user-dropdown-icon">💳</div>
+                                    <div class="user-dropdown-text">Billing</div>
+                                </div>
+                            </div>
+                            
+                            <div class="user-dropdown-section">
+                                <div class="user-dropdown-item" onclick="openHelp()">
+                                    <div class="user-dropdown-icon">❓</div>
+                                    <div class="user-dropdown-text">Help & Support</div>
+                                </div>
+                                <div class="user-dropdown-item" onclick="openKeyboardShortcuts()">
+                                    <div class="user-dropdown-icon">⌨</div>
+                                    <div class="user-dropdown-text">Keyboard Shortcuts</div>
+                                </div>
+                            </div>
+                            
+                            <div class="user-dropdown-section">
+                                <div class="user-dropdown-item danger" onclick="logout()">
+                                    <div class="user-dropdown-icon">🚪</div>
+                                    <div class="user-dropdown-text">Sign Out</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 検索・フィルターエリア -->
+        <div class="controls-area">
+            <div class="controls-row">
+                <div class="search-container">
+                    <input type="text" class="search-input" placeholder="search workspaces..." id="searchInput">
+                    <div class="search-icon">🔍</div>
+                </div>
+                
+                <div class="filter-dropdown">
+                    <button class="filter-btn" onclick="toggleFilterPanel()">
+                        FILTERS ⚙
+                    </button>
+                </div>
+                
+                <div class="sort-controls">
+                    <button class="sort-btn active" onclick="sortBy('name')">NAME</button>
+                    <button class="sort-btn" onclick="sortBy('activity')">ACTIVITY</button>
+                    <button class="sort-btn" onclick="sortBy('created')">CREATED</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ワークスペースコンテナ -->
+        <div class="workspace-container grid-view" id="workspaceContainer">
+            <!-- ワークスペースカード例 -->
+            <div class="workspace-card active">
+                <div class="workspace-header">
+                    <div class="workspace-status online"></div>
+                    <div class="workspace-title">AI_RESEARCH_LAB</div>
+                    <div class="workspace-description">dev.workspace.001</div>
+                </div>
+                <div class="workspace-content">
+                    <div class="workspace-stats">
+                        <div class="stat-item">
+                            <div class="stat-value">47</div>
+                            <div class="stat-label">Cards</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">12</div>
+                            <div class="stat-label">Members</div>
+                        </div>
+                    </div>
+                    
+                    <div class="workspace-tags">
+                        <div class="workspace-tag primary">ACTIVE</div>
+                        <div class="workspace-tag">AI/ML</div>
+                        <div class="workspace-tag">RESEARCH</div>
+                    </div>
+                    
+                    <div class="workspace-actions">
+                        <div>
+                            <button class="action-btn primary">ENTER</button>
+                            <button class="action-btn">SETTINGS</button>
+                        </div>
+                        <div class="workspace-meta">
+                            Last: 2024-01-15 14:23
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="workspace-card">
+                <div class="workspace-header">
+                    <div class="workspace-status busy"></div>
+                    <div class="workspace-title">FRONTEND_STUDIO</div>
+                    <div class="workspace-description">ui.workspace.002</div>
+                </div>
+                <div class="workspace-content">
+                    <div class="workspace-stats">
+                        <div class="stat-item">
+                            <div class="stat-value">23</div>
+                            <div class="stat-label">Cards</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">8</div>
+                            <div class="stat-label">Members</div>
+                        </div>
+                    </div>
+                    
+                    <div class="workspace-tags">
+                        <div class="workspace-tag warning">BUILDING</div>
+                        <div class="workspace-tag">REACT</div>
+                        <div class="workspace-tag">DESIGN</div>
+                    </div>
+                    
+                    <div class="workspace-actions">
+                        <div>
+                            <button class="action-btn primary">ENTER</button>
+                            <button class="action-btn">SETTINGS</button>
+                        </div>
+                        <div class="workspace-meta">
+                            Last: 2024-01-15 11:45
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="workspace-card">
+                <div class="workspace-header">
+                    <div class="workspace-status offline"></div>
+                    <div class="workspace-title">DATA_PIPELINE</div>
+                    <div class="workspace-description">analytics.workspace.003</div>
+                </div>
+                <div class="workspace-content">
+                    <div class="workspace-stats">
+                        <div class="stat-item">
+                            <div class="stat-value">15</div>
+                            <div class="stat-label">Cards</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">5</div>
+                            <div class="stat-label">Members</div>
+                        </div>
+                    </div>
+                    
+                    <div class="workspace-tags">
+                        <div class="workspace-tag">PYTHON</div>
+                        <div class="workspace-tag">ANALYTICS</div>
+                        <div class="workspace-tag">ETL</div>
+                    </div>
+                    
+                    <div class="workspace-actions">
+                        <div>
+                            <button class="action-btn primary">ENTER</button>
+                            <button class="action-btn">SETTINGS</button>
+                        </div>
+                        <div class="workspace-meta">
+                            Last: 2024-01-14 16:22
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="workspace-card">
+                <div class="workspace-header">
+                    <div class="workspace-status online"></div>
+                    <div class="workspace-title">MOBILE_DEV</div>
+                    <div class="workspace-description">mobile.workspace.004</div>
+                </div>
+                <div class="workspace-content">
+                    <div class="workspace-stats">
+                        <div class="stat-item">
+                            <div class="stat-value">31</div>
+                            <div class="stat-label">Cards</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">9</div>
+                            <div class="stat-label">Members</div>
+                        </div>
+                    </div>
+                    
+                    <div class="workspace-tags">
+                        <div class="workspace-tag primary">ACTIVE</div>
+                        <div class="workspace-tag">FLUTTER</div>
+                        <div class="workspace-tag">iOS</div>
+                        <div class="workspace-tag">ANDROID</div>
+                    </div>
+                    
+                    <div class="workspace-actions">
+                        <div>
+                            <button class="action-btn primary">ENTER</button>
+                            <button class="action-btn">SETTINGS</button>
+                        </div>
+                        <div class="workspace-meta">
+                            Last: 2024-01-15 13:17
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="workspace-card">
+                <div class="workspace-header">
+                    <div class="workspace-status busy"></div>
+                    <div class="workspace-title">SECURITY_AUDIT</div>
+                    <div class="workspace-description">security.workspace.005</div>
+                </div>
+                <div class="workspace-content">
+                    <div class="workspace-stats">
+                        <div class="stat-item">
+                            <div class="stat-value">8</div>
+                            <div class="stat-label">Cards</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">3</div>
+                            <div class="stat-label">Members</div>
+                        </div>
+                    </div>
+                    
+                    <div class="workspace-tags">
+                        <div class="workspace-tag danger">CRITICAL</div>
+                        <div class="workspace-tag">SECURITY</div>
+                        <div class="workspace-tag">AUDIT</div>
+                    </div>
+                    
+                    <div class="workspace-actions">
+                        <div>
+                            <button class="action-btn primary">ENTER</button>
+                            <button class="action-btn">SETTINGS</button>
+                        </div>
+                        <div class="workspace-meta">
+                            Last: 2024-01-15 09:33
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="workspace-card">
+                <div class="workspace-header">
+                    <div class="workspace-status offline"></div>
+                    <div class="workspace-title">ARCHIVE_VAULT</div>
+                    <div class="workspace-description">archive.workspace.006</div>
+                </div>
+                <div class="workspace-content">
+                    <div class="workspace-stats">
+                        <div class="stat-item">
+                            <div class="stat-value">124</div>
+                            <div class="stat-label">Cards</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">0</div>
+                            <div class="stat-label">Members</div>
+                        </div>
+                    </div>
+                    
+                    <div class="workspace-tags">
+                        <div class="workspace-tag">ARCHIVED</div>
+                        <div class="workspace-tag">STORAGE</div>
+                        <div class="workspace-tag">LEGACY</div>
+                    </div>
+                    
+                    <div class="workspace-actions">
+                        <div>
+                            <button class="action-btn">BROWSE</button>
+                            <button class="action-btn">RESTORE</button>
+                        </div>
+                        <div class="workspace-meta">
+                            Last: 2024-01-10 22:15
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 空状態（検索結果なし時） -->
+        <div class="empty-state" id="emptyState" style="display: none;">
+            <div class="empty-icon">🔍</div>
+            <div class="empty-title">No Workspaces Found</div>
+            <div class="empty-description">
+                Try adjusting your search criteria or filters.<br>
+                Or create a new workspace to get started.
+            </div>
+            <button class="create-workspace-btn" onclick="createWorkspace()">
+                + CREATE WORKSPACE
+            </button>
+        </div>
+    </div>
+
+    <!-- フィルターパネル -->
+    <div class="filter-panel" id="filterPanel">
+        <div class="filter-panel-header">
+            <div class="filter-panel-title">Advanced Filters</div>
+        </div>
+        <div class="filter-panel-content">
+            <div class="filter-section">
+                <div class="filter-section-title">Status</div>
+                <div class="filter-option checked" onclick="toggleFilter(this)">
+                    <div class="filter-checkbox"></div>
+                    <div class="filter-text">Active</div>
+                    <div class="filter-count">(3)</div>
+                </div>
+                <div class="filter-option checked" onclick="toggleFilter(this)">
+                    <div class="filter-checkbox"></div>
+                    <div class="filter-text">Building</div>
+                    <div class="filter-count">(2)</div>
+                </div>
+                <div class="filter-option" onclick="toggleFilter(this)">
+                    <div class="filter-checkbox"></div>
+                    <div class="filter-text">Archived</div>
+                    <div class="filter-count">(1)</div>
+                </div>
+                <div class="filter-option" onclick="toggleFilter(this)">
+                    <div class="filter-checkbox"></div>
+                    <div class="filter-text">Paused</div>
+                    <div class="filter-count">(0)</div>
+                </div>
+            </div>
+
+            <div class="filter-section">
+                <div class="filter-section-title">Technology</div>
+                <div class="filter-option checked" onclick="toggleFilter(this)">
+                    <div class="filter-checkbox"></div>
+                    <div class="filter-text">AI/ML</div>
+                    <div class="filter-count">(1)</div>
+                </div>
+                <div class="filter-option checked" onclick="toggleFilter(this)">
+                    <div class="filter-checkbox"></div>
+                    <div class="filter-text">React</div>
+                    <div class="filter-count">(1)</div>
+                </div>
+                <div class="filter-option checked" onclick="toggleFilter(this)">
+                    <div class="filter-checkbox"></div>
+                    <div class="filter-text">Flutter</div>
+                    <div class="filter-count">(1)</div>
+                </div>
+                <div class="filter-option checked" onclick="toggleFilter(this)">
+                    <div class="filter-checkbox"></div>
+                    <div class="filter-text">Python</div>
+                    <div class="filter-count">(1)</div>
+                </div>
+                <div class="filter-option" onclick="toggleFilter(this)">
+                    <div class="filter-checkbox"></div>
+                    <div class="filter-text">Node.js</div>
+                    <div class="filter-count">(0)</div>
+                </div>
+                <div class="filter-option" onclick="toggleFilter(this)">
+                    <div class="filter-checkbox"></div>
+                    <div class="filter-text">Docker</div>
+                    <div class="filter-count">(0)</div>
+                </div>
+            </div>
+
+            <div class="filter-section">
+                <div class="filter-section-title">Team Size</div>
+                <div class="filter-option checked" onclick="toggleFilter(this)">
+                    <div class="filter-checkbox"></div>
+                    <div class="filter-text">Small (1-5)</div>
+                    <div class="filter-count">(2)</div>
+                </div>
+                <div class="filter-option checked" onclick="toggleFilter(this)">
+                    <div class="filter-checkbox"></div>
+                    <div class="filter-text">Medium (6-15)</div>
+                    <div class="filter-count">(3)</div>
+                </div>
+                <div class="filter-option" onclick="toggleFilter(this)">
+                    <div class="filter-checkbox"></div>
+                    <div class="filter-text">Large (16+)</div>
+                    <div class="filter-count">(0)</div>
+                </div>
+                <div class="filter-option" onclick="toggleFilter(this)">
+                    <div class="filter-checkbox"></div>
+                    <div class="filter-text">Solo (0)</div>
+                    <div class="filter-count">(1)</div>
+                </div>
+            </div>
+
+            <div class="filter-section">
+                <div class="filter-section-title">Priority</div>
+                <div class="filter-option" onclick="toggleFilter(this)">
+                    <div class="filter-checkbox"></div>
+                    <div class="filter-text">Critical</div>
+                    <div class="filter-count">(1)</div>
+                </div>
+                <div class="filter-option checked" onclick="toggleFilter(this)">
+                    <div class="filter-checkbox"></div>
+                    <div class="filter-text">High</div>
+                    <div class="filter-count">(2)</div>
+                </div>
+                <div class="filter-option checked" onclick="toggleFilter(this)">
+                    <div class="filter-checkbox"></div>
+                    <div class="filter-text">Medium</div>
+                    <div class="filter-count">(2)</div>
+                </div>
+                <div class="filter-option" onclick="toggleFilter(this)">
+                    <div class="filter-checkbox"></div>
+                    <div class="filter-text">Low</div>
+                    <div class="filter-count">(1)</div>
+                </div>
+            </div>
+
+            <div class="filter-section">
+                <div class="filter-section-title">Last Activity</div>
+                <div class="filter-option checked" onclick="toggleFilter(this)">
+                    <div class="filter-checkbox"></div>
+                    <div class="filter-text">Today</div>
+                    <div class="filter-count">(4)</div>
+                </div>
+                <div class="filter-option checked" onclick="toggleFilter(this)">
+                    <div class="filter-checkbox"></div>
+                    <div class="filter-text">This Week</div>
+                    <div class="filter-count">(1)</div>
+                </div>
+                <div class="filter-option" onclick="toggleFilter(this)">
+                    <div class="filter-checkbox"></div>
+                    <div class="filter-text">This Month</div>
+                    <div class="filter-count">(1)</div>
+                </div>
+                <div class="filter-option" onclick="toggleFilter(this)">
+                    <div class="filter-checkbox"></div>
+                    <div class="filter-text">Older</div>
+                    <div class="filter-count">(0)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- オーバーレイ -->
+    <div class="overlay" id="overlay" onclick="closeFilterPanel()"></div>
+
+    <script>
+        // ビュー切り替え
+        function switchView(viewType) {
+            const container = document.getElementById('workspaceContainer');
+            const buttons = document.querySelectorAll('.view-toggle-btn');
+            
+            // ボタンの状態更新
+            buttons.forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // コンテナのクラス更新
+            container.className = `workspace-container ${viewType}-view`;
+        }
+
+        // ソート機能
+        function sortBy(criteria) {
+            const buttons = document.querySelectorAll('.sort-btn');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // ここでソートロジックを実装
+            console.log(`Sorting by: ${criteria}`);
+        }
+
+        // フィルターパネル制御
+        function toggleFilterPanel() {
+            const panel = document.getElementById('filterPanel');
+            const overlay = document.getElementById('overlay');
+            
+            if (panel.classList.contains('open')) {
+                closeFilterPanel();
+            } else {
+                panel.classList.add('open');
+                overlay.classList.add('show');
+            }
+        }
+
+        function closeFilterPanel() {
+            const panel = document.getElementById('filterPanel');
+            const overlay = document.getElementById('overlay');
+            
+            panel.classList.remove('open');
+            overlay.classList.remove('show');
+        }
+
+        // フィルターオプション制御
+        function toggleFilter(element) {
+            element.classList.toggle('checked');
+            // ここでフィルタリングロジックを実装
+            applyFilters();
+        }
+
+        // フィルター適用
+        function applyFilters() {
+            // フィルタリングロジック
+            console.log('Applying filters...');
+        }
+
+        // 検索機能
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            const workspaceCards = document.querySelectorAll('.workspace-card');
+            const emptyState = document.getElementById('emptyState');
+            let visibleCount = 0;
+            
+            workspaceCards.forEach(card => {
+                const title = card.querySelector('.workspace-title').textContent.toLowerCase();
+                const description = card.querySelector('.workspace-description').textContent.toLowerCase();
+                const tags = Array.from(card.querySelectorAll('.workspace-tag')).map(tag => tag.textContent.toLowerCase());
+                
+                const matches = title.includes(searchTerm) || 
+                               description.includes(searchTerm) || 
+                               tags.some(tag => tag.includes(searchTerm));
+                
+                if (matches || searchTerm === '') {
+                    card.style.display = 'block';
+                    visibleCount++;
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+            
+            // 空状態の表示/非表示
+            if (visibleCount === 0 && searchTerm !== '') {
+                emptyState.style.display = 'block';
+                document.getElementById('workspaceContainer').style.display = 'none';
+            } else {
+                emptyState.style.display = 'none';
+                document.getElementById('workspaceContainer').style.display = 'grid';
+            }
+        });
+
+        // ワークスペース作成
+        function createWorkspace() {
+            alert('新しいワークスペースの作成機能はここに実装されます');
+        }
+
+        // ワークスペース選択
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.workspace-card') && !e.target.closest('.action-btn')) {
+                const cards = document.querySelectorAll('.workspace-card');
+                cards.forEach(card => card.classList.remove('active'));
+                e.target.closest('.workspace-card').classList.add('active');
+            }
+        });
+
+        // ESCキーでフィルターパネルとドロップダウンを閉じる
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeFilterPanel();
+                closeAllDropdowns();
+            }
+        });
+
+        // ワークスペース操作
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('action-btn')) {
+                const action = e.target.textContent;
+                const workspaceTitle = e.target.closest('.workspace-card').querySelector('.workspace-title').textContent;
+                
+                if (action === 'ENTER') {
+                    alert(`${workspaceTitle} ワークスペースに入ります`);
+                } else if (action === 'SETTINGS') {
+                    alert(`${workspaceTitle} の設定画面を開きます`);
+                } else if (action === 'BROWSE') {
+                    alert(`${workspaceTitle} のアーカイブを参照します`);
+                } else if (action === 'RESTORE') {
+                    alert(`${workspaceTitle} を復元します`);
+                }
+            }
+        });
+
+        // リアルタイム更新シミュレーション
+        function simulateRealtimeUpdates() {
+            const progressBars = document.querySelectorAll('.progress-fill');
+            const statValues = document.querySelectorAll('.stat-value');
+            
+            setInterval(() => {
+                // プログレスバーの微小な変化
+                progressBars.forEach(bar => {
+                    const currentWidth = parseInt(bar.style.width);
+                    if (currentWidth < 100 && Math.random() > 0.8) {
+                        const newWidth = Math.min(100, currentWidth + Math.floor(Math.random() * 3));
+                        bar.style.width = newWidth + '%';
+                        
+                        // 対応するプログレス値も更新
+                        const progressValue = bar.closest('.workspace-progress').querySelector('.progress-value');
+                        progressValue.textContent = newWidth + '%';
+                    }
+                });
+                
+                // ステータスインジケーターの変化
+                const statusIndicators = document.querySelectorAll('.workspace-status');
+                statusIndicators.forEach(status => {
+                    if (Math.random() > 0.95) {
+                        // 稀にステータスが変化
+                        const classes = ['online', 'busy', 'offline'];
+                        const currentClass = classes.find(cls => status.classList.contains(cls));
+                        status.classList.remove(currentClass);
+                        
+                        const newClass = classes[Math.floor(Math.random() * classes.length)];
+                        status.classList.add(newClass);
+                    }
+                });
+            }, 5000);
+        }
+
+        // 初期化
+        document.addEventListener('DOMContentLoaded', function() {
+            simulateRealtimeUpdates();
+        });
+    </script>
+</body>
+</html>

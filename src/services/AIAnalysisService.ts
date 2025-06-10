@@ -276,35 +276,20 @@ export class AIAnalysisService {
     try {
       console.log('[AIAnalysisService] Generating embedding for text length:', text.length);
       
-      // Supabase Edge Function経由でOpenAI APIを呼び出し
-      const response = await fetch('https://ecqkfcgtmabtfozfcvfr.supabase.co/functions/v1/ai-embeddings', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-        },
-        body: JSON.stringify({ text }),
-      });
-
-      console.log('[AIAnalysisService] Edge Function response status:', response.status);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('[AIAnalysisService] Edge Function error:', response.status, errorText);
-        throw new Error(`Edge Function error: ${response.status} - ${errorText}`);
-      }
-
-      const data = await response.json();
-      console.log('[AIAnalysisService] Edge Function response:', data.success ? 'success' : 'failed');
+      // AIProviderManagerを使用してプロバイダーを取得
+      const { AIProviderManager } = await import('./ai/AIProviderManager');
+      const manager = AIProviderManager.getInstance();
+      const provider = await manager.getAvailableProvider();
       
-      if (!data.success) {
-        throw new Error(data.error || 'Unknown embedding error');
+      if (!provider) {
+        console.error('[AIAnalysisService] No AI provider available for embedding generation');
+        return null;
       }
-
-      console.log('[AIAnalysisService] Generated embedding vector length:', data.embeddings?.length || 0);
-      return data.embeddings;
+      
+      console.log('[AIAnalysisService] Using provider:', provider.name);
+      return await provider.generateEmbedding(text);
     } catch (error) {
-      console.error('[AIAnalysisService] Failed to generate embedding via Edge Function:', error);
+      console.error('[AIAnalysisService] Failed to generate embedding:', error);
       return null;
     }
   }

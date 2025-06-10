@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { Meeting, UploadedFile } from '../types/meeting';
-import { supabase } from '../../../lib/supabase';
+import { supabase } from '../../../services/supabase/client';
 
 type MeetingContextType = {
   meetings: Meeting[];

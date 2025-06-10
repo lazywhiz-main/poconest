@@ -4,6 +4,8 @@ import { useNestSpace } from '@contexts/NestSpaceContext';
 import { SpaceType } from '../../types/nestSpace.types';
 import ChatSpace from '../components/ChatSpace';
 import { useNest } from '../../../nest/contexts/NestContext';
+import { useAuth } from '../../../contexts/AuthContext';
+import { Navigate } from 'react-router-dom';
 
 // This is a custom hook that provides a wrapper over useChatSpace 
 // which we'll create next as a provider
@@ -17,6 +19,7 @@ const ChatSpaceProvider: React.FC<{ children: React.ReactNode }> = ({ children }
 const ChatSpaceScreen: React.FC = () => {
   const { navigateToSpace, isSpaceActive } = useNestSpace();
   const { currentNest } = useNest();
+  const { user } = useAuth();
   
   // Ensure the chat space is activated
   useEffect(() => {
@@ -25,10 +28,14 @@ const ChatSpaceScreen: React.FC = () => {
     }
   }, [isSpaceActive, navigateToSpace]);
   
+  if (!user) {
+    return <Navigate to="/login" />;
+  }
+  
   if (!currentNest) {
     return (
       <View style={styles.container}>
-        <Text>NEST情報を取得中...</Text>
+        <Text>NESTが選択されていません。Nest一覧から選択してください。</Text>
       </View>
     );
   }

@@ -599,8 +599,9 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
                   fontSize: 13,
                   fontFamily: 'inherit',
                   resize: 'none',
-                  minHeight: 200,
-                  maxHeight: 400,
+                  minHeight: '40vh',
+                  maxHeight: '70vh',
+                  height: '100%',
                   lineHeight: 1.6,
                 }}
                 value={summaryContent}
@@ -613,24 +614,25 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
                 }}
                 placeholder="要約を入力してください（マークダウン形式対応）"
               />
-            ) : (
+            ) :
               <div
+                className="markdown-preview"
                 style={{
                   flex: 1,
                   background: '#0f0f23',
                   border: '1px solid #333366',
                   borderRadius: 4,
                   padding: 16,
-                  maxHeight: 400,
+                  maxHeight: '70vh',
                   overflowY: 'auto',
-                  minHeight: 200,
+                  minHeight: '40vh',
                 }}
               >
                 <Markdown components={markdownComponents}>
                   {summaryContent || '要約がありません。AI要約ボタンで自動生成するか、手動で入力してください。'}
                 </Markdown>
               </div>
-            )}
+            }
           </div>
         );
 

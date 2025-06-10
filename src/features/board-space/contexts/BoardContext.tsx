@@ -359,6 +359,7 @@ export const BoardProvider: React.FC<BoardProviderProps> = ({ children, currentN
           updated_at: item.updated_at,
           order_index: item.order_index,
           is_archived: item.is_archived,
+          metadata: {},
           tags: item.tags || [],
           insights: related.filter((c: any) => c.column_type === 'insights').map((c: any) => ({ id: c.id, title: c.title })),
           themes: related.filter((c: any) => c.column_type === 'themes').map((c: any) => ({ id: c.id, title: c.title })),
@@ -485,4 +486,7 @@ export interface BoardItem {
   created_by_display_name?: string;
   updated_by?: string;
   updated_by_display_name?: string;
+  // 関係性分析フラグ
+  is_relationship_analyzed?: boolean;
+  last_relationship_analysis_at?: string;
 } 

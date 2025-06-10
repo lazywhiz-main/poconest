@@ -15,6 +15,8 @@ import { SPACING, FONT_SIZE, BORDER_RADIUS, COMPONENT_STYLES } from '@constants/
 import responsive from '@utils/responsive';
 import { useNest } from '@features/nest/contexts/NestContext';
 import { cancelInvitation, resendInvitation, getPendingInvitations } from '../services/invitationService';
+import { useAuth } from '@contexts/AuthContext';
+import { Navigate } from 'react-router-dom';
 
 console.log('PendingInvitations component loaded');
 
@@ -50,8 +52,21 @@ const PendingInvitations: React.FC<PendingInvitationsProps> = ({
   const [actionLoading, setActionLoading] = useState<{ [key: string]: string }>({});
   
   const { currentNest } = useNest();
+  const { user } = useAuth();
   const { width } = useWindowDimensions();
   const isMobile = responsive.mediaQuery.isMobile(width);
+  
+  if (!user) {
+    return <Navigate to="/login" />;
+  }
+
+  if (!currentNest) {
+    return (
+      <View style={styles.container}>
+        <Text>NESTが選択されていません。Nest一覧から選択してください。</Text>
+      </View>
+    );
+  }
   
   // 招待リストの取得
   const fetchInvitations = async () => {

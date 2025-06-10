@@ -36,6 +36,7 @@ export interface AnalysisResult {
     strength: number;
     explanation: string;
   }>;
+  proposedRelationships?: any[]; // 提案データ（DB未作成）
 }
 
 export interface ClusterLabel {
@@ -506,9 +507,10 @@ export class AnalysisService {
           const tagsB = new Set(cardB.tags);
           const commonTags = [...tagsA].filter(tag => tagsB.has(tag));
           
-          // Phase1: 最小共通タグ数フィルタ
+          // Phase1: より厳しい最小共通タグ数フィルタ
+          // 共通タグが2個以上、または共通タグ1個で両カードが非常に小さいタグセットの場合のみ
           const minCommonTags = commonTags.length >= 2 ? 2 : 
-                               (commonTags.length === 1 && (tagsA.size <= 3 || tagsB.size <= 3)) ? 1 : 0;
+                               (commonTags.length === 1 && tagsA.size <= 2 && tagsB.size <= 2) ? 1 : 0;
           
           if (commonTags.length < minCommonTags) continue;
 
@@ -525,8 +527,8 @@ export class AnalysisService {
           // 基本類似度（ジャカード + カバレッジのバランス）
           const similarity = (jaccard * 0.6) + (avgCoverage * 0.4);
 
-          // Phase1: 類似度閾値フィルタ
-          if (similarity < 0.4) continue;
+          // Phase1: より厳しい類似度閾値フィルタ（0.4 → 0.6）
+          if (similarity < 0.6) continue;
 
           // 既存関係性チェック
           const pairKey = `${cardA.id}-${cardB.id}`;
@@ -580,12 +582,12 @@ export class AnalysisService {
 
       console.log(`Found ${candidateRelationships.length} candidate relationships`);
 
-      // Phase2: 動的閾値調整 + 品質ベース選別
+      // Phase2: 動的閾値調整 + 品質ベース選別（より厳しい制限）
       const totalPairs = cards.length * (cards.length - 1) / 2;
       const targetConnections = Math.min(
-        Math.floor(totalPairs * 0.15), // 最大15%のペア
-        50,                            // 絶対最大50個
-        Math.max(5, Math.floor(cards.length * 0.8)) // カード数に応じた最小保証
+        Math.floor(totalPairs * 0.08), // 最大8%のペア（15% → 8%）
+        20,                            // 絶対最大20個（50個 → 20個）
+        Math.max(3, Math.floor(cards.length * 0.4)) // カード数に応じた最小保証も削減
       );
 
       // 品質スコアでソートして上位を選択
@@ -624,18 +626,7 @@ export class AnalysisService {
         }
       }));
 
-      // バッチで関係性を作成
-      const { data, error } = await supabase
-        .from('board_card_relations')
-        .insert(newRelationships)
-        .select();
-
-      if (error) {
-        result.details.errors!.push(`データベースエラー: ${error.message}`);
-        result.processingTime = Date.now() - startTime;
-        return result;
-      }
-
+      // 提案レベルで返す（DB作成はしない）
       // 結果データを構築
       result.relationships = selectedRelationships.map(rel => ({
         cardA: { id: rel.cardA.id, title: rel.cardA.title, type: rel.cardA.column_type },
@@ -651,10 +642,11 @@ export class AnalysisService {
         .slice(0, 10); // 上位10グループ
 
       result.success = true;
-      result.relationshipsCreated = data?.length || 0;
+      result.relationshipsCreated = 0; // 提案レベルなので0
+      result.proposedRelationships = selectedRelationships; // 提案データを追加
       result.processingTime = Date.now() - startTime;
 
-      console.log(`✅ Created ${result.relationshipsCreated} high-quality tag similarity relationships`);
+      console.log(`✅ Generated ${selectedRelationships.length} high-quality tag similarity relationship proposals`);
       console.log(`📊 Algorithm stats:`, {
         candidatesEvaluated: candidateRelationships.length,
         targetConnections,
@@ -855,24 +847,14 @@ export class AnalysisService {
         return result;
       }
 
-      // 新しい関係性をバッチで作成
-      const { data, error } = await supabase
-        .from('board_card_relations')
-        .insert(newRelationships)
-        .select();
-
-      if (error) {
-        result.details.errors!.push(`データベースエラー: ${error.message}`);
-        result.processingTime = Date.now() - startTime;
-        return result;
-      }
-
+      // 提案レベルで返す（DB作成はしない）
       result.details.ruleBreakdown = ruleStats;
       result.success = true;
-      result.relationshipsCreated = data?.length || 0;
+      result.relationshipsCreated = 0; // 提案レベルなので0
+      result.proposedRelationships = newRelationships; // 提案データを追加
       result.processingTime = Date.now() - startTime;
 
-      console.log(`Created ${result.relationshipsCreated} new derived relationships`);
+      console.log(`Generated ${newRelationships.length} derived relationship proposals`);
       return result;
     } catch (error) {
       console.error('Failed to generate derived relationships:', error);
@@ -1053,13 +1035,18 @@ export class AnalysisService {
   }
 
   /**
-   * クラスターのラベルを生成
+   * クラスターのラベルを生成（セマンティック改善版）
    */
   private static generateClusterLabel(clusterCards: BoardItem[], clusterIndex: number): string {
     // タグ頻度分析
     const tagFreq: { [tag: string]: number } = {};
     const typeFreq: { [type: string]: number } = {};
     const keywordFreq: { [keyword: string]: number } = {};
+
+    // 全カードの文書コーパスを作成（TF-IDF計算用）
+    const documents = clusterCards.map(card => 
+      this.prepareDocumentText(card.title, card.content, card.tags)
+    );
 
     clusterCards.forEach(card => {
       // タグをカウント
@@ -1070,11 +1057,25 @@ export class AnalysisService {
       // タイプをカウント
       typeFreq[card.column_type] = (typeFreq[card.column_type] || 0) + 1;
       
-      // タイトルからキーワード抽出
-      const keywords = this.extractKeywords(card.title);
+      // タイトルとコンテンツからキーワード抽出
+      const keywords = this.extractKeywords(card.title + ' ' + (card.content || ''));
       keywords.forEach(keyword => {
         keywordFreq[keyword] = (keywordFreq[keyword] || 0) + 1;
       });
+    });
+
+    // TF-IDF分析で重要キーワードを特定
+    const importantKeywords = this.calculateTFIDF(documents, clusterCards);
+    
+    // 共起関係分析
+    const cooccurrenceTerms = this.analyzeCooccurrence(clusterCards);
+    
+    // セマンティック分析結果をログ出力
+    console.log(`🔍 Cluster ${clusterIndex + 1} Semantic Analysis:`, {
+      importantKeywords: importantKeywords.slice(0, 5),
+      cooccurrenceTerms: cooccurrenceTerms.slice(0, 3),
+      dominantTag: Object.keys(tagFreq).length > 0 ? Object.keys(tagFreq).reduce((a, b) => tagFreq[a] > tagFreq[b] ? a : b) : 'none',
+      dominantType: Object.keys(typeFreq).reduce((a, b) => typeFreq[a] > typeFreq[b] ? a : b)
     });
 
     // 最も一般的な要素を特定
@@ -1086,8 +1087,27 @@ export class AnalysisService {
       ? Object.keys(keywordFreq).reduce((a, b) => keywordFreq[a] > keywordFreq[b] ? a : b)
       : '';
 
-    // ラベル生成戦略
+    // ラベル生成戦略（セマンティック分析結果を活用）
     const labelStrategies = [
+      // セマンティック分析ベースラベル（新機能）
+      () => {
+        if (importantKeywords.length > 0 && cooccurrenceTerms.length > 0) {
+          const topKeyword = importantKeywords[0].word;
+          const topCooccurrence = cooccurrenceTerms[0].term;
+          
+          // 重要キーワードと共起語の組み合わせ
+          if (topKeyword !== topCooccurrence && topKeyword.length > 2 && topCooccurrence.length > 2) {
+            return `${topKeyword} × ${topCooccurrence}`;
+          }
+          
+          // 単独で十分に重要なキーワード
+          if (importantKeywords[0].score > 0.01) {
+            return this.beautifyLabel(topKeyword);
+          }
+        }
+        return null;
+      },
+      
       // タグベースラベル
       () => {
         const tagLabels: { [key: string]: string } = {
@@ -1160,14 +1180,28 @@ export class AnalysisService {
   }
 
   /**
-   * キーワード抽出
+   * キーワード抽出（改良版・日本語対応強化）
    */
-  private static extractKeywords(title: string): string[] {
-    const stopWords = ['の', 'を', 'に', 'は', 'が', 'と', 'で', 'から', 'まで', 'について', 'による', 'する', 'した', 'して', 'です', 'である', 'こと', 'もの', 'これ', 'それ', 'あれ'];
-    const words = title.toLowerCase()
-      .replace(/[^\w\s]/g, '')
+  private static extractKeywords(text: string): string[] {
+    const stopWords = [
+      // 日本語ストップワード
+      'の', 'を', 'に', 'は', 'が', 'と', 'で', 'から', 'まで', 'について', 'による', 
+      'する', 'した', 'して', 'です', 'である', 'こと', 'もの', 'これ', 'それ', 'あれ',
+      'その', 'この', 'あの', 'どの', 'など', 'また', 'さらに', 'しかし', 'でも', 'けれども',
+      // 英語ストップワード
+      'the', 'is', 'at', 'which', 'on', 'and', 'or', 'but', 'in', 'with', 'to', 'for',
+      'of', 'as', 'by', 'that', 'this', 'it', 'from', 'be', 'are', 'was', 'were',
+    ];
+
+    const words = text.toLowerCase()
+      .replace(/[^\w\s\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/g, ' ') // 日本語文字を保持
       .split(/\s+/)
-      .filter(word => word.length > 2 && !stopWords.includes(word));
+      .filter(word => {
+        if (word.length < 2) return false;
+        
+        // ストップワードチェック
+        return !stopWords.includes(word);
+      });
     
     return words;
   }
@@ -1283,4 +1317,132 @@ export class AnalysisService {
       .sort(([, a], [, b]) => b - a)
       .map(([type]) => type);
   }
+
+  // === セマンティック解析メソッド ===
+
+  /**
+   * 文書テキストを準備（TF-IDF計算用）
+   */
+  private static prepareDocumentText(title: string, content?: string, tags?: string[]): string {
+    const titleText = title || '';
+    const contentText = content || '';
+    const tagText = tags ? tags.join(' ') : '';
+    
+    return `${titleText} ${contentText} ${tagText}`.toLowerCase()
+      .replace(/[^\w\s\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/g, ' ') // 日本語文字を保持
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  /**
+   * TF-IDF分析で重要キーワードを特定
+   */
+  private static calculateTFIDF(documents: string[], clusterCards: BoardItem[]): Array<{word: string, score: number}> {
+    const allWords = new Set<string>();
+    const wordCounts: { [word: string]: number } = {};
+    const documentWordCounts: Array<{ [word: string]: number }> = [];
+
+    // 各文書の単語カウント
+    documents.forEach(doc => {
+      const words = this.extractKeywords(doc);
+      const docWordCount: { [word: string]: number } = {};
+      
+      words.forEach(word => {
+        if (word.length > 1) { // 1文字の単語は除外
+          allWords.add(word);
+          wordCounts[word] = (wordCounts[word] || 0) + 1;
+          docWordCount[word] = (docWordCount[word] || 0) + 1;
+        }
+      });
+      
+      documentWordCounts.push(docWordCount);
+    });
+
+    const totalDocuments = documents.length;
+    const tfidfScores: Array<{word: string, score: number}> = [];
+
+    // 各単語のTF-IDF計算
+    Array.from(allWords).forEach(word => {
+      const tf = documentWordCounts.reduce((sum, doc) => sum + (doc[word] || 0), 0) / 
+                 documentWordCounts.reduce((sum, doc) => sum + Object.values(doc).reduce((a, b) => a + b, 0), 0);
+      
+      const documentsWithWord = documentWordCounts.filter(doc => doc[word] > 0).length;
+      const idf = Math.log(totalDocuments / (documentsWithWord + 1));
+      
+      const tfidf = tf * idf;
+      
+      if (tfidf > 0.001) { // 閾値以上のスコアのみ
+        tfidfScores.push({ word, score: tfidf });
+      }
+    });
+
+    return tfidfScores
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 10); // 上位10個
+  }
+
+  /**
+   * 共起関係分析
+   */
+  private static analyzeCooccurrence(clusterCards: BoardItem[]): Array<{term: string, frequency: number}> {
+    const cooccurrenceMap = new Map<string, number>();
+    
+    // カード間での単語の共起を分析
+    for (let i = 0; i < clusterCards.length; i++) {
+      for (let j = i + 1; j < clusterCards.length; j++) {
+        const wordsA = new Set(this.extractKeywords(clusterCards[i].title + ' ' + (clusterCards[i].content || '')));
+        const wordsB = new Set(this.extractKeywords(clusterCards[j].title + ' ' + (clusterCards[j].content || '')));
+        
+        // 共通単語を見つける
+        const commonWords = Array.from(wordsA).filter(word => wordsB.has(word));
+        
+        commonWords.forEach(word => {
+          if (word.length > 2) { // 3文字以上の単語のみ
+            cooccurrenceMap.set(word, (cooccurrenceMap.get(word) || 0) + 1);
+          }
+        });
+      }
+    }
+
+    return Array.from(cooccurrenceMap.entries())
+      .map(([term, frequency]) => ({ term, frequency }))
+      .sort((a, b) => b.frequency - a.frequency)
+      .slice(0, 5); // 上位5個
+  }
+
+  /**
+   * ラベルを美しく整形
+   */
+  private static beautifyLabel(keyword: string): string {
+    // 日本語キーワードの美化
+    const beautifyMap: { [key: string]: string } = {
+      'ユーザー': 'ユーザー体験',
+      'インターフェース': 'UI設計',
+      'デザイン': 'デザイン',
+      'リサーチ': 'リサーチ',
+      'テスト': 'テスト&検証',
+      'アクセシビリティ': 'アクセシビリティ',
+      'ユーザビリティ': 'ユーザビリティ',
+      'プロトタイプ': 'プロトタイピング',
+      'ワイヤーフレーム': 'ワイヤーフレーム',
+      'フィードバック': 'フィードバック',
+      // 英語キーワードの美化
+      'user': 'User Experience',
+      'interface': 'Interface Design',
+      'design': 'Design',
+      'research': 'Research',
+      'test': 'Testing',
+      'accessibility': 'Accessibility',
+      'usability': 'Usability',
+      'prototype': 'Prototyping',
+      'wireframe': 'Wireframing',
+      'feedback': 'Feedback'
+    };
+
+    const lowercaseKeyword = keyword.toLowerCase();
+    return beautifyMap[lowercaseKeyword] || 
+           (keyword.length > 0 ? keyword.charAt(0).toUpperCase() + keyword.slice(1) : keyword);
+  }
+
+
 } 

@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POCONEST - 新しいNEST作成</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: #0f0f23;
+            color: #e2e8f0;
+            line-height: 1.4;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 500px;
+            width: 100%;
+        }
+
+        /* ヘッダー */
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #00ff88, #00cc6a);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .logo-icon::before {
+            content: '';
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: #0f0f23;
+            border-radius: 50%;
+            box-shadow: 
+                0 0 0 0 #0f0f23,
+                10px 0 0 0 #0f0f23,
+                -10px 0 0 0 #0f0f23,
+                0 10px 0 0 #0f0f23,
+                0 -10px 0 0 #0f0f23,
+                7px 7px 0 0 #0f0f23,
+                -7px -7px 0 0 #0f0f23,
+                7px -7px 0 0 #0f0f23,
+                -7px 7px 0 0 #0f0f23;
+        }
+
+        .logo-text {
+            font-size: 24px;
+            font-weight: 700;
+            text-transform: lowercase;
+            letter-spacing: 1px;
+        }
+
+        .poco {
+            color: #00ff88;
+        }
+
+        .nest {
+            color: #e2e8f0;
+        }
+
+        .page-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #e2e8f0;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+        }
+
+        .page-subtitle {
+            font-size: 13px;
+            color: #6c7086;
+            font-family: 'JetBrains Mono', monospace;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* メインフォーム */
+        .create-form {
+            background: #1a1a2e;
+            border: 1px solid #333366;
+            border-radius: 8px;
+            padding: 40px;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        .form-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #a6adc8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .form-input, .form-textarea {
+            width: 100%;
+            background: #0f0f23;
+            border: 1px solid #333366;
+            border-radius: 4px;
+            padding: 12px 16px;
+            color: #e2e8f0;
+            font-size: 14px;
+            font-family: inherit;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .form-input:focus, .form-textarea:focus {
+            border-color: #00ff88;
+            box-shadow: 0 0 0 2px rgba(0, 255, 136, 0.1);
+        }
+
+        .form-textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .form-input::placeholder, .form-textarea::placeholder {
+            color: #6c7086;
+            font-style: italic;
+        }
+
+        .form-hint {
+            font-size: 11px;
+            color: #6c7086;
+            margin-top: 6px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* タグ入力 */
+        .tag-input-container {
+            position: relative;
+        }
+
+        .tag-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+            min-height: 32px;
+            padding: 8px;
+            background: #0f0f23;
+            border: 1px solid #333366;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .tag-list:focus-within {
+            border-color: #00ff88;
+            box-shadow: 0 0 0 2px rgba(0, 255, 136, 0.1);
+        }
+
+        .tag-list.empty {
+            align-items: center;
+        }
+
+        .tag-list.empty::before {
+            content: 'タグを追加してください...';
+            color: #6c7086;
+            font-style: italic;
+            font-size: 14px;
+        }
+
+        .tag-item {
+            background: #333366;
+            color: #e2e8f0;
+            padding: 4px 8px;
+            border-radius: 2px;
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            animation: tagAppear 0.2s ease-out;
+        }
+
+        @keyframes tagAppear {
+            from {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .tag-remove {
+            background: none;
+            border: none;
+            color: #a6adc8;
+            cursor: pointer;
+            font-size: 12px;
+            padding: 0;
+            line-height: 1;
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 2px;
+            transition: all 0.2s ease;
+        }
+
+        .tag-remove:hover {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        .tag-input {
+            border: none;
+            background: transparent;
+            color: #e2e8f0;
+            font-size: 14px;
+            font-family: inherit;
+            outline: none;
+            flex: 1;
+            min-width: 120px;
+            padding: 4px 0;
+        }
+
+        .tag-input::placeholder {
+            color: #6c7086;
+            font-style: italic;
+        }
+
+        .tag-suggestions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .tag-suggestion {
+            background: #1a1a2e;
+            border: 1px solid #333366;
+            color: #a6adc8;
+            padding: 3px 8px;
+            border-radius: 2px;
+            font-size: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .tag-suggestion:hover {
+            border-color: #00ff88;
+            color: #00ff88;
+            transform: translateY(-1px);
+        }
+
+        /* アクションボタン */
+        .action-buttons {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: 1px solid #333366;
+            border-radius: 4px;
+            background: #1a1a2e;
+            color: #e2e8f0;
+            font-size: 12px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            background: #333366;
+            transform: translateY(-1px);
+        }
+
+        .btn.primary {
+            background: #00ff88;
+            color: #0f0f23;
+            border-color: #00ff88;
+        }
+
+        .btn.primary:hover {
+            background: #00cc6a;
+            border-color: #00cc6a;
+        }
+
+        .btn.secondary {
+            background: transparent;
+            border-color: #6c7086;
+            color: #a6adc8;
+        }
+
+        .btn.secondary:hover {
+            border-color: #a6adc8;
+            color: #e2e8f0;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn:disabled:hover {
+            background: #1a1a2e;
+            transform: none;
+        }
+
+        .btn.primary:disabled:hover {
+            background: #00ff88;
+        }
+
+        /* プレビューパネル */
+        .preview-panel {
+            display: none;
+        }
+
+        /* バックボタン */
+        .back-button {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: #1a1a2e;
+            border: 1px solid #333366;
+            border-radius: 2px;
+            padding: 8px 12px;
+            color: #a6adc8;
+            text-decoration: none;
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .back-button:hover {
+            background: #333366;
+            color: #e2e8f0;
+        }
+
+        /* レスポンシブ */
+        @media (max-width: 768px) {
+            body {
+                padding: 16px;
+                align-items: flex-start;
+                padding-top: 60px;
+            }
+
+            .container {
+                max-width: 100%;
+            }
+
+            .create-form {
+                padding: 24px;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+            }
+
+            .back-button {
+                position: relative;
+                top: 0;
+                left: 0;
+                margin-bottom: 20px;
+                align-self: flex-start;
+            }
+
+            .header {
+                margin-bottom: 30px;
+            }
+        }
+
+        /* 成功アニメーション */
+        @keyframes success {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .success-animation {
+            animation: success 0.3s ease-out;
+        }
+    </style>
+</head>
+<body>
+    <a href="#" class="back-button">
+        ← BACK
+    </a>
+
+    <div class="container">
+        <!-- ヘッダー -->
+        <div class="header">
+            <div class="logo-section">
+                <div class="logo-icon"></div>
+                <div class="logo-text">
+                    <span class="poco">poco</span><span class="nest">nest</span>
+                </div>
+            </div>
+            
+            <h1 class="page-title">Create New NEST</h1>
+            <p class="page-subtitle">AI-powered knowledge workspace</p>
+        </div>
+
+        <!-- メインフォーム -->
+        <form class="create-form" id="createNestForm">
+            <div class="form-group">
+                <label class="form-label">NEST Name</label>
+                <input type="text" class="form-input" id="nestName" placeholder="Enter nest name..." required maxlength="50">
+                <div class="form-hint">Choose a descriptive name for your knowledge workspace</div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Description</label>
+                <textarea class="form-textarea" id="nestDescription" placeholder="Describe the purpose and scope of this NEST..." maxlength="200"></textarea>
+                <div class="form-hint">Help AI understand the context and goals (optional)</div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Tags</label>
+                <div class="tag-input-container">
+                    <div class="tag-list empty" id="tagList">
+                        <input type="text" class="tag-input" id="tagInput" placeholder="Add tags..." maxlength="20">
+                    </div>
+                    <div class="tag-suggestions">
+                        <span class="tag-suggestion" onclick="addSuggestedTag(this)">knowledge</span>
+                        <span class="tag-suggestion" onclick="addSuggestedTag(this)">research</span>
+                        <span class="tag-suggestion" onclick="addSuggestedTag(this)">analysis</span>
+                        <span class="tag-suggestion" onclick="addSuggestedTag(this)">brainstorming</span>
+                        <span class="tag-suggestion" onclick="addSuggestedTag(this)">meeting</span>
+                        <span class="tag-suggestion" onclick="addSuggestedTag(this)">project</span>
+                    </div>
+                </div>
+                <div class="form-hint">Tags help AI categorize and find related information</div>
+            </div>
+        </form>
+
+        <!-- アクションボタン -->
+        <div class="action-buttons">
+            <button type="button" class="btn secondary" onclick="saveDraft()">
+                💾 Save Draft
+            </button>
+            <button type="submit" class="btn primary" form="createNestForm" id="createButton">
+                🚀 Create NEST
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let tags = [];
+
+        // タグ関連
+        function handleTagInput(event) {
+            if (event.key === 'Enter' && event.target.value.trim()) {
+                event.preventDefault();
+                addTag(event.target.value.trim());
+                event.target.value = '';
+                updateTagList();
+                updatePreview();
+            } else if (event.key === 'Backspace' && event.target.value === '' && tags.length > 0) {
+                // Backspaceで最後のタグを削除
+                tags.pop();
+                updateTagList();
+                updatePreview();
+            }
+        }
+
+        function addTag(tagText) {
+            if (tagText && !tags.includes(tagText.toLowerCase()) && tags.length < 10) {
+                tags.push(tagText.toLowerCase());
+            }
+        }
+
+        function removeTag(tagText) {
+            tags = tags.filter(tag => tag !== tagText);
+            updateTagList();
+            // updatePreview(); // プレビュー削除
+        }
+
+        function addSuggestedTag(element) {
+            const tagText = element.textContent;
+            addTag(tagText);
+            element.style.animation = 'tagAppear 0.2s ease-out';
+            setTimeout(() => {
+                element.remove();
+            }, 200);
+            updateTagList();
+            // updatePreview(); // プレビュー削除
+        }
+
+        function updateTagList() {
+            const tagList = document.getElementById('tagList');
+            const tagInput = document.getElementById('tagInput');
+            
+            // 既存のタグアイテムを削除
+            const existingTags = tagList.querySelectorAll('.tag-item');
+            existingTags.forEach(tag => tag.remove());
+            
+            // 新しいタグアイテムを追加
+            tags.forEach(tag => {
+                const tagItem = document.createElement('div');
+                tagItem.className = 'tag-item';
+                tagItem.innerHTML = `
+                    ${tag}
+                    <button type="button" class="tag-remove" onclick="removeTag('${tag}')">×</button>
+                `;
+                tagList.insertBefore(tagItem, tagInput);
+            });
+            
+            // 空状態の管理
+            if (tags.length > 0) {
+                tagList.classList.remove('empty');
+            } else {
+                tagList.classList.add('empty');
+            }
+        }
+
+        // プレビュー更新
+        function updatePreview() {
+            // プレビュー機能は削除されました
+        }
+
+        // ドラフト保存
+        function saveDraft() {
+            const button = event.target;
+            const originalText = button.innerHTML;
+            button.innerHTML = '💾 Saving...';
+            button.disabled = true;
+            
+            setTimeout(() => {
+                button.innerHTML = '✅ Saved!';
+                setTimeout(() => {
+                    button.innerHTML = originalText;
+                    button.disabled = false;
+                }, 1000);
+            }, 1000);
+        }
+
+        // フォーム送信
+        document.getElementById('createNestForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const nameInput = document.getElementById('nestName');
+            if (!nameInput.value.trim()) {
+                nameInput.focus();
+                nameInput.style.borderColor = '#ff6b6b';
+                setTimeout(() => {
+                    nameInput.style.borderColor = '#333366';
+                }, 2000);
+                return;
+            }
+            
+            const button = document.getElementById('createButton');
+            const originalText = button.innerHTML;
+            button.innerHTML = '🚀 Creating...';
+            button.disabled = true;
+            
+            // 成功アニメーション
+            // document.querySelector('.preview-panel').classList.add('success-animation'); // プレビュー削除
+            
+            setTimeout(() => {
+                button.innerHTML = '✅ Created!';
+                setTimeout(() => {
+                    // 成功メッセージ
+                    const successModal = document.createElement('div');
+                    successModal.style.cssText = `
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        width: 100%;
+                        height: 100%;
+                        background: rgba(15, 15, 35, 0.9);
+                        backdrop-filter: blur(4px);
+                        z-index: 1000;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        animation: fadeIn 0.3s ease-out;
+                    `;
+                    
+                    successModal.innerHTML = `
+                        <div style="
+                            background: #1a1a2e;
+                            border: 1px solid #00ff88;
+                            border-radius: 8px;
+                            padding: 40px;
+                            text-align: center;
+                            max-width: 400px;
+                            width: 90%;
+                            animation: slideUp 0.3s ease-out;
+                        ">
+                            <div style="font-size: 48px; margin-bottom: 20px;">🎉</div>
+                            <h2 style="color: #00ff88; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 1px;">
+                                NEST Created!
+                            </h2>
+                            <p style="color: #a6adc8; font-size: 13px; line-height: 1.5; margin-bottom: 24px;">
+                                "${nameInput.value}" が正常に作成されました。<br>
+                                AIが自動的に知識の抽出と分析を開始します。
+                            </p>
+                            <button onclick="window.location.href='#'" style="
+                                background: #00ff88;
+                                border: 1px solid #00ff88;
+                                color: #0f0f23;
+                                padding: 12px 24px;
+                                border-radius: 4px;
+                                cursor: pointer;
+                                font-size: 12px;
+                                font-weight: 600;
+                                text-transform: uppercase;
+                                letter-spacing: 1px;
+                                font-family: inherit;
+                            ">Open NEST</button>
+                        </div>
+                    `;
+                    
+                    document.body.appendChild(successModal);
+                }, 1000);
+            }, 2000);
+        });
+
+        // イベントリスナー設定
+        // document.getElementById('nestName').addEventListener('input', updatePreview); // プレビュー削除
+        // document.getElementById('nestDescription').addEventListener('input', updatePreview); // プレビュー削除
+        document.getElementById('tagInput').addEventListener('keydown', handleTagInput);
+
+        // 文字数制限の表示
+        function addCharacterCounter(inputId, maxLength) {
+            const input = document.getElementById(inputId);
+            const hint = input.nextElementSibling;
+            
+            function updateCounter() {
+                const current = input.value.length;
+                const remaining = maxLength - current;
+                hint.innerHTML = hint.innerHTML.split('(')[0] + ` (${remaining} chars remaining)`;
+                
+                if (remaining < 10) {
+                    hint.style.color = '#ff6b6b';
+                } else {
+                    hint.style.color = '#6c7086';
+                }
+            }
+            
+            input.addEventListener('input', updateCounter);
+            updateCounter();
+        }
+
+        // 文字数カウンター初期化
+        addCharacterCounter('nestName', 50);
+        addCharacterCounter('nestDescription', 200);
+
+        // CSS アニメーション追加
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes fadeIn {
+                from { opacity: 0; }
+                to { opacity: 1; }
+            }
+            @keyframes slideUp {
+                from { transform: translateY(20px); opacity: 0; }
+                to { transform: translateY(0); opacity: 1; }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // 初期設定
+        // updatePreview(); // プレビュー削除
+    </script>
+</body>
+</html>

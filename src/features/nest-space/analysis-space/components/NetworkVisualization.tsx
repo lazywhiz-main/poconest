@@ -7,6 +7,16 @@ import { AIAnalysisService, type SuggestedRelationship } from '../../../../servi
 import { AnalysisService, AnalysisResult, ClusterLabel } from '../../../../services/AnalysisService';
 import type { BoardColumnType } from '../../../../types/board';
 import AnalysisResultModal from './AnalysisResultModal';
+import { supabase } from '../../../../services/supabase/client';
+
+// 統合分析結果のインターフェース
+interface UnifiedRelationshipSuggestion extends SuggestedRelationship {
+  analysisMethod: 'ai' | 'tag_similarity' | 'derived';
+  methodLabel: string;
+  methodIcon: string;
+  confidence: number;
+  isAlreadyCreated?: boolean; // 既にDBに作成済みかどうか
+}
 
 interface NetworkVisualizationProps {
   cards: BoardItem[];
@@ -125,7 +135,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   const [isManualReset, setIsManualReset] = useState(false);
   
   // AI関係性提案の状態
-  const [aiSuggestions, setAiSuggestions] = useState<SuggestedRelationship[]>([]);
+  const [aiSuggestions, setAiSuggestions] = useState<UnifiedRelationshipSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showSuggestionsPanel, setShowSuggestionsPanel] = useState(false);
@@ -161,6 +171,29 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   const [clusterLabels, setClusterLabels] = useState<ClusterLabel[]>([]);
   const [showLabels, setShowLabels] = useState(false);
   const [isGeneratingLabels, setIsGeneratingLabels] = useState(false);
+
+  // クラスタリング制御の状態
+  const [strengthThreshold, setStrengthThreshold] = useState(0.3);
+  const [useWeightFiltering, setUseWeightFiltering] = useState(true);
+  const [showClusteringControls, setShowClusteringControls] = useState(false);
+  const [showFilteredClusters, setShowFilteredClusters] = useState(false);
+  const [filteredClusters, setFilteredClusters] = useState<string[][]>([]);
+
+  // 統合分析フィルターの状態
+  const [methodFilters, setMethodFilters] = useState({
+    ai: true,
+    tag_similarity: true,
+    derived: true
+  });
+
+  // フィルター済み提案リスト（統合分析用）
+  const unifiedSuggestions = useMemo(() => {
+    // aiSuggestionsがUnifiedRelationshipSuggestion[]に変換されているかチェック
+    const unified = aiSuggestions as UnifiedRelationshipSuggestion[];
+    return unified.filter((suggestion) => 
+      suggestion.analysisMethod && methodFilters[suggestion.analysisMethod as keyof typeof methodFilters]
+    );
+  }, [aiSuggestions, methodFilters]);
 
   // ページ遷移防止（分析中）
   useEffect(() => {
@@ -543,14 +576,30 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     }));
   };
 
-  // クラスター検出
-  const detectClusters = useCallback(() => {
+  // クラスター検出（重み閾値フィルタリング対応）
+  const detectClusters = useCallback((strengthThreshold: number = 0.3, useWeightFiltering: boolean = true) => {
     const adjacencyList: { [key: string]: string[] } = {};
     networkData.nodes.forEach(node => {
       adjacencyList[node.id] = [];
     });
 
-    networkData.edges.forEach(edge => {
+    // 重み閾値フィルタリング機能
+    const filteredEdges = useWeightFiltering 
+      ? networkData.edges.filter(edge => edge.strength >= strengthThreshold)
+      : networkData.edges;
+
+    // デバッグ情報をコンソールに出力
+    if (useWeightFiltering) {
+      console.log(`🔍 Clustering Debug:`, {
+        totalEdges: networkData.edges.length,
+        filteredEdges: filteredEdges.length,
+        strengthThreshold,
+        removedEdges: networkData.edges.length - filteredEdges.length
+      });
+    }
+
+    // フィルタリング後のエッジで隣接リストを構築
+    filteredEdges.forEach(edge => {
       adjacencyList[edge.source].push(edge.target);
       adjacencyList[edge.target].push(edge.source);
     });
@@ -580,6 +629,15 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       }
     });
 
+    // クラスター結果をログ出力
+    console.log(`🎯 Detected Clusters:`, {
+      totalClusters: clusters.length,
+      clusterSizes: clusters.map(c => c.length),
+      largestCluster: Math.max(...clusters.map(c => c.length), 0),
+      totalClustered: clusters.reduce((sum, c) => sum + c.length, 0),
+      isolatedNodes: networkData.nodes.length - clusters.reduce((sum, c) => sum + c.length, 0)
+    });
+
     return clusters;
   }, [networkData]);
 
@@ -591,8 +649,8 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     const centerX = containerWidth / 2;
     const centerY = containerHeight / 2;
 
-    // まずクラスターを検出
-    const clusters = detectClusters();
+    // まずクラスターを検出（重み閾値フィルタリング適用）
+    const clusters = detectClusters(strengthThreshold, useWeightFiltering);
     const newPositions: { [key: string]: { x: number, y: number } } = {};
     
     if (clusters.length === 0) {
@@ -908,7 +966,8 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
           resetView();
           break;
         case 'c':
-          toggleClusters();
+          // Clustering Controlsパネルを切り替え
+          setShowClusteringControls(!showClusteringControls);
           break;
         case 'l':
           if (showLabels) {
@@ -1078,7 +1137,6 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     setTransform({ x: 0, y: 0, scale: 1 });
     setSelectedNode(null);
     setHighlightedNodes(new Set());
-    setShowClusters(false);
     setShowDensity(false);
     
     // 新しい有機的なランダム配置を生成
@@ -1096,10 +1154,11 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     console.log('Reset View with new organic layout:', newOrganicPositions);
   };
 
-  const toggleClusters = () => {
-    const clusters = detectClusters();
-    setDetectedClusters(clusters);
-    setShowClusters(!showClusters);
+  // 初期クラスタリング実行（デフォルト設定）
+  const initializeClusters = () => {
+    const clusters = detectClusters(0.3, true); // デフォルトでフィルタリング有効
+    setFilteredClusters(clusters);
+    setShowFilteredClusters(true);
   };
 
   const zoomIn = () => {
@@ -1110,7 +1169,512 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     setTransform(prev => ({ ...prev, scale: Math.max(0.2, prev.scale / 1.2) }));
   };
 
-  // AI関係性分析
+  // カード分析状態の管理
+  const [lastAnalysisState, setLastAnalysisState] = useState<{
+    cardStates: Map<string, { lastAnalyzed: string; contentHash: string }>;
+    lastFullAnalysis: string;
+  }>({
+    cardStates: new Map(),
+    lastFullAnalysis: ''
+  });
+
+  // カードのコンテンツハッシュを生成（日本語対応）
+  const generateContentHash = useCallback((card: any) => {
+    const content = `${card.title}|${card.content}|${card.tags?.join(',')}|${card.column_type}`;
+    
+    // 日本語を含む文字列でも安全なハッシュ生成
+    let hash = 0;
+    for (let i = 0; i < content.length; i++) {
+      const char = content.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // 32bit整数に変換
+    }
+    
+    // 正の数にして16進文字列に変換
+    return Math.abs(hash).toString(16).slice(0, 16);
+  }, []);
+
+
+
+  // カードのDBフラグ状態を取得
+  const fetchCardAnalysisFlags = useCallback(async () => {
+    if (!boardState.boardId) return new Map();
+    
+    try {
+      const { data, error } = await supabase
+        .from('board_cards')
+        .select('id, is_relationship_analyzed, last_relationship_analysis_at')
+        .eq('board_id', boardState.boardId)
+        .eq('is_archived', false);
+      
+      if (error) {
+        console.warn('フラグ取得エラー:', error);
+        return new Map();
+      }
+      
+      const flagMap = new Map();
+      (data || []).forEach(card => {
+        flagMap.set(card.id, {
+          isAnalyzed: card.is_relationship_analyzed || false,
+          lastAnalyzed: card.last_relationship_analysis_at
+        });
+      });
+      
+      return flagMap;
+    } catch (err) {
+      console.warn('フラグ取得でエラー:', err);
+      return new Map();
+    }
+  }, [boardState.boardId]);
+
+  // 統合関係性分析（AI + タグ類似性 + 推論）- 増分分析対応
+  const runUnifiedAnalysis = useCallback(async (forceFullAnalysis = false) => {
+    if (cards.length < 2) {
+      showCustomDialog(
+        '分析不可',
+        '関係性分析には最低2つのカードが必要です。',
+        () => hideCustomDialog()
+      );
+      return;
+    }
+
+    console.log('🚀 [DEBUG] 分析開始');
+    setIsAnalyzing(true);
+    setShowAnalysisModal(true);
+    
+    // DBからフラグ状態を取得
+    setAnalysisProgress('分析対象カードを判定中...');
+    console.log('🔍 [DEBUG] カードフラグ取得開始');
+    const cardFlags = await fetchCardAnalysisFlags();
+    console.log('📊 [DEBUG] カードフラグ取得完了:', cardFlags.size, 'カード');
+    
+    // DBフラグに基づいてカードを分類
+    const newCards: BoardItem[] = [];
+    const updatedCards: BoardItem[] = [];
+    const unchangedCards: BoardItem[] = [];
+    
+    cards.forEach(card => {
+      const flag = cardFlags.get(card.id);
+      if (!flag || !flag.isAnalyzed) {
+        // 未分析カード
+        newCards.push(card);
+      } else {
+        // すでに分析済みのカード
+        const lastAnalyzed = flag.lastAnalyzed ? new Date(flag.lastAnalyzed).getTime() : 0;
+        const cardUpdated = new Date(card.updated_at).getTime();
+        
+        if (cardUpdated > lastAnalyzed) {
+          // 最後の分析後に更新されたカード
+          updatedCards.push(card);
+        } else {
+          // 変更なしのカード
+          unchangedCards.push(card);
+        }
+      }
+    });
+    
+    const isIncrementalPossible = !forceFullAnalysis && 
+      (newCards.length + updatedCards.length) < cards.length * 0.3 && // 30%未満
+      unchangedCards.length > 0; // 分析済みカードが存在する場合のみ増分分析
+    
+    console.log('⚖️ [DEBUG] 分析タイプ判定:', {
+      newCards: newCards.length,
+      updatedCards: updatedCards.length,
+      unchangedCards: unchangedCards.length,
+      totalCards: cards.length,
+      isIncrementalPossible,
+      forceFullAnalysis
+    });
+    
+    if (isIncrementalPossible) {
+      setAnalysisProgress(`増分分析を実行中... (新規:${newCards.length}件, 更新:${updatedCards.length}件)`);
+      console.log('📈 [DEBUG] 増分分析開始:', {
+        new: newCards.length,
+        updated: updatedCards.length,
+        unchanged: unchangedCards.length
+      });
+    } else {
+      setAnalysisProgress('完全分析を実行中...');
+      console.log('🔄 [DEBUG] 完全分析開始:', cards.length, 'cards');
+    }
+    
+    try {
+      console.log('🧠 [DEBUG] 統合分析開始');
+      console.log('🏠 [DEBUG] Board ID:', boardState.boardId);
+      
+      let targetCards = cards;
+      let analysisType = 'full';
+      
+      if (isIncrementalPossible) {
+        // 増分分析：新規・更新されたカードのみをAI分析の対象にする
+        targetCards = [...newCards, ...updatedCards];
+        analysisType = 'incremental';
+        setAnalysisProgress(`増分分析: ${targetCards.length}枚のカードを分析中...`);
+      } else {
+        setAnalysisProgress(`完全分析: ${cards.length}枚のカードを分析中...`);
+      }
+      
+      // Promise.allSettled で3つの分析を並行実行
+      console.log('⚡ [DEBUG] 3つの分析を並行実行開始');
+      const [aiResult, tagResult, derivedResult] = await Promise.allSettled([
+        // AI分析は増分分析可能
+        AIAnalysisService.suggestRelationships(
+          analysisType === 'incremental' ? targetCards : cards, 
+          0.5, // 閾値は0.5のまま維持
+          50   // ✅ 修正: 20 → 50 にさらに増やす
+        ),
+        // タグ類似性とDerived分析は常に全体（効率化の余地あり）
+        AnalysisService.generateTagSimilarityRelationships(boardState.boardId || ''),
+        AnalysisService.generateDerivedRelationships(boardState.boardId || '')
+      ]);
+      console.log('✅ [DEBUG] 3つの分析完了');
+      
+      setAnalysisProgress('分析結果を統合中...');
+      
+      // 結果を統合してタイプマーキング
+      const { suggestions: unifiedSuggestions, createdCounts } = combineAnalysisResults(aiResult, tagResult, derivedResult);
+      
+      console.log('[NetworkVisualization] Unified suggestions generated:', unifiedSuggestions.length);
+      console.log('[NetworkVisualization] Created relationships counts:', createdCounts);
+      console.log('[NetworkVisualization] Analysis type:', analysisType);
+      
+      setAnalysisProgress('既存の関係性と照合中...');
+      
+      console.log('🔍 統合分析 - フィルタリング前:', unifiedSuggestions.length, 'suggestions');
+      
+      // 全ての提案をフィルタリング（統合設計では全て提案レベル）
+      const filteredSuggestions = await AIAnalysisService.filterExistingRelationships(
+        unifiedSuggestions, 
+        boardState.boardId || ''
+      );
+      
+      console.log('🔍 統合分析 - フィルタリング後:', filteredSuggestions.length, 'suggestions');
+      
+      setAnalysisProgress('結果を準備中...');
+      
+      // 分析状態を更新
+      const newCardStates = new Map(lastAnalysisState.cardStates);
+      cards.forEach(card => {
+        newCardStates.set(card.id, {
+          lastAnalyzed: new Date().toISOString(),
+          contentHash: generateContentHash(card)
+        });
+      });
+      
+      setLastAnalysisState({
+        cardStates: newCardStates,
+        lastFullAnalysis: analysisType === 'full' ? new Date().toISOString() : (lastAnalysisState.lastFullAnalysis || new Date().toISOString())
+      });
+      
+      console.log('🎯 分析完了、フラグ更新を開始します');
+      
+      // データベース内のカードフラグを更新
+      setAnalysisProgress('分析フラグを更新中...');
+      const analysisTimestamp = new Date().toISOString();
+      const cardsToUpdate = analysisType === 'incremental' ? [...newCards, ...updatedCards] : cards;
+      
+      console.log('[NetworkVisualization] フラグ更新開始:', {
+        analysisType,
+        cardsToUpdateCount: cardsToUpdate.length,
+        cardIds: cardsToUpdate.map(card => card.id),
+        timestamp: analysisTimestamp
+      });
+      
+      // シンプルに更新処理を実行（テーブル構造確認をスキップ）
+      console.log('📝 フラグ更新処理を実行中...');
+      
+              // 分析済みフラグの更新（提案生成レベルでの更新）
+        try {
+          console.log('🔄 分析済みフラグ更新を開始...');
+          
+          // 段階的なフラグ更新アプローチ
+          if (cardsToUpdate.length > 0) {
+            // テスト用の1枚目でカラム存在確認
+            const testCard = cardsToUpdate[0];
+            console.log('🧪 テスト更新:', testCard.id);
+            
+            console.log('🧪 テスト更新対象カード:', {
+              id: testCard.id,
+              title: testCard.title,
+              currentMetadata: testCard.metadata
+            });
+            
+            const { data: testResult, error: testError } = await supabase
+              .from('board_cards')
+              .update({ 
+                is_relationship_analyzed: true,
+                last_relationship_analysis_at: analysisTimestamp
+              })
+              .eq('id', testCard.id)
+              .select('id, is_relationship_analyzed, last_relationship_analysis_at');
+              
+            console.log('🧪 テスト更新結果:', { testResult, testError });
+            
+            if (testError) {
+              console.error('❌ フラグカラムが存在しない:', testError.code, testError.message);
+              console.log('⚠️ スキーマにフラグカラムを追加してください:');
+              console.log('ALTER TABLE board_cards ADD COLUMN is_relationship_analyzed BOOLEAN DEFAULT FALSE;');
+              console.log('ALTER TABLE board_cards ADD COLUMN last_relationship_analysis_at TIMESTAMPTZ;');
+              
+              // 暫定的にmetadataに保存
+              const { data: fallbackResult, error: fallbackError } = await supabase
+                .from('board_cards')
+                .update({ 
+                  metadata: { 
+                    ...cardsToUpdate[0].metadata, 
+                    lastAnalysisAt: analysisTimestamp, 
+                    isAnalyzed: true 
+                  }
+                })
+                .in('id', cardsToUpdate.map(card => card.id))
+                .select('id');
+              
+              if (fallbackError) {
+                console.error('❌ Fallback更新失敗:', fallbackError);
+              } else {
+                console.log('✅ Metadata fallback成功:', fallbackResult?.length, 'cards');
+              }
+            } else {
+              console.log('✅ フラグカラム更新成功! 残り', cardsToUpdate.length - 1, 'cards');
+              
+              // 残りのカードを一括更新
+              if (cardsToUpdate.length > 1) {
+                const remainingCards = cardsToUpdate.slice(1);
+                const { data: batchResult, error: batchError } = await supabase
+                  .from('board_cards')
+                  .update({ 
+                    is_relationship_analyzed: true,
+                    last_relationship_analysis_at: analysisTimestamp
+                  })
+                  .in('id', remainingCards.map(card => card.id))
+                  .select('id');
+                
+                if (batchError) {
+                  console.error('❌ 一括更新失敗:', batchError);
+                } else {
+                  console.log('✅ 全フラグ更新完了:', 1 + (batchResult?.length || 0), 'cards');
+                }
+              } else {
+                console.log('✅ 全フラグ更新完了: 1 card');
+              }
+            }
+          }
+        } catch (flagError) {
+          console.error('❌ フラグ更新エラー:', flagError);
+        }
+      
+      // 少し遅延させて自然な感じに
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // 統合分析の結果をaiSuggestionsに保存（UnifiedRelationshipSuggestion型を維持）
+      console.log('🔍 [DEBUG] フィルター後の統合結果:', filteredSuggestions.length, 'suggestions');
+      console.log('🔍 [DEBUG] フィルター後の統合結果詳細:', filteredSuggestions.map(s => ({
+        sourceCardId: s.sourceCardId,
+        targetCardId: s.targetCardId,
+        source: cards.find(c => c.id === s.sourceCardId)?.title,
+        target: cards.find(c => c.id === s.targetCardId)?.title,
+        method: (s as UnifiedRelationshipSuggestion).analysisMethod,
+        confidence: s.confidence
+      })));
+      
+      // カードIDと実際のカードが一致しているかチェック
+      console.log('🔍 [DEBUG] Available card IDs:', cards.map(c => ({ id: c.id, title: c.title })));
+      
+      // undefinedになっている提案をピックアップ
+      const undefinedSuggestions = filteredSuggestions.filter(s => {
+        const source = cards.find(c => c.id === s.sourceCardId);
+        const target = cards.find(c => c.id === s.targetCardId);
+        return !source || !target;
+      });
+      
+      if (undefinedSuggestions.length > 0) {
+        console.warn('⚠️ [DEBUG] Undefined card references found:', undefinedSuggestions.map(s => ({
+          sourceCardId: s.sourceCardId,
+          targetCardId: s.targetCardId,
+          method: (s as UnifiedRelationshipSuggestion).analysisMethod
+        })));
+      }
+      
+      setAiSuggestions(filteredSuggestions as UnifiedRelationshipSuggestion[]);
+      setShowAnalysisModal(false);
+      setShowSuggestionsPanel(true);
+      
+      const analysisTypeLabel = analysisType === 'incremental' ? '増分' : '完全';
+      
+      // 全ての提案数をカウント
+      const totalProposalCount = filteredSuggestions.length;
+      
+      if (totalProposalCount === 0) {
+        showCustomDialog(
+          '分析完了',
+          `${analysisTypeLabel}分析が完了しました。新しい関係性の提案はありませんでした。`,
+          () => hideCustomDialog()
+        );
+      } else {
+        console.log('[NetworkVisualization] Showing unified suggestions panel with', filteredSuggestions.length, 'suggestions');
+        
+        // 手法別カウント
+        const aiCount = filteredSuggestions.filter(s => (s as UnifiedRelationshipSuggestion).analysisMethod === 'ai').length;
+        const tagCount = filteredSuggestions.filter(s => (s as UnifiedRelationshipSuggestion).analysisMethod === 'tag_similarity').length;
+        const derivedCount = filteredSuggestions.filter(s => (s as UnifiedRelationshipSuggestion).analysisMethod === 'derived').length;
+        
+        const methodDetails = [
+          aiCount > 0 ? `🤖AI: ${aiCount}個` : null,
+          tagCount > 0 ? `🏷️タグ: ${tagCount}個` : null,
+          derivedCount > 0 ? `🔗推論: ${derivedCount}個` : null
+        ].filter(Boolean).join(', ');
+        
+        showCustomDialog(
+          '分析完了',
+          `${analysisTypeLabel}分析完了: ${totalProposalCount}個の関係性候補が見つかりました！\n(${methodDetails})`,
+          () => hideCustomDialog(),
+          undefined,
+          'OK'
+        );
+      }
+          } catch (error) {
+        console.error('❌ [DEBUG] 統合分析でエラー:', error);
+        setShowAnalysisModal(false);
+        showCustomDialog(
+          'エラー',
+          `統合分析中にエラーが発生しました: ${error instanceof Error ? error.message : String(error)}`,
+          () => hideCustomDialog()
+        );
+      } finally {
+        console.log('🏁 [DEBUG] 分析処理終了');
+        setIsAnalyzing(false);
+      }
+  }, [cards, boardState.boardId, showCustomDialog, hideCustomDialog, lastAnalysisState, generateContentHash, fetchCardAnalysisFlags]);
+
+  // 分析結果統合ヘルパー関数（既に作成された関係性を考慮）
+  const combineAnalysisResults = useCallback((aiResult: any, tagResult: any, derivedResult: any): { 
+    suggestions: UnifiedRelationshipSuggestion[], 
+    createdCounts: { ai: number, tag_similarity: number, derived: number, total: number }
+  } => {
+    const unified: UnifiedRelationshipSuggestion[] = [];
+    const createdCounts = { ai: 0, tag_similarity: 0, derived: 0, total: 0 };
+    
+    // AI分析結果（提案レベル - まだDB未作成）
+    if (aiResult.status === 'fulfilled' && aiResult.value) {
+      console.log('🤖 [DEBUG] AI result array:', aiResult.value);
+      unified.push(...aiResult.value.map((item: SuggestedRelationship) => ({
+        ...item,
+        analysisMethod: 'ai' as const,
+        methodLabel: 'AI分析',
+        methodIcon: '🤖',
+        confidence: item.confidence || 0.7  // ✅ 修正: 0.8 → 0.7 に緩める
+      })));
+    } else {
+      console.log('🤖 [DEBUG] AI result failed or empty:', aiResult);
+    }
+    
+    // タグ類似性結果（提案レベル）
+    if (tagResult.status === 'fulfilled' && tagResult.value?.relationships) {
+      console.log('🏷️ [DEBUG] Tag result structure:', tagResult.value);
+      console.log('🏷️ [DEBUG] Tag relationships array:', tagResult.value.relationships);
+      
+      const tagSuggestions = convertTagResultsToSuggestions(tagResult.value.relationships);
+      console.log('🏷️ [DEBUG] Converted tag suggestions:', tagSuggestions);
+      
+      unified.push(...tagSuggestions.map((item: SuggestedRelationship) => ({
+        ...item,
+        analysisMethod: 'tag_similarity' as const,
+        methodLabel: 'タグ類似性',
+        methodIcon: '🏷️',
+        confidence: item.confidence || 0.6  // ✅ 修正: 0.7 → 0.6 に緩める
+      })));
+    } else {
+      console.log('🏷️ [DEBUG] Tag result failed or empty:', tagResult);
+    }
+    
+    // 推論関係性結果（提案レベル）
+    if (derivedResult.status === 'fulfilled' && derivedResult.value?.relationships) {
+      const derivedSuggestions = convertDerivedResultsToSuggestions(derivedResult.value.relationships);
+      unified.push(...derivedSuggestions.map((item: SuggestedRelationship) => ({
+        ...item,
+        analysisMethod: 'derived' as const,
+        methodLabel: '推論分析',
+        methodIcon: '🔗',
+        confidence: item.confidence || 0.6  // ✅ 修正: 0.5 → 0.6 に戻す
+      })));
+    }
+    
+    // 重複除去 & 信頼度順ソート
+    return { 
+      suggestions: deduplicateAndSort(unified), 
+      createdCounts 
+    };
+  }, []);
+
+  // 結果変換ヘルパー関数
+  const convertTagResultsToSuggestions = useCallback((relationships: any[]): SuggestedRelationship[] => {
+    console.log('🏷️ [DEBUG] Tag similarity raw results:', relationships);
+    
+    return relationships.map(rel => {
+      console.log('🏷️ [DEBUG] Converting tag relation:', rel);
+      
+      const suggestion = {
+        sourceCardId: rel.cardA?.id,  // ✅ 修正: cardA.id を使用
+        targetCardId: rel.cardB?.id,  // ✅ 修正: cardB.id を使用
+        relationshipType: 'conceptual' as const,
+        suggestedStrength: rel.strength || 0.6,  // ✅ 修正: 0.7 → 0.6 に緩める
+        confidence: rel.strength || 0.6,         // ✅ 修正: 0.7 → 0.6 に緩める
+        similarity: rel.strength || 0.6,         // ✅ 修正: 0.7 → 0.6 に緩める
+        explanation: rel.explanation || `タグ類似性による関係性 (強度: ${rel.strength?.toFixed(2) || 'N/A'})`
+      };
+      
+      console.log('🏷️ [DEBUG] Created suggestion:', suggestion);
+      console.log('🏷️ [DEBUG] Source card lookup:', cards.find(c => c.id === suggestion.sourceCardId)?.title);
+      console.log('🏷️ [DEBUG] Target card lookup:', cards.find(c => c.id === suggestion.targetCardId)?.title);
+      
+      return suggestion;
+    });
+  }, [cards]);
+
+  const convertDerivedResultsToSuggestions = useCallback((relationships: any[]): SuggestedRelationship[] => {
+    console.log('🔗 [DEBUG] Derived similarity raw results:', relationships);
+    
+    return relationships.map(rel => {
+      console.log('🔗 [DEBUG] Converting derived relation:', rel);
+      
+      const suggestion = {
+        sourceCardId: rel.cardA?.id || rel.card_id,  // ✅ 修正: cardA.id を優先、fallbackでcard_id
+        targetCardId: rel.cardB?.id || rel.related_card_id,  // ✅ 修正: cardB.id を優先、fallbackでrelated_card_id
+        relationshipType: 'semantic' as const,
+        suggestedStrength: rel.strength || 0.6,  // ✅ 修正: 0.5 → 0.6 に戻す
+        confidence: rel.strength || 0.6,         // ✅ 修正: 0.5 → 0.6 に戻す
+        similarity: rel.strength || 0.6,         // ✅ 修正: 0.5 → 0.6 に戻す
+        explanation: rel.explanation || `推論分析による関係性 (強度: ${rel.strength?.toFixed(2) || 'N/A'})`
+      };
+      
+      console.log('🔗 [DEBUG] Created derived suggestion:', suggestion);
+      console.log('🔗 [DEBUG] Source card lookup:', cards.find(c => c.id === suggestion.sourceCardId)?.title);
+      console.log('🔗 [DEBUG] Target card lookup:', cards.find(c => c.id === suggestion.targetCardId)?.title);
+      
+      return suggestion;
+    });
+  }, [cards]);
+
+  const deduplicateAndSort = useCallback((suggestions: UnifiedRelationshipSuggestion[]): UnifiedRelationshipSuggestion[] => {
+    // 重複除去（sourceCardId + targetCardId のペアで判定）
+    const seen = new Set<string>();
+    const deduplicated = suggestions.filter(suggestion => {
+      const key = `${suggestion.sourceCardId}-${suggestion.targetCardId}`;
+      const reverseKey = `${suggestion.targetCardId}-${suggestion.sourceCardId}`;
+      
+      if (seen.has(key) || seen.has(reverseKey)) {
+        return false;
+      }
+      
+      seen.add(key);
+      return true;
+    });
+    
+    // 信頼度順にソート
+    return deduplicated.sort((a, b) => b.confidence - a.confidence);
+  }, []);
+
+  // 元のAI関係性分析（後方互換性のため残す）
   const analyzeRelationships = useCallback(async () => {
     if (cards.length < 2) {
       showCustomDialog(
@@ -1183,7 +1747,16 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       // 少し遅延させて自然な感じに
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      setAiSuggestions(filteredSuggestions);
+      // AI単体分析結果をUnifiedRelationshipSuggestion形式に変換
+      const unifiedAiSuggestions: UnifiedRelationshipSuggestion[] = filteredSuggestions.map(suggestion => ({
+        ...suggestion,
+        analysisMethod: 'ai' as const,
+        methodLabel: 'AI分析',
+        methodIcon: '🤖',
+        confidence: suggestion.confidence || 0.8
+      }));
+      
+      setAiSuggestions(unifiedAiSuggestions);
       setShowAnalysisModal(false);
       setShowSuggestionsPanel(true);
       
@@ -1217,8 +1790,16 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   }, [cards, boardState.boardId, relationships]);
 
   // 提案の承認
-  const approveSuggestion = useCallback(async (suggestion: SuggestedRelationship) => {
+  const approveSuggestion = useCallback(async (suggestion: UnifiedRelationshipSuggestion) => {
     try {
+      console.log('🔍 [承認処理] 開始:', {
+        suggestion: suggestion,
+        sourceCard: cards.find(c => c.id === suggestion.sourceCardId)?.title,
+        targetCard: cards.find(c => c.id === suggestion.targetCardId)?.title,
+        analysisMethod: suggestion.analysisMethod,
+        relationshipType: suggestion.relationshipType
+      });
+      
       // AI提案の関係性タイプをDBの関係性タイプにマッピング
       const mapRelationshipType = (aiType: 'semantic' | 'topical' | 'conceptual'): 'semantic' | 'tag_similarity' | 'ai' => {
         switch (aiType) {
@@ -1233,9 +1814,13 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       };
       
       const dbRelationshipType = mapRelationshipType(suggestion.relationshipType);
+      console.log('🔍 [承認処理] マッピング結果:', {
+        originalType: suggestion.relationshipType,
+        dbType: dbRelationshipType
+      });
       
       // AnalysisServiceを使って関係性を作成
-      await AnalysisService.createRelationship(
+      const createResult = await AnalysisService.createRelationship(
         boardState.boardId || '',
         suggestion.sourceCardId,
         suggestion.targetCardId,
@@ -1249,8 +1834,11 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
           originalAiType: suggestion.relationshipType, // 元のAI分類を保持
           aiModel: 'text-embedding-3-small',
           approvedAt: new Date().toISOString(),
+          analysisMethod: suggestion.analysisMethod, // 分析手法も保存
         }
       );
+      
+      console.log('🔍 [承認処理] createRelationship結果:', createResult);
       
       // 提案リストから削除
       setAiSuggestions(prev => prev.filter(s => 
@@ -1271,7 +1859,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   }, [boardState.boardId, boardState.currentNestId, loadNestData]);
 
   // 提案の拒否
-  const rejectSuggestion = useCallback((suggestion: SuggestedRelationship) => {
+  const rejectSuggestion = useCallback((suggestion: UnifiedRelationshipSuggestion) => {
     setAiSuggestions(prev => prev.filter(s => 
       !(s.sourceCardId === suggestion.sourceCardId && 
         s.targetCardId === suggestion.targetCardId)
@@ -1355,6 +1943,103 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     );
   }, [aiSuggestions, boardState.boardId, boardState.currentNestId, loadNestData]);
 
+  // 手法別一括承認
+  const approveMethodSuggestions = useCallback(async (method: 'ai' | 'tag_similarity' | 'derived') => {
+    const methodSuggestions = (aiSuggestions as UnifiedRelationshipSuggestion[])
+      .filter(s => s.analysisMethod === method && methodFilters[method]);
+    
+    if (methodSuggestions.length === 0) return;
+    
+    try {
+      // AI提案の関係性タイプをDBの関係性タイプにマッピング
+      const mapRelationshipType = (aiType: 'semantic' | 'topical' | 'conceptual'): 'semantic' | 'tag_similarity' | 'ai' => {
+        switch (aiType) {
+          case 'topical':
+            return 'tag_similarity';
+          case 'conceptual':
+            return 'semantic';
+          case 'semantic':
+          default:
+            return 'semantic';
+        }
+      };
+      
+      // 並列で関係性を作成
+      await Promise.all(methodSuggestions.map(suggestion => {
+        const dbRelationshipType = mapRelationshipType(suggestion.relationshipType);
+        return AnalysisService.createRelationship(
+          boardState.boardId || '',
+          suggestion.sourceCardId,
+          suggestion.targetCardId,
+          dbRelationshipType,
+          suggestion.suggestedStrength,
+          suggestion.confidence,
+          {
+            aiSuggested: true,
+            similarity: suggestion.similarity,
+            explanation: suggestion.explanation,
+            originalAiType: suggestion.relationshipType,
+            aiModel: 'unified-analysis',
+            methodApproved: true,
+            analysisMethod: (suggestion as UnifiedRelationshipSuggestion).analysisMethod,
+            approvedAt: new Date().toISOString(),
+          }
+        );
+      }));
+      
+      // データをリフレッシュ
+      if (boardState.currentNestId) {
+        await loadNestData(boardState.currentNestId);
+      }
+      
+      // 承認された提案を除外
+      const remainingSuggestions = aiSuggestions.filter(suggestion => 
+        !methodSuggestions.some(ms => 
+          ms.sourceCardId === suggestion.sourceCardId && 
+          ms.targetCardId === suggestion.targetCardId
+        )
+      );
+      setAiSuggestions(remainingSuggestions);
+      
+      const methodName = method === 'ai' ? 'AI分析' : method === 'tag_similarity' ? 'タグ類似性' : '推論分析';
+      showCustomDialog(
+        '承認完了',
+        `${methodSuggestions.length}個の${methodName}提案を承認し、関係性を追加しました。`,
+        () => hideCustomDialog()
+      );
+    } catch (error) {
+      console.error('Method suggestions approval failed:', error);
+      showCustomDialog(
+        'エラー',
+        '手法別承認処理中にエラーが発生しました。',
+        () => hideCustomDialog()
+      );
+    }
+  }, [aiSuggestions, methodFilters, boardState.boardId, boardState.currentNestId, loadNestData, showCustomDialog, hideCustomDialog]);
+
+  // 手法別一括拒否
+  const rejectMethodSuggestions = useCallback((method: 'ai' | 'tag_similarity' | 'derived') => {
+    const methodSuggestions = (aiSuggestions as UnifiedRelationshipSuggestion[])
+      .filter(s => s.analysisMethod === method && methodFilters[method]);
+    
+    if (methodSuggestions.length === 0) return;
+    
+    // 該当する手法の提案を除外
+    const remainingSuggestions = aiSuggestions.filter(suggestion => {
+      const unified = suggestion as UnifiedRelationshipSuggestion;
+      return !(unified.analysisMethod === method && methodFilters[method]);
+    });
+    
+    setAiSuggestions(remainingSuggestions);
+    
+    const methodName = method === 'ai' ? 'AI分析' : method === 'tag_similarity' ? 'タグ類似性' : '推論分析';
+    showCustomDialog(
+      '拒否完了',
+      `${methodSuggestions.length}個の${methodName}提案を拒否しました。`,
+      () => hideCustomDialog()
+    );
+  }, [aiSuggestions, methodFilters, showCustomDialog, hideCustomDialog]);
+
   // CSS styles
   const styles = {
     container: {
@@ -1363,7 +2048,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       position: 'relative' as const,
       backgroundColor: THEME_COLORS.bgPrimary,
       cursor: isDragging ? 'grabbing' : 'grab',
-      overflow: 'hidden',
+      overflow: 'visible', // hiddenからvisibleに変更
       fontFamily: 'Space Grotesk, system-ui, sans-serif',
     },
     networkCanvas: {
@@ -1375,6 +2060,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
       transformOrigin: 'center',
       transition: isDragging ? 'none' : 'transform 0.2s ease',
+      overflow: 'visible',
     },
     svg: {
       width: '100%',
@@ -1384,6 +2070,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       left: 0,
       zIndex: 1,
       pointerEvents: 'none' as const,
+      overflow: 'visible',
     },
     nodesContainer: {
       position: 'absolute' as const,
@@ -1467,14 +2154,115 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       textAlign: 'center' as const,
       backdropFilter: 'blur(8px)',
     },
+    // クラスタリング制御パネルのスタイル
+    clusteringControlsPanel: {
+      position: 'absolute' as const,
+      top: '60px',
+      left: '180px',
+      width: '320px',
+      background: 'rgba(26, 26, 46, 0.95)',
+      border: `1px solid ${THEME_COLORS.borderPrimary}`,
+      borderRadius: THEME_COLORS.borderRadius.large,
+      padding: '20px',
+      backdropFilter: 'blur(12px)',
+      boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)',
+      zIndex: 15,
+      fontFamily: 'JetBrains Mono, monospace',
+    },
+    panelHeader: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: '16px',
+      borderBottom: `1px solid ${THEME_COLORS.borderPrimary}`,
+      paddingBottom: '12px',
+    },
+    panelTitle: {
+      color: THEME_COLORS.textPrimary,
+      fontSize: '14px',
+      fontWeight: '600',
+      margin: '0',
+    },
+    closeButton: {
+      background: 'transparent',
+      border: 'none',
+      color: THEME_COLORS.textMuted,
+      fontSize: '16px',
+      cursor: 'pointer',
+      padding: '4px',
+      borderRadius: '4px',
+      transition: 'all 0.2s ease',
+    },
+    controlGroup: {
+      marginBottom: '16px',
+      display: 'flex',
+      flexDirection: 'column' as const,
+      gap: '8px',
+    },
+    controlLabel: {
+      color: THEME_COLORS.textSecondary,
+      fontSize: '12px',
+      fontWeight: '500',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+    },
+    checkbox: {
+      width: '16px',
+      height: '16px',
+      accentColor: THEME_COLORS.primaryGreen,
+    },
+    slider: {
+      width: '100%',
+      height: '6px',
+      borderRadius: '3px',
+      background: THEME_COLORS.bgTertiary,
+      outline: 'none',
+      cursor: 'pointer',
+      accentColor: THEME_COLORS.primaryGreen,
+    },
+    sliderLabels: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      marginTop: '4px',
+    },
+    sliderLabel: {
+      color: THEME_COLORS.textMuted,
+      fontSize: '10px',
+    },
+    applyButton: {
+      background: THEME_COLORS.primaryGreen,
+      border: 'none',
+      borderRadius: THEME_COLORS.borderRadius.medium,
+      color: THEME_COLORS.textInverse,
+      padding: '12px 16px',
+      fontSize: '12px',
+      fontWeight: '600',
+      cursor: 'pointer',
+      transition: 'all 0.2s ease',
+      width: '100%',
+    },
+    debugInfo: {
+      marginTop: '12px',
+      padding: '8px',
+      background: 'rgba(0, 0, 0, 0.2)',
+      borderRadius: THEME_COLORS.borderRadius.small,
+      border: `1px solid ${THEME_COLORS.borderSecondary}`,
+    },
+    debugText: {
+      color: THEME_COLORS.textMuted,
+      fontSize: '10px',
+      lineHeight: '1.4',
+    },
   };
 
-  // Auto Labels機能
+  // Auto Labels機能 - Clustering Controlsのフィルタリングされたクラスターに対応
   const generateLabels = useCallback(async () => {
-    if (!showClusters || detectedClusters.length === 0) {
+    // フィルタリングされたクラスターのみを使用
+    if (filteredClusters.length === 0) {
       showCustomDialog(
         'クラスター表示が必要',
-        'ラベル生成には先にShow Clustersボタンでクラスターを表示してください。',
+        'ラベル生成にはClustering Controlsでクラスターを生成・表示してください。',
         () => hideCustomDialog()
       );
       return;
@@ -1482,10 +2270,10 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
 
     setIsGeneratingLabels(true);
     try {
-      console.log('[NetworkVisualization] Generating cluster labels...');
+      console.log('[NetworkVisualization] Generating cluster labels for filtered clusters');
       const labels = await AnalysisService.generateClusterLabels(
         boardState.boardId || '',
-        detectedClusters
+        filteredClusters
       );
       
       // ノード位置を反映してラベル位置を更新
@@ -1522,7 +2310,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     } finally {
       setIsGeneratingLabels(false);
     }
-  }, [showClusters, detectedClusters, boardState.boardId, networkData.nodes, nodePositions, showCustomDialog, hideCustomDialog]);
+  }, [filteredClusters, boardState.boardId, networkData.nodes, nodePositions, showCustomDialog, hideCustomDialog]);
 
   // ラベルのクリア
   const clearLabels = useCallback(() => {
@@ -1824,12 +2612,14 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
             );
           })}
           
-          {/* Cluster highlights */}
-          {showClusters && detectedClusters.map((cluster, index) => {
+
+
+          {/* Cluster highlights (重み閾値フィルタリング適用) */}
+          {showFilteredClusters && filteredClusters.map((cluster, index) => {
             const clusterNodes = cluster.map(id => networkData.nodes.find(n => n.id === id)).filter(Boolean);
             if (clusterNodes.length < 2) return null;
             
-            const padding = 50;
+            const padding = 45; // 標準より少し小さく
             // 実際のノード位置を使用してクラスター境界を計算
             const nodePositionsInCluster = clusterNodes.map(n => {
               const pos = nodePositions[n!.id] || { x: n!.x, y: n!.y };
@@ -1852,17 +2642,17 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
             
             return (
               <ellipse
-                key={`cluster-${index}`}
+                key={`filtered-cluster-${index}`}
                 cx={centerX}
                 cy={centerY}
                 rx={radiusX}
                 ry={radiusY}
                 fill="none"
-                stroke={THEME_COLORS.primaryGreen}
-                strokeWidth="2"
-                strokeDasharray="15,8"
-                opacity="0.6"
-                filter="url(#glow)"
+                stroke={THEME_COLORS.primaryGreen}  // アクセント色で差別化
+                strokeWidth="3"                      // 少し太く
+                strokeDasharray="10,5"               // 短いダッシュ
+                opacity="0.7"                        // 少し濃く
+                filter="url(#strongGlow)"            // 強いグロー
               />
             );
           })}
@@ -1994,6 +2784,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
 
       {/* Controls */}
       <div style={styles.controls}>
+        {/* 統合関係性分析ボタン */}
         <button
           style={{
             ...styles.controlBtn,
@@ -2001,8 +2792,10 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
             color: isAnalyzing ? THEME_COLORS.textInverse : THEME_COLORS.textSecondary,
             borderColor: isAnalyzing ? THEME_COLORS.primaryOrange : THEME_COLORS.borderPrimary,
             cursor: isAnalyzing ? 'not-allowed' : 'pointer',
+            minWidth: '180px', // 他のボタンより少し大きく
+            fontWeight: '600',
           }}
-          onClick={analyzeRelationships}
+          onClick={() => runUnifiedAnalysis()}
           disabled={isAnalyzing}
           onMouseEnter={(e) => {
             if (!isAnalyzing) {
@@ -2021,91 +2814,41 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
             }
           }}
         >
-          {isAnalyzing ? 'AI分析中...' : 'AI関係性分析'}
+          {isAnalyzing ? '関係性分析中...' : `🧠 関係性を一括分析 (${cards.length}枚)`}
         </button>
         
+        {/* 完全分析強制実行ボタン */}
         <button
-          style={styles.controlBtn}
-          onClick={async () => {
-            if (boardState.boardId) {
-              try {
-                const result = await AnalysisService.generateTagSimilarityRelationships(boardState.boardId);
-                
-                // データをリフレッシュ
-                if (boardState.currentNestId) {
-                  await loadNestData(boardState.currentNestId);
-                }
-
-                // 結果モーダルを表示
-                setAnalysisResult(result);
-                setAnalysisType('tag_similarity');
-                setAnalysisModalVisible(true);
-              } catch (error) {
-                console.error('Tag similarity generation failed:', error);
-                showCustomDialog(
-                  'エラー',
-                  'タグ類似性の生成に失敗しました',
-                  () => hideCustomDialog()
-                );
-              }
+          style={{
+            ...styles.controlBtn,
+            background: THEME_COLORS.bgSecondary,
+            color: THEME_COLORS.textSecondary,
+            borderColor: THEME_COLORS.borderPrimary,
+            cursor: isAnalyzing ? 'not-allowed' : 'pointer',
+            minWidth: '140px',
+            fontSize: '11px',
+            opacity: isAnalyzing ? 0.5 : 1,
+          }}
+          onClick={() => runUnifiedAnalysis(true)}
+          disabled={isAnalyzing}
+          onMouseEnter={(e) => {
+            if (!isAnalyzing) {
+              e.currentTarget.style.background = THEME_COLORS.primaryBlue;
+              e.currentTarget.style.color = THEME_COLORS.textInverse;
+              e.currentTarget.style.borderColor = THEME_COLORS.primaryBlue;
+              e.currentTarget.style.transform = 'translateY(-2px)';
             }
           }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = THEME_COLORS.primaryCyan;
-            e.currentTarget.style.color = THEME_COLORS.textInverse;
-            e.currentTarget.style.borderColor = THEME_COLORS.primaryCyan;
-            e.currentTarget.style.transform = 'translateY(-2px)';
-          }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background = THEME_COLORS.bgSecondary;
-            e.currentTarget.style.color = THEME_COLORS.textSecondary;
-            e.currentTarget.style.borderColor = THEME_COLORS.borderPrimary;
-            e.currentTarget.style.transform = 'translateY(0)';
-          }}
-        >
-          タグ類似性分析
-        </button>
-        
-        <button
-          style={styles.controlBtn}
-          onClick={async () => {
-            if (boardState.boardId) {
-              try {
-                const result = await AnalysisService.generateDerivedRelationships(boardState.boardId);
-                
-                // データをリフレッシュ
-                if (boardState.currentNestId) {
-                  await loadNestData(boardState.currentNestId);
-                }
-
-                // 結果モーダルを表示
-                setAnalysisResult(result);
-                setAnalysisType('derived');
-                setAnalysisModalVisible(true);
-              } catch (error) {
-                console.error('Derived relationships generation failed:', error);
-                showCustomDialog(
-                  'エラー',
-                  '推論関係性の生成に失敗しました',
-                  () => hideCustomDialog()
-                );
-              }
+            if (!isAnalyzing) {
+              e.currentTarget.style.background = THEME_COLORS.bgSecondary;
+              e.currentTarget.style.color = THEME_COLORS.textSecondary;
+              e.currentTarget.style.borderColor = THEME_COLORS.borderPrimary;
+              e.currentTarget.style.transform = 'translateY(0)';
             }
           }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = THEME_COLORS.primaryBlue;
-            e.currentTarget.style.color = THEME_COLORS.textInverse;
-            e.currentTarget.style.borderColor = THEME_COLORS.primaryBlue;
-            e.currentTarget.style.transform = 'translateY(-2px)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = THEME_COLORS.bgSecondary;
-            e.currentTarget.style.color = THEME_COLORS.textSecondary;
-            e.currentTarget.style.borderColor = THEME_COLORS.borderPrimary;
-            e.currentTarget.style.transform = 'translateY(0)';
-          }}
         >
-          推論関係性分析
+          🔄 完全再分析
         </button>
         
         <button
@@ -2144,50 +2887,180 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         >
           Auto Layout
         </button>
-        <button
-          style={{
-            ...styles.controlBtn,
-            background: showClusters ? THEME_COLORS.primaryGreen : THEME_COLORS.bgSecondary,
-            color: showClusters ? THEME_COLORS.textInverse : THEME_COLORS.textSecondary,
-            borderColor: showClusters ? THEME_COLORS.primaryGreen : THEME_COLORS.borderPrimary,
-          }}
-          onClick={toggleClusters}
-        >
-          Show Clusters
-        </button>
-        <button
-          style={{
-            ...styles.controlBtn,
-            background: isGeneratingLabels ? THEME_COLORS.primaryPurple : showLabels ? THEME_COLORS.primaryPurple : THEME_COLORS.bgSecondary,
-            color: isGeneratingLabels || showLabels ? THEME_COLORS.textInverse : THEME_COLORS.textSecondary,
-            borderColor: isGeneratingLabels ? THEME_COLORS.primaryPurple : showLabels ? THEME_COLORS.primaryPurple : THEME_COLORS.borderPrimary,
-            cursor: isGeneratingLabels ? 'not-allowed' : 'pointer',
-          }}
-          onClick={showLabels ? clearLabels : generateLabels}
-          disabled={isGeneratingLabels}
-          onMouseEnter={(e) => {
-            if (!isGeneratingLabels) {
-              e.currentTarget.style.background = THEME_COLORS.primaryPurple;
-              e.currentTarget.style.color = THEME_COLORS.textInverse;
-              e.currentTarget.style.borderColor = THEME_COLORS.primaryPurple;
-              e.currentTarget.style.transform = 'translateY(-2px)';
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!isGeneratingLabels) {
-              const isActive = showLabels;
-              e.currentTarget.style.background = isActive ? THEME_COLORS.primaryPurple : THEME_COLORS.bgSecondary;
-              e.currentTarget.style.color = isActive ? THEME_COLORS.textInverse : THEME_COLORS.textSecondary;
-              e.currentTarget.style.borderColor = isActive ? THEME_COLORS.primaryPurple : THEME_COLORS.borderPrimary;
-              e.currentTarget.style.transform = 'translateY(0)';
-            }
-          }}
-        >
-          {isGeneratingLabels ? 'ラベル生成中...' : showLabels ? 'Clear Labels' : 'Auto Labels'}
-        </button>
+
         <button style={styles.controlBtn}>Analyze Density</button>
         <button style={styles.controlBtn}>Export</button>
+        
+        {/* クラスタリング制御ボタン */}
+        <button
+          style={{
+            ...styles.controlBtn,
+            background: showClusteringControls ? THEME_COLORS.primaryGreen : THEME_COLORS.bgSecondary,
+            color: showClusteringControls ? THEME_COLORS.textInverse : THEME_COLORS.textSecondary,
+            borderColor: showClusteringControls ? THEME_COLORS.primaryGreen : THEME_COLORS.borderPrimary,
+          }}
+          onClick={() => setShowClusteringControls(!showClusteringControls)}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = THEME_COLORS.primaryGreen;
+            e.currentTarget.style.color = THEME_COLORS.textInverse;
+            e.currentTarget.style.borderColor = THEME_COLORS.primaryGreen;
+            e.currentTarget.style.transform = 'translateY(-2px)';
+          }}
+          onMouseLeave={(e) => {
+            const isActive = showClusteringControls;
+            e.currentTarget.style.background = isActive ? THEME_COLORS.primaryGreen : THEME_COLORS.bgSecondary;
+            e.currentTarget.style.color = isActive ? THEME_COLORS.textInverse : THEME_COLORS.textSecondary;
+            e.currentTarget.style.borderColor = isActive ? THEME_COLORS.primaryGreen : THEME_COLORS.borderPrimary;
+            e.currentTarget.style.transform = 'translateY(0)';
+          }}
+        >
+          Clustering Controls
+        </button>
       </div>
+      
+      {/* クラスタリング制御パネル */}
+      {showClusteringControls && (
+        <div style={styles.clusteringControlsPanel}>
+          <div style={styles.panelHeader}>
+            <h4 style={styles.panelTitle}>クラスタリング設定</h4>
+            <button
+              style={styles.closeButton}
+              onClick={() => setShowClusteringControls(false)}
+            >
+              ✕
+            </button>
+          </div>
+          
+          <div style={styles.controlGroup}>
+            <label style={styles.controlLabel}>
+              <input
+                type="checkbox"
+                checked={useWeightFiltering}
+                onChange={(e) => setUseWeightFiltering(e.target.checked)}
+                style={styles.checkbox}
+              />
+              重み閾値フィルタリングを使用
+            </label>
+          </div>
+          
+          {useWeightFiltering && (
+            <div style={styles.controlGroup}>
+              <label style={styles.controlLabel}>
+                強度閾値: {strengthThreshold.toFixed(2)}
+              </label>
+              <input
+                type="range"
+                min="0.1"
+                max="0.9"
+                step="0.05"
+                value={strengthThreshold}
+                onChange={(e) => setStrengthThreshold(parseFloat(e.target.value))}
+                style={styles.slider}
+              />
+              <div style={styles.sliderLabels}>
+                <span style={styles.sliderLabel}>0.1 (緩い)</span>
+                <span style={styles.sliderLabel}>0.9 (厳格)</span>
+              </div>
+            </div>
+          )}
+          
+          <div style={styles.controlGroup}>
+            <label style={styles.controlLabel}>
+              <input
+                type="checkbox"
+                checked={showFilteredClusters}
+                onChange={(e) => setShowFilteredClusters(e.target.checked)}
+                style={styles.checkbox}
+              />
+              フィルタリング結果をクラスタ表示
+            </label>
+          </div>
+          
+          <div style={styles.controlGroup}>
+            <button
+              style={styles.applyButton}
+              onClick={() => {
+                // 既存のラベルをクリア（新しいクラスターに対応するため）
+                if (showLabels) {
+                  clearLabels();
+                }
+                
+                // フィルタリングクラスターを実行
+                const newClusters = detectClusters(strengthThreshold, useWeightFiltering);
+                setFilteredClusters(newClusters);
+                
+                // レイアウトを再適用
+                applyForceLayout();
+                
+                // フィルタリング結果を自動的に表示
+                if (newClusters.length > 0) {
+                  setShowFilteredClusters(true);
+                }
+                
+                console.log('🚀 Applied new clustering settings:', {
+                  useWeightFiltering,
+                  strengthThreshold,
+                  newClusters: newClusters.length,
+                  showVisualization: newClusters.length > 0,
+                  labelsCleared: showLabels
+                });
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = THEME_COLORS.primaryOrange;
+                e.currentTarget.style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = THEME_COLORS.primaryGreen;
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+            >
+              適用してレイアウト更新
+            </button>
+          </div>
+          
+          {/* Auto Labels統合ボタン */}
+          <div style={styles.controlGroup}>
+            <button
+              style={{
+                ...styles.applyButton,
+                background: isGeneratingLabels ? THEME_COLORS.primaryGreen : showLabels ? THEME_COLORS.primaryGreen : THEME_COLORS.bgTertiary,
+                color: isGeneratingLabels || showLabels ? THEME_COLORS.textInverse : THEME_COLORS.textSecondary,
+                cursor: isGeneratingLabels ? 'not-allowed' : 'pointer',
+                border: `1px solid ${isGeneratingLabels ? THEME_COLORS.primaryGreen : showLabels ? THEME_COLORS.primaryGreen : THEME_COLORS.borderSecondary}`,
+              }}
+              onClick={showLabels ? clearLabels : generateLabels}
+              disabled={isGeneratingLabels}
+              onMouseEnter={(e) => {
+                if (!isGeneratingLabels) {
+                  e.currentTarget.style.background = THEME_COLORS.primaryGreen;
+                  e.currentTarget.style.color = THEME_COLORS.textInverse;
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isGeneratingLabels) {
+                  const isActive = showLabels;
+                  e.currentTarget.style.background = isActive ? THEME_COLORS.primaryGreen : THEME_COLORS.bgTertiary;
+                  e.currentTarget.style.color = isActive ? THEME_COLORS.textInverse : THEME_COLORS.textSecondary;
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }
+              }}
+            >
+              {isGeneratingLabels ? 'ラベル生成中...' : showLabels ? 'ラベルクリア' : 'Auto Labels'}
+            </button>
+          </div>
+          
+          <div style={styles.debugInfo}>
+            <small style={styles.debugText}>
+              総エッジ数: {networkData.edges.length} | 
+              フィルタ後: {useWeightFiltering ? networkData.edges.filter(e => e.strength >= strengthThreshold).length : networkData.edges.length}<br/>
+              クラスタ数: {filteredClusters.length} | 
+              表示中: {showFilteredClusters ? '🟢表示' : '❌非表示'}<br/>
+              ラベル: {showLabels ? `🏷️ ${clusterLabels.length}個表示中` : '❌非表示'}
+            </small>
+          </div>
+        </div>
+      )}
 
       {/* Metrics Panel */}
       <div style={{
@@ -2474,7 +3347,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
               fontWeight: '600',
               fontFamily: 'Space Grotesk, system-ui, sans-serif',
             }}>
-              AI関係性提案 ({aiSuggestions.length})
+              統合関係性提案 ({unifiedSuggestions.length})
             </div>
             <button
               style={{
@@ -2491,7 +3364,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
             </button>
           </div>
 
-          {aiSuggestions.length === 0 ? (
+          {unifiedSuggestions.length === 0 ? (
             <div style={{
               textAlign: 'center',
               color: THEME_COLORS.textMuted,
@@ -2502,7 +3375,227 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
             </div>
           ) : (
             <>
-              {/* 一括操作ボタン */}
+              {/* 分析結果統計 */}
+              <div style={{
+                marginBottom: '16px',
+                padding: '12px',
+                background: THEME_COLORS.bgSecondary,
+                borderRadius: '8px',
+                border: `1px solid ${THEME_COLORS.borderPrimary}`,
+              }}>
+                <div style={{
+                  fontSize: '12px',
+                  color: THEME_COLORS.textSecondary,
+                  marginBottom: '8px',
+                  fontWeight: '600',
+                }}>
+                  分析結果統計
+                </div>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr 1fr',
+                  gap: '8px',
+                  fontSize: '10px',
+                }}>
+                  <div style={{
+                    textAlign: 'center',
+                    padding: '8px',
+                    background: THEME_COLORS.bgTertiary,
+                    borderRadius: '6px',
+                    border: `1px solid ${THEME_COLORS.primaryOrange}40`,
+                  }}>
+                    <div style={{ color: THEME_COLORS.primaryOrange, fontWeight: '600' }}>
+                      {(aiSuggestions as UnifiedRelationshipSuggestion[]).filter(s => s.analysisMethod === 'ai').length}
+                    </div>
+                    <div style={{ color: THEME_COLORS.textMuted }}>🤖 AI分析</div>
+                  </div>
+                  <div style={{
+                    textAlign: 'center',
+                    padding: '8px',
+                    background: THEME_COLORS.bgTertiary,
+                    borderRadius: '6px',
+                    border: `1px solid ${THEME_COLORS.primaryCyan}40`,
+                  }}>
+                    <div style={{ color: THEME_COLORS.primaryCyan, fontWeight: '600' }}>
+                      {(aiSuggestions as UnifiedRelationshipSuggestion[]).filter(s => s.analysisMethod === 'tag_similarity').length}
+                    </div>
+                    <div style={{ color: THEME_COLORS.textMuted }}>🏷️ タグ類似</div>
+                  </div>
+                  <div style={{
+                    textAlign: 'center',
+                    padding: '8px',
+                    background: THEME_COLORS.bgTertiary,
+                    borderRadius: '6px',
+                    border: `1px solid ${THEME_COLORS.primaryBlue}40`,
+                  }}>
+                    <div style={{ color: THEME_COLORS.primaryBlue, fontWeight: '600' }}>
+                      {(aiSuggestions as UnifiedRelationshipSuggestion[]).filter(s => s.analysisMethod === 'derived').length}
+                    </div>
+                    <div style={{ color: THEME_COLORS.textMuted }}>🔗 推論分析</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 分析手法フィルター */}
+              <div style={{
+                marginBottom: '16px',
+                padding: '12px',
+                background: THEME_COLORS.bgSecondary,
+                borderRadius: '8px',
+                border: `1px solid ${THEME_COLORS.borderPrimary}`,
+              }}>
+                <div style={{
+                  fontSize: '12px',
+                  color: THEME_COLORS.textSecondary,
+                  marginBottom: '8px',
+                  fontWeight: '600',
+                }}>
+                  分析手法フィルター
+                </div>
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px',
+                }}>
+                  {[
+                    { key: 'ai', label: 'AI分析', icon: '🤖', color: THEME_COLORS.primaryOrange },
+                    { key: 'tag_similarity', label: 'タグ類似性', icon: '🏷️', color: THEME_COLORS.primaryCyan },
+                    { key: 'derived', label: '推論分析', icon: '🔗', color: THEME_COLORS.primaryBlue }
+                  ].map(method => (
+                    <label key={method.key} style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      cursor: 'pointer',
+                      fontSize: '11px',
+                      color: THEME_COLORS.textSecondary,
+                    }}>
+                      <input
+                        type="checkbox"
+                        checked={methodFilters[method.key as keyof typeof methodFilters]}
+                        onChange={(e) => setMethodFilters(prev => ({
+                          ...prev,
+                          [method.key]: e.target.checked
+                        }))}
+                        style={{
+                          accentColor: method.color,
+                          width: '12px',
+                          height: '12px',
+                        }}
+                      />
+                      <span style={{ fontSize: '12px' }}>{method.icon}</span>
+                      <span>{method.label}</span>
+                      <span style={{
+                        background: method.color,
+                        color: THEME_COLORS.textInverse,
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        fontSize: '10px',
+                        fontWeight: '600',
+                      }}>
+                        {(aiSuggestions as UnifiedRelationshipSuggestion[])
+                          .filter(s => s.analysisMethod === method.key).length}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* 手法別一括操作ボタン */}
+              <div style={{
+                marginBottom: '16px',
+                padding: '12px',
+                background: THEME_COLORS.bgSecondary,
+                borderRadius: '8px',
+                border: `1px solid ${THEME_COLORS.borderPrimary}`,
+              }}>
+                <div style={{
+                  fontSize: '12px',
+                  color: THEME_COLORS.textSecondary,
+                  marginBottom: '8px',
+                  fontWeight: '600',
+                }}>
+                  手法別一括操作
+                </div>
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px',
+                }}>
+                  {[
+                    { method: 'ai', label: 'AI分析', icon: '🤖', color: THEME_COLORS.primaryOrange },
+                    { method: 'tag_similarity', label: 'タグ類似性', icon: '🏷️', color: THEME_COLORS.primaryCyan },
+                    { method: 'derived', label: '推論分析', icon: '🔗', color: THEME_COLORS.primaryBlue }
+                  ].map(({ method, label, icon, color }) => {
+                    const methodSuggestions = (aiSuggestions as UnifiedRelationshipSuggestion[])
+                      .filter(s => s.analysisMethod === method);
+                    const filteredMethodSuggestions = methodSuggestions.filter(s => 
+                      methodFilters[method as keyof typeof methodFilters]
+                    );
+                    
+                    if (methodSuggestions.length === 0) return null;
+                    
+                    return (
+                      <div key={method} style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '6px',
+                        background: THEME_COLORS.bgTertiary,
+                        borderRadius: '6px',
+                        border: `1px solid ${color}40`,
+                      }}>
+                        <span style={{ fontSize: '12px' }}>{icon}</span>
+                        <span style={{
+                          fontSize: '11px',
+                          color: THEME_COLORS.textSecondary,
+                          flex: 1,
+                        }}>
+                          {label} ({filteredMethodSuggestions.length}件)
+                        </span>
+                        <button
+                          style={{
+                            background: THEME_COLORS.primaryGreen,
+                            color: THEME_COLORS.textInverse,
+                            border: 'none',
+                            borderRadius: '4px',
+                            padding: '4px 8px',
+                            fontSize: '9px',
+                            fontWeight: '600',
+                            cursor: filteredMethodSuggestions.length > 0 ? 'pointer' : 'not-allowed',
+                            opacity: filteredMethodSuggestions.length > 0 ? 1 : 0.5,
+                            transition: 'all 0.2s ease',
+                          }}
+                          disabled={filteredMethodSuggestions.length === 0}
+                          onClick={() => approveMethodSuggestions(method as 'ai' | 'tag_similarity' | 'derived')}
+                        >
+                          承認
+                        </button>
+                        <button
+                          style={{
+                            background: THEME_COLORS.primaryRed,
+                            color: THEME_COLORS.textInverse,
+                            border: 'none',
+                            borderRadius: '4px',
+                            padding: '4px 8px',
+                            fontSize: '9px',
+                            fontWeight: '600',
+                            cursor: filteredMethodSuggestions.length > 0 ? 'pointer' : 'not-allowed',
+                            opacity: filteredMethodSuggestions.length > 0 ? 1 : 0.5,
+                            transition: 'all 0.2s ease',
+                          }}
+                          disabled={filteredMethodSuggestions.length === 0}
+                          onClick={() => rejectMethodSuggestions(method as 'ai' | 'tag_similarity' | 'derived')}
+                        >
+                          拒否
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 全体一括操作ボタン */}
               <div style={{
                 display: 'flex',
                 gap: '8px',
@@ -2532,7 +3625,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
                     e.currentTarget.style.transform = 'translateY(0)';
                   }}
                 >
-                  全て承認
+                  表示中全て承認 ({unifiedSuggestions.length})
                 </button>
                 <button
                   style={{
@@ -2571,7 +3664,19 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
 
               {/* 提案リスト */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {aiSuggestions.map((suggestion, index) => {
+                {(() => {
+                  console.log('🔍 提案表示デバッグ:', {
+                    totalAiSuggestions: aiSuggestions.length,
+                    unifiedSuggestions: unifiedSuggestions.length,
+                    methodFilters: methodFilters,
+                    aiSuggestionsDetail: aiSuggestions.map(s => ({
+                      source: cards.find(c => c.id === s.sourceCardId)?.title,
+                      target: cards.find(c => c.id === s.targetCardId)?.title,
+                      method: (s as UnifiedRelationshipSuggestion).analysisMethod
+                    }))
+                  });
+                  return unifiedSuggestions;
+                })().map((suggestion, index) => {
                   const sourceCard = cards.find(c => c.id === suggestion.sourceCardId);
                   const targetCard = cards.find(c => c.id === suggestion.targetCardId);
                   
@@ -2633,10 +3738,44 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
                       <div style={{
                         fontSize: '11px',
                         color: THEME_COLORS.textMuted,
-                        marginBottom: '8px',
+                        marginBottom: '12px',
                         lineHeight: '1.4',
+                        background: THEME_COLORS.bgSecondary,
+                        padding: '8px',
+                        borderRadius: '6px',
+                        border: `1px solid ${THEME_COLORS.borderPrimary}`,
                       }}>
+                        <div style={{
+                          fontSize: '10px',
+                          color: THEME_COLORS.textSecondary,
+                          marginBottom: '4px',
+                          fontWeight: '600',
+                          textTransform: 'uppercase',
+                        }}>
+                          分析詳細
+                        </div>
                         {suggestion.explanation}
+                        
+                        {/* 推奨強度情報 */}
+                        {suggestion.suggestedStrength && (
+                          <div style={{
+                            marginTop: '6px',
+                            fontSize: '10px',
+                            color: THEME_COLORS.textMuted,
+                          }}>
+                            推奨強度: {(suggestion.suggestedStrength * 100).toFixed(1)}%
+                          </div>
+                        )}
+                        
+                        {/* 類似度情報 */}
+                        {suggestion.similarity && suggestion.similarity !== suggestion.confidence && (
+                          <div style={{
+                            fontSize: '10px',
+                            color: THEME_COLORS.textMuted,
+                          }}>
+                            類似度: {(suggestion.similarity * 100).toFixed(1)}%
+                          </div>
+                        )}
                       </div>
 
                       {/* 信頼度とタイプ */}
@@ -2650,11 +3789,33 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
                           display: 'flex',
                           gap: '8px',
                           alignItems: 'center',
+                          flexWrap: 'wrap',
                         }}>
+                          {/* 分析手法バッジ */}
+                          {(suggestion as UnifiedRelationshipSuggestion).analysisMethod && (
+                            <span style={{
+                              fontSize: '9px',
+                              background: (suggestion as UnifiedRelationshipSuggestion).analysisMethod === 'ai' 
+                                ? THEME_COLORS.primaryOrange
+                                : (suggestion as UnifiedRelationshipSuggestion).analysisMethod === 'tag_similarity'
+                                ? THEME_COLORS.primaryCyan
+                                : THEME_COLORS.primaryBlue,
+                              color: THEME_COLORS.textInverse,
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              fontWeight: '600',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                            }}>
+                              {(suggestion as UnifiedRelationshipSuggestion).methodIcon}
+                              {(suggestion as UnifiedRelationshipSuggestion).methodLabel}
+                            </span>
+                          )}
                           <span style={{
                             fontSize: '9px',
-                            background: THEME_COLORS.primaryOrange,
-                            color: THEME_COLORS.textInverse,
+                            background: THEME_COLORS.bgQuaternary,
+                            color: THEME_COLORS.textSecondary,
                             padding: '2px 6px',
                             borderRadius: '4px',
                             textTransform: 'uppercase',

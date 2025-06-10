@@ -17,6 +17,8 @@ import { SPACING, FONT_SIZE, BORDER_RADIUS, COMPONENT_STYLES } from '@constants/
 import responsive from '@utils/responsive';
 import { useNest } from '../../contexts/NestContext';
 import invitationService from '../services/invitationService';
+import { useAuth } from '@contexts/AuthContext';
+import { Navigate } from 'react-router-dom';
 
 // Tauriが利用可能か確認するためのヘルパー関数
 const isTauriAvailable = () => {
@@ -42,9 +44,22 @@ const InviteLink: React.FC<InviteLinkProps> = ({
   
   const { currentNest } = useNest();
   const { width } = useWindowDimensions();
+  const { user } = useAuth();
   
   // モバイル/デスクトップ判定
   const isMobile = responsive.mediaQuery.isMobile(width);
+  
+  if (!user) {
+    return <Navigate to="/login" />;
+  }
+
+  if (!currentNest) {
+    return (
+      <View style={styles.container}>
+        <Text>NESTが選択されていません。Nest一覧から選択してください。</Text>
+      </View>
+    );
+  }
   
   // 招待リンクの生成
   const generateLink = async (hours: number = expirationHours) => {
