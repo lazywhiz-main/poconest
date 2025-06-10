@@ -28,7 +28,8 @@ const mockNest: Nest = {
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
   space_ids: [],
-  is_active: true
+  is_active: true,
+  status: 'active'
 };
 
 const mockUser = {

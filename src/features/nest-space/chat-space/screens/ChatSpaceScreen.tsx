@@ -4,7 +4,7 @@ import { useNestSpace } from '@contexts/NestSpaceContext';
 import { SpaceType } from '../../types/nestSpace.types';
 import ChatSpace from '../components/ChatSpace';
 import { useNest } from '../../../nest/contexts/NestContext';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useAuth } from '../../../../contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
 
 // This is a custom hook that provides a wrapper over useChatSpace 

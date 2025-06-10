@@ -1,359 +1,270 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
 import { AIProviderManager } from '../services/ai/AIProviderManager';
 import { AIProviderType } from '../services/ai/providers/AIProvider';
 
-export interface AIProviderSelectorProps {
-  nestId?: string; // Nest-specific settings support
+interface ProviderStatus {
+  openai: boolean;
+  gemini: boolean;
 }
 
-const AIProviderSelector: React.FC<AIProviderSelectorProps> = ({ nestId }) => {
-  const [primaryProvider, setPrimaryProvider] = useState<'openai' | 'gemini'>('openai');
-  const [enableFallback, setEnableFallback] = useState(true);
-  const [providerStatus, setProviderStatus] = useState<{
-    openai: 'available' | 'unavailable' | 'checking';
-    gemini: 'available' | 'unavailable' | 'checking';
-  }>({
-    openai: 'checking',
-    gemini: 'checking'
+interface AIProviderSelectorProps {
+  selectedProvider: 'openai' | 'gemini';
+  onProviderChange: (provider: 'openai' | 'gemini') => void;
+  enableFallback: boolean;
+  onFallbackChange: (enabled: boolean) => void;
+}
+
+export const AIProviderSelector: React.FC<AIProviderSelectorProps> = ({
+  selectedProvider,
+  onProviderChange,
+  enableFallback,
+  onFallbackChange,
+}) => {
+  const [providerStatus, setProviderStatus] = useState<ProviderStatus>({
+    openai: false,
+    gemini: false,
   });
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isChecking, setIsChecking] = useState(false);
 
-  // Load settings based on nestId or global settings
-  useEffect(() => {
-    loadSettings();
-    checkProviderStatus();
-  }, [nestId]);
-
-  const getStorageKey = (key: string) => {
-    return nestId ? `nest_${nestId}_${key}` : key;
-  };
-
-  const loadSettings = () => {
-    try {
-      const savedPrimary = localStorage.getItem(getStorageKey('ai_primary_provider')) as 'openai' | 'gemini';
-      const savedFallback = localStorage.getItem(getStorageKey('ai_enable_fallback'));
-      
-      if (savedPrimary) {
-        setPrimaryProvider(savedPrimary);
-      }
-      if (savedFallback !== null) {
-        setEnableFallback(savedFallback === 'true');
-      }
-    } catch (error) {
-      console.error('Failed to load AI provider settings:', error);
-    }
-  };
-
-  const saveSettings = (primary: 'openai' | 'gemini', fallback: boolean) => {
-    try {
-      localStorage.setItem(getStorageKey('ai_primary_provider'), primary);
-      localStorage.setItem(getStorageKey('ai_enable_fallback'), fallback.toString());
-    } catch (error) {
-      console.error('Failed to save AI provider settings:', error);
-    }
-  };
+  const aiManager = AIProviderManager.getInstance();
 
   const checkProviderStatus = async () => {
-    setProviderStatus({
-      openai: 'checking',
-      gemini: 'checking'
-    });
-
+    setIsChecking(true);
     try {
-      const { AIProviderManager } = await import('../services/ai/AIProviderManager');
-      const manager = AIProviderManager.getInstance();
-      
       const [openaiAvailable, geminiAvailable] = await Promise.all([
-        manager.checkProviderAvailability('openai'),
-        manager.checkProviderAvailability('gemini')
+        aiManager.checkProviderAvailability(AIProviderType.OPENAI),
+        aiManager.checkProviderAvailability(AIProviderType.GEMINI),
       ]);
 
       setProviderStatus({
-        openai: openaiAvailable ? 'available' : 'unavailable',
-        gemini: geminiAvailable ? 'available' : 'unavailable'
+        openai: openaiAvailable,
+        gemini: geminiAvailable,
       });
     } catch (error) {
       console.error('Failed to check provider status:', error);
-      setProviderStatus({
-        openai: 'unavailable',
-        gemini: 'unavailable'
-      });
+    } finally {
+      setIsChecking(false);
     }
   };
 
-  const handlePrimaryProviderChange = (provider: 'openai' | 'gemini') => {
-    setPrimaryProvider(provider);
-    saveSettings(provider, enableFallback);
+  useEffect(() => {
+    checkProviderStatus();
+  }, []);
+
+  const getStatusColor = (provider: 'openai' | 'gemini') => {
+    if (isChecking) return '#f39c12';
+    return providerStatus[provider] ? '#00ff88' : '#e74c3c';
   };
 
-  const handleFallbackToggle = () => {
-    const newFallback = !enableFallback;
-    setEnableFallback(newFallback);
-    saveSettings(primaryProvider, newFallback);
-  };
-
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    await checkProviderStatus();
-    setIsRefreshing(false);
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'available': return '#00ff88';
-      case 'unavailable': return '#e74c3c';
-      case 'checking': return '#f39c12';
-      default: return '#6c7086';
-    }
-  };
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'available': return '利用可能';
-      case 'unavailable': return '利用不可';
-      case 'checking': return '確認中...';
-      default: return '不明';
-    }
+  const getStatusText = (provider: 'openai' | 'gemini') => {
+    if (isChecking) return 'チェック中...';
+    return providerStatus[provider] ? '利用可能' : '利用不可';
   };
 
   return (
-    <div style={styles.container}>
-      {nestId && (
-        <div style={styles.nestInfo}>
-          <Text style={styles.nestInfoText}>
-            このNest専用の設定 (ID: {nestId.slice(0, 8)}...)
-          </Text>
-        </div>
-      )}
-      
-      <div style={styles.section}>
-        <Text style={styles.sectionTitle}>プライマリプロバイダー</Text>
-        <Text style={styles.sectionDescription}>
-          メインで使用するAIプロバイダーを選択してください
-        </Text>
-        
-        <div style={styles.providerGrid}>
-          {/* OpenAI Option */}
-          <button
-            style={{
-              ...styles.providerCard,
-              borderColor: primaryProvider === 'openai' ? '#00ff88' : '#333366',
-              backgroundColor: primaryProvider === 'openai' ? 'rgba(0, 255, 136, 0.1)' : '#1a1a2e'
-            }}
-            onClick={() => handlePrimaryProviderChange('openai')}
-          >
-            <div style={styles.providerHeader}>
-              <Text style={styles.providerName}>OpenAI</Text>
-              <div style={{
-                ...styles.statusBadge,
-                backgroundColor: getStatusColor(providerStatus.openai)
-              }}>
-                <Text style={styles.statusText}>
-                  {getStatusText(providerStatus.openai)}
-                </Text>
-              </div>
-            </div>
-            <Text style={styles.providerDescription}>
-              GPT-4, text-embedding-3-small
-            </Text>
-          </button>
-
-          {/* Gemini Option */}
-          <button
-            style={{
-              ...styles.providerCard,
-              borderColor: primaryProvider === 'gemini' ? '#00ff88' : '#333366',
-              backgroundColor: primaryProvider === 'gemini' ? 'rgba(0, 255, 136, 0.1)' : '#1a1a2e'
-            }}
-            onClick={() => handlePrimaryProviderChange('gemini')}
-          >
-            <div style={styles.providerHeader}>
-              <Text style={styles.providerName}>Gemini</Text>
-              <div style={{
-                ...styles.statusBadge,
-                backgroundColor: getStatusColor(providerStatus.gemini)
-              }}>
-                <Text style={styles.statusText}>
-                  {getStatusText(providerStatus.gemini)}
-                </Text>
-              </div>
-            </div>
-            <Text style={styles.providerDescription}>
-              Gemini 2.0 Flash, gemini-embedding-exp
-            </Text>
-          </button>
-        </div>
-      </div>
-
-      <div style={styles.section}>
-        <div style={styles.settingRow}>
-          <div>
-            <Text style={styles.settingTitle}>フォールバック機能</Text>
-            <Text style={styles.settingDescription}>
-              プライマリプロバイダーが利用できない場合、自動的に他のプロバイダーを使用
-            </Text>
-          </div>
-          <button
-            style={{
-              ...styles.toggleButton,
-              backgroundColor: enableFallback ? '#00ff88' : '#313244'
-            }}
-            onClick={handleFallbackToggle}
-          >
-            <div style={{
-              ...styles.toggleThumb,
-              transform: enableFallback ? 'translateX(20px)' : 'translateX(2px)'
-            }} />
-          </button>
-        </div>
-      </div>
-
-      <div style={styles.section}>
-        <button
-          style={styles.refreshButton}
-          onClick={handleRefresh}
-          disabled={isRefreshing}
+    <div style={containerStyle}>
+      <div style={headerStyle}>
+        <h3 style={titleStyle}>AIプロバイダー選択</h3>
+        <button 
+          onClick={checkProviderStatus}
+          style={refreshButtonStyle}
+          disabled={isChecking}
         >
-          <Text style={styles.refreshButtonText}>
-            {isRefreshing ? '確認中...' : 'プロバイダー状況を更新'}
-          </Text>
+          {isChecking ? '⟳' : '↻'} 更新
         </button>
+      </div>
+
+      <div style={providersContainerStyle}>
+        {/* OpenAI Card */}
+        <div 
+          style={{
+            ...providerCardStyle,
+            borderColor: selectedProvider === 'openai' ? '#00ff88' : '#333366',
+            backgroundColor: selectedProvider === 'openai' ? 'rgba(0, 255, 136, 0.1)' : '#1a1a2e',
+          }}
+          onClick={() => onProviderChange('openai')}
+        >
+          <div style={providerHeaderStyle}>
+            <span style={providerNameStyle}>OpenAI GPT-4o</span>
+            <div style={{
+              ...statusIndicatorStyle,
+              backgroundColor: getStatusColor('openai'),
+            }} />
+          </div>
+          <div style={statusTextStyle}>
+            {getStatusText('openai')}
+          </div>
+        </div>
+
+        {/* Gemini Card */}
+        <div 
+          style={{
+            ...providerCardStyle,
+            borderColor: selectedProvider === 'gemini' ? '#00ff88' : '#333366',
+            backgroundColor: selectedProvider === 'gemini' ? 'rgba(0, 255, 136, 0.1)' : '#1a1a2e',
+          }}
+          onClick={() => onProviderChange('gemini')}
+        >
+          <div style={providerHeaderStyle}>
+            <span style={providerNameStyle}>Google Gemini</span>
+            <div style={{
+              ...statusIndicatorStyle,
+              backgroundColor: getStatusColor('gemini'),
+            }} />
+          </div>
+          <div style={statusTextStyle}>
+            {getStatusText('gemini')}
+          </div>
+        </div>
+      </div>
+
+      {/* Fallback Toggle */}
+      <div style={fallbackContainerStyle}>
+        <div style={fallbackToggleStyle}>
+          <span style={fallbackLabelStyle}>フォールバック機能</span>
+          <label style={toggleStyle}>
+            <input
+              type="checkbox"
+              checked={enableFallback}
+              onChange={(e) => onFallbackChange(e.target.checked)}
+              style={{ display: 'none' }}
+            />
+            <div style={{
+              ...toggleBackgroundStyle,
+              backgroundColor: enableFallback ? '#00ff88' : '#313244',
+            }}>
+              <div style={{
+                ...toggleKnobStyle,
+                transform: enableFallback ? 'translateX(20px)' : 'translateX(2px)',
+              }} />
+            </div>
+          </label>
+        </div>
+        <p style={fallbackDescriptionStyle}>
+          プライマリプロバイダーが利用できない場合、自動的に他のプロバイダーに切り替えます
+        </p>
       </div>
     </div>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    width: '100%',
-  },
-  nestInfo: {
-    backgroundColor: 'rgba(0, 255, 136, 0.1)',
-    border: '1px solid #00ff88',
-    borderRadius: 4,
-    padding: 12,
-    marginBottom: 20,
-  },
-  nestInfoText: {
-    color: '#00ff88',
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: '1px',
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#a6adc8',
-    textTransform: 'uppercase',
-    letterSpacing: '1px',
-    marginBottom: 8,
-  },
-  sectionDescription: {
-    fontSize: 13,
-    color: '#6c7086',
-    marginBottom: 16,
-    lineHeight: '1.5',
-  },
-  providerGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-    gap: 12,
-  },
-  providerCard: {
-    backgroundColor: '#1a1a2e',
-    border: '1px solid #333366',
-    borderRadius: 6,
-    padding: 16,
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
-    outline: 'none',
-  },
-  providerHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  providerName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#e2e8f0',
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    minWidth: 60,
-  },
-  statusText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#ffffff',
-    textAlign: 'center',
-  },
-  providerDescription: {
-    fontSize: 12,
-    color: '#6c7086',
-    lineHeight: '1.4',
-  },
-  settingRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 16,
-  },
-  settingTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#e2e8f0',
-    marginBottom: 4,
-  },
-  settingDescription: {
-    fontSize: 12,
-    color: '#6c7086',
-    lineHeight: '1.4',
-  },
-  toggleButton: {
-    width: 44,
-    height: 24,
-    borderRadius: 12,
-    position: 'relative',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
-    border: 'none',
-    outline: 'none',
-  },
-  toggleThumb: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#ffffff',
-    position: 'absolute',
-    top: 2,
-    transition: 'transform 0.2s ease',
-  },
-  refreshButton: {
-    backgroundColor: '#313244',
-    border: '1px solid #45475a',
-    borderRadius: 6,
-    padding: '12px 20px',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
-    outline: 'none',
-    width: '100%',
-  },
-  refreshButtonText: {
-    color: '#a6adc8',
-    fontSize: 13,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: '1px',
-  },
-});
+// Styles
+const containerStyle: React.CSSProperties = {
+  padding: '20px',
+  backgroundColor: '#0f0f1a',
+  borderRadius: '12px',
+  border: '1px solid #333366',
+};
 
-export default AIProviderSelector; 
+const headerStyle: React.CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: '16px',
+};
+
+const titleStyle: React.CSSProperties = {
+  color: '#ffffff',
+  fontSize: '18px',
+  fontWeight: '600',
+  margin: 0,
+};
+
+const refreshButtonStyle: React.CSSProperties = {
+  backgroundColor: '#333366',
+  color: '#ffffff',
+  border: 'none',
+  borderRadius: '6px',
+  padding: '8px 12px',
+  fontSize: '14px',
+  cursor: 'pointer',
+  transition: 'all 0.2s ease',
+};
+
+const providersContainerStyle: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+  gap: '12px',
+  marginBottom: '20px',
+};
+
+const providerCardStyle: React.CSSProperties = {
+  padding: '16px',
+  border: '2px solid',
+  borderRadius: '8px',
+  cursor: 'pointer',
+  transition: 'all 0.2s ease',
+};
+
+const providerHeaderStyle: React.CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: '8px',
+};
+
+const providerNameStyle: React.CSSProperties = {
+  color: '#ffffff',
+  fontSize: '16px',
+  fontWeight: '500',
+};
+
+const statusIndicatorStyle: React.CSSProperties = {
+  width: '12px',
+  height: '12px',
+  borderRadius: '50%',
+};
+
+const statusTextStyle: React.CSSProperties = {
+  color: '#b4b4b4',
+  fontSize: '14px',
+};
+
+const fallbackContainerStyle: React.CSSProperties = {
+  padding: '16px',
+  backgroundColor: '#1a1a2e',
+  borderRadius: '8px',
+  border: '1px solid #333366',
+};
+
+const fallbackToggleStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  marginBottom: '8px',
+};
+
+const fallbackLabelStyle: React.CSSProperties = {
+  color: '#ffffff',
+  fontSize: '16px',
+  fontWeight: '500',
+};
+
+const toggleStyle: React.CSSProperties = {
+  cursor: 'pointer',
+};
+
+const toggleBackgroundStyle: React.CSSProperties = {
+  width: '44px',
+  height: '24px',
+  borderRadius: '12px',
+  position: 'relative',
+  transition: 'background-color 0.2s ease',
+};
+
+const toggleKnobStyle: React.CSSProperties = {
+  width: '20px',
+  height: '20px',
+  borderRadius: '50%',
+  backgroundColor: '#ffffff',
+  position: 'absolute',
+  top: '2px',
+  transition: 'transform 0.2s ease',
+};
+
+const fallbackDescriptionStyle: React.CSSProperties = {
+  color: '#b4b4b4',
+  fontSize: '14px',
+  margin: 0,
+  lineHeight: '1.4',
+}; 

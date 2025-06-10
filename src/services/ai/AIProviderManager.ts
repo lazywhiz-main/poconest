@@ -193,4 +193,9 @@ export class AIProviderManager {
     
     return status;
   }
+
+  // 公開メソッド: プロバイダーの可用性をチェック
+  async checkProviderAvailability(providerType: AIProviderType): Promise<boolean> {
+    return await this.checkAvailability(providerType);
+  }
 } 

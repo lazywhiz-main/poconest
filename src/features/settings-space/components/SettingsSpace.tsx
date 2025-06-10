@@ -1,12 +1,25 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import AIProviderSelector from '../../../components/AIProviderSelector';
+import { AIProviderSelector } from '../../../components/AIProviderSelector';
 
 interface SettingsSpaceProps {
   // 必要に応じてpropsを追加
 }
 
 const SettingsSpace: React.FC<SettingsSpaceProps> = () => {
+  const [selectedProvider, setSelectedProvider] = useState<'openai' | 'gemini'>('openai');
+  const [enableFallback, setEnableFallback] = useState(true);
+
+  const handleProviderChange = (provider: 'openai' | 'gemini') => {
+    setSelectedProvider(provider);
+    // ここで設定をサーバーに保存
+  };
+
+  const handleFallbackChange = (enabled: boolean) => {
+    setEnableFallback(enabled);
+    // ここで設定をサーバーに保存
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>設定空間</Text>
@@ -19,7 +32,12 @@ const SettingsSpace: React.FC<SettingsSpaceProps> = () => {
         <Text style={styles.sectionDescription}>
           AI機能で使用するプロバイダーを選択できます
         </Text>
-        <AIProviderSelector />
+        <AIProviderSelector 
+          selectedProvider={selectedProvider}
+          onProviderChange={handleProviderChange}
+          enableFallback={enableFallback}
+          onFallbackChange={handleFallbackChange}
+        />
       </View>
     </View>
   );

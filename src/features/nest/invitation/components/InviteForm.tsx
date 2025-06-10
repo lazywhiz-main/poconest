@@ -16,7 +16,7 @@ console.log('[InviteForm] invitationService:', invitationService);
 import { COLORS, BRAND_COLORS } from '@constants/Colors';
 import Styles, { SPACING, FONT_SIZE, BORDER_RADIUS, SHADOW, COMPONENT_STYLES } from '@constants/Styles';
 import responsive from '@utils/responsive';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useAuth } from '../../../../contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
 
 interface InviteFormProps {
