@@ -88,6 +88,8 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
   const [summaryContent, setSummaryContent] = useState(meeting.aiSummary || '');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const summaryRef = useRef<HTMLTextAreaElement>(null);
+  const summaryContainerRef = useRef<HTMLDivElement>(null);
+  const [textareaHeight, setTextareaHeight] = useState<string>('100%');
   const [relatedCards, setRelatedCards] = useState<BoardCardUI[]>([]);
   const [loadingCards, setLoadingCards] = useState(false);
   const navigate = useNavigate();
@@ -144,6 +146,33 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
       summaryRef.current.style.height = (summaryRef.current.scrollHeight || 200) + 'px';
     }
   }, [isEditingSummary, summaryContent]);
+
+  useEffect(() => {
+    if (isEditingSummary && summaryContainerRef.current) {
+      const updateHeight = () => {
+        if (summaryContainerRef.current) {
+          const containerHeight = summaryContainerRef.current.clientHeight;
+          if (containerHeight > 0) {
+            setTextareaHeight(`${containerHeight}px`);
+          }
+        }
+      };
+
+      // 初回実行（遅延）
+      setTimeout(updateHeight, 10);
+      
+      // ResizeObserver で継続監視
+      const resizeObserver = new ResizeObserver(() => {
+        setTimeout(updateHeight, 10);
+      });
+      
+      resizeObserver.observe(summaryContainerRef.current);
+      
+      return () => {
+        resizeObserver.disconnect();
+      };
+    }
+  }, [isEditingSummary]);
 
   // 作成者情報を取得
   const fetchCreatorInfo = useCallback(async () => {
@@ -359,9 +388,16 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
     const creatorDisplayName = creatorInfo?.display_name || meeting.createdBy || '作成者不明';
     
     return (
-      <div style={{ marginBottom: 24, padding: '8px 0 20px 0', borderBottom: '1px solid #333366', display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ 
+        marginBottom: 16,
+        padding: '4px 0 12px 0',
+        borderBottom: '1px solid #333366', 
+        display: 'flex', 
+        flexDirection: 'column', 
+        gap: 6
+      }}>
         {/* タイトル（ラベル省略、直接表示） */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 16, fontWeight: 500, color: '#e2e8f0', padding: '4px 0', cursor: 'pointer' }} onClick={() => setIsEditingTitle(true)}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 16, fontWeight: 500, color: '#e2e8f0', padding: '2px 0', cursor: 'pointer' }} onClick={() => setIsEditingTitle(true)}>
           <span>{meeting.title || '無題ミーティング'}</span>
           <EditIcon size={14} color="#a6adc8" />
         </div>
@@ -426,7 +462,7 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
               color: '#e2e8f0',
               border: 'none',
               borderRadius: 2,
-              padding: '8px 16px',
+              padding: '6px 12px',
               fontSize: 12,
               fontWeight: 600,
               cursor: 'pointer',
@@ -454,7 +490,7 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
 
   // --- HEADER with DELETE BUTTON ---
   const renderHeader = () => (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
       <div style={{ fontSize: 22, fontWeight: 700, color: '#e2e8f0', letterSpacing: 0.5, padding: '0 0 0 2px' }}>
         {meeting.title || '無題ミーティング'}
       </div>
@@ -465,13 +501,13 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
             color: '#ff6b6b',
             border: '1px solid #333366',
             borderRadius: 2,
-            padding: '8px 16px',
+            padding: '6px 12px',
             fontSize: 12,
             fontWeight: 600,
             display: 'flex',
             alignItems: 'center',
             gap: 6,
-            height: 36,
+            height: 32,
             cursor: 'pointer',
             transition: 'all 0.2s',
             marginLeft: 12,
@@ -479,7 +515,7 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
           onClick={() => setShowDeleteConfirm(true)}
           title="ミーティングを削除"
         >
-          <Icon name="delete" size={18} color="#ff6b6b" style={{ margin: 0, verticalAlign: 'middle' }} />
+          <Icon name="delete" size={16} color="#ff6b6b" style={{ margin: 0, verticalAlign: 'middle' }} />
         </button>
       )}
       {/* 削除確認モーダル */}
@@ -512,7 +548,11 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
     switch (activeTab) {
       case 'transcript':
         return (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ 
+            height: 'calc(100vh - 330px)',
+            display: 'flex', 
+            flexDirection: 'column'
+          }}>
             <div style={{ 
               background: '#0f0f23', 
               border: '1px solid #333366', 
@@ -522,9 +562,10 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
               fontSize: 13, 
               lineHeight: 1.6,
               fontFamily: 'inherit',
-              maxHeight: 400,
+              height: '100%',
               overflowY: 'auto',
               whiteSpace: 'pre-wrap',
+              boxSizing: 'border-box'
             }}>
               {meeting.transcript || '文字起こしファイルがアップロードされていません。'}
             </div>
@@ -533,9 +574,19 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
 
       case 'summary':
         return (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ 
+            height: 'calc(100vh - 330px)',
+            display: 'flex', 
+            flexDirection: 'column'
+          }}>
             {/* タブヘッダー */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center', 
+              marginBottom: 12,
+              flexShrink: 0
+            }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <button
                   type="button"
@@ -598,61 +649,75 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
             </div>
 
             {/* 要約エディタ */}
-            {isEditingSummary ? (
-              <textarea
-                ref={summaryRef}
-                style={{
-                  flex: 1,
-                  background: '#0f0f23',
-                  border: '1px solid #333366',
-                  borderRadius: 4,
-                  padding: 16,
-                  color: '#e2e8f0',
-                  fontSize: 13,
-                  fontFamily: 'inherit',
-                  resize: 'none',
-                  minHeight: '40vh',
-                  maxHeight: '70vh',
-                  height: '100%',
-                  lineHeight: 1.6,
-                }}
-                value={summaryContent}
-                onChange={e => {
-                  setSummaryContent(e.target.value);
-                  if (summaryRef.current) {
-                    summaryRef.current.style.height = 'auto';
-                    summaryRef.current.style.height = (summaryRef.current.scrollHeight || 200) + 'px';
-                  }
-                }}
-                placeholder="要約を入力してください（マークダウン形式対応）"
-              />
-            ) :
-              <div
-                className="markdown-preview"
-                style={{
-                  flex: 1,
-                  background: '#0f0f23',
-                  border: '1px solid #333366',
-                  borderRadius: 4,
-                  padding: 16,
-                  maxHeight: '70vh',
-                  overflowY: 'auto',
-                  minHeight: '40vh',
-                }}
-              >
-                <Markdown components={markdownComponents}>
-                  {summaryContent || '要約がありません。AI要約ボタンで自動生成するか、手動で入力してください。'}
-                </Markdown>
-              </div>
-            }
+            <div 
+              ref={summaryContainerRef}
+              style={{
+                flex: 1,
+                minHeight: 0
+              }}>
+              {isEditingSummary ? (
+                <textarea
+                  ref={summaryRef}
+                  style={{
+                    width: '100%',
+                    height: textareaHeight, // 動的に計算した高さを使用
+                    maxHeight: '100%', // 親コンテナを超えることを防ぐ
+                    background: '#0f0f23',
+                    border: '1px solid #333366',
+                    borderRadius: 4,
+                    padding: 16,
+                    color: '#e2e8f0',
+                    fontSize: 13,
+                    fontFamily: 'inherit',
+                    resize: 'none',
+                    lineHeight: 1.6,
+                    boxSizing: 'border-box',
+                  }}
+                  value={summaryContent}
+                  onChange={e => {
+                    setSummaryContent(e.target.value);
+                  }}
+                  placeholder="要約を入力してください（マークダウン形式対応）"
+                />
+              ) : (
+                <div
+                  className="markdown-preview"
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    background: '#0f0f23',
+                    border: '1px solid #333366',
+                    borderRadius: 4,
+                    padding: 16,
+                    overflowY: 'auto',
+                    boxSizing: 'border-box',
+                  }}
+                >
+                  <Markdown components={markdownComponents}>
+                    {summaryContent || '要約がありません。AI要約ボタンで自動生成するか、手動で入力してください。'}
+                  </Markdown>
+                </div>
+              )}
+            </div>
           </div>
         );
 
       case 'cards':
         return (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
+          <div style={{ 
+            height: 'calc(100vh - 330px)',
+            display: 'flex', 
+            flexDirection: 'column', 
+            position: 'relative'
+          }}>
             {/* タブヘッダー */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center', 
+              marginBottom: 12,
+              flexShrink: 0
+            }}>
               <div style={{ color: '#a6adc8', fontSize: 12, fontWeight: 500 }}>
                 {relatedCards.length > 0 ? `${relatedCards.length}個のカード` : 'カードなし'}
               </div>
@@ -673,7 +738,6 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
                 }}
                 onClick={() => {
                   if (isCardExtractionDisabled) {
-                    // alert削除: デザインシステムのモーダルに置き換え済み
                     return;
                   }
                   if (onCardExtraction) handleCardExtractionWithModal();
@@ -687,21 +751,18 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
 
             {/* カード一覧エリア */}
             <div style={{ 
-              flex: 1, 
+              flex: 1,
               background: '#0f0f23', 
-              border: '1px solid #333366', 
               borderRadius: 4, 
               padding: 16,
-              minHeight: 200,
-              maxHeight: 400,
-              overflowY: 'auto',
+              overflowY: 'auto'
             }}>
               {loadingCards ? (
                 <div style={{ 
                   display: 'flex', 
                   alignItems: 'center', 
                   justifyContent: 'center', 
-                  height: '100%',
+                  minHeight: 200,
                   color: '#6c7086',
                   fontSize: 13,
                 }}>
@@ -712,7 +773,7 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
                   display: 'flex', 
                   alignItems: 'center', 
                   justifyContent: 'center', 
-                  height: '100%',
+                  minHeight: 200,
                   color: '#6c7086',
                   fontSize: 13,
                   textAlign: 'center',
@@ -813,11 +874,27 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
   };
 
   return (
-    <div style={{ padding: '12px 32px 0 32px', background: '#0f0f23', minHeight: 0, flex: 1, display: 'flex', flexDirection: 'column' }}>
+    <div 
+      style={{ 
+        padding: '8px 16px 0 16px',
+        background: '#0f0f23', 
+        height: '100%',
+        display: 'flex', 
+        flexDirection: 'column',
+        boxSizing: 'border-box'
+      }}
+    >
       {renderHeader()}
       {renderBasicInfo}
       {renderTabs()}
-      <div style={{ flex: 1, minHeight: 0, marginTop: 12 }}>{renderTabContent()}</div>
+      <div 
+        style={{ 
+          flex: 1, 
+          minHeight: 0
+        }}
+      >
+        {renderTabContent()}
+      </div>
       
       {/* 削除確認モーダル */}
       <Modal open={isDeleteModalOpen} onClose={handleCancelDelete} style={{ minWidth: 360, textAlign: 'center' }}>
