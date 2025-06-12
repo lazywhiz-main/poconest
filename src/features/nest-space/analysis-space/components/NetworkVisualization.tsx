@@ -8,6 +8,8 @@ import { AnalysisService, AnalysisResult, ClusterLabel } from '../../../../servi
 import type { BoardColumnType } from '../../../../types/board';
 import AnalysisResultModal from './AnalysisResultModal';
 import { supabase } from '../../../../services/supabase/client';
+import { useAuth } from '../../../../contexts/AuthContext';
+import { useNest } from '../../../../features/nest/contexts/NestContext'; // Use the full context with Nest type
 
 // 統合分析結果のインターフェース
 interface UnifiedRelationshipSuggestion extends SuggestedRelationship {
@@ -161,6 +163,10 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   
   // Board context for card editing
   const { state: boardState, updateCard, loadNestData } = useBoardContext();
+  
+  // Auth and nest context for AI usage logging
+  const { user } = useAuth();
+  const { currentNest } = useNest();
 
   // Analysis result modal state
   const [analysisModalVisible, setAnalysisModalVisible] = useState(false);
@@ -1228,7 +1234,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   }, [boardState.boardId]);
 
   // 統合関係性分析（AI + タグ類似性 + 推論）- 増分分析対応
-  const runUnifiedAnalysis = useCallback(async (forceFullAnalysis = false) => {
+  const runUnifiedRelationshipAnalysis = useCallback(async (type: 'full' | 'incremental' = 'incremental') => {
     if (cards.length < 2) {
       showCustomDialog(
         '分析不可',
@@ -1273,7 +1279,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       }
     });
     
-    const isIncrementalPossible = !forceFullAnalysis && 
+    const isIncrementalPossible = type === 'incremental' && 
       (newCards.length + updatedCards.length) < cards.length * 0.3 && // 30%未満
       unchangedCards.length > 0; // 分析済みカードが存在する場合のみ増分分析
     
@@ -1283,7 +1289,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       unchangedCards: unchangedCards.length,
       totalCards: cards.length,
       isIncrementalPossible,
-      forceFullAnalysis
+      type
     });
     
     if (isIncrementalPossible) {
@@ -1321,7 +1327,9 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         AIAnalysisService.suggestRelationships(
           analysisType === 'incremental' ? targetCards : cards, 
           0.5, // 閾値は0.5のまま維持
-          50   // ✅ 修正: 20 → 50 にさらに増やす
+          50,  // ✅ 修正: 20 → 50 にさらに増やす
+          user?.id, // ユーザーID追加
+          currentNest?.id || boardState.currentNestId || undefined // ネストID追加
         ),
         // タグ類似性とDerived分析は常に全体（効率化の余地あり）
         AnalysisService.generateTagSimilarityRelationships(boardState.boardId || ''),
@@ -1544,7 +1552,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         console.log('🏁 [DEBUG] 分析処理終了');
         setIsAnalyzing(false);
       }
-  }, [cards, boardState.boardId, showCustomDialog, hideCustomDialog, lastAnalysisState, generateContentHash, fetchCardAnalysisFlags]);
+  }, [cards, boardState.boardId, showCustomDialog, hideCustomDialog, lastAnalysisState, generateContentHash, fetchCardAnalysisFlags, boardState.currentNestId]);
 
   // 分析結果統合ヘルパー関数（既に作成された関係性を考慮）
   const combineAnalysisResults = useCallback((aiResult: any, tagResult: any, derivedResult: any): { 
@@ -1714,7 +1722,13 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       setAnalysisProgress(`${cards.length}枚のカードを分析中...`);
       
       // AI関係性提案を取得
-      const suggestions = await AIAnalysisService.suggestRelationships(cards, 0.6, 15);
+      const suggestions = await AIAnalysisService.suggestRelationships(
+        cards, 
+        0.6, 
+        15,
+        user?.id, // ユーザーID追加
+        currentNest?.id || boardState.currentNestId || undefined // ネストID追加
+      );
       console.log('[NetworkVisualization] AI suggestions received:', suggestions.length, suggestions);
       
       setAnalysisProgress('関係性候補を検証中...');
@@ -1787,7 +1801,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     } finally {
       setIsAnalyzing(false);
     }
-  }, [cards, boardState.boardId, relationships]);
+  }, [cards, boardState.boardId, relationships, boardState.currentNestId]);
 
   // 提案の承認
   const approveSuggestion = useCallback(async (suggestion: UnifiedRelationshipSuggestion) => {
@@ -2658,33 +2672,50 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
           })}
 
           {/* Cluster Labels */}
-          {showLabels && clusterLabels.map((label) => (
-            <g key={label.id}>
-              <rect
-                x={label.position.x - 50}
-                y={label.position.y - 12}
-                width="100"
-                height="24"
-                fill={getLabelThemeColor(label.theme)}
-                fillOpacity="0.9"
-                stroke={getLabelThemeColor(label.theme)}
-                strokeWidth="1"
-                rx="12"
-                ry="12"
-              />
-              <text
-                x={label.position.x}
-                y={label.position.y + 4}
-                textAnchor="middle"
-                fill={THEME_COLORS.textInverse}
-                fontSize="11"
-                fontWeight="600"
-                fontFamily="JetBrains Mono, monospace"
-              >
-                {label.text}
-              </text>
-            </g>
-          ))}
+          {showLabels && clusterLabels.map((label) => {
+            // テキストの長さに応じて矩形の幅を計算
+            const maxLength = 16; // 最大表示文字数
+            const displayText = label.text.length > maxLength 
+              ? `${label.text.substring(0, maxLength - 2)}...` 
+              : label.text;
+            
+            // 文字数に基づいて幅を動的に計算（1文字あたり約7px + パディング）
+            const textWidth = displayText.length * 7;
+            const rectWidth = Math.max(60, Math.min(textWidth + 20, 140)); // 最小60px、最大140px
+            const rectHeight = 24;
+            
+            return (
+              <g key={label.id}>
+                <rect
+                  x={label.position.x - rectWidth / 2}
+                  y={label.position.y - rectHeight / 2}
+                  width={rectWidth}
+                  height={rectHeight}
+                  fill={getLabelThemeColor(label.theme)}
+                  fillOpacity="0.9"
+                  stroke={getLabelThemeColor(label.theme)}
+                  strokeWidth="1"
+                  rx="12"
+                  ry="12"
+                />
+                <text
+                  x={label.position.x}
+                  y={label.position.y + 4}
+                  textAnchor="middle"
+                  fill={THEME_COLORS.textInverse}
+                  fontSize="11"
+                  fontWeight="600"
+                  fontFamily="JetBrains Mono, monospace"
+                >
+                  {displayText}
+                </text>
+                {/* 省略された場合のツールチップ用のtitle要素 */}
+                {label.text.length > maxLength && (
+                  <title>{label.text}</title>
+                )}
+              </g>
+            );
+          })}
         </svg>
 
         {/* Nodes */}
@@ -2795,7 +2826,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
             minWidth: '180px', // 他のボタンより少し大きく
             fontWeight: '600',
           }}
-          onClick={() => runUnifiedAnalysis()}
+          onClick={() => runUnifiedRelationshipAnalysis('incremental')}
           disabled={isAnalyzing}
           onMouseEnter={(e) => {
             if (!isAnalyzing) {
@@ -2829,7 +2860,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
             fontSize: '11px',
             opacity: isAnalyzing ? 0.5 : 1,
           }}
-          onClick={() => runUnifiedAnalysis(true)}
+                     onClick={() => runUnifiedRelationshipAnalysis('full')}
           disabled={isAnalyzing}
           onMouseEnter={(e) => {
             if (!isAnalyzing) {

@@ -167,7 +167,10 @@ async function callOpenAI(systemPrompt: string, userPrompt: string, model: strin
   }
 
   const data = await res.json();
-  return data.choices[0].message.content;
+  return {
+    content: data.choices[0].message.content,
+    usage: data.usage
+  };
 }
 
 async function callGemini(systemPrompt: string, userPrompt: string, model: string = 'gemini-2.0-flash') {
@@ -202,11 +205,14 @@ async function callGemini(systemPrompt: string, userPrompt: string, model: strin
   }
 
   const data = await res.json();
-  return data.candidates[0].content.parts[0].text;
+  return {
+    content: data.candidates[0].content.parts[0].text,
+    usage: data.usageMetadata
+  };
 }
 
 // AI呼び出しとフォールバック処理
-async function callAIWithFallback(systemPrompt: string, userPrompt: string, settings: NestAISettings): Promise<{ result: string, provider: string }> {
+async function callAIWithFallback(systemPrompt: string, userPrompt: string, settings: NestAISettings): Promise<{ result: string, provider: string, usage?: any }> {
   // プライマリプロバイダーで試行
   try {
     console.log(`[analyze-chat] Trying primary provider: ${settings.primaryProvider}`);
@@ -215,14 +221,14 @@ async function callAIWithFallback(systemPrompt: string, userPrompt: string, sett
       if (!OPENAI_API_KEY) {
         throw new Error('OpenAI API key not available');
       }
-      const result = await callOpenAI(systemPrompt, userPrompt, settings.providerConfigs.openai.model);
-      return { result, provider: 'openai' };
+      const aiResult = await callOpenAI(systemPrompt, userPrompt, settings.providerConfigs.openai.model);
+      return { result: aiResult.content, provider: 'openai', usage: aiResult.usage };
     } else {
       if (!GEMINI_API_KEY) {
         throw new Error('Gemini API key not available');
       }
-      const result = await callGemini(systemPrompt, userPrompt, settings.providerConfigs.gemini.model);
-      return { result, provider: 'gemini' };
+      const aiResult = await callGemini(systemPrompt, userPrompt, settings.providerConfigs.gemini.model);
+      return { result: aiResult.content, provider: 'gemini', usage: aiResult.usage };
     }
   } catch (primaryError) {
     console.error(`[analyze-chat] Primary provider (${settings.primaryProvider}) failed:`, primaryError);
@@ -234,11 +240,11 @@ async function callAIWithFallback(systemPrompt: string, userPrompt: string, sett
           console.log(`[analyze-chat] Trying fallback provider: ${fallbackProvider}`);
           
           if (fallbackProvider === 'openai' && OPENAI_API_KEY) {
-            const result = await callOpenAI(systemPrompt, userPrompt, settings.providerConfigs.openai.model);
-            return { result, provider: 'openai (fallback)' };
+            const aiResult = await callOpenAI(systemPrompt, userPrompt, settings.providerConfigs.openai.model);
+            return { result: aiResult.content, provider: 'openai (fallback)', usage: aiResult.usage };
           } else if (fallbackProvider === 'gemini' && GEMINI_API_KEY) {
-            const result = await callGemini(systemPrompt, userPrompt, settings.providerConfigs.gemini.model);
-            return { result, provider: 'gemini (fallback)' };
+            const aiResult = await callGemini(systemPrompt, userPrompt, settings.providerConfigs.gemini.model);
+            return { result: aiResult.content, provider: 'gemini (fallback)', usage: aiResult.usage };
           }
         } catch (fallbackError) {
           console.error(`[analyze-chat] Fallback provider (${fallbackProvider}) failed:`, fallbackError);
@@ -252,6 +258,71 @@ async function callAIWithFallback(systemPrompt: string, userPrompt: string, sett
   }
 }
 
+// AI使用量をログするヘルパー関数
+async function logAIUsage(
+  nestId: string | null,
+  provider: string,
+  model: string,
+  feature: string,
+  usage: any,
+  userId: string
+) {
+  try {
+    // userIdがUUID形式でない場合はnullに変換
+    const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId);
+    const validUserId = isValidUUID ? userId : null;
+    
+    if (!isValidUUID) {
+      console.warn('[analyze-chat] Invalid user_id format, setting to null:', userId);
+    }
+    
+    const tokenCounts = provider === 'openai' 
+      ? {
+          input_tokens: usage?.prompt_tokens || 0,
+          output_tokens: usage?.completion_tokens || 0,
+          total_tokens: usage?.total_tokens || 0
+        }
+      : {
+          input_tokens: usage?.promptTokenCount || 0,
+          output_tokens: usage?.candidatesTokenCount || 0,
+          total_tokens: (usage?.promptTokenCount || 0) + (usage?.candidatesTokenCount || 0)
+        };
+
+    const { error } = await supabase
+      .from('ai_usage_logs')
+      .insert({
+        nest_id: nestId,
+        provider: provider.replace(' (fallback)', ''), // フォールバック表記を除去
+        model: model,
+        feature_type: feature,
+        input_tokens: tokenCounts.input_tokens,
+        output_tokens: tokenCounts.output_tokens,
+        total_tokens: tokenCounts.total_tokens,
+        user_id: validUserId, // UUID検証済みのuser_id
+        estimated_cost_usd: 0, // 正確なカラム名に修正
+        request_metadata: {
+          timestamp: new Date().toISOString()
+        },
+        response_metadata: {
+          usage: usage
+        }
+      });
+
+    if (error) {
+      console.error('[analyze-chat] Failed to log AI usage:', error);
+    } else {
+      console.log('[analyze-chat] AI usage logged successfully:', {
+        provider,
+        model,
+        tokens: tokenCounts.total_tokens,
+        userId: validUserId
+      });
+    }
+  } catch (error) {
+    console.error('[analyze-chat] Error logging AI usage:', error);
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -260,7 +331,15 @@ serve(async (req) => {
   try {
     const { messages, board_id, created_by, nestId, provider } = await req.json();
 
-    console.log(`[analyze-chat] Processing chat analysis with nestId: ${nestId}, provider: ${provider}`);
+    console.log(`[analyze-chat] Processing chat analysis with detailed params:`, {
+      messageCount: messages?.length || 0,
+      board_id: board_id,
+      created_by: created_by,
+      nestId: nestId,
+      provider: provider,
+      hasMessages: !!messages,
+      hasCreatedBy: !!created_by
+    });
 
     // nest設定またはレガシーパラメータを使用
     let aiSettings: NestAISettings;
@@ -287,27 +366,96 @@ serve(async (req) => {
     const userPrompt = `以下のチャットログ（Markdown形式）:\n\n${chatLogMarkdown}`;
 
     let result: string;
+    let usedModel: string;
+    let usage: any;
 
     if (nestId) {
       // nest設定ベースの呼び出し（フォールバック対応）
       const aiResult = await callAIWithFallback(SYSTEM_PROMPT, userPrompt, aiSettings);
       result = aiResult.result;
       usedProvider = aiResult.provider;
+      usage = aiResult.usage;
+      
+      // 実際に使用されたプロバイダーに基づいてモデル名を取得
+      const actualProvider = usedProvider.replace(' (fallback)', '');
+      usedModel = actualProvider === 'openai' 
+        ? aiSettings.providerConfigs.openai.model 
+        : aiSettings.providerConfigs.gemini.model;
     } else {
       // 従来の方式（後方互換性）
       if (finalProvider === 'gemini') {
         if (!GEMINI_API_KEY) {
           throw new Error('GEMINI_API_KEY environment variable is not set');
         }
-        result = await callGemini(SYSTEM_PROMPT, userPrompt);
+        const aiResult = await callGemini(SYSTEM_PROMPT, userPrompt);
+        result = aiResult.content;
         usedProvider = 'gemini';
+        usedModel = 'gemini-2.0-flash';
+        usage = aiResult.usage;
       } else {
         if (!OPENAI_API_KEY) {
           throw new Error('OPENAI_API_KEY environment variable is not set');
         }
-        result = await callOpenAI(SYSTEM_PROMPT, userPrompt);
+        const aiResult = await callOpenAI(SYSTEM_PROMPT, userPrompt);
+        result = aiResult.content;
         usedProvider = 'openai';
+        usedModel = 'gpt-4o';
+        usage = aiResult.usage;
       }
+      
+      // レガシーパスでもAI使用量をログに記録
+      if (usage && created_by) {
+        console.log('[analyze-chat] Logging AI usage (legacy path) with data:', {
+          provider: usedProvider,
+          model: usedModel,
+          usage: usage,
+          userId: created_by
+        });
+        
+        await logAIUsage(
+          null, // nestIdはnull
+          usedProvider,
+          usedModel,
+          'chat_analysis',
+          usage,
+          created_by
+        );
+      } else {
+        console.warn('[analyze-chat] Skipping AI usage log (legacy path) - missing data:', {
+          hasUsage: !!usage,
+          hasCreatedBy: !!created_by,
+          usage: usage,
+          created_by: created_by
+        });
+      }
+    }
+
+    // AI使用量をログに記録
+    if (usage && created_by) {
+      console.log('[analyze-chat] Logging AI usage with data:', {
+        nestId: nestId || null,
+        provider: usedProvider,
+        model: usedModel,
+        feature: 'chat_analysis',
+        usage: usage,
+        userId: created_by
+      });
+      
+      await logAIUsage(
+        nestId || null,
+        usedProvider,
+        usedModel,
+        'chat_analysis',
+        usage,
+        created_by
+      );
+    } else {
+      console.warn('[analyze-chat] Skipping AI usage log - missing data:', {
+        hasUsage: !!usage,
+        hasCreatedBy: !!created_by,
+        usage: usage,
+        created_by: created_by
+      });
     }
 
     // 返答はMarkdown形式のまま返す（後続でパース・保存処理を拡張）

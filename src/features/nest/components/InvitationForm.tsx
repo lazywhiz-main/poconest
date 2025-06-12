@@ -5,6 +5,7 @@ import Button from '../../../components/ui/Button';
 import FormGroup from '../../../components/ui/FormGroup';
 import Input from '../../../components/ui/Input';
 import Card from '../../../components/ui/Card';
+import { formatJapanDate } from '../../../utils/dateFormatter';
 
 interface InvitationFormProps {
   nestId: string;
@@ -36,13 +37,20 @@ const InvitationForm: React.FC<InvitationFormProps> = ({ nestId }) => {
     const { error } = await resendInvitation(invitationId);
     if (error) {
       Alert.alert('エラー', error.message || '招待の再送に失敗しました');
+    } else {
+      Alert.alert('成功', '招待メールを再送しました');
     }
   };
 
-  const handleCancelInvitation = async (invitationId: string) => {
+  const handleCancelInvitation = async (invitationId: string, email: string) => {
+    const confirmCancel = window.confirm(`${email}への招待を取り消しますか？`);
+    if (!confirmCancel) return;
+    
     const { error } = await cancelInvitation(invitationId);
     if (error) {
       Alert.alert('エラー', error.message || '招待の取消に失敗しました');
+    } else {
+      Alert.alert('成功', '招待を取り消しました');
     }
   };
 
@@ -56,14 +64,7 @@ const InvitationForm: React.FC<InvitationFormProps> = ({ nestId }) => {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('ja-JP', {
-      year: 'numeric',
-      month: 'numeric',
-      day: 'numeric'
-    });
-  };
+  // 日本時間フォーマットは共通関数を使用
 
   return (
     <div style={{ marginBottom: 0 }}>
@@ -177,14 +178,14 @@ const InvitationForm: React.FC<InvitationFormProps> = ({ nestId }) => {
                       color: '#6c7086', 
                       marginBottom: 2 
                     }}>
-                      送信日: {formatDate(item.created_at)}
+                      送信日: {formatJapanDate(item.created_at)}
                     </div>
                     {item.expires_at && (
                       <div style={{ 
                         fontSize: 11, 
                         color: '#6c7086' 
                       }}>
-                        有効期限: {formatDate(item.expires_at)}
+                        有効期限: {formatJapanDate(item.expires_at)}
                       </div>
                     )}
                   </div>
@@ -204,7 +205,7 @@ const InvitationForm: React.FC<InvitationFormProps> = ({ nestId }) => {
                     />
                     <Button 
                       title="取消" 
-                      onPress={() => handleCancelInvitation(item.id)} 
+                      onPress={() => handleCancelInvitation(item.id, item.invited_email)} 
                       variant="danger" 
                       size="sm" 
                     />

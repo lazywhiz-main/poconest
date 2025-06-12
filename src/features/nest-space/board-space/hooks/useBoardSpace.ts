@@ -95,7 +95,7 @@ export const useBoardSpace = () => {
     if (!isSpaceActive(SpaceType.BOARD)) {
       navigateToSpace(SpaceType.BOARD);
     }
-  }, [isSpaceActive, navigateToSpace]);
+  }, []); // 依存配列を空にして初回のみ実行
   
   // Sync active column with the main board context
   useEffect(() => {

@@ -537,10 +537,11 @@ html, body, #root {
 .user-avatar:nth-child(5) { background: #6c5ce7; }
 .user-name {
     color: #fff;
-    font-size: var(--text-base);
-    font-weight: 500;
+    font-size: 12px;
+    font-weight: 600;
     font-family: var(--font-family-mono);
-    white-space: nowrap;
+    text-transform: none;
+    letter-spacing: 0.5px;
 }
 .user-menu .user-menu-arrow {
     color: #a6adc8;
@@ -1007,7 +1008,7 @@ html, body, #root {
     font-size: 12px;
     font-weight: 600;
     color: var(--text-primary);
-    text-transform: uppercase;
+    text-transform: none; /* 元の入力通りに表示（小文字保持） */
     letter-spacing: 0.5px;
 }
 

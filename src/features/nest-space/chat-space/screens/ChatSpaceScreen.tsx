@@ -26,7 +26,7 @@ const ChatSpaceScreen: React.FC = () => {
     if (!isSpaceActive(SpaceType.CHAT)) {
       navigateToSpace(SpaceType.CHAT);
     }
-  }, [isSpaceActive, navigateToSpace]);
+  }, []); // 依存配列を空にして初回のみ実行
   
   if (!user) {
     return <Navigate to="/login" />;

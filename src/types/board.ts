@@ -119,9 +119,11 @@ export interface BoardCardUI {
   orderIndex: number;
   isArchived: boolean;
   createdBy: string;
+  createdByDisplayName?: string;
   createdAt: string;
   updatedAt: string;
   updatedBy?: string;
+  updatedByDisplayName?: string;
   sourceMessageId?: string;
   // AI関連情報（metadataから抽出）
   meetingId?: string;
@@ -159,9 +161,11 @@ export function toBoardCardUI(card: BoardCard): BoardCardUI {
     orderIndex: card.order_index,
     isArchived: card.is_archived,
     createdBy: card.created_by,
+    createdByDisplayName: (card as any).created_by_user?.display_name,
     createdAt: card.created_at,
     updatedAt: card.updated_at,
     updatedBy: card.updated_by,
+    updatedByDisplayName: (card as any).updated_by_user?.display_name,
     sourceMessageId: card.source_message_id,
     // AI情報を展開
     meetingId: aiData?.meeting_id,

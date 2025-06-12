@@ -1,11 +1,23 @@
 import { supabase } from '../supabase/client';
+import { AIUsageLogger } from './AIUsageLogger';
 
 // Edge FunctionのベースURLを環境変数から取得
 //const SUPABASE_FUNCTIONS_URL = process.env.NEXT_PUBLIC_SUPABASE_FUNCTIONS_URL || 'https://<your-project-id>.supabase.co/functions/v1';
 
+// AIリクエストのコンテキスト情報
+export interface AIRequestContext {
+  userId: string;
+  nestId?: string;
+  chatRoomId?: string;
+  meetingId?: string;
+  boardId?: string;
+}
+
 // OpenAI API経由でミーティング要約を生成
-export async function generateMeetingSummary(content: string): Promise<string> {
+export async function generateMeetingSummary(content: string, context?: AIRequestContext): Promise<string> {
   console.log('🚀 generateMeetingSummary called with content length:', content?.length);
+  
+  const startTime = Date.now();
   
   try {
     console.log('📡 Calling Edge Function ai-summary...');
@@ -14,7 +26,8 @@ export async function generateMeetingSummary(content: string): Promise<string> {
     const { data, error } = await supabase.functions.invoke('ai-summary', {
       body: {
         action: 'summary',
-        content: content
+        content: content,
+        nestId: context?.nestId // Nest設定を取得するためにnestIdを渡す
       }
     });
 
@@ -33,9 +46,67 @@ export async function generateMeetingSummary(content: string): Promise<string> {
     }
 
     console.log('✅ AI Summary successful, result length:', data.result?.length);
+    console.log('🤖 Used provider:', data.provider);
+
+    // AI使用量をログ（Edge Functionから返された実際のプロバイダー情報を使用）
+    if (context) {
+      const actualProvider = data.provider || 'unknown';
+      const actualModel = getModelFromProvider(actualProvider);
+      const inputTokens = data.usage?.prompt_tokens || Math.ceil(content.length / 4);
+      const outputTokens = data.usage?.completion_tokens || Math.ceil(data.result.length / 4);
+      const cost = AIUsageLogger.calculateCost(
+        actualProvider.includes('openai') ? 'openai' : 'gemini', 
+        actualModel, 
+        inputTokens, 
+        outputTokens
+      );
+      
+      await AIUsageLogger.logUsage({
+        userId: context.userId,
+        nestId: context.nestId,
+        featureType: 'meeting_summary',
+        provider: actualProvider.includes('openai') ? 'openai' : 'gemini',
+        model: actualModel,
+        inputTokens,
+        outputTokens,
+        estimatedCostUsd: cost,
+        requestMetadata: { contentLength: content.length },
+        responseMetadata: { 
+          success: true, 
+          resultLength: data.result.length,
+          processingTime: Date.now() - startTime,
+          usage: data.usage,
+          actualProvider: data.provider
+        },
+        meetingId: context.meetingId
+      });
+    }
+
     return data.result;
   } catch (error) {
     console.error('💥 要約生成エラー:', error);
+    
+    // エラーでもログを記録
+    if (context) {
+      await AIUsageLogger.logUsage({
+        userId: context.userId,
+        nestId: context.nestId,
+        featureType: 'meeting_summary',
+        provider: 'openai', // エラー時のデフォルト
+        model: 'gpt-4o',   // エラー時のデフォルト
+        inputTokens: 0,
+        outputTokens: 0,
+        estimatedCostUsd: 0,
+        requestMetadata: { contentLength: content.length },
+        responseMetadata: { 
+          success: false, 
+          error: error instanceof Error ? error.message : String(error),
+          processingTime: Date.now() - startTime 
+        },
+        meetingId: context.meetingId
+      });
+    }
+    
     console.log('🔄 Falling back to mock summary');
     // フォールバックとしてモック関数を使用
     return generateMockSummary();
@@ -43,14 +114,94 @@ export async function generateMeetingSummary(content: string): Promise<string> {
 }
 
 // OpenAI API経由でミーティングからカードを抽出
-export async function extractCardsFromMeeting(meetingId: string): Promise<any[]> {
+export async function extractCardsFromMeeting(meetingId: string, context?: AIRequestContext): Promise<any[]> {
   console.log('extractCardsFromMeetingに渡すmeetingId:', meetingId);
-  const { data, error } = await supabase.functions.invoke('extract-cards-from-meeting', {
-    body: { meeting_id: meetingId }
-  });
-  if (error) throw error;
-  if (!data.success) throw new Error(data.error || '抽出に失敗しました');
-  return data.cards;
+  
+  const startTime = Date.now();
+  
+  try {
+    const { data, error } = await supabase.functions.invoke('extract-cards-from-meeting', {
+      body: { 
+        meeting_id: meetingId,
+        nestId: context?.nestId // Nest設定を取得するためにnestIdを渡す
+      }
+    });
+    
+    if (error) throw error;
+    if (!data.success) throw new Error(data.error || '抽出に失敗しました');
+
+    console.log('🤖 Used provider for card extraction:', data.provider);
+
+    // AI使用量をログ（Edge Functionから返された実際のプロバイダー情報を使用）
+    if (context) {
+      const actualProvider = data.provider || 'unknown';
+      const actualModel = getModelFromProvider(actualProvider);
+      const inputTokens = data.usage?.prompt_tokens || 1000; // 概算
+      const outputTokens = data.usage?.completion_tokens || Math.ceil(JSON.stringify(data.cards).length / 4);
+      const cost = AIUsageLogger.calculateCost(
+        actualProvider.includes('openai') ? 'openai' : 'gemini',
+        actualModel,
+        inputTokens, 
+        outputTokens
+      );
+      
+      await AIUsageLogger.logUsage({
+        userId: context.userId,
+        nestId: context.nestId,
+        featureType: 'card_extraction',
+        provider: actualProvider.includes('openai') ? 'openai' : 'gemini',
+        model: actualModel,
+        inputTokens,
+        outputTokens,
+        estimatedCostUsd: cost,
+        requestMetadata: { meetingId },
+        responseMetadata: { 
+          success: true, 
+          cardsCount: data.cards.length,
+          processingTime: Date.now() - startTime,
+          usage: data.usage,
+          actualProvider: data.provider
+        },
+        meetingId: context.meetingId
+      });
+    }
+
+    return data.cards;
+  } catch (error) {
+    // エラーでもログを記録
+    if (context) {
+      await AIUsageLogger.logUsage({
+        userId: context.userId,
+        nestId: context.nestId,
+        featureType: 'card_extraction',
+        provider: 'openai', // エラー時のデフォルト
+        model: 'gpt-4o',   // エラー時のデフォルト
+        inputTokens: 0,
+        outputTokens: 0,
+        estimatedCostUsd: 0,
+        requestMetadata: { meetingId },
+        responseMetadata: { 
+          success: false, 
+          error: error instanceof Error ? error.message : String(error),
+          processingTime: Date.now() - startTime 
+        },
+        meetingId: context.meetingId
+      });
+    }
+    
+    throw error;
+  }
+}
+
+// プロバイダーからモデル名を推定するヘルパー関数
+function getModelFromProvider(provider: string): string {
+  if (provider.includes('openai')) {
+    return 'gpt-4o';
+  } else if (provider.includes('gemini')) {
+    return 'gemini-2.0-flash';
+  } else {
+    return 'unknown';
+  }
 }
 
 // モック関数: 要約生成

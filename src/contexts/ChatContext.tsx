@@ -6,6 +6,8 @@ import { supabase } from '../services/supabase/client';
 import { useNest } from '../features/nest/contexts/NestContext';
 import { ChatMessage, UIMessage, ChatUser } from 'src/types/nestSpace.types';
 import { ChatRoom } from 'src/features/nest-space/chat-space/types/chat.types';
+import { useAuth } from './AuthContext';
+
 
 // コンテキストの型定義
 interface ChatContextProps {
@@ -46,6 +48,7 @@ const humanUser: ChatUser = {
 
 // チャットコンテキストプロバイダー
 export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const { user } = useAuth();
   const [chatRooms, setChatRooms] = useState<ChatRoom[]>([]);
   const [messages, setMessages] = useState<Record<string, UIMessage[]>>({});
   const [activeChatRoomId, setActiveChatRoomId] = useState<string | null>(null);
@@ -68,14 +71,15 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           setIsChatRoomsLoaded(true);
           return;
         }
+        
+
+        
         const rooms = await chatService.getChatRooms(currentNest.id);
         console.log('ChatContext: fetchChatRooms result:', rooms);
         setChatRooms(rooms);
         setIsChatRoomsLoaded(true);
-        if (rooms.length > 0 && !activeChatRoomId) {
+        if (rooms.length > 0) {
           setActiveChatRoomId(rooms[0].id);
-        } else if (rooms.length === 0) {
-          setActiveChatRoomId(null);
         }
       } catch (error) {
         setIsChatRoomsLoaded(true);
@@ -370,21 +374,110 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setLoadingMessages(false);
   };
 
-  // インサイト抽出（ボードに保存するための処理）
+  // インサイト抽出（analyze-chat Edge Functionを直接使用）
   const extractAndSaveInsights = async (chatId: string): Promise<void> => {
+    console.log('🔥🔥🔥 [ChatContext] EXTRACT AND SAVE INSIGHTS CALLED 🔥🔥🔥');
+    console.log('[ChatContext] Starting extractAndSaveInsights with chatId:', chatId);
+    console.log('[ChatContext] Initial auth state check:', {
+      user: user,
+      hasUser: !!user,
+      userId: user?.id,
+      userIdType: typeof user?.id
+    });
+    
+    // 一時的にアラートも追加
+    alert(`[DEBUG] ChatContext extractAndSaveInsights called with user: ${user?.id || 'undefined'}`);
+    
+    if (!chatId) return;
+    
     setIsExtractingInsights(true);
     
-    // 処理を遅延でシミュレート
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // 実際には、ここでAIを使って会話からインサイトを抽出し、ボードに保存する処理を行う
-    // 今回はモックなので実際の処理は行わない
-    
-    // 処理完了
-    setIsExtractingInsights(false);
-    
-    // トースト表示などの通知をここで行う場合もある
-    // この実装ではコンポーネント側で処理することにする
+    try {
+      // 対象チャットルームの情報とメッセージを取得
+      const targetRoom = chatRooms.find(room => room.id === chatId);
+      const chatMessages = messages[chatId] || [];
+      
+      console.log('[ChatContext] Context check:', {
+        targetRoomFound: !!targetRoom,
+        messageCount: chatMessages.length,
+        currentNest: currentNest,
+        user: user,
+        userHasId: !!user?.id,
+        actualUserId: user?.id
+      });
+      
+      if (!targetRoom || chatMessages.length === 0) {
+        console.warn('[ChatContext] No room or messages found for chat:', chatId);
+        alert('チャットメッセージが見つかりません');
+        return;
+      }
+
+      if (chatMessages.length < 5) {
+        alert('インサイト抽出には最低5件のメッセージが必要です');
+        return;
+      }
+
+      // ユーザーIDの確認
+      const finalUserId = user?.id;
+      if (!finalUserId) {
+        console.error('[ChatContext] User ID not available:', user);
+        alert('ユーザー認証が必要です。ログインしてから再度お試しください。');
+        return;
+      }
+
+      // メッセージを適切な形式に変換
+      const aiMessages = chatMessages.map(msg => ({
+        text: msg.content,
+        userName: msg.sender?.name || 'Unknown',
+        timestamp: msg.created_at || new Date().toISOString()
+      }));
+
+      // analyze-chat Edge Functionを直接呼び出し
+      const { supabase } = await import('../services/supabase/client');
+      
+      console.log('[ChatContext] Calling analyze-chat with params:', {
+        messageCount: aiMessages.length,
+        nestId: currentNest?.id,
+        userId: finalUserId,
+        spaceId: targetRoom.spaceId,
+        hasCurrentNest: !!currentNest,
+        currentNestData: currentNest
+      });
+      
+      // nestIdの決定：currentNest?.id -> targetRoom.spaceId -> null の順で優先
+      const nestIdToUse = currentNest?.id || targetRoom.spaceId || null;
+      
+      const { data, error } = await supabase.functions.invoke('analyze-chat', {
+        body: {
+          messages: aiMessages.slice(-30), // 最新30件のメッセージを分析
+          board_id: chatId,
+          created_by: finalUserId, // 確認済みのユーザーID
+          nestId: nestIdToUse, // 決定されたnestIdを使用
+        },
+      });
+
+      if (error) {
+        console.error('[ChatContext] AI分析エラー:', error);
+        alert('AI分析でエラーが発生しました: ' + error.message);
+        return;
+      }
+
+      if (!data || !data.success) {
+        console.warn('[ChatContext] AI分析失敗:', data);
+        alert('AI分析に失敗しました');
+        return;
+      }
+
+      // 成功時の通知
+      console.log('[ChatContext] インサイト抽出完了:', data);
+      alert('インサイト抽出が完了しました！\n\n結果: ' + (data.markdown ? '分析レポートが生成されました' : 'データが返されました'));
+      
+    } catch (error) {
+      console.error('[ChatContext] インサイト抽出エラー:', error);
+      alert('インサイト抽出中にエラーが発生しました');
+    } finally {
+      setIsExtractingInsights(false);
+    }
   };
 
   // チャットルームを削除

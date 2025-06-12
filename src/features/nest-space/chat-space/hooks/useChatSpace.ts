@@ -67,7 +67,7 @@ export const useChatSpace = () => {
     if (!isSpaceActive(SpaceType.CHAT) && activeChatRoomId) {
       navigateToSpace(SpaceType.CHAT);
     }
-  }, [isSpaceActive, navigateToSpace, activeChatRoomId]);
+  }, [activeChatRoomId]);
   
   // Initialize threads based on the active chat room messages
   useEffect(() => {

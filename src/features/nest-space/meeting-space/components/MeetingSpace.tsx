@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,8 @@ import {
   ActivityIndicator,
   TextInput,
   FlatList,
-  Modal
+  Modal,
+  Alert
 } from 'react-native';
 import { useZoomSpace } from '../hooks/useZoomSpace';
 import MeetingList from './MeetingList';
@@ -71,6 +72,10 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
   
   const [users, setUsers] = useState<Record<string, UserInfo>>({});
   
+  // ドラッグ&ドロップ用のstate
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [droppedFile, setDroppedFile] = useState<File | null>(null);
+  
   // ミーティング空間の存在チェック
   useEffect(() => {
     if (!currentNest?.id) return;
@@ -112,7 +117,7 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
   };
   
   // ミーティング一覧取得
-  const fetchMeetings = async () => {
+  const fetchMeetings = useCallback(async () => {
     setLoadingMeetings(true);
     const { data, error } = await supabase
       .from('meetings')
@@ -138,14 +143,14 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
     }
     
     setLoadingMeetings(false);
-  };
+  }, [nestId]);
 
   useEffect(() => {
     if (nestId) fetchMeetings();
-  }, [nestId]);
+  }, [nestId, fetchMeetings]);
   
   // 新規作成ハンドラ
-  const handleCreateMeeting = async (formData: any) => {
+  const handleCreateMeeting = useCallback(async (formData: any) => {
     setShowForm(false);
     const now = new Date().toISOString();
     if (!(formData.date instanceof Date) || isNaN(formData.date.getTime())) {
@@ -176,27 +181,65 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
       alert('ミーティングの保存に失敗しました: ' + error.message);
       return;
     }
-    fetchMeetings();
-  };
+    // 直接fetchMeetingsを呼び出す
+    await fetchMeetings();
+  }, [nestId, user?.id, user?.email]);
   
   // ミーティング選択
   const handleSelectMeeting = (meeting: MeetingUI) => setSelectedMeeting(meeting);
   
-  // ミーティング更新
-  const handleUpdateMeeting = async (updates: Partial<MeetingUI>) => {
-    if (!selectedMeeting) return;
+  // ドラッグ&ドロップハンドラー
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+  
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+  
+  const handleFileDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
     
-    const updatedMeeting = { ...selectedMeeting, ...updates };
-    setSelectedMeeting(updatedMeeting);
+    const files = e.dataTransfer?.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      
+      // ファイルタイプをチェック
+      const supportedTypes = [
+        'text/plain',
+        'video/mp4',
+        'video/webm',
+        'video/quicktime',
+        'audio/mp3',
+        'audio/wav',
+        'audio/m4a',
+        'application/pdf'
+      ];
+      
+      if (supportedTypes.some(type => file.type.startsWith(type.split('/')[0]) || file.type === type)) {
+        setDroppedFile(file);
+        setShowForm(true);
+      } else {
+        alert('サポートされていないファイル形式です。テキスト、動画、音声、PDFファイルをご利用ください。');
+      }
+    }
+  };
+  
+  // ミーティング更新
+  const handleUpdateMeeting = useCallback(async (updates: Partial<MeetingUI>) => {
+    if (!selectedMeeting) return;
     
     // Supabaseに保存
     const { error } = await supabase
       .from('meetings')
       .update({
-        title: updatedMeeting.title,
-        start_time: updatedMeeting.startTime,
-        transcript: updatedMeeting.transcript,
-        ai_summary: updatedMeeting.aiSummary,
+        title: updates.title || selectedMeeting.title,
+        start_time: updates.startTime || selectedMeeting.startTime,
+        transcript: updates.transcript !== undefined ? updates.transcript : selectedMeeting.transcript,
+        ai_summary: updates.aiSummary !== undefined ? updates.aiSummary : selectedMeeting.aiSummary,
         updated_at: new Date().toISOString(),
       })
       .eq('id', selectedMeeting.id);
@@ -207,12 +250,20 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
       return;
     }
     
-    // リストも更新
-    fetchMeetings();
-  };
-  
+    // selectedMeetingを最新の状態で更新
+    const { data: updatedMeeting } = await supabase
+      .from('meetings')
+      .select('*')
+      .eq('id', selectedMeeting.id)
+      .single();
+    
+    if (updatedMeeting) {
+      setSelectedMeeting(toMeetingUI(updatedMeeting));
+    }
+  }, [selectedMeeting]);
+
   // ミーティング削除（ソフトデリート）
-  const handleDeleteMeeting = async (meetingId: string) => {
+  const handleDeleteMeeting = useCallback(async (meetingId: string) => {
     if (!window.confirm('本当にこのミーティングを削除しますか？')) return;
     const { error } = await supabase
       .from('meetings')
@@ -223,30 +274,11 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
       return;
     }
     setSelectedMeeting(null);
-    fetchMeetings();
-  };
-  
-  // AI要約生成
-  const handleAISummary = async () => {
-    if (!selectedMeeting || !selectedMeeting.transcript) {
-      alert('文字起こしファイルがアップロードされていません。');
-      return;
-    }
-    
-    try {
-      let summary: string;
-      // 常にEdge Function経由でAI要約を生成
-      summary = await generateMeetingSummary(selectedMeeting.transcript);
-      await handleUpdateMeeting({ aiSummary: summary });
-      alert('AI要約を生成しました。');
-    } catch (error) {
-      console.error('AI要約生成エラー:', error);
-      alert('AI要約の生成に失敗しました: ' + (error as Error).message);
-    }
-  };
-  
+    await fetchMeetings();
+  }, []);
+
   // カード抽出
-  const handleCardExtraction = async () => {
+  const handleCardExtraction = useCallback(async () => {
     if (!selectedMeeting || !selectedMeeting.transcript || selectedMeeting.transcript.trim() === '') {
       alert('文字起こしファイルがアップロードされていません。');
       return;
@@ -256,24 +288,46 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
       alert('ユーザー情報が取得できません。');
       return;
     }
-    
+
+    console.log('🔍 [カード抽出デバッグ] === 開始 ===');
+    console.log('🔍 [カード抽出デバッグ] nestId:', nestId);
+    console.log('🔍 [カード抽出デバッグ] user.id:', user.id);
+    console.log('🔍 [カード抽出デバッグ] selectedMeeting.id:', selectedMeeting.id);
+
     try {
       let extractedCards: any[];
       
+      // AI使用量のログ記録のためのコンテキストを追加
+      const context = {
+        userId: user.id,
+        nestId,
+        meetingId: selectedMeeting.id
+      };
+      
+      console.log('🔍 [カード抽出デバッグ] context:', context);
+      
       // OpenAI APIキーがある場合は実際のカード抽出を実行
-      extractedCards = await extractCardsFromMeeting(selectedMeeting.id);
+      extractedCards = await extractCardsFromMeeting(selectedMeeting.id, context);
+      
+      console.log('🔍 [カード抽出デバッグ] 抽出されたカード数:', extractedCards.length);
       
       if (extractedCards.length > 0) {
         // デフォルトボードを取得または作成
+        console.log('🔍 [カード抽出デバッグ] getOrCreateDefaultBoard呼び出し前 - nestId:', nestId, ', userId:', user.id);
         const boardId = await getOrCreateDefaultBoard(nestId, user.id);
+        console.log('🔍 [カード抽出デバッグ] getOrCreateDefaultBoard結果 - boardId:', boardId);
         
         // カードをボードに追加
+        console.log('🔍 [カード抽出デバッグ] addCardsToBoard呼び出し前 - boardId:', boardId, ', userId:', user.id, ', meetingId:', selectedMeeting.id);
         const savedCards = await addCardsToBoard(
           boardId,
           extractedCards,
           user.id,
           selectedMeeting.id
         );
+        
+        console.log('🔍 [カード抽出デバッグ] 保存されたカード数:', savedCards.length);
+        console.log('🔍 [カード抽出デバッグ] 保存されたカードのboard_id:', savedCards.map(c => c.boardId));
         
         // --- ここで出典紐付け ---
         try {
@@ -286,32 +340,101 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
         const cardCount = savedCards.length;
         const cardTypes = extractedCards.map(card => card.type).join(', ');
         
-        alert(`${cardCount}個のカードを抽出し、ボードに追加しました。\n\nカード種類: ${cardTypes}\n\n※ ボードスペースでカードを確認できます。`);
+        console.log('🔍 [カード抽出デバッグ] === 完了 ===');
         
         console.log('ボードに追加されたカード:', savedCards);
       } else {
-        alert('カードを抽出できませんでした。');
+        console.log('🔍 [カード抽出デバッグ] カード抽出結果が空でした');
+        // alert削除: デザインシステムのモーダルに置き換え済み
       }
     } catch (error) {
+      console.error('🔍 [カード抽出デバッグ] エラー発生:', error);
       console.error('カード抽出エラー:', error);
-      alert('カード抽出に失敗しました: ' + (error as Error).message);
+      // alert削除: デザインシステムのモーダルに置き換え済み
     }
-  };
+  }, [selectedMeeting, user?.id, nestId]);
+  
+  // AI要約
+  const handleAISummary = useCallback(async () => {
+    if (!selectedMeeting || !selectedMeeting.transcript || selectedMeeting.transcript.trim() === '') {
+      // alert削除: デザインシステムのモーダルに置き換え済み
+      return;
+    }
+
+    if (!user?.id) {
+      // alert削除: デザインシステムのモーダルに置き換え済み
+      return;
+    }
+
+    try {
+      let summary: string;
+      // 常にEdge Function経由でAI要約を生成
+      // AI使用量のログ記録のためのコンテキストを追加
+      const context = {
+        userId: user.id,
+        nestId,
+        meetingId: selectedMeeting.id
+      };
+      
+      summary = await generateMeetingSummary(selectedMeeting.transcript, context);
+      
+      // 直接Supabaseに保存
+      const { error } = await supabase
+        .from('meetings')
+        .update({
+          ai_summary: summary,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', selectedMeeting.id);
+      
+      if (error) {
+        console.error('AI要約保存エラー:', error);
+        // alert削除: デザインシステムのモーダルに置き換え済み
+        return;
+      }
+      
+      // selectedMeetingを更新
+      setSelectedMeeting(prev => prev ? { ...prev, aiSummary: summary } : null);
+      
+      // alert削除: デザインシステムのモーダルに置き換え済み
+    } catch (error) {
+      console.error('AI要約生成エラー:', error);
+      // alert削除: デザインシステムのモーダルに置き換え済み
+    }
+  }, [selectedMeeting, user?.id, nestId]);
   
   // ファイルアップロード
-  const handleFileUpload = async (file: File) => {
+  const handleFileUpload = useCallback(async (file: File) => {
     if (!selectedMeeting) return;
     
     try {
       // ファイル内容を読み取り
       const text = await file.text();
-      await handleUpdateMeeting({ transcript: text });
-      alert('ファイルをアップロードしました。');
+      
+      // 直接Supabaseに保存
+      const { error } = await supabase
+        .from('meetings')
+        .update({
+          transcript: text,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', selectedMeeting.id);
+      
+      if (error) {
+        console.error('ファイルアップロード保存エラー:', error);
+        // alert削除: デザインシステムのモーダルに置き換え済み
+        return;
+      }
+      
+      // selectedMeetingを更新
+      setSelectedMeeting(prev => prev ? { ...prev, transcript: text } : null);
+      
+      // alert削除: デザインシステムのモーダルに置き換え済み
     } catch (error) {
       console.error('ファイルアップロードエラー:', error);
-      alert('ファイルのアップロードに失敗しました。');
+      // alert削除: デザインシステムのモーダルに置き換え済み
     }
-  };
+  }, [selectedMeeting]);
   
   // ミーティング詳細のアップロード
   const handleUpload = async (data: any) => {
@@ -331,6 +454,7 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
   // ミーティングリスト1件の描画
   const renderMeetingItem = ({ item }: { item: MeetingUI }) => {
     const creatorInfo = item.createdBy ? users[item.createdBy] : null;
+    console.log('MeetingItem - createdBy:', item.createdBy, 'users:', users, 'creatorInfo:', creatorInfo);
     const creatorDisplayName = creatorInfo?.display_name || item.createdBy || '作成者不明';
 
     return (
@@ -430,12 +554,78 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
                     cursor: 'pointer',
                     transition: 'all 0.2s',
                   }}
-                  onClick={() => setShowForm(true)}
+                  onClick={() => {
+                    setDroppedFile(null);
+                    setShowForm(true);
+                  }}
                   disabled={false}
                 >
                   <span style={{ marginRight: 6 }}><Icon name="plus" size={16} color="#0f0f23" /></span>
                   新規ミーティング
                 </button>
+                
+                {/* ファイルドロップゾーン */}
+                <div
+                  style={{
+                    marginBottom: 16,
+                    width: '100%',
+                    height: 64,
+                    background: isDragOver ? '#2a2a4a' : '#232345',
+                    border: isDragOver ? '2px dashed #00ff88' : '1px dashed #45475a',
+                    borderRadius: 4,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    position: 'relative',
+                  }}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleFileDrop}
+                  onClick={() => {
+                    // ファイル選択ダイアログを開く
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = '.txt,.mp4,.webm,.mov,.mp3,.wav,.m4a,.pdf';
+                    input.onchange = (e) => {
+                      const file = (e.target as HTMLInputElement).files?.[0];
+                      if (file) {
+                        setDroppedFile(file);
+                        setShowForm(true);
+                      }
+                    };
+                    input.click();
+                  }}
+                >
+                  <div style={{
+                    fontSize: isDragOver ? 20 : 16,
+                    marginBottom: 2,
+                    transition: 'font-size 0.2s'
+                  }}>
+                    📎
+                  </div>
+                  <div style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: isDragOver ? '#00ff88' : '#a6adc8',
+                    textAlign: 'center',
+                    lineHeight: 1.2,
+                    letterSpacing: 0.5,
+                  }}>
+                    {isDragOver ? 'ファイルをドロップ' : 'ファイルをドロップまたはクリック'}
+                  </div>
+                  <div style={{
+                    fontSize: 9,
+                    color: '#6c7086',
+                    textAlign: 'center',
+                    marginTop: 2,
+                  }}>
+                    テキスト・動画・音声・PDF
+                  </div>
+                </div>
+                
                 <div style={{ marginBottom: 16 }}>
                   <Input
                     value={searchQuery}
@@ -569,12 +759,78 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
                     cursor: 'pointer',
                     transition: 'all 0.2s',
                   }}
-                  onClick={() => setShowForm(true)}
+                  onClick={() => {
+                    setDroppedFile(null);
+                    setShowForm(true);
+                  }}
                   disabled={false}
                 >
                   <span style={{ marginRight: 6 }}><Icon name="plus" size={16} color="#0f0f23" /></span>
                   新規ミーティング
                 </button>
+                
+                {/* ファイルドロップゾーン */}
+                <div
+                  style={{
+                    marginBottom: 16,
+                    width: '100%',
+                    height: 64,
+                    background: isDragOver ? '#2a2a4a' : '#232345',
+                    border: isDragOver ? '2px dashed #00ff88' : '1px dashed #45475a',
+                    borderRadius: 4,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    position: 'relative',
+                  }}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleFileDrop}
+                  onClick={() => {
+                    // ファイル選択ダイアログを開く
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = '.txt,.mp4,.webm,.mov,.mp3,.wav,.m4a,.pdf';
+                    input.onchange = (e) => {
+                      const file = (e.target as HTMLInputElement).files?.[0];
+                      if (file) {
+                        setDroppedFile(file);
+                        setShowForm(true);
+                      }
+                    };
+                    input.click();
+                  }}
+                >
+                  <div style={{
+                    fontSize: isDragOver ? 20 : 16,
+                    marginBottom: 2,
+                    transition: 'font-size 0.2s'
+                  }}>
+                    📎
+                  </div>
+                  <div style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: isDragOver ? '#00ff88' : '#a6adc8',
+                    textAlign: 'center',
+                    lineHeight: 1.2,
+                    letterSpacing: 0.5,
+                  }}>
+                    {isDragOver ? 'ファイルをドロップ' : 'ファイルをドロップまたはクリック'}
+                  </div>
+                  <div style={{
+                    fontSize: 9,
+                    color: '#6c7086',
+                    textAlign: 'center',
+                    marginTop: 2,
+                  }}>
+                    テキスト・動画・音声・PDF
+                  </div>
+                </div>
+                
                 <div style={{ marginBottom: 16 }}>
                   <Input
                     value={searchQuery}
@@ -707,12 +963,78 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
                   cursor: 'pointer',
                   transition: 'all 0.2s',
                 }}
-                onClick={() => setShowForm(true)}
+                onClick={() => {
+                  setDroppedFile(null);
+                  setShowForm(true);
+                }}
                 disabled={false}
               >
                 <span style={{ marginRight: 6 }}><Icon name="plus" size={16} color="#0f0f23" /></span>
                 新規ミーティング
               </button>
+              
+              {/* ファイルドロップゾーン */}
+              <div
+                style={{
+                  marginBottom: 16,
+                  width: '100%',
+                  height: 64,
+                  background: isDragOver ? '#2a2a4a' : '#232345',
+                  border: isDragOver ? '2px dashed #00ff88' : '1px dashed #45475a',
+                  borderRadius: 4,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  position: 'relative',
+                }}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleFileDrop}
+                onClick={() => {
+                  // ファイル選択ダイアログを開く
+                  const input = document.createElement('input');
+                  input.type = 'file';
+                  input.accept = '.txt,.mp4,.webm,.mov,.mp3,.wav,.m4a,.pdf';
+                  input.onchange = (e) => {
+                    const file = (e.target as HTMLInputElement).files?.[0];
+                    if (file) {
+                      setDroppedFile(file);
+                      setShowForm(true);
+                    }
+                  };
+                  input.click();
+                }}
+              >
+                <div style={{
+                  fontSize: isDragOver ? 20 : 16,
+                  marginBottom: 2,
+                  transition: 'font-size 0.2s'
+                }}>
+                  📎
+                </div>
+                <div style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: isDragOver ? '#00ff88' : '#a6adc8',
+                  textAlign: 'center',
+                  lineHeight: 1.2,
+                  letterSpacing: 0.5,
+                }}>
+                  {isDragOver ? 'ファイルをドロップ' : 'ファイルをドロップまたはクリック'}
+                </div>
+                <div style={{
+                  fontSize: 9,
+                  color: '#6c7086',
+                  textAlign: 'center',
+                  marginTop: 2,
+                }}>
+                  テキスト・動画・音声・PDF
+                </div>
+              </div>
+              
               <div style={{ marginBottom: 16 }}>
                 <Input
                   value={searchQuery}
@@ -852,7 +1174,14 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
             </div>
             {/* 本体 */}
             <div style={{ flex: 1, overflowY: 'auto', padding: '24px 24px 24px 24px' }}>
-              <MeetingForm onSubmit={handleCreateMeeting} onCancel={() => setShowForm(false)} />
+              <MeetingForm 
+                onSubmit={handleCreateMeeting} 
+                onCancel={() => {
+                  setShowForm(false);
+                  setDroppedFile(null);
+                }}
+                droppedFile={droppedFile}
+              />
             </div>
           </div>
         </div>

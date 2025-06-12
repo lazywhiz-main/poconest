@@ -6,7 +6,7 @@ import { SPACING } from '@constants/config';
 import theme from '../../styles/theme';
 import ReactDOM from 'react-dom';
 import { useNavigation } from '@react-navigation/native';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { useNavigate, Navigate, useLocation } from 'react-router-dom';
 
 // SVGアイコンコンポーネント
 interface IconProps {
@@ -148,6 +148,18 @@ const LoginScreen: React.FC = () => {
   const { login, register, user, session } = useAuth();
   const navigation = (typeof window === 'undefined' || !window.document) ? useNavigation() : null;
   const navigate = (typeof window !== 'undefined' && window.document) ? useNavigate() : null;
+  const location = (typeof window !== 'undefined' && window.document) ? useLocation() : null;
+  
+  // Extract invite token from URL query parameters
+  const getInviteToken = () => {
+    if (typeof window !== 'undefined' && window.location) {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get('invite');
+    }
+    return null;
+  };
+  
+  const inviteToken = getInviteToken();
 
   if (user) {
     return <Navigate to="/nest-list" replace />;
@@ -165,7 +177,14 @@ const LoginScreen: React.FC = () => {
     try {
       if (isLogin) {
         await login(email, password);
-        if (navigate) navigate('/nest-list');
+        if (navigate) {
+          // If there's an invite token, redirect to accept invitation
+          if (inviteToken) {
+            navigate(`/invite/${inviteToken}`);
+          } else {
+            navigate('/nest-list');
+          }
+        }
       } else {
         if (!displayName) {
           Alert.alert('エラー', '表示名を入力してください');
@@ -173,7 +192,14 @@ const LoginScreen: React.FC = () => {
           return;
         }
         await register(email, password, displayName);
-        if (navigate) navigate('/nest-list');
+        if (navigate) {
+          // If there's an invite token, redirect to accept invitation
+          if (inviteToken) {
+            navigate(`/invite/${inviteToken}`);
+          } else {
+            navigate('/nest-list');
+          }
+        }
       }
     } catch (error) {
       setErrorMessage('ログインに失敗しました。メールアドレスとパスワードを確認してください');
@@ -386,6 +412,44 @@ const LoginScreen: React.FC = () => {
               ) : null}
               
               <View style={styles.authForm}>
+                {inviteToken && (
+                  typeof window !== 'undefined' && window.document ? (
+                    <div style={{
+                      backgroundColor: 'rgba(0, 255, 136, 0.1)',
+                      border: '1px solid rgba(0, 255, 136, 0.3)',
+                      borderRadius: '8px',
+                      padding: '12px',
+                      marginBottom: '20px'
+                    }}>
+                      <div style={{
+                        color: '#00ff88',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        textAlign: 'center'
+                      }}>
+                        🎉 NESTへの招待があります！ログイン後に承認画面に進みます
+                      </div>
+                    </div>
+                  ) : (
+                    <View style={{
+                      backgroundColor: 'rgba(0, 255, 136, 0.1)',
+                      borderWidth: 1,
+                      borderColor: 'rgba(0, 255, 136, 0.3)',
+                      borderRadius: 8,
+                      padding: 12,
+                      marginBottom: 20
+                    }}>
+                      <Text style={{
+                        color: '#00ff88',
+                        fontSize: 14,
+                        fontWeight: '600',
+                        textAlign: 'center'
+                      }}>
+                        🎉 NESTへの招待があります！ログイン後に承認画面に進みます
+                      </Text>
+                    </View>
+                  )
+                )}
                 <Text style={styles.formTitle}>
                   {isLogin ? 'システムにアクセス' : '新規アカウント作成'}
                 </Text>

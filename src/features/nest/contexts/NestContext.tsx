@@ -590,7 +590,6 @@ export function NestProvider({ children }: { children: React.ReactNode }) {
         token,
         expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
         is_accepted: false,
-        status: 'pending',
         target_user_id: existingUser?.id || null,
       };
       console.log('[inviteMember] insert values:', insertValues);
@@ -618,7 +617,8 @@ export function NestProvider({ children }: { children: React.ReactNode }) {
         });
       } else {
         // Edge Function経由でメール送信
-        const inviteLink = `https://poconest.app/invite/${token}`;
+        const baseUrl = window.location.origin; // 現在のドメインを取得
+        const inviteLink = `${baseUrl}/invite/${token}`;
         const { success, error: mailError } = await sendInvitationEmail({
           email,
           nestName: nest.name,

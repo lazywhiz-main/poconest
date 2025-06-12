@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { MeetingUI } from '../../../meeting-space/types/meeting';
 import Tag from '../../../../components/ui/Tag';
 import StatusBadge from '../../../../components/ui/StatusBadge';
@@ -106,83 +106,7 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
   const [cardExtractionCompleted, setCardExtractionCompleted] = useState(false);
   const [extractedCards, setExtractedCards] = useState<BoardCardUI[]>([]);
 
-  useEffect(() => {
-    setEditedTitle(meeting.title || '');
-    setEditedDateTime(meeting.startTime || '');
-    setSummaryContent(meeting.aiSummary || '');
-    
-    // 関連カードを読み込む
-    if (activeTab === 'cards') {
-      loadRelatedCards();
-    }
-  }, [meeting, activeTab]);
-
-  useEffect(() => {
-    if (isEditingSummary && summaryRef.current) {
-      summaryRef.current.style.height = 'auto';
-      summaryRef.current.style.height = (summaryRef.current.scrollHeight || 200) + 'px';
-    }
-  }, [isEditingSummary, summaryContent]);
-
-  // 作成者情報を取得
-  useEffect(() => {
-    const fetchCreatorInfo = async () => {
-      if (meeting.createdBy) {
-        const userInfo = await getUserById(meeting.createdBy);
-        setCreatorInfo(userInfo);
-      }
-    };
-    fetchCreatorInfo();
-  }, [meeting.createdBy]);
-
-  const handleSaveTitle = () => {
-    if (onSaveMeeting) {
-      onSaveMeeting({ title: editedTitle });
-    }
-    setIsEditingTitle(false);
-  };
-
-  const handleSaveDateTime = () => {
-    if (onSaveMeeting) {
-      onSaveMeeting({ startTime: editedDateTime });
-    }
-    setIsEditingDateTime(false);
-  };
-
-  const handleSaveSummary = () => {
-    if (onSaveMeeting) {
-      onSaveMeeting({ aiSummary: summaryContent });
-    }
-  };
-
-  const handleFileSelect = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file && onFileUpload) {
-      onFileUpload(file);
-    }
-  };
-
-  const formatDateTime = (dateTimeString: string) => {
-    if (!dateTimeString) return '';
-    try {
-      const date = new Date(dateTimeString);
-      return date.toLocaleString('ja-JP', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    } catch {
-      return dateTimeString;
-    }
-  };
-
-  const loadRelatedCards = async () => {
+  const loadRelatedCards = useCallback(async () => {
     setLoadingCards(true);
     try {
       const cards = await getCardsByMeeting(meeting.id);
@@ -199,6 +123,87 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
       setRelatedCards([]);
     }
     setLoadingCards(false);
+  }, [meeting.id]);
+
+  useEffect(() => {
+    setEditedTitle(meeting.title || '');
+    setEditedDateTime(meeting.startTime || '');
+    setSummaryContent(meeting.aiSummary || '');
+  }, [meeting.title, meeting.startTime, meeting.aiSummary]);
+
+  // 関連カードを読み込む
+  useEffect(() => {
+    if (activeTab === 'cards') {
+      loadRelatedCards();
+    }
+  }, [activeTab, meeting.id, loadRelatedCards]);
+
+  useEffect(() => {
+    if (isEditingSummary && summaryRef.current) {
+      summaryRef.current.style.height = 'auto';
+      summaryRef.current.style.height = (summaryRef.current.scrollHeight || 200) + 'px';
+    }
+  }, [isEditingSummary, summaryContent]);
+
+  // 作成者情報を取得
+  const fetchCreatorInfo = useCallback(async () => {
+    if (meeting.createdBy) {
+      // console.log('Fetching creator info for:', meeting.createdBy);
+      const userInfo = await getUserById(meeting.createdBy);
+      // console.log('Fetched creator info:', userInfo);
+      setCreatorInfo(userInfo);
+    }
+  }, [meeting.createdBy]);
+
+  useEffect(() => {
+    fetchCreatorInfo();
+  }, [fetchCreatorInfo]);
+
+  const handleSaveTitle = useCallback(() => {
+    if (onSaveMeeting) {
+      onSaveMeeting({ title: editedTitle });
+    }
+    setIsEditingTitle(false);
+  }, [onSaveMeeting, editedTitle]);
+
+  const handleSaveDateTime = useCallback(() => {
+    if (onSaveMeeting) {
+      onSaveMeeting({ startTime: editedDateTime });
+    }
+    setIsEditingDateTime(false);
+  }, [onSaveMeeting, editedDateTime]);
+
+  const handleSaveSummary = useCallback(() => {
+    if (onSaveMeeting) {
+      onSaveMeeting({ aiSummary: summaryContent });
+    }
+  }, [onSaveMeeting, summaryContent]);
+
+  const handleFileSelect = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleFileChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && onFileUpload) {
+      onFileUpload(file);
+    }
+  }, [onFileUpload]);
+
+  const formatDateTime = (dateTimeString: string) => {
+    if (!dateTimeString) return '';
+    try {
+      const date = new Date(dateTimeString);
+      return date.toLocaleString('ja-JP', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return dateTimeString;
+    }
   };
 
   const handleCardClick = (cardId: string) => {
@@ -220,7 +225,6 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
         await loadRelatedCards();
       } catch (error) {
         console.error('カード削除エラー:', error);
-        alert('カードの削除に失敗しました。');
       }
     }
     setIsDeleteModalOpen(false);
@@ -258,7 +262,6 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
       setAiSummaryCompleted(true);
     } catch (error) {
       console.error('AI要約生成エラー:', error);
-      alert('AI要約の生成に失敗しました');
     } finally {
       setIsAISummaryLoading(false);
     }
@@ -277,7 +280,6 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
       setCardExtractionCompleted(true);
     } catch (error) {
       console.error('カード抽出エラー:', error);
-      alert('カード抽出に失敗しました');
     } finally {
       setIsCardExtractionLoading(false);
     }
@@ -352,7 +354,8 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
   );
 
   // 基本情報セクション
-  const renderBasicInfo = () => {
+  const renderBasicInfo = useMemo(() => {
+    // console.log('renderBasicInfo - creatorInfo:', creatorInfo, 'meeting.createdBy:', meeting.createdBy);
     const creatorDisplayName = creatorInfo?.display_name || meeting.createdBy || '作成者不明';
     
     return (
@@ -438,7 +441,16 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
         </div>
       </div>
     );
-  };
+  }, [
+    creatorInfo?.display_name,
+    meeting.createdBy,
+    meeting.title,
+    meeting.startTime,
+    meeting.transcript,
+    meeting.tags,
+    isEditingDateTime,
+    editedDateTime,
+  ]);
 
   // --- HEADER with DELETE BUTTON ---
   const renderHeader = () => (
@@ -661,7 +673,7 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
                 }}
                 onClick={() => {
                   if (isCardExtractionDisabled) {
-                    alert('文字起こしファイルがアップロードされていません。');
+                    // alert削除: デザインシステムのモーダルに置き換え済み
                     return;
                   }
                   if (onCardExtraction) handleCardExtractionWithModal();
@@ -803,7 +815,7 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
   return (
     <div style={{ padding: '12px 32px 0 32px', background: '#0f0f23', minHeight: 0, flex: 1, display: 'flex', flexDirection: 'column' }}>
       {renderHeader()}
-      {renderBasicInfo()}
+      {renderBasicInfo}
       {renderTabs()}
       <div style={{ flex: 1, minHeight: 0, marginTop: 12 }}>{renderTabContent()}</div>
       
@@ -1186,10 +1198,8 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
               
               setShowNewCardModal(false);
               await loadRelatedCards();
-              alert('カードが作成されました');
             } catch (error) {
               console.error('カード作成エラー:', error);
-              alert('カードの作成に失敗しました');
             }
           }}
           initialData={{
@@ -1224,7 +1234,11 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
           related_cards: editingCard.relatedCards || [],
           related_card_ids: editingCard.relatedCards?.map(rc => rc.id) || [],
           tags: editingCard.metadata?.tags || [],
-          sources: editingCard.sources || []
+          sources: editingCard.sources || [],
+          createdByDisplayName: editingCard.createdByDisplayName,
+          updatedByDisplayName: editingCard.updatedByDisplayName,
+          created_at: editingCard.createdAt,
+          updated_at: editingCard.updatedAt
         } as any : undefined}
         columnType={editingCard?.columnType as any || 'INBOX'}
         setColumnType={() => {}}

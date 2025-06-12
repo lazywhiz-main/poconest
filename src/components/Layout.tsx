@@ -1,5 +1,6 @@
 import React from 'react';
 import Icon from './ui/Icon';
+import { UserProfile } from './UserProfile';
 
 interface LayoutProps {
     children?: React.ReactNode;
@@ -27,8 +28,7 @@ export const Layout: React.FC<LayoutProps> = ({
     nestId,
     onSettingsClick,
 }) => {
-    // ダークモード切り替え用のstate（ダミー）
-    const [darkMode, setDarkMode] = React.useState(false);
+
     return (
         <div style={{ height: '100vh', background: '#0f0f23', display: 'flex', flexDirection: 'column' }}>
             {/* ヘッダー（ブラウザ横幅いっぱい） */}
@@ -39,6 +39,19 @@ export const Layout: React.FC<LayoutProps> = ({
                     onClick={() => window.location.href = '/nest-list'}
                 >
                     {workspaceTitle}
+                </div>
+                <div className="header-controls">
+                    <div className="global-actions">
+                        <button className="global-action-btn" title="Notifications">
+                            <Icon name="bell" size={18} />
+                            <div className="notification-count">3</div>
+                        </button>
+                        <button className="global-action-btn" title="Global Search">
+                            <Icon name="search" size={18} />
+                        </button>
+                    </div>
+                    
+                    <UserProfile />
                 </div>
             </header>
             {/* サイドメニュー＋メインエリア */}

@@ -94,8 +94,8 @@ async function callOpenAI(prompt: string, model: string, apiKey: string) {
         { role: 'system', content: prompt.split('\n\n')[0] },
         { role: 'user', content: prompt.split('\n\n').slice(1).join('\n\n') }
       ],
-      max_tokens: 8000,  // 増量：長い会議でも途切れないように
-      temperature: 0.7,
+      max_tokens: 12000,  // さらに増量：詳細引用対応
+      temperature: 0.5,  // バランス型：創造性と一貫性のバランス
     }),
   });
 
@@ -148,6 +148,7 @@ async function callGemini(prompt: string, model: string, apiKey: string) {
   // Gemini用に構造化出力対応のプロンプトを調整（詳細さは保持）
   const geminiPrompt = `あなたは哲学・人文社会学・経営・ブランディングに長けた専門家です。
 以下の文字起こしから、発言の意味的まとまりごとに、構造的かつ解釈豊かなカードを抽出してください。
+意味のまとまりは、前後の文脈を踏まえ、発言の流れを理解して、それぞれの発言をどのカードに分類するかを判断してください。
 
 【目的】
 このプロンプトは、会話ログ全体をもれなく読み取り、以下のタイプ別に意味ある単位でカード化し、知識資産として再利用可能な構造に整理することを目的とします。
@@ -156,7 +157,7 @@ async function callGemini(prompt: string, model: string, apiKey: string) {
 出力は構造化されたJSONとして自動生成されます。各カードには以下を含めてください：
 
 - title: 30文字以内で内容の要点を表すタイトル
-- content: マークダウン形式で構造化された本文（見出しと段落を使用）
+- content: マークダウン形式で構造化された本文（見出しと箇条書き・段落を使用）
 - column_type: "INBOX", "QUESTIONS", "INSIGHTS", "THEMES", "ACTIONS"のいずれか
 - tags: 内容を表す自由なタグ配列
 
@@ -165,8 +166,11 @@ async function callGemini(prompt: string, model: string, apiKey: string) {
 ### INBOX（未分類・初期アイデア）
 - titleの特徴：思いつき・違和感・例えなどの素材感
 - content構成：
-  > 発言引用
-  
+  ### 関連する発言の流れ
+  > 発言者A: 前後の文脈を含む発言内容...
+  > 発言者B: それに対する反応や関連発言...
+  > 発言者C: 重要な核となる発言内容...
+
   ### 直感的な引っかかり
   ...
   
@@ -182,7 +186,10 @@ async function callGemini(prompt: string, model: string, apiKey: string) {
 ### QUESTIONS（疑問・確認）
 - titleの特徴：疑問文または確認要求を含む
 - content構成：
-  > 発言引用
+  ### 関連する発言の流れ
+  > 発言者A: 問いに至る前後の文脈...
+  > 発言者B: 核となる疑問や確認の発言...
+  > 発言者C: それに対する反応があれば...
   
   ### 問いの構造と前提
   ...
@@ -199,7 +206,10 @@ async function callGemini(prompt: string, model: string, apiKey: string) {
 ### INSIGHTS（気づき・発見）
 - titleの特徴：仮説・視点・ズレの発見など
 - content構成：
-  > 発言引用
+  ### 関連する発言の流れ
+  > 発言者A: 気づきに至る前後の文脈...
+  > 発言者B: 核となる気づきや発見の発言...
+  > 発言者C: それを受けた展開があれば...
   
   ### この発言が示す新しい視点
   ...
@@ -216,7 +226,10 @@ async function callGemini(prompt: string, model: string, apiKey: string) {
 ### THEMES（まとめ・論点整理）
 - titleの特徴：テーマ名や論点の見出し
 - content構成：
-  > 代表的な発言引用
+  ### 代表的な発言の流れ
+  > 発言者A: テーマに関する重要な発言...
+  > 発言者B: それに対する意見や展開...
+  > 発言者C: 論点を深める発言...
   
   ### 議論の流れ
   ...
@@ -233,7 +246,10 @@ async function callGemini(prompt: string, model: string, apiKey: string) {
 ### ACTIONS（実行・TODO）
 - titleの特徴：動詞で始まる、具体的な実行指示やTODO
 - content構成：
-  > 発言引用
+  ### 関連する発言の流れ
+  > 発言者A: アクションに至る文脈...
+  > 発言者B: 具体的な実行提案の発言...
+  > 発言者C: 合意や詳細化の発言があれば...
   
   ### 実行すべきこと
   ...
@@ -246,6 +262,12 @@ async function callGemini(prompt: string, model: string, apiKey: string) {
   
   ### 成功条件・完了条件
   ...
+
+【重要】引用文について：
+- 単一の発言ではなく、関連する2-3の発言の流れを含めてください
+- 発言者名（実名または発言者A/B等）を明記してください
+- 前後の文脈が分かるよう、十分なボリューム（各発言30-50文字程度）で引用してください
+- 会話の流れや論理的展開が理解できるよう、時系列順で引用してください
 
 【注記】構造化出力を使用するため、JSON形式の指示は不要です。内容の品質と詳細さに集中してください。
 contentフィールド内では、上記のマークダウン見出し構造を正確に使用してください。
@@ -271,8 +293,8 @@ ${prompt.split('会議の文字起こし:')[1] || prompt}`;
         }
       ],
       generationConfig: {
-        maxOutputTokens: 8000,  // 増量：長い会議でも途切れないように
-        temperature: 0.1,
+        maxOutputTokens: 12000,  // さらに増量：詳細引用対応
+        temperature: 0.5,  // バランス型：創造性と一貫性のバランス
         topP: 0.8,
         topK: 40,
         // 構造化出力を指定
@@ -397,11 +419,12 @@ serve(async (req) => {
     // システムプロンプト
     const systemPrompt = `あなたは哲学・人文社会学・経営・ブランディングに長けた専門家です。
 以下の文字起こしから、発言の意味的まとまりごとに、構造的かつ解釈豊かなカードを抽出してください。
+意味のまとまりは、前後の文脈を踏まえ、発言の流れを理解して、それぞれの発言をどのカードに分類するかを判断してください。
 
 ---
 
 【目的】
-このプロンプトは、会話ログ全体をもれなく読み取り、以下のタイプ別に意味ある単位でカード化し、知識資産として再利用可能な構造に整理することを目的とします。
+このプロンプトは、会話ログ全体を**もれなく読み取り**、以下のタイプ別に意味ある単位でカード化し、知識資産として再利用可能な構造に整理することを目的とします。
 
 ---
 
@@ -581,6 +604,13 @@ serve(async (req) => {
 
 ---
 
+【重要】引用文について：
+- 関連する2-3の発言の流れを含めてください（ただし簡潔に）
+- 発言者名（実名または発言者A/B等）を明記してください  
+- 前後の文脈が分かるよう、十分なボリューム（各発言30-50文字程度）で引用してください
+- 会話の流れや論理的展開が理解できるよう、時系列順で引用してください
+- 長すぎる引用は避け、要点を簡潔に表現してください
+
 以上のルールに従い、与えられた文字起こし全文をもとに、**構造的で網羅的なカードを生成してください。**
 タイトル・内容・分類すべてにおいて、曖昧さを避け、再利用可能な形式に落とし込むことを目指してください。
 
@@ -593,7 +623,7 @@ ${meetingText}`;
     console.log(`[extract-cards] AI processing completed with ${provider}`);
 
     // JSONパース（Gemini対応強化版）
-    let cards = []
+    let cards: any[] = []
     try {
       let jsonText = result;
       
@@ -701,43 +731,177 @@ ${meetingText}`;
       if (provider.includes('gemini')) {
         console.log('[extract-cards] Gemini JSON parse failed, providing detailed error info...')
         
-                // 構造化出力の簡単な修復を試行
+        // 構造化出力の簡単な修復を試行
         try {
-          console.log('[extract-cards] Attempting simple repair for structured output...')
+          console.log('[extract-cards] Attempting enhanced repair for structured output...')
           let repairText = result;
           
-          // 基本的な修復のみ
+          // より堅牢な修復処理
+          
+          // 1. 最初の[から最後の]を探す
+          const firstBracket = repairText.indexOf('[');
+          const lastBracket = repairText.lastIndexOf(']');
+          
+          if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
+            repairText = repairText.substring(firstBracket, lastBracket + 1);
+            console.log('[extract-cards] Extracted JSON array boundaries');
+          }
+          
+          // 2. 基本的な構文修復
           repairText = repairText
-            .replace(/^[^[]*/, '')                    // [より前の全てを削除
-            .replace(/[^\]]*$/, '')                   // ]より後の全てを削除
-            .replace(/,\s*}/g, '}')                   // 末尾カンマ除去
-            .replace(/,\s*]/g, ']')                   // 配列末尾カンマ除去
-            .replace(/}\s*{/g, '},{')                 // オブジェクト区切り
+            // コメントや不正な文字列を除去
+            .replace(/\/\*[\s\S]*?\*\//g, '')          // ブロックコメント
+            .replace(/\/\/.*$/gm, '')                   // 行コメント
+            .replace(/,\s*}/g, '}')                     // 末尾カンマ除去 
+            .replace(/,\s*]/g, ']')                     // 配列末尾カンマ除去
+            .replace(/}\s*{/g, '},{')                   // オブジェクト区切り
+            .replace(/]\s*\[/g, '],[')                  // 配列区切り
             .trim();
           
-          if (repairText.startsWith('[') && repairText.endsWith(']')) {
-            const repairedCards = JSON.parse(repairText);
-            console.log('[extract-cards] Simple repair succeeded!');
-            cards = Array.isArray(repairedCards) ? repairedCards : [];
-          } else {
-            throw new Error('Simple repair failed');
+          // 3. 不正な文字列エスケープを修復
+          repairText = repairText
+            .replace(/\\n/g, '\\n')                     // 改行エスケープ正規化
+            .replace(/\\"/g, '\\"')                     // クォートエスケープ正規化
+            .replace(/\\'/g, "'")                       // シングルクォート正規化
+            .replace(/[\x00-\x1F\x7F]/g, '')            // 制御文字除去
+            .replace(/\\\//g, '/')                      // 不要なスラッシュエスケープ除去
+            .trim();
+          
+          // 4. 不完全なオブジェクトや配列を修復
+          repairText = repairText
+            .replace(/,\s*$/, '')                       // 最後の不要なカンマ
+            .replace(/{\s*,/g, '{')                     // オブジェクト開始後の無効カンマ
+            .replace(/\[\s*,/g, '[')                    // 配列開始後の無効カンマ
+            .trim();
+            
+          // 5. JSON終端の確認と修復
+          if (!repairText.endsWith(']') && !repairText.endsWith('}')) {
+            if (repairText.includes('[') && !repairText.endsWith(']')) {
+              repairText += ']';
+              console.log('[extract-cards] Added missing closing bracket');
+            }
           }
+          
+          // 6. 段階的パース試行
+          let repairedCards = null;
+          
+          // まず元のテキストでパース試行
+          try {
+            repairedCards = JSON.parse(repairText);
+            console.log('[extract-cards] Enhanced repair succeeded on first attempt');
+          } catch (firstError) {
+            console.log('[extract-cards] First parse attempt failed, trying more aggressive repair...');
+            
+            // より積極的な修復
+            let aggressiveRepair = repairText; // aggressiveRepairを上位スコープで定義
+            
+            try {
+              // 7. JSONオブジェクトの不完全性を修復
+              
+              // 不完全なオブジェクトを特定し、最低限の構造を復元
+              const objectPattern = /{[^{}]*$/;
+              if (objectPattern.test(aggressiveRepair)) {
+                aggressiveRepair = aggressiveRepair.replace(objectPattern, '');
+                console.log('[extract-cards] Removed incomplete object at end');
+              }
+              
+              // 再度終端確認
+              if (!aggressiveRepair.endsWith(']')) {
+                aggressiveRepair += ']';
+              }
+              
+              repairedCards = JSON.parse(aggressiveRepair);
+              console.log('[extract-cards] Aggressive repair succeeded');
+              
+            } catch (secondError) {
+              console.log('[extract-cards] Second parse attempt failed, trying substring approach...');
+              
+              // 8. 最後の手段：有効なJSONの範囲を特定
+              try {
+                // 最後の完全なオブジェクトまでを抽出
+                let braceCount = 0;
+                let inString = false;
+                let escapeNext = false;
+                let lastValidEnd = -1;
+                
+                for (let i = 1; i < aggressiveRepair.length - 1; i++) {
+                  const char = aggressiveRepair[i];
+                  
+                  if (escapeNext) {
+                    escapeNext = false;
+                    continue;
+                  }
+                  
+                  if (char === '\\') {
+                    escapeNext = true;
+                    continue;
+                  }
+                  
+                  if (char === '"' && !escapeNext) {
+                    inString = !inString;
+                    continue;
+                  }
+                  
+                  if (!inString) {
+                    if (char === '{') {
+                      braceCount++;
+                    } else if (char === '}') {
+                      braceCount--;
+                      if (braceCount === 0) {
+                        lastValidEnd = i;
+                      }
+                    }
+                  }
+                }
+                
+                if (lastValidEnd > 0) {
+                  const validSubstring = aggressiveRepair.substring(0, lastValidEnd + 1) + ']';
+                  repairedCards = JSON.parse(validSubstring);
+                  console.log('[extract-cards] Substring repair succeeded');
+                } else {
+                  throw new Error('No valid JSON structure found');
+                }
+                
+              } catch (thirdError) {
+                console.error('[extract-cards] All repair attempts failed:', thirdError);
+                throw new Error(`Enhanced repair failed: ${thirdError.message}`);
+              }
+            }
+          }
+          
+          if (repairedCards && Array.isArray(repairedCards)) {
+            console.log(`[extract-cards] Enhanced repair succeeded! Recovered ${repairedCards.length} cards`);
+            cards = repairedCards;
+          } else {
+            throw new Error('Repaired result is not a valid array');
+          }
+          
         } catch (repairError) {
-          console.error('[extract-cards] Simple repair also failed:', repairError);
+          console.error('[extract-cards] Enhanced repair also failed:', repairError);
+          
+          // 最終的なフォールバック：空配列を返す（サービス継続）
+          console.log('[extract-cards] Falling back to empty result to maintain service');
+          const emptyCards: any[] = []; // 型を明示的に指定
+          cards = emptyCards;
+          
           return new Response(
             JSON.stringify({ 
               success: false, 
-              error: 'Gemini structured output parsing failed. Please try again or switch to OpenAI.', 
-              errorDetails: parseError.message,
-              rawResultSample: result.substring(0, 800),
-              provider: provider,
-              suggestion: 'Geminiの構造化出力で問題が発生しました。Nest設定でOpenAIプロバイダーに切り替えることをお勧めします。',
-              troubleshooting: {
-                'jp': '構造化出力を使用していますが、依然として問題が発生しています。OpenAIを試してください。',
-                'en': 'Using structured output but still experiencing issues. Try switching to OpenAI for more reliable results.'
-              }
+              error: 'Gemini JSON parsing failed after all repair attempts. Service degraded to prevent total failure.', 
+              errorDetails: {
+                originalError: parseError.message,
+                repairError: repairError.message,
+                provider: provider,
+                cardCount: 0
+              },
+              rawResultSample: result.substring(0, 1000),
+              fallbackApplied: true,
+              recommendation: 'Try switching to OpenAI provider for more reliable results, or retry the operation.'
             }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            { 
+              status: 206, // Partial Content - デグレードしたが完全失敗ではない
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
           )
         }
       } else {

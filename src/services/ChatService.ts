@@ -126,10 +126,12 @@ export class ChatService {
       // sender_id一覧をユニーク抽出
       const senderIds = [...new Set(data.map(msg => msg.sender_id))];
       // usersテーブルから一括取得
+      console.log('ChatService: fetching users for senderIds:', senderIds);
       const { data: usersData, error: usersError } = await supabase
         .from('users')
         .select('id, display_name, avatar_url')
         .in('id', senderIds);
+      console.log('ChatService: usersData result:', usersData, 'error:', usersError);
       if (usersError) throw usersError;
       type UserRow = { id: string; display_name: string; avatar_url?: string | null };
       const userMap = Object.fromEntries(((usersData as UserRow[]) || []).map(u => [u.id, u]));

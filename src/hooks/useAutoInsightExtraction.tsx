@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Message } from '../types/chat';
 import { supabase } from '../services/supabase/client';
+import { useAuth } from '../contexts/AuthContext';
+import { useNest } from '../features/nest/contexts/NestContext';
 
 interface AIInsight {
   id: string;
@@ -67,6 +69,9 @@ export const useAutoInsightExtraction = ({
   onNewInsightsGenerated,
   onError,
 }: UseAutoInsightExtractionProps) => {
+  const { user } = useAuth();
+  const { currentNest } = useNest();
+  
   const [insights, setInsights] = useState<AIInsight[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [lastAnalyzedMessageCount, setLastAnalyzedMessageCount] = useState(0);
@@ -103,6 +108,22 @@ export const useAutoInsightExtraction = ({
     })));
     
     try {
+      // ユーザー認証確認
+      if (!user?.id) {
+        throw {
+          type: 'VALIDATION_ERROR',
+          message: 'ユーザー認証が必要です',
+          details: { user }
+        };
+      }
+
+      console.log('[useAutoInsightExtraction] Calling analyze-chat with auth data:', {
+        userId: user.id,
+        nestId: currentNest?.id,
+        channelId,
+        messageCount: messagesToAnalyze.length
+      });
+
       // Edge Function呼び出し
       const { data, error } = await supabase.functions.invoke('analyze-chat', {
         body: {
@@ -112,7 +133,8 @@ export const useAutoInsightExtraction = ({
             timestamp: m.timestamp || ''
           })),
           board_id: channelId,
-          created_by: 'ai',
+          created_by: user.id, // 実際のユーザーIDを使用
+          nestId: currentNest?.id, // nestIdを追加
         },
       });
 
@@ -186,7 +208,9 @@ export const useAutoInsightExtraction = ({
     channelId, 
     onNewInsightsGenerated,
     onError,
-    analysisStats.totalInsightsGenerated
+    analysisStats.totalInsightsGenerated,
+    user,
+    currentNest
   ]);
 
   // メッセージの変更を監視して自動分析を実行

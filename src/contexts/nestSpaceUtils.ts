@@ -62,7 +62,7 @@ export const initialNestSpaceState: NestSpaceState = {
     activeSpaceId: '',
     history: [],
     views: [],
-    currentLayout: determineLayout(),
+    currentLayout: 'desktop',
   },
   currentUserRole: 'guest',
   isLoading: false,

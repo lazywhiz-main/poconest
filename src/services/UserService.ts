@@ -10,11 +10,14 @@ export interface UserInfo {
 // ユーザー情報を取得
 export async function getUserById(userId: string): Promise<UserInfo | null> {
   try {
+    console.log('getUserById called with userId:', userId);
     const { data, error } = await supabase
       .from('users')
       .select('id, display_name, email, avatar_url')
       .eq('id', userId)
       .single();
+
+    console.log('getUserById result - data:', data, 'error:', error);
 
     if (error || !data) {
       console.warn('ユーザー情報取得エラー:', error);

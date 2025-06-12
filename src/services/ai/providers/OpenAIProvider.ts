@@ -1,5 +1,14 @@
 import { AIProvider, AIProviderConfig, AIAnalysisResponse, EmbeddingResponse } from './AIProvider';
 import { supabase } from '../../supabase/client';
+import { AIUsageLogger, AIFeatureType } from '../AIUsageLogger';
+
+export interface AIRequestContext {
+  userId: string;
+  nestId?: string;
+  chatRoomId?: string;
+  meetingId?: string;
+  boardId?: string;
+}
 
 export class OpenAIProvider implements AIProvider {
   name = 'OpenAI';
@@ -29,7 +38,8 @@ export class OpenAIProvider implements AIProvider {
     }
   }
 
-  async generateEmbedding(text: string): Promise<number[] | null> {
+  async generateEmbedding(text: string, context?: AIRequestContext): Promise<number[] | null> {
+    const startTime = Date.now();
     try {
       console.log('[OpenAIProvider] Generating embedding for text length:', text.length);
       
@@ -45,9 +55,54 @@ export class OpenAIProvider implements AIProvider {
         throw new Error(response.data?.error || 'Embedding generation failed');
       }
 
+      // AI使用量をログ
+      if (context) {
+        const inputTokens = Math.ceil(text.length / 4); // 概算: 4文字 ≈ 1トークン
+        const cost = AIUsageLogger.calculateCost('openai', this.config.embeddingModel || 'text-embedding-3-small', inputTokens, 0);
+        
+        await AIUsageLogger.logUsage({
+          userId: context.userId,
+          nestId: context.nestId,
+          featureType: 'embedding',
+          provider: 'openai',
+          model: this.config.embeddingModel || 'text-embedding-3-small',
+          inputTokens,
+          outputTokens: 0,
+          estimatedCostUsd: cost,
+          requestMetadata: { textLength: text.length },
+          responseMetadata: { 
+            success: true, 
+            processingTime: Date.now() - startTime 
+          },
+          boardId: context.boardId
+        });
+      }
+
       return response.data.embeddings;
     } catch (error) {
       console.error('[OpenAIProvider] Failed to generate embedding:', error);
+      
+      // エラーでもログを記録
+      if (context) {
+        await AIUsageLogger.logUsage({
+          userId: context.userId,
+          nestId: context.nestId,
+          featureType: 'embedding',
+          provider: 'openai',
+          model: this.config.embeddingModel || 'text-embedding-3-small',
+          inputTokens: 0,
+          outputTokens: 0,
+          estimatedCostUsd: 0,
+          requestMetadata: { textLength: text.length },
+          responseMetadata: { 
+            success: false, 
+            error: error instanceof Error ? error.message : String(error),
+            processingTime: Date.now() - startTime 
+          },
+          boardId: context.boardId
+        });
+      }
+      
       return null;
     }
   }
@@ -75,7 +130,8 @@ export class OpenAIProvider implements AIProvider {
     }
   }
 
-  async generateSummary(content: string): Promise<string> {
+  async generateSummary(content: string, context?: AIRequestContext): Promise<string> {
+    const startTime = Date.now();
     try {
       console.log('[OpenAIProvider] Generating summary for content length:', content.length);
       
@@ -93,14 +149,63 @@ export class OpenAIProvider implements AIProvider {
         throw new Error(response.data?.error || 'Summary generation failed');
       }
 
+      // AI使用量をログ
+      if (context) {
+        const inputTokens = response.data.usage?.prompt_tokens || Math.ceil(content.length / 4);
+        const outputTokens = response.data.usage?.completion_tokens || Math.ceil(response.data.result.length / 4);
+        const cost = AIUsageLogger.calculateCost('openai', this.config.model || 'gpt-4o', inputTokens, outputTokens);
+        
+        await AIUsageLogger.logUsage({
+          userId: context.userId,
+          nestId: context.nestId,
+          featureType: 'meeting_summary',
+          provider: 'openai',
+          model: this.config.model || 'gpt-4o',
+          inputTokens,
+          outputTokens,
+          estimatedCostUsd: cost,
+          requestMetadata: { contentLength: content.length },
+          responseMetadata: { 
+            success: true, 
+            resultLength: response.data.result.length,
+            processingTime: Date.now() - startTime,
+            usage: response.data.usage
+          },
+          meetingId: context.meetingId
+        });
+      }
+
       return response.data.result;
     } catch (error) {
       console.error('[OpenAIProvider] Failed to generate summary:', error);
+      
+      // エラーでもログを記録
+      if (context) {
+        await AIUsageLogger.logUsage({
+          userId: context.userId,
+          nestId: context.nestId,
+          featureType: 'meeting_summary',
+          provider: 'openai',
+          model: this.config.model || 'gpt-4o',
+          inputTokens: 0,
+          outputTokens: 0,
+          estimatedCostUsd: 0,
+          requestMetadata: { contentLength: content.length },
+          responseMetadata: { 
+            success: false, 
+            error: error instanceof Error ? error.message : String(error),
+            processingTime: Date.now() - startTime 
+          },
+          meetingId: context.meetingId
+        });
+      }
+      
       throw error;
     }
   }
 
-  async analyzeChat(messages: any[], systemPrompt: string): Promise<string> {
+  async analyzeChat(messages: any[], systemPrompt: string, context?: AIRequestContext): Promise<string> {
+    const startTime = Date.now();
     try {
       console.log('[OpenAIProvider] Analyzing chat with', messages.length, 'messages');
       
@@ -119,9 +224,62 @@ export class OpenAIProvider implements AIProvider {
         throw new Error(response.data?.error || 'Chat analysis failed');
       }
 
+      // AI使用量をログ
+      if (context) {
+        const inputTokens = response.data.usage?.prompt_tokens || Math.ceil((JSON.stringify(messages) + systemPrompt).length / 4);
+        const outputTokens = response.data.usage?.completion_tokens || Math.ceil((response.data.markdown || response.data.result).length / 4);
+        const cost = AIUsageLogger.calculateCost('openai', this.config.model || 'gpt-4o', inputTokens, outputTokens);
+        
+        await AIUsageLogger.logUsage({
+          userId: context.userId,
+          nestId: context.nestId,
+          featureType: 'chat_analysis',
+          provider: 'openai',
+          model: this.config.model || 'gpt-4o',
+          inputTokens,
+          outputTokens,
+          estimatedCostUsd: cost,
+          requestMetadata: { 
+            messageCount: messages.length,
+            systemPromptLength: systemPrompt.length 
+          },
+          responseMetadata: { 
+            success: true, 
+            processingTime: Date.now() - startTime,
+            usage: response.data.usage
+          },
+          chatRoomId: context.chatRoomId
+        });
+      }
+
       return response.data.markdown || response.data.result;
     } catch (error) {
       console.error('[OpenAIProvider] Failed to analyze chat:', error);
+      
+      // エラーでもログを記録
+      if (context) {
+        await AIUsageLogger.logUsage({
+          userId: context.userId,
+          nestId: context.nestId,
+          featureType: 'chat_analysis',
+          provider: 'openai',
+          model: this.config.model || 'gpt-4o',
+          inputTokens: 0,
+          outputTokens: 0,
+          estimatedCostUsd: 0,
+          requestMetadata: { 
+            messageCount: messages.length,
+            systemPromptLength: systemPrompt.length 
+          },
+          responseMetadata: { 
+            success: false, 
+            error: error instanceof Error ? error.message : String(error),
+            processingTime: Date.now() - startTime 
+          },
+          chatRoomId: context.chatRoomId
+        });
+      }
+      
       throw error;
     }
   }

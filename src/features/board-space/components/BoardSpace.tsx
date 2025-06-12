@@ -15,6 +15,7 @@ import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import { useAuth } from '../../../contexts/AuthContext';
 import { supabase } from '../../../services/supabase/client';
 import Modal from '../../../components/ui/Modal';
+import { formatJapanDateTime } from '../../../utils/dateFormatter';
 
 const EditIcon = ({ size = 14, color = "#888" }) => (
   <svg
@@ -336,13 +337,16 @@ const CardModal: React.FC<CardModalProps> = ({
               {/* メタ情報 */}
               {initialData && (
                 <div style={{ marginBottom: 16, fontSize: 12, color: '#6c7086', fontFamily: 'JetBrains Mono, monospace' }}>
+                  <div>作成者: {(initialData as any)?.createdByDisplayName || (initialData as any)?.created_by_display_name || '不明'}</div>
                   {initialData.created_at && (
-                    <div>作成日: {new Date(initialData.created_at).toLocaleString()}</div>
+                    <div>作成日: {formatJapanDateTime(initialData.created_at)}</div>
+                  )}
+                  {(initialData as any)?.updatedByDisplayName && (
+                    <div>更新者: {(initialData as any)?.updatedByDisplayName}</div>
                   )}
                   {initialData.updated_at && (
-                    <div>最終更新: {new Date(initialData.updated_at).toLocaleString()}</div>
+                    <div>最終更新: {formatJapanDateTime(initialData.updated_at)}</div>
                   )}
-                  <div>作成者: {(initialData as any)?.created_by_display_name || '不明'}</div>
                 </div>
               )}
               {/* カード種別選択 */}

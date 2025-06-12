@@ -677,7 +677,8 @@ const NestSettingsScreen: React.FC<NestSettingsScreenProps> = ({
                 • APIキーが無効または期限切れ<br/>
                 • APIレート制限に達している<br/>
                 • プロバイダーサービスがメンテナンス中<br/>
-                • ネットワーク接続の問題
+                • ネットワーク接続の問題<br/>
+                ※ AI関係性解析は、モデル設定に関係なく、openaiのモデルを使います
               </div>
             </div>
           </div>

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useState, useCallback, useMemo } from 'react';
 // import { Dimensions } from 'react-native'; // determineLayout is in utils
 import { useAuth } from './AuthContext';
 import {
@@ -25,152 +25,59 @@ import { supabase } from '@services/supabase';
 const NestSpaceContext = createContext<NestSpaceContextType | undefined>(undefined);
 
 export const NestSpaceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  console.log('[NestSpaceProvider] Rendering with Stage 1 logic (reducer + initial state)');
-  const [state, dispatch] = useReducer(nestSpaceReducer, initialState);
-  const { user } = useAuth();
-
-  // --- 追加: spaces取得用state ---
-  const [spaces, setSpaces] = useState<Record<string, any>>({});
-  const [spacesLoading, setSpacesLoading] = useState(false);
-  const [spacesError, setSpacesError] = useState<string | null>(null);
-
-  // --- 追加: currentNestIdの取得（仮: localStorageから取得） ---
-  const [currentNestId, setCurrentNestId] = useState<string | null>(null);
-  useEffect(() => {
-    const id = localStorage.getItem('currentNestId');
-    setCurrentNestId(id);
+  // 最初に動作していたシンプルなreducer
+  const simpleReducer = (state: any, action: any) => {
+    switch (action.type) {
+      case 'NAVIGATE_TO_SPACE':
+        return { ...state, activeSpaceId: action.payload };
+      case 'SET_LOADING':
+        return { ...state, isLoading: action.payload };
+      case 'TOGGLE_SIDEBAR':
+        return { ...state, sidebarOpen: !state.sidebarOpen };
+      default:
+        return state;
+    }
+  };
+  
+  const simpleInitialState = {
+    activeSpaceId: 'meeting',
+    isLoading: false,
+    sidebarOpen: false
+  };
+  
+  const [state, dispatch] = useReducer(simpleReducer, simpleInitialState);
+  
+  // 関数をuseCallbackでメモ化
+  const navigateToSpace = useCallback((spaceType: any) => {
+    dispatch({ type: 'NAVIGATE_TO_SPACE', payload: spaceType });
   }, []);
 
-  // --- 追加: currentNestの取得 ---
-  const [currentNest, setCurrentNest] = useState<any>(null);
-  useEffect(() => {
-    if (!currentNestId) return;
-    supabase
-      .from('nests')
-      .select('*')
-      .eq('id', currentNestId)
-      .single()
-      .then(({ data, error }) => {
-        if (!error && data) {
-          setCurrentNest(data);
-        } else {
-          setCurrentNest(null);
-        }
-      });
-  }, [currentNestId]);
-
-  // --- 追加: spaces取得ロジック ---
-  useEffect(() => {
-    if (!currentNestId) return;
-    setSpacesLoading(true);
-    setSpacesError(null);
-    supabase
-      .from('spaces')
-      .select('*')
-      .eq('nest_id', currentNestId)
-      .then(({ data, error }) => {
-        if (error) {
-          setSpacesError(error.message);
-          setSpaces({});
-        } else {
-          // NestSpace型に変換し、Record<string, NestSpace>にまとめる
-          const record: Record<string, any> = {};
-          (data || []).forEach((s: any) => {
-            record[s.id] = {
-              id: s.id,
-              name: s.name,
-              type: s.type as SpaceType,
-              icon: s.icon,
-              description: s.description,
-              content: {}, // TODO: 空間タイプごとに初期化
-              metadata: {
-                createdAt: new Date(s.created_at),
-                createdBy: s.created_by || '',
-                updatedAt: new Date(s.updated_at),
-                updatedBy: s.updated_by || '',
-                viewCount: 0,
-                version: 1,
-              },
-              personalization: [],
-              members: [],
-              activeMembers: [],
-            };
-          });
-          setSpaces(record);
-        }
-        setSpacesLoading(false);
-      });
-  }, [currentNestId]);
-
-  // --- 今後の拡張設計コメント ---
-  // 例: chat空間が作られた時は、chat_roomsテーブルに#generalルームを自動生成するなど
-  // ここでspacesのtypeを見て、必要な初期データを各テーブルにinsertするロジックを追加予定
-
-  // --- 既存のモック関数群 ---
-  const navigateToSpace = (spaceId: string) => console.log('navigateToSpace called with', spaceId);
-  const goBack = () => console.log('goBack called');
-  const addSpace = (space: any) => console.log('addSpace called with', space);
-  const updateSpace = (id: string, updates: any) => console.log('updateSpace called', id, updates);
-  const removeSpace = (id: string) => console.log('removeSpace called', id);
-  const toggleSplitView = (params: any) => console.log('toggleSplitView called', params);
-  const updatePresence = (presence: any) => console.log('updatePresence called', presence);
-  const canPerformAction = (action: any): boolean => { console.log('canPerformAction called', action); return false; };
-  const loadSpaceContainer = async (containerId: string): Promise<void> => { console.log('loadSpaceContainer called', containerId); };
-
-  // --- 必要なコールバックを追加 ---
-  // availableSpacesをspaces stateから生成
-  const availableSpaces = Object.values(spaces).map((s: any) => ({
-    id: s.id,
-    type: s.type,
-    title: s.name,
-    icon: s.icon,
-    color: s.color || '#888',
-    // 必要に応じて他のSpaceMetadataプロパティも追加
-  }));
-
-  const spaceState: SpaceState = {
-    activeSpaceType: state.navigation.activeSpaceId as SpaceType,
-    availableSpaces, // ←ここを修正
-    layoutType: state.navigation.currentLayout as LayoutType,
-    sidebarOpen: false, // TODO: 必要に応じてstateから取得
-    loading: state.isLoading,
-    memberPresence: [], // TODO: 必要に応じてstateから取得
-    personalization: {}, // TODO: 必要に応じてstateから取得
-    splitView: undefined, // TODO: 必要に応じてstateから取得
-  };
-  // const spaceState: SpaceState = {
-  //   activeSpaceType: state.navigation.activeSpaceId as SpaceType,
-  //   availableSpaces: [], // TODO: 必要に応じてstateから取得
-  //   layoutType: state.navigation.currentLayout as LayoutType,
-  //   sidebarOpen: false, // TODO: 必要に応じてstateから取得
-  //   loading: state.isLoading,
-  //   memberPresence: [], // TODO: 必要に応じてstateから取得
-  //   personalization: {}, // TODO: 必要に応じてstateから取得
-  //   splitView: undefined, // TODO: 必要に応じてstateから取得
-  // };
-  const dispatchAction = dispatch as React.Dispatch<SpaceNavigationAction>;
-
   const toggleSidebar = useCallback(() => {
-    dispatchAction({ type: 'TOGGLE_SIDEBAR' });
-  }, [dispatchAction]);
+    dispatch({ type: 'TOGGLE_SIDEBAR' });
+  }, []);
 
-  const updatePersonalization = useCallback((settings: Partial<any>) => {
-    dispatchAction({ type: 'UPDATE_PERSONALIZATION', payload: settings });
-  }, [dispatchAction]);
+  const updatePresence = useCallback(() => {}, []);
+  const updatePersonalization = useCallback(() => {}, []);
+  const enableSplitView = useCallback(() => {}, []);
+  const disableSplitView = useCallback(() => {}, []);
+  const setSplitRatio = useCallback(() => {}, []);
 
-  const enableSplitView = useCallback((primary: SpaceType, secondary: SpaceType, ratio?: number) => {
-    dispatchAction({ type: 'ENABLE_SPLIT_VIEW', payload: { primary, secondary, ratio } });
-  }, [dispatchAction]);
+  // 最初に動作していた実装
+  const spaceState: SpaceState = useMemo(() => {
+    return {
+      activeSpaceType: state.activeSpaceId as SpaceType,
+      availableSpaces: [],
+      layoutType: 'desktop' as LayoutType,
+      sidebarOpen: state.sidebarOpen,
+      loading: state.isLoading,
+      memberPresence: [],
+      personalization: {},
+      splitView: undefined,
+    };
+  }, [state.activeSpaceId, state.isLoading, state.sidebarOpen]);
 
-  const disableSplitView = useCallback(() => {
-    dispatchAction({ type: 'DISABLE_SPLIT_VIEW' });
-  }, [dispatchAction]);
-
-  const setSplitRatio = useCallback((ratio: number) => {
-    dispatchAction({ type: 'SET_SPLIT_RATIO', payload: ratio });
-  }, [dispatchAction]);
-
-  const isSpaceActive = useCallback((spaceType: SpaceType): boolean => {
+  // ユーティリティ関数もuseCallbackでメモ化
+  const isSpaceActive = useCallback((spaceType: any) => {
     if (spaceState.splitView?.enabled) {
       return (
         spaceType === spaceState.splitView.primarySpace ||
@@ -180,30 +87,32 @@ export const NestSpaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return spaceType === spaceState.activeSpaceType;
   }, [spaceState]);
 
-  const getSpaceMetadata = useCallback((spaceType: SpaceType): SpaceMetadata | undefined => {
+  const getSpaceMetadata = useCallback((spaceType: any) => {
     return spaceState.availableSpaces.find(space => space.type === spaceType);
-  }, [spaceState.availableSpaces]);
+  }, [spaceState]);
 
-  const getMemberPresence = useCallback((userId: string): MemberPresence | undefined => {
+  const getMemberPresence = useCallback((userId: string) => {
     return spaceState.memberPresence.find(member => member.userId === userId);
-  }, [spaceState.memberPresence]);
+  }, [spaceState]);
 
-  const contextValue: NestSpaceContextType = {
-    currentNest,
-    nestMembers: spaceState.memberPresence,
-    spaceState,
-    dispatch: dispatchAction,
-    navigateToSpace: (spaceType) => dispatchAction({ type: 'NAVIGATE_TO_SPACE', payload: spaceType }),
-    toggleSidebar,
-    updatePresence: (presenceData) => dispatchAction({ type: 'UPDATE_MEMBER_PRESENCE', payload: presenceData as MemberPresence }),
-    updatePersonalization,
-    enableSplitView,
-    disableSplitView,
-    setSplitRatio,
-    isSpaceActive,
-    getSpaceMetadata,
-    getMemberPresence,
-  };
+  const contextValue = useMemo(() => {
+    return {
+      currentNest: null,
+      nestMembers: [],
+      spaceState,
+      dispatch,
+      navigateToSpace,
+      toggleSidebar,
+      updatePresence,
+      updatePersonalization,
+      enableSplitView,
+      disableSplitView,
+      setSplitRatio,
+      isSpaceActive,
+      getSpaceMetadata,
+      getMemberPresence,
+    };
+  }, [spaceState, navigateToSpace, toggleSidebar, updatePresence, updatePersonalization, enableSplitView, disableSplitView, setSplitRatio, isSpaceActive, getSpaceMetadata, getMemberPresence]);
 
   return (
     <NestSpaceContext.Provider value={contextValue}>

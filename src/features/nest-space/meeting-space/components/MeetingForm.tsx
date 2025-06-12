@@ -9,6 +9,7 @@ import TimeSelect from '../../../../components/ui/TimeSelect';
 interface MeetingFormProps {
   onSubmit: (meetingData: MeetingFormData) => void;
   onCancel: () => void;
+  droppedFile?: File | null;
 }
 
 export interface MeetingFormData {
@@ -19,7 +20,7 @@ export interface MeetingFormData {
   transcript: string;
 }
 
-const MeetingForm: React.FC<MeetingFormProps> = ({ onSubmit, onCancel }) => {
+const MeetingForm: React.FC<MeetingFormProps> = ({ onSubmit, onCancel, droppedFile }) => {
   const [title, setTitle] = useState('');
   const [date, setDate] = useState(new Date());
   const [participants, setParticipants] = useState<string[]>([]);
@@ -28,6 +29,44 @@ const MeetingForm: React.FC<MeetingFormProps> = ({ onSubmit, onCancel }) => {
   const [uploadFileName, setUploadFileName] = useState<string | null>(null);
   const [dateTimeInput, setDateTimeInput] = useState(formatDateTime(date));
   const [error, setError] = useState<string | null>(null);
+
+  // ドロップされたファイルを処理
+  React.useEffect(() => {
+    if (droppedFile) {
+      const processDroppedFile = async () => {
+        try {
+          if (droppedFile.type === 'text/plain') {
+            const text = await droppedFile.text();
+            setTranscript(text);
+            setUploadFileName(droppedFile.name);
+            if (!title) {
+              // ファイル名からタイトルを生成（拡張子を除く）
+              const nameWithoutExt = droppedFile.name.replace(/\.[^/.]+$/, '');
+              setTitle(nameWithoutExt);
+            }
+          } else if (droppedFile.type.startsWith('video/') || droppedFile.type.startsWith('audio/')) {
+            setUploadFileName(droppedFile.name);
+            setTranscript('音声/動画ファイルから自動的に文字起こしが生成されます。');
+            if (!title) {
+              const nameWithoutExt = droppedFile.name.replace(/\.[^/.]+$/, '');
+              setTitle(nameWithoutExt);
+            }
+          } else if (droppedFile.type === 'application/pdf') {
+            setUploadFileName(droppedFile.name);
+            setTranscript('PDFファイルからテキストが抽出されます。');
+            if (!title) {
+              const nameWithoutExt = droppedFile.name.replace(/\.[^/.]+$/, '');
+              setTitle(nameWithoutExt);
+            }
+          }
+        } catch (error) {
+          console.error('ファイル処理エラー:', error);
+          setError('ファイルの処理中にエラーが発生しました。');
+        }
+      };
+      processDroppedFile();
+    }
+  }, [droppedFile, title]);
 
   // 日時のフォーマット・パース
   function pad(n: number) { return n.toString().padStart(2, '0'); }

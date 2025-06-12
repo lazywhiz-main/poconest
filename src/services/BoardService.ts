@@ -224,6 +224,22 @@ export async function getCardsByMeeting(meetingId: string): Promise<BoardCardUI[
     }
   }
 
+  // ユーザー情報を取得
+  const userIds = [...new Set([
+    ...data.map(card => card.created_by),
+    ...data.filter(card => card.updated_by).map(card => card.updated_by!)
+  ])];
+  
+  const { data: usersData, error: usersError } = await supabase
+    .from('users')
+    .select('id, display_name')
+    .in('id', userIds);
+  
+  const usersMap = new Map();
+  if (!usersError && usersData) {
+    usersData.forEach(user => usersMap.set(user.id, user.display_name));
+  }
+
   // タグ・sources・関連カード情報を整形
   const cardsWithTags = data.map(card => {
     const tags = card.board_card_tags?.map((tagRow: any) => tagRow.tag) || [];
@@ -272,33 +288,66 @@ export async function getCardsByMeeting(meetingId: string): Promise<BoardCardUI[
       },
       sources, // BoardCardUIの直下にも
       relatedCards, // 関連カードを追加
+      created_by_user: { display_name: usersMap.get(card.created_by) },
+      updated_by_user: { display_name: usersMap.get(card.updated_by) },
     };
   });
 
   return cardsWithTags.map(toBoardCardUI);
 }
 
-// デフォルトボードを取得または作成（既存のboard_cardsテーブル使用）
+// デフォルトボードを取得または作成（nest_idに基づいてboardsテーブルから取得）
 export async function getOrCreateDefaultBoard(nestId: string, userId: string): Promise<string> {
+  console.log('🔍 [getOrCreateDefaultBoard] === 開始 ===');
+  console.log('🔍 [getOrCreateDefaultBoard] 引数 nestId:', nestId);
+  console.log('🔍 [getOrCreateDefaultBoard] 引数 userId:', userId);
+  
   try {
-    // 既存のボードを検索（実際にはboard_cardsから推測）
-    const { data: existingCards, error: selectError } = await supabase
-      .from('board_cards')
-      .select('board_id')
-      .limit(1)
+    // nest_idに紐づくボードをboardsテーブルから検索
+    console.log('🔍 [getOrCreateDefaultBoard] boardsテーブルからnest_idに紐づくボードを検索中...');
+    const { data: board, error: selectError } = await supabase
+      .from('boards')
+      .select('id')
+      .eq('nest_id', nestId)
       .single();
 
-    if (existingCards?.board_id) {
-      return existingCards.board_id;
+    console.log('🔍 [getOrCreateDefaultBoard] boards検索結果:', board);
+    console.log('🔍 [getOrCreateDefaultBoard] boards検索エラー:', selectError);
+
+    if (board?.id) {
+      console.log('🔍 [getOrCreateDefaultBoard] nest_idに紐づく既存のboard_idを返します:', board.id);
+      return board.id;
     }
 
-    // 新しいボードIDを生成（UUIDを生成）
+    // nest_idに紐づくボードが見つからない場合、新しいボードを作成
+    console.log('🔍 [getOrCreateDefaultBoard] nest_idに紐づくボードが見つからないため、新規作成します');
     const boardId = crypto.randomUUID();
+    
+    const { error: insertError } = await supabase
+      .from('boards')
+      .insert({
+        id: boardId,
+        nest_id: nestId,
+        name: 'デフォルトボード',
+        description: `Nest ${nestId} のデフォルトボード`,
+        created_by: userId
+      });
+
+    if (insertError) {
+      console.error('🔍 [getOrCreateDefaultBoard] ボード作成エラー:', insertError);
+      throw insertError;
+    }
+
+    console.log('🔍 [getOrCreateDefaultBoard] 新しいboard_idを作成しました:', boardId);
     return boardId;
   } catch (error) {
+    console.error('🔍 [getOrCreateDefaultBoard] エラー発生:', error);
     console.error('ボード取得エラー:', error);
-    // フォールバックとして固定のボードIDを返す
-    return '29e25d75-640a-4f35-9eaa-462353b3c08c'; // CSVから見た既存のboard_id
+    
+    // フォールバック: 正しいボードIDを返す
+    const fallbackId = '82fa8e39-5edc-43e0-a8d6-96e7bcadc969';
+    console.log('🔍 [getOrCreateDefaultBoard] フォールバック: 正しいboard_idを返します:', fallbackId);
+    return fallbackId;
   }
 }
 

@@ -25,6 +25,7 @@ import { NestListScreen } from './screens/NestListScreen';
 import WelcomeScreen from '@screens/auth/WelcomeScreen';
 import AuthenticatedRoutes from './navigation';
 import Icon from './components/ui/Icon';
+import AcceptInviteScreen from './features/nest/invitation/screens/AcceptInviteScreen';
 // Webではreact-native-screensを無効化
 if (typeof window !== 'undefined') {
   // @ts-ignore
@@ -771,6 +772,7 @@ const App: React.FC = () => {
                 </NestProvider>
               </AuthGuard>
             } />
+            <Route path="/invite/:token" element={<AcceptInviteScreen />} />
             <Route path="*" element={<Navigate to="/login" />} />
           </Routes>
         </AuthProvider>

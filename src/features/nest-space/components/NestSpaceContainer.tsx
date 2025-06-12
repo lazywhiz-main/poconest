@@ -193,7 +193,7 @@ const NestSpaceContainer: React.FC<NestSpaceContainerProps> = ({
       navigateToSpace(initialSpace);
       setMockState(prev => ({ ...prev, activeSpaceId: initialSpace }));
     }
-  }, [initialSpace, activeSpaceId, navigateToSpace]);
+  }, [initialSpace]);
   
   // プリロード設定 - 現在は実際の動的インポートがないのでこの部分は効果なし
   useEffect(() => {

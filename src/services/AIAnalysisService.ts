@@ -1,6 +1,7 @@
 import { Message } from '../types/chat';
 import { supabase } from './supabase/client';
 import type { BoardItem } from '../features/board-space/contexts/BoardContext';
+import { nestAIProviderService } from './ai/NestAIProviderService';
 
 export interface AIInsight {
   id: string;
@@ -270,24 +271,91 @@ export class AIAnalysisService {
   }
 
   /**
-   * カードのテキストコンテンツから埋め込みベクターを生成
+   * AI使用ログを記録するヘルパー関数
    */
-  static async generateEmbedding(text: string): Promise<number[] | null> {
+  private static async logAIUsage(
+    featureType: 'relationship_analysis' | 'embedding',
+    provider: string,
+    model: string,
+    userId: string,
+    nestId: string | null,
+    inputData: any,
+    outputData: any,
+    usageData: any = {}
+  ): Promise<void> {
+    try {
+      const logData = {
+        feature_type: featureType,
+        provider,
+        model,
+        created_by: userId,
+        nest_id: nestId,
+        input_tokens: usageData.input_tokens || null,
+        output_tokens: usageData.output_tokens || null,
+        total_tokens: usageData.total_tokens || null,
+        estimated_cost_usd: usageData.estimated_cost_usd || null,
+        request_metadata: inputData ? JSON.stringify(inputData) : null,
+        response_metadata: outputData ? JSON.stringify(outputData) : null,
+        created_at: new Date().toISOString()
+      };
+
+      console.log(`[AIAnalysisService] Logging AI usage:`, {
+        feature_type: logData.feature_type,
+        provider: logData.provider,
+        model: logData.model,
+        created_by: logData.created_by,
+        nest_id: logData.nest_id
+      });
+
+      const { error } = await supabase
+        .from('ai_usage_logs')
+        .insert(logData);
+
+      if (error) {
+        console.error(`[AIAnalysisService] Failed to log AI usage:`, error);
+      } else {
+        console.log(`[AIAnalysisService] Successfully logged AI usage for ${featureType}`);
+      }
+    } catch (error) {
+      console.error(`[AIAnalysisService] Error logging AI usage:`, error);
+    }
+  }
+
+  /**
+   * 埋め込みベクター生成（AI使用ログ付き）
+   */
+  static async generateEmbedding(
+    text: string, 
+    userId?: string, 
+    nestId?: string
+  ): Promise<number[] | null> {
     try {
       console.log('[AIAnalysisService] Generating embedding for text length:', text.length);
       
-      // AIProviderManagerを使用してプロバイダーを取得
-      const { AIProviderManager } = await import('./ai/AIProviderManager');
-      const manager = AIProviderManager.getInstance();
-      const provider = await manager.getAvailableProvider();
-      
-      if (!provider) {
-        console.error('[AIAnalysisService] No AI provider available for embedding generation');
+      // Edge Functionを呼び出し
+      const { data, error } = await supabase.functions.invoke('ai-embeddings', {
+        body: {
+          text: text,
+          nestId: nestId,
+          userId: userId // AI使用ログのためにuserIdを渡す
+        }
+      });
+
+      if (error) {
+        console.error('[AIAnalysisService] Edge Function error:', error);
         return null;
       }
+
+      if (!data.success) {
+        console.error('[AIAnalysisService] Edge Function failed:', data.error);
+        return null;
+      }
+
+      console.log('[AIAnalysisService] Successfully generated embedding via Edge Function');
+      console.log('[AIAnalysisService] Provider used:', data.provider);
+      console.log('[AIAnalysisService] Dimensions:', data.dimensions);
       
-      console.log('[AIAnalysisService] Using provider:', provider.name);
-      return await provider.generateEmbedding(text);
+      return data.embeddings; // Edge Functionから返された埋め込みベクトル
     } catch (error) {
       console.error('[AIAnalysisService] Failed to generate embedding:', error);
       return null;
@@ -307,9 +375,13 @@ export class AIAnalysisService {
   }
 
   /**
-   * カードの埋め込みベクターを生成・保存
+   * カードの埋め込みベクターを生成・保存（ユーザー情報付き）
    */
-  static async generateCardEmbedding(card: BoardItem): Promise<CardEmbedding | null> {
+  static async generateCardEmbedding(
+    card: BoardItem, 
+    userId?: string, 
+    nestId?: string
+  ): Promise<CardEmbedding | null> {
     const textContent = this.generateCardText(card);
     
     // 既存の埋め込みをチェック（更新時刻ベース）
@@ -335,16 +407,13 @@ export class AIAnalysisService {
           };
         } else {
           console.log(`[AIAnalysisService] Card ${card.id} content changed, regenerating embedding`);
-          console.log(`  Card updated: ${cardUpdatedAt.toISOString()}`);
-          console.log(`  Embedding updated: ${embeddingUpdatedAt.toISOString()}`);
-          console.log(`  Text content changed: ${existingEmbedding.text_content !== textContent}`);
         }
       }
     } catch (error) {
       console.log(`[AIAnalysisService] No cached embedding found for card ${card.id}, generating new one`);
     }
 
-    const embedding = await this.generateEmbedding(textContent);
+    const embedding = await this.generateEmbedding(textContent, userId, nestId);
     
     if (!embedding) {
       return null;
@@ -395,102 +464,6 @@ export class AIAnalysisService {
 
     const denominator = Math.sqrt(normA) * Math.sqrt(normB);
     return denominator === 0 ? 0 : dotProduct / denominator;
-  }
-
-  /**
-   * カード間の関係性を自動提案
-   */
-  static async suggestRelationships(
-    cards: BoardItem[],
-    minSimilarity: number = 0.7,
-    maxSuggestions: number = 10
-  ): Promise<SuggestedRelationship[]> {
-    console.log(`[AIAnalysisService] Analyzing ${cards.length} cards for relationships...`);
-    console.log(`[AIAnalysisService] Cards:`, cards.map(c => ({ id: c.id, title: c.title, updated_at: c.updated_at })));
-    
-    // 1. 全カードの埋め込みベクターを生成
-    const embeddings: CardEmbedding[] = [];
-    for (const card of cards) {
-      const embedding = await this.generateCardEmbedding(card);
-      if (embedding) {
-        embeddings.push(embedding);
-      }
-    }
-
-    console.log(`[AIAnalysisService] Generated embeddings for ${embeddings.length} cards`);
-
-    // 2. カード間の類似性を計算
-    const suggestions: SuggestedRelationship[] = [];
-    const similarityMatrix: Array<{ cardA: string, cardB: string, similarity: number }> = [];
-    
-    for (let i = 0; i < embeddings.length; i++) {
-      for (let j = i + 1; j < embeddings.length; j++) {
-        const embeddingA = embeddings[i];
-        const embeddingB = embeddings[j];
-        
-        const similarity = this.calculateCosineSimilarity(
-          embeddingA.embedding,
-          embeddingB.embedding
-        );
-
-        // デバッグ用に類似度マトリックスを保存
-        similarityMatrix.push({
-          cardA: embeddingA.cardId,
-          cardB: embeddingB.cardId,
-          similarity
-        });
-
-        if (similarity >= minSimilarity) {
-          const cardA = cards.find(c => c.id === embeddingA.cardId);
-          const cardB = cards.find(c => c.id === embeddingB.cardId);
-          
-          if (cardA && cardB) {
-            const suggestion: SuggestedRelationship = {
-              sourceCardId: embeddingA.cardId,
-              targetCardId: embeddingB.cardId,
-              relationshipType: this.determineRelationshipType(cardA, cardB, similarity),
-              similarity,
-              confidence: this.calculateConfidence(similarity, cardA, cardB),
-              explanation: this.generateExplanation(cardA, cardB, similarity),
-              suggestedStrength: Math.min(0.9, similarity * 1.2), // 類似度を強度に変換
-            };
-            
-            suggestions.push(suggestion);
-          }
-        }
-      }
-    }
-
-    // デバッグ情報を詳細出力
-    console.log(`[AIAnalysisService] Similarity matrix (top 10):`, 
-      similarityMatrix
-        .sort((a, b) => b.similarity - a.similarity)
-        .slice(0, 10)
-        .map(item => ({
-          ...item,
-          cardATitle: cards.find(c => c.id === item.cardA)?.title,
-          cardBTitle: cards.find(c => c.id === item.cardB)?.title
-        }))
-    );
-
-    console.log(`[AIAnalysisService] Found ${suggestions.length} potential relationships above threshold ${minSimilarity}`);
-
-    // 3. 信頼度でソート & 上位のみ返す
-    const sortedSuggestions = suggestions
-      .sort((a, b) => b.confidence - a.confidence)
-      .slice(0, maxSuggestions);
-
-    console.log(`[AIAnalysisService] Returning top ${sortedSuggestions.length} suggestions:`, 
-      sortedSuggestions.map(s => ({
-        source: cards.find(c => c.id === s.sourceCardId)?.title,
-        target: cards.find(c => c.id === s.targetCardId)?.title,
-        type: s.relationshipType,
-        similarity: s.similarity.toFixed(3),
-        confidence: s.confidence.toFixed(3)
-      }))
-    );
-
-    return sortedSuggestions;
   }
 
   /**
@@ -633,6 +606,122 @@ export class AIAnalysisService {
       console.error('Error filtering existing relationships:', error);
       return suggestions; // エラー時は全て返す
     }
+  }
+
+  /**
+   * カード間の関係性を自動提案（一括処理でログ集約）
+   */
+  static async suggestRelationships(
+    cards: BoardItem[],
+    minSimilarity: number = 0.7,
+    maxSuggestions: number = 10,
+    userId?: string,
+    nestId?: string
+  ): Promise<SuggestedRelationship[]> {
+    console.log(`[AIAnalysisService] Analyzing ${cards.length} cards for relationships...`);
+    console.log(`[AIAnalysisService] User: ${userId}, Nest: ${nestId}`);
+    
+    const startTime = Date.now();
+    
+    // 1. 全カードのテキストを生成
+    const cardTexts = cards.map(card => ({
+      cardId: card.id,
+      text: this.generateCardText(card)
+    }));
+    
+    // 2. 一括で埋め込みベクターを生成（関係性分析として記録）
+    const embeddings: CardEmbedding[] = [];
+    
+    try {
+      // 全テキストを一括でEdge Functionに送信
+      const allTexts = cardTexts.map(ct => ct.text);
+      const { data, error } = await supabase.functions.invoke('ai-embeddings', {
+        body: {
+          texts: allTexts, // 複数テキストを一括処理
+          nestId: nestId,
+          userId: userId,
+          featureType: 'relationship_analysis' // 関係性分析として記録
+        }
+      });
+
+      if (error) {
+        console.error('[AIAnalysisService] Edge Function error:', error);
+        return [];
+      }
+
+      if (!data.success) {
+        console.error('[AIAnalysisService] Edge Function failed:', data.error);
+        return [];
+      }
+
+      // 結果をCardEmbedding形式に変換
+      data.embeddings.forEach((embedding: number[], index: number) => {
+        const cardText = cardTexts[index];
+        embeddings.push({
+          cardId: cardText.cardId,
+          embedding: embedding,
+          textContent: cardText.text,
+          lastUpdated: new Date().toISOString(),
+        });
+      });
+
+      console.log(`[AIAnalysisService] Generated ${embeddings.length} embeddings via Edge Function (batch)`);
+      console.log(`[AIAnalysisService] Provider used: ${data.provider}`);
+      
+    } catch (error) {
+      console.error('[AIAnalysisService] Failed to generate embeddings:', error);
+      return [];
+    }
+
+    // 3. カード間の類似性を計算
+    const suggestions: SuggestedRelationship[] = [];
+    
+    for (let i = 0; i < embeddings.length; i++) {
+      for (let j = i + 1; j < embeddings.length; j++) {
+        const embeddingA = embeddings[i];
+        const embeddingB = embeddings[j];
+        
+        const similarity = this.calculateCosineSimilarity(
+          embeddingA.embedding,
+          embeddingB.embedding
+        );
+
+        if (similarity >= minSimilarity) {
+          const cardA = cards.find(c => c.id === embeddingA.cardId);
+          const cardB = cards.find(c => c.id === embeddingB.cardId);
+          
+          if (cardA && cardB) {
+            const suggestion: SuggestedRelationship = {
+              sourceCardId: embeddingA.cardId,
+              targetCardId: embeddingB.cardId,
+              relationshipType: this.determineRelationshipType(cardA, cardB, similarity),
+              similarity,
+              confidence: this.calculateConfidence(similarity, cardA, cardB),
+              explanation: this.generateExplanation(cardA, cardB, similarity),
+              suggestedStrength: Math.min(0.9, similarity * 1.2),
+            };
+            
+            suggestions.push(suggestion);
+          }
+        }
+      }
+    }
+
+    // 4. 信頼度でソート & 上位のみ返す
+    const sortedSuggestions = suggestions
+      .sort((a, b) => b.confidence - a.confidence)
+      .slice(0, maxSuggestions);
+
+    const endTime = Date.now();
+    const processingTime = endTime - startTime;
+
+    // AI使用ログは ai-embeddings Edge Function で一括記録済み（relationship_analysis として）
+    console.log(`[AIAnalysisService] Processing completed in ${processingTime}ms`);
+    console.log(`[AIAnalysisService] Generated ${embeddings.length} embeddings via batch processing`);
+    console.log(`[AIAnalysisService] AI usage logged as single relationship_analysis operation`);
+
+    console.log(`[AIAnalysisService] Returning top ${sortedSuggestions.length} suggestions`);
+    return sortedSuggestions;
   }
 }
 
