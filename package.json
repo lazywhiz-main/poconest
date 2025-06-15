@@ -7,6 +7,8 @@
     "dev": "vite",
     "start": "vite",
     "build": "tsc && vite build",
+    "build:staging": "VITE_ENVIRONMENT=staging tsc && vite build",
+    "build:beta": "VITE_USE_RESPONSIVE_CHAT=true VITE_USE_BOTTOM_NAV=true tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
     "start:android": "react-native run-android",

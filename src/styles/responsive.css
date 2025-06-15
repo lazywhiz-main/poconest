@@ -1,0 +1,157 @@
+/**
+ * レスポンシブデザイン用CSS
+ * 既存のデザインを保持しつつ、段階的に適用
+ */
+
+/* 基本的なレスポンシブユーティリティクラス */
+.responsive-container {
+  width: 100%;
+  max-width: 1400px; /* 既存のcontainerクラスと同じ */
+  margin: 0 auto;
+  padding: 0 clamp(8px, 2vw, 24px);
+}
+
+/* フォントサイズのレスポンシブクラス */
+.text-responsive-sm {
+  font-size: clamp(10px, 2vw, 11px);
+}
+
+.text-responsive-base {
+  font-size: clamp(12px, 2.5vw, 14px);
+}
+
+.text-responsive-lg {
+  font-size: clamp(14px, 3vw, 16px);
+}
+
+.text-responsive-xl {
+  font-size: clamp(16px, 3.5vw, 18px);
+}
+
+/* スペーシングのレスポンシブクラス */
+.spacing-responsive-sm {
+  padding: clamp(4px, 1vw, 8px);
+}
+
+.spacing-responsive-md {
+  padding: clamp(8px, 2vw, 16px);
+}
+
+.spacing-responsive-lg {
+  padding: clamp(12px, 3vw, 24px);
+}
+
+/* グリッドレイアウトのレスポンシブ対応 */
+.grid-responsive {
+  display: grid;
+  gap: clamp(12px, 2vw, 24px);
+  grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
+}
+
+/* 既存の.card-list-gridクラスのレスポンシブ版（オプション） */
+.card-list-grid-responsive {
+  padding: clamp(12px, 3vw, 24px) clamp(12px, 3vw, 24px) 0 clamp(12px, 3vw, 24px);
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
+  gap: clamp(16px, 2vw, 24px);
+  justify-content: center;
+  max-width: 100%;
+  margin: 0 auto;
+  overflow-y: auto;
+  max-height: calc(100vh - 120px);
+}
+
+/* メディアクエリ（段階的適用用） */
+@media (max-width: 767px) {
+  /* モバイル専用のオーバーライド（必要に応じて） */
+  .hide-mobile {
+    display: none !important;
+  }
+  
+  .show-mobile {
+    display: block !important;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  /* タブレット専用のオーバーライド */
+  .hide-tablet {
+    display: none !important;
+  }
+  
+  .show-tablet {
+    display: block !important;
+  }
+}
+
+@media (min-width: 992px) {
+  /* デスクトップ専用のオーバーライド */
+  .hide-desktop {
+    display: none !important;
+  }
+  
+  .show-desktop {
+    display: block !important;
+  }
+}
+
+/* ナビゲーション要素のレスポンシブ対応（安全な追加のみ） */
+.nav-responsive {
+  transition: transform 0.3s ease;
+}
+
+/* モバイル用のオーバーレイ（後で使用） */
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* フレックスボックスユーティリティ */
+.flex-responsive {
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(8px, 2vw, 16px);
+}
+
+.flex-responsive > * {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 幅制限ユーティリティ */
+.max-width-responsive {
+  max-width: min(100%, 1400px);
+  margin: 0 auto;
+}
+
+/* セーフエリア対応（iOS用） */
+@supports (padding: env(safe-area-inset-top)) {
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  .safe-area-left {
+    padding-left: env(safe-area-inset-left);
+  }
+  
+  .safe-area-right {
+    padding-right: env(safe-area-inset-right);
+  }
+} 

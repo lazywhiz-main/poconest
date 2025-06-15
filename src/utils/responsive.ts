@@ -4,6 +4,7 @@
  */
 import { Dimensions, Platform, ScaledSize } from 'react-native';
 import { BREAKPOINTS } from '@constants/config';
+import theme from '../styles/theme';
 
 // デバイスの現在のウィンドウサイズを取得
 export const useWindowDimensions = (): ScaledSize => {
@@ -105,17 +106,18 @@ export const responsiveSpacing = (
 
 // フォントサイズをレスポンシブに調整
 export const responsiveFontSize = (
-  baseSize: number,
-  deviceType: 'mobile' | 'tablet' | 'desktop' | 'largeDesktop' = getDeviceTypeSync()
-): number => {
-  const scaleFactor = {
-    mobile: 0.9,
-    tablet: 1,
-    desktop: 1.1, 
-    largeDesktop: 1.2,
-  };
-  
-  return baseSize * scaleFactor[deviceType];
+  base: number,
+  mobile?: number,
+  desktop?: number
+): any => {
+  if (Platform.OS === 'web') {
+    const minSize = mobile || base * 0.8;
+    const maxSize = desktop || base;
+    return {
+      fontSize: `clamp(${minSize}px, ${base}px, ${maxSize}px)`,
+    };
+  }
+  return { fontSize: base };
 };
 
 // デバイスの向きを取得
@@ -155,6 +157,67 @@ export const isTauriWindow = (): boolean => {
   return typeof window !== 'undefined' && 'window.__TAURI__' in window;
 };
 
+export interface ResponsiveValue<T> {
+  mobile?: T;
+  tablet?: T;
+  desktop?: T;
+  default: T;
+}
+
+/**
+ * 幅に基づいてレスポンシブ値を選択
+ */
+export const getResponsiveValue = <T>(
+  width: number,
+  values: ResponsiveValue<T>
+): T => {
+  if (width < theme.breakpoints.md && values.mobile !== undefined) {
+    return values.mobile;
+  }
+  if (width >= theme.breakpoints.md && width < theme.breakpoints.lg && values.tablet !== undefined) {
+    return values.tablet;
+  }
+  if (width >= theme.breakpoints.lg && values.desktop !== undefined) {
+    return values.desktop;
+  }
+  return values.default;
+};
+
+/**
+ * レスポンシブ幅計算
+ */
+export const responsiveWidth = (
+  values: ResponsiveValue<number | string>
+) => ({
+  width: Platform.OS === 'web' 
+    ? `min(${values.default}, 100vw)`
+    : values.default
+});
+
+/**
+ * Grid用のレスポンシブカラム計算
+ */
+export const responsiveGridColumns = (
+  minWidth: number = 300
+): any => {
+  if (Platform.OS === 'web') {
+    return {
+      gridTemplateColumns: `repeat(auto-fill, minmax(${minWidth}px, 1fr))`,
+    };
+  }
+  return {};
+};
+
+/**
+ * セーフエリア対応（モバイル用）
+ */
+export const safeArea = {
+  paddingTop: Platform.OS === 'ios' ? 'env(safe-area-inset-top)' : 0,
+  paddingBottom: Platform.OS === 'ios' ? 'env(safe-area-inset-bottom)' : 0,
+  paddingLeft: Platform.OS === 'ios' ? 'env(safe-area-inset-left)' : 0,
+  paddingRight: Platform.OS === 'ios' ? 'env(safe-area-inset-right)' : 0,
+};
+
 export default {
   getDeviceType,
   selectByDeviceSize,
@@ -164,4 +227,8 @@ export default {
   getDeviceOrientation,
   addWindowResizeListener,
   isTauriWindow,
+  getResponsiveValue,
+  responsiveWidth,
+  responsiveGridColumns,
+  safeArea,
 }; 

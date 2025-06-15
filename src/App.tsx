@@ -14,8 +14,10 @@ import CreateTestNestScreen from './features/nest/screens/CreateTestNestScreen';
 import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import NestSettingsScreen from './features/nest/screens/NestSettingsScreen';
 import { Layout } from './components/Layout';
+import { BottomNavigationLayout } from './components/BottomNavigationLayout';
 import './styles/common.css';
 import ChatSpace from './features/chat-space/components/ChatSpace';
+import ResponsiveChatSpace from './features/chat-space/components/ResponsiveChatSpace';
 import BoardSpace from './features/board-space/components/BoardSpace';
 import MeetingSpace from './features/nest-space/meeting-space/components/MeetingSpace';
 import AnalysisSpace from './features/analysis-space/components/AnalysisSpace';
@@ -430,11 +432,20 @@ const AppContent: React.FC = () => {
       }
     };
     let SpaceComponent = null;
+    // レスポンシブチャットの切り替え（環境変数で制御）
+    const useResponsiveChat = import.meta.env.VITE_USE_RESPONSIVE_CHAT === 'true';
+    // デスクトップサイズ（992px以上）では常に従来のChatSpaceを使用
+    const isDesktopSizeForChat = typeof window !== 'undefined' && window.innerWidth >= 992;
+    
     switch (space) {
       case 'chat':
         SpaceComponent = (
           <BoardProvider currentNestId={currentNest.id}>
-            <ChatSpace nestId={currentNest.id} />
+            {(useResponsiveChat && !isDesktopSizeForChat) ? (
+              <ResponsiveChatSpace nestId={currentNest.id} />
+            ) : (
+              <ChatSpace nestId={currentNest.id} />
+            )}
           </BoardProvider>
         );
         break;
@@ -467,13 +478,23 @@ const AppContent: React.FC = () => {
       default:
         SpaceComponent = (
           <BoardProvider currentNestId={currentNest.id}>
-            <ChatSpace nestId={currentNest.id} />
+            {(useResponsiveChat && !isDesktopSizeForChat) ? (
+              <ResponsiveChatSpace nestId={currentNest.id} />
+            ) : (
+              <ChatSpace nestId={currentNest.id} />
+            )}
           </BoardProvider>
         );
         break;
     }
+    // レスポンシブレイアウトの切り替え（環境変数で制御）
+    const useBottomNavigation = import.meta.env.VITE_USE_BOTTOM_NAV === 'true';
+    // デスクトップサイズ（992px以上）では常に従来のLayoutを使用
+    const isDesktopSize = typeof window !== 'undefined' && window.innerWidth >= 992;
+    const LayoutComponent = (useBottomNavigation && !isDesktopSize) ? BottomNavigationLayout : Layout;
+    
     return (
-      <Layout
+      <LayoutComponent
         workspaceTitle={currentNest.name + ' ▼'}
         menuSections={menuSections}
         onMenuItemClick={handleMenuItemClick}
@@ -481,7 +502,7 @@ const AppContent: React.FC = () => {
         onSettingsClick={() => navigate(`/nest-settings?nestId=${currentNest.id}`)}
       >
         {SpaceComponent}
-      </Layout>
+      </LayoutComponent>
     );
   }
 
@@ -517,12 +538,21 @@ const NestTopScreen: React.FC = () => {
     );
   }
 
+  // レスポンシブチャットの切り替え（環境変数で制御）
+  const useResponsiveChat = import.meta.env.VITE_USE_RESPONSIVE_CHAT === 'true';
+  // デスクトップサイズ（992px以上）では常に従来のChatSpaceを使用
+  const isDesktopSizeForChat = typeof window !== 'undefined' && window.innerWidth >= 992;
+  
   let SpaceComponent = null;
   switch (space) {
     case 'chat':
       SpaceComponent = (
         <BoardProvider currentNestId={nest.id}>
-          <ChatSpace nestId={nest.id} />
+          {(useResponsiveChat && !isDesktopSizeForChat) ? (
+            <ResponsiveChatSpace nestId={nest.id} />
+          ) : (
+            <ChatSpace nestId={nest.id} />
+          )}
         </BoardProvider>
       );
       break;
@@ -555,7 +585,11 @@ const NestTopScreen: React.FC = () => {
     default:
       SpaceComponent = (
         <BoardProvider currentNestId={nest.id}>
-          <ChatSpace nestId={nest.id} />
+          {(useResponsiveChat && !isDesktopSizeForChat) ? (
+            <ResponsiveChatSpace nestId={nest.id} />
+          ) : (
+            <ChatSpace nestId={nest.id} />
+          )}
         </BoardProvider>
       );
       break;
@@ -589,8 +623,14 @@ const NestTopScreen: React.FC = () => {
     </div>
   );
 
+  // レスポンシブレイアウトの切り替え（環境変数で制御）
+  const useBottomNavigation = import.meta.env.VITE_USE_BOTTOM_NAV === 'true';
+  // デスクトップサイズ（992px以上）では常に従来のLayoutを使用
+  const isDesktopSize = typeof window !== 'undefined' && window.innerWidth >= 992;
+  const LayoutComponent = (useBottomNavigation && !isDesktopSize) ? BottomNavigationLayout : Layout;
+
   return (
-    <Layout
+    <LayoutComponent
       workspaceTitle={nest.name + ' ▼'}
       menuSections={menuSections}
       onMenuItemClick={handleMenuItemClick}
@@ -611,7 +651,7 @@ const NestTopScreen: React.FC = () => {
           nests={userNests}
         />
       )}
-    </Layout>
+    </LayoutComponent>
   );
 };
 

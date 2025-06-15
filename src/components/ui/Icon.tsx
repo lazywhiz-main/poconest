@@ -21,7 +21,9 @@ export type IconName =
   | 'close'
   | 'edit'
   | 'share'
-  | 'more';
+  | 'more'
+  | 'chevron-down'
+  | 'more-vertical';
 
 interface IconProps {
   name: IconName;
@@ -164,6 +166,18 @@ const icons: Record<IconName, (props: { size: number; color: string }) => JSX.El
       <circle cx="12" cy="12" r="1" />
       <circle cx="19" cy="12" r="1" />
       <circle cx="5" cy="12" r="1" />
+    </svg>
+  ),
+  'chevron-down': ({ size, color }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="6,9 12,15 18,9" />
+    </svg>
+  ),
+  'more-vertical': ({ size, color }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="1" />
+      <circle cx="12" cy="5" r="1" />
+      <circle cx="12" cy="19" r="1" />
     </svg>
   ),
 };
