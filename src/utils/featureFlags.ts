@@ -9,42 +9,64 @@ export interface FeatureFlags {
   enableBetaFeatures: boolean;
 }
 
+// デバイス検出ユーティリティ
+const isMobileDevice = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  
+  // User Agent による検出
+  const userAgent = navigator.userAgent.toLowerCase();
+  const mobileKeywords = ['mobile', 'android', 'iphone', 'ipad', 'ipod', 'blackberry', 'windows phone'];
+  const isMobileUA = mobileKeywords.some(keyword => userAgent.includes(keyword));
+  
+  // 画面サイズによる検出（768px未満をモバイルとみなす）
+  const isMobileScreen = window.innerWidth < 768;
+  
+  // タッチデバイス検出
+  const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  
+  return isMobileUA || (isMobileScreen && isTouchDevice);
+};
+
 /**
  * 現在の機能フラグを取得
  */
 export const getFeatureFlags = (): FeatureFlags => {
-  // 開発環境では環境変数を使用
-  if (import.meta.env.DEV) {
+  const isProduction = import.meta.env.PROD;
+  const isDevelopment = import.meta.env.DEV;
+  
+  // 開発環境では環境変数で制御
+  if (isDevelopment) {
     return {
       useResponsiveChat: import.meta.env.VITE_USE_RESPONSIVE_CHAT === 'true',
       useBottomNavigation: import.meta.env.VITE_USE_BOTTOM_NAV === 'true',
-      enableBetaFeatures: import.meta.env.VITE_ENABLE_BETA_FEATURES === 'true',
-    };
-  }
-
-  // 本番環境では段階的にロールアウト
-  const isProduction = import.meta.env.PROD;
-  const isStaging = import.meta.env.VITE_ENVIRONMENT === 'staging';
-  
-  if (isStaging) {
-    // ステージング環境では新機能を有効化
-    return {
-      useResponsiveChat: true,
-      useBottomNavigation: true,
-      enableBetaFeatures: true,
+      enableBetaFeatures: import.meta.env.VITE_ENABLE_BETA === 'true',
     };
   }
 
   if (isProduction) {
-    // 本番環境では安定版を使用（将来的に段階的に有効化）
+    // 本番環境では環境変数が設定されている場合はそれを優先
+    const envResponsiveChat = import.meta.env.VITE_USE_RESPONSIVE_CHAT;
+    const envBottomNav = import.meta.env.VITE_USE_BOTTOM_NAV;
+    
+    if (envResponsiveChat !== undefined || envBottomNav !== undefined) {
+      return {
+        useResponsiveChat: envResponsiveChat === 'true',
+        useBottomNavigation: envBottomNav === 'true',
+        enableBetaFeatures: false,
+      };
+    }
+    
+    // 環境変数が未設定の場合、デバイス検出による自動切り替え
+    const isMobile = isMobileDevice();
+    
     return {
-      useResponsiveChat: false, // TODO: Phase 3で true に変更
-      useBottomNavigation: false, // TODO: Phase 3で true に変更
+      useResponsiveChat: isMobile, // モバイルデバイスのみレスポンシブ有効
+      useBottomNavigation: isMobile, // モバイルデバイスのみボトムナビ有効
       enableBetaFeatures: false,
     };
   }
 
-  // デフォルト（安全側）
+  // フォールバック（安全な設定）
   return {
     useResponsiveChat: false,
     useBottomNavigation: false,
@@ -84,4 +106,14 @@ export const logFeatureFlags = (): void => {
     console.log('Screen width:', window.innerWidth);
     console.groupEnd();
   }
+};
+
+// 個別のフラグを取得するヘルパー関数
+export const useResponsiveFeatures = () => {
+  const flags = getFeatureFlags();
+  return {
+    shouldUseResponsiveChat: flags.useResponsiveChat,
+    shouldUseBottomNavigation: flags.useBottomNavigation,
+    isBetaEnabled: flags.enableBetaFeatures,
+  };
 }; 
