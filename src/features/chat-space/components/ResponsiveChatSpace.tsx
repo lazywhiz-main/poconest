@@ -675,7 +675,7 @@ const ResponsiveChatSpace: React.FC<ResponsiveChatSpaceProps> = ({ nestId }) => 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background.default,
+    backgroundColor: '#0f0f23', // ダークテーマの背景色
   },
   keyboardAvoidingView: {
     flex: 1,
@@ -688,9 +688,9 @@ const styles = StyleSheet.create({
   // Sidebar styles
   sidebar: {
     width: 240,
-    backgroundColor: theme.colors.background.paper,
+    backgroundColor: '#1a1a2e', // ダークテーマのサイドバー背景
     borderRightWidth: 1,
-    borderRightColor: theme.colors.divider,
+    borderRightColor: '#333366', // ダークテーマのボーダー
   },
   tabletSidebar: {
     width: 200,
@@ -706,7 +706,7 @@ const styles = StyleSheet.create({
   sidebarTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: theme.colors.text.primary,
+    color: '#e2e8f0', // ダークテーマのプライマリテキスト
   },
   addChannelButton: {
     width: 28,
@@ -738,7 +738,7 @@ const styles = StyleSheet.create({
   },
   channelIcon: {
     fontSize: 16,
-    color: theme.colors.text.secondary,
+    color: '#a6adc8', // ダークテーマのセカンダリテキスト
   },
   channelInfo: {
     flex: 1,
@@ -748,11 +748,11 @@ const styles = StyleSheet.create({
   },
   channelName: {
     fontSize: 14,
-    color: theme.colors.text.secondary,
+    color: '#a6adc8', // ダークテーマのセカンダリテキスト
   },
   activeChannelName: {
     fontWeight: '600',
-    color: theme.colors.text.primary,
+    color: '#e2e8f0', // ダークテーマのプライマリテキスト
   },
   unreadBadge: {
     backgroundColor: theme.colors.spaces.chat.primary,
@@ -772,7 +772,7 @@ const styles = StyleSheet.create({
   // Messages container
   messagesContainer: {
     flex: 1,
-    backgroundColor: theme.colors.spaces.chat.background,
+    backgroundColor: '#0f0f23', // ダークテーマのメッセージ背景
   },
   
   // Mobile header
@@ -781,7 +781,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 12,
-    backgroundColor: theme.colors.background.paper,
+    backgroundColor: '#1a1a2e', // ダークテーマのヘッダー背景
     borderBottomWidth: 1,
     borderBottomColor: '#333366', // border-primary
     minHeight: 56,
@@ -814,7 +814,7 @@ const styles = StyleSheet.create({
   // Desktop header
   desktopHeader: {
     padding: 16,
-    backgroundColor: theme.colors.background.paper,
+    backgroundColor: '#1a1a2e', // ダークテーマのヘッダー背景
     borderBottomWidth: 1,
     borderBottomColor: '#333366', // border-primary
   },
@@ -828,7 +828,7 @@ const styles = StyleSheet.create({
   },
   channelDescription: {
     fontSize: 14,
-    color: theme.colors.text.secondary,
+    color: '#a6adc8', // ダークテーマのセカンダリテキスト
     marginTop: 4,
   },
   
@@ -857,13 +857,13 @@ const styles = StyleSheet.create({
   emptyMessageTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: theme.colors.text.primary,
+    color: '#e2e8f0', // ダークテーマのプライマリテキスト
     marginBottom: 8,
     textAlign: 'center',
   },
   emptyMessageSub: {
     fontSize: 14,
-    color: theme.colors.text.secondary,
+    color: '#a6adc8', // ダークテーマのセカンダリテキスト
     textAlign: 'center',
   },
   typingIndicator: {
@@ -882,7 +882,7 @@ const styles = StyleSheet.create({
   
   // Input container
   inputContainer: {
-    backgroundColor: theme.colors.background.paper,
+    backgroundColor: '#1a1a2e', // ダークテーマの入力エリア背景
     borderTopWidth: 1,
     borderTopColor: '#333366', // border-primary
   },
