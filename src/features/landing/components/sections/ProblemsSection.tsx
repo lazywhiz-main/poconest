@@ -4,11 +4,7 @@ import { LandingButton } from '../common/LandingButton';
 
 interface ProblemsSectionProps {
   content: {
-    problems: Array<{
-      icon: string;
-      title: string;
-      description: string;
-    }>;
+    problems: string[];
   };
   targetType: TargetType;
 }
