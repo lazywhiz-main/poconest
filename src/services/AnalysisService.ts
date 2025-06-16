@@ -437,55 +437,15 @@ export class AnalysisService {
       console.log(`Found ${existingTagRelationships.size} existing tag similarity relationships`);
 
       // 意味のあるカードタイプペアを定義
-      const meaningfulPairs = [
-        ['INSIGHTS', 'THEMES'],
-        ['INSIGHTS', 'ACTIONS'], 
-        ['QUESTIONS', 'INSIGHTS'],
-        ['INBOX', 'INSIGHTS'],
-        ['THEMES', 'ACTIONS'],
-        ['QUESTIONS', 'THEMES'],
-        ['INBOX', 'ACTIONS'],
-        // 同じタイプ内でも意味があるペア
-        ['INSIGHTS', 'INSIGHTS'],
-        ['THEMES', 'THEMES']
-      ];
+      // ❌ meaningfulPairs削除 - カードタイプ制限を撤廃
+      // ❌ typeCompatibility削除 - 構造メタデータ使用を停止
 
-      // カードタイプペアの相性スコア
-      const typeCompatibility: Record<string, number> = {
-        'INSIGHTS-THEMES': 0.9,
-        'INSIGHTS-ACTIONS': 0.8,
-        'QUESTIONS-INSIGHTS': 0.8,
-        'INBOX-INSIGHTS': 0.7,
-        'THEMES-ACTIONS': 0.8,
-        'QUESTIONS-THEMES': 0.6,
-        'INBOX-ACTIONS': 0.5,
-        'INSIGHTS-INSIGHTS': 0.6,
-        'THEMES-THEMES': 0.6
-      };
-
-      const getTypeCompatibility = (typeA: string, typeB: string): number => {
-        const key1 = `${typeA}-${typeB}`;
-        const key2 = `${typeB}-${typeA}`;
-        return typeCompatibility[key1] || typeCompatibility[key2] || 0.3;
-      };
-
-      const isValidPair = (cardA: any, cardB: any): boolean => {
-        return meaningfulPairs.some(([typeA, typeB]) => 
-          (cardA.column_type === typeA && cardB.column_type === typeB) ||
-          (cardA.column_type === typeB && cardB.column_type === typeA)
-        );
-      };
-
-      // 候補関係性を収集
+      // 候補関係性を収集（純粋なセマンティック分析）
       const candidateRelationships = [];
       const tagGroupStats: { [key: string]: number } = {};
 
-      // カードタイプ別統計
-      const cardTypeStats: { [type: string]: number } = {};
-      cards.forEach(card => {
-        cardTypeStats[card.column_type] = (cardTypeStats[card.column_type] || 0) + 1;
-      });
-      result.details.cardTypes = cardTypeStats;
+      // ❌ カードタイプ統計削除 - 構造メタデータ分析を除外
+      // result.details.cardTypes = cardTypeStats;
 
       // 時間情報の取得（時間的近さのスコアリング用）
       const cardTimes = cards.map(card => ({
@@ -499,9 +459,9 @@ export class AnalysisService {
           const cardA = cards[i];
           const cardB = cards[j];
 
-          // 基本フィルタリング
+          // セマンティックコンテンツのみでフィルタリング
           if (!cardA.tags?.length || !cardB.tags?.length) continue;
-          if (!isValidPair(cardA, cardB)) continue;
+          // ❌ isValidPair削除 - カードタイプ制限を撤廃
 
           const tagsA = new Set(cardA.tags);
           const tagsB = new Set(cardB.tags);
@@ -535,8 +495,8 @@ export class AnalysisService {
           const reversePairKey = `${cardB.id}-${cardA.id}`;
           if (existingTagRelationships.has(pairKey) || existingTagRelationships.has(reversePairKey)) continue;
 
-          // Phase2: 品質スコア計算
-          const typeBonus = getTypeCompatibility(cardA.column_type, cardB.column_type);
+          // Phase2: セマンティック品質スコア計算（タイプ相性除外）
+          // ❌ typeBonus削除 - 構造メタデータボーナスを除外
           
           // 時間的近さ（同じ時期に作成されたカードは関連性が高い）
           const timeA = cardTimes.find(c => c.id === cardA.id)?.time || 0;
@@ -546,19 +506,22 @@ export class AnalysisService {
 
           // タグ品質ボーナス（より具体的で意味のあるタグの組み合わせ）
           const tagQuality = commonTags.length > 1 ? 
-            Math.min(0.2, commonTags.length * 0.1) : 0.05;
+            Math.min(0.3, commonTags.length * 0.15) : 0.1; // ウェイト増加
 
-          // 総合品質スコア
+          // コンテンツ類似性ボーナス（新規追加）
+          const contentSimilarity = this.calculateContentSimilarity(cardA, cardB);
+
+          // 純粋なセマンティック品質スコア（タイプ相性除外）
           const qualityScore = (
             similarity * 0.5 +           // 基本類似度（50%）
-            typeBonus * 0.25 +           // カードタイプ相性（25%）
+            contentSimilarity * 0.2 +    // コンテンツ類似度（20%）
             temporalBonus * 0.15 +       // 時間的近さ（15%）
-            tagQuality * 0.1             // タグ品質（10%）
+            tagQuality * 0.15            // タグ品質（15%）
           );
 
           // 強度計算（品質スコアベース）
           const strength = Math.min(0.9, qualityScore);
-          const confidence = Math.min(0.95, similarity + typeBonus * 0.3);
+          const confidence = Math.min(0.95, similarity + contentSimilarity * 0.3);
 
           candidateRelationships.push({
             cardA,
@@ -568,10 +531,11 @@ export class AnalysisService {
             qualityScore,
             strength,
             confidence,
-            typeBonus,
+            // ❌ typeBonus削除
             temporalBonus,
             tagQuality,
-            explanation: `共通タグ「${commonTags.join(', ')}」(${commonTags.length}個, 品質: ${Math.round(qualityScore * 100)}%)`
+            contentSimilarity,
+            explanation: `共通タグ「${commonTags.join(', ')}」(${commonTags.length}個, セマンティック品質: ${Math.round(qualityScore * 100)}%)`
           });
 
           // タググループ統計
@@ -580,7 +544,7 @@ export class AnalysisService {
         }
       }
 
-      console.log(`Found ${candidateRelationships.length} candidate relationships`);
+      console.log(`Found ${candidateRelationships.length} candidate semantic relationships`);
 
       // Phase2: 動的閾値調整 + 品質ベース選別（より厳しい制限）
       const totalPairs = cards.length * (cards.length - 1) / 2;
@@ -617,7 +581,7 @@ export class AnalysisService {
           cardBTags: rel.cardB.tags,
           similarity: rel.similarity,
           qualityScore: rel.qualityScore,
-          typeCompatibility: rel.typeBonus,
+          // ❌ typeCompatibility削除
           temporalBonus: rel.temporalBonus,
           tagQuality: rel.tagQuality,
           autoGenerated: true,
@@ -627,7 +591,7 @@ export class AnalysisService {
       }));
 
       // 提案レベルで返す（DB作成はしない）
-      // 結果データを構築
+      // 結果データを構築（タイプ情報を表示用にのみ使用）
       result.relationships = selectedRelationships.map(rel => ({
         cardA: { id: rel.cardA.id, title: rel.cardA.title, type: rel.cardA.column_type },
         cardB: { id: rel.cardB.id, title: rel.cardB.title, type: rel.cardB.column_type },
@@ -639,28 +603,45 @@ export class AnalysisService {
       result.details.tagGroups = Object.entries(tagGroupStats)
         .map(([tags, count]) => ({ tags: tags.split(','), count }))
         .sort((a, b) => b.count - a.count)
-        .slice(0, 10); // 上位10グループ
+        .slice(0, 10);
 
       result.success = true;
-      result.relationshipsCreated = 0; // 提案レベルなので0
-      result.proposedRelationships = selectedRelationships; // 提案データを追加
+      result.relationshipsCreated = selectedRelationships.length;
       result.processingTime = Date.now() - startTime;
-
-      console.log(`✅ Generated ${selectedRelationships.length} high-quality tag similarity relationship proposals`);
-      console.log(`📊 Algorithm stats:`, {
-        candidatesEvaluated: candidateRelationships.length,
-        targetConnections,
-        selectionRate: `${Math.round((selectedRelationships.length / candidateRelationships.length) * 100)}%`,
-        avgQualityScore: Math.round(selectedRelationships.reduce((sum, rel) => sum + rel.qualityScore, 0) / selectedRelationships.length * 100) / 100
-      });
-
+      
+      console.log(`✅ Pure semantic tag similarity analysis completed: ${selectedRelationships.length} relationships`);
       return result;
+
     } catch (error) {
-      console.error('Failed to generate tag similarity relationships:', error);
-      result.details.errors!.push(`処理エラー: ${error instanceof Error ? error.message : '不明なエラー'}`);
+      console.error('タグ類似性分析エラー:', error);
+      result.details.errors!.push(`分析中にエラーが発生しました: ${error}`);
       result.processingTime = Date.now() - startTime;
       return result;
     }
+  }
+
+  /**
+   * コンテンツ類似性を計算
+   */
+  private static calculateContentSimilarity(cardA: BoardItem, cardB: BoardItem): number {
+    const textA = `${cardA.title || ''} ${cardA.content || ''}`.toLowerCase().trim();
+    const textB = `${cardB.title || ''} ${cardB.content || ''}`.toLowerCase().trim();
+    
+    if (!textA || !textB) return 0;
+    
+    // 単語レベルでの類似度計算
+    const wordsA = textA.split(/\s+/).filter(w => w.length > 2);
+    const wordsB = textB.split(/\s+/).filter(w => w.length > 2);
+    
+    if (wordsA.length === 0 || wordsB.length === 0) return 0;
+    
+    const setA = new Set(wordsA);
+    const setB = new Set(wordsB);
+    
+    const intersection = [...setA].filter(word => setB.has(word)).length;
+    const union = new Set([...setA, ...setB]).size;
+    
+    return union > 0 ? intersection / union : 0;
   }
 
   /**
@@ -1034,176 +1015,727 @@ export class AnalysisService {
     }
   }
 
-  /**
-   * クラスターのラベルを生成（セマンティック改善版）
-   */
-  private static generateClusterLabel(clusterCards: BoardItem[], clusterIndex: number): string {
-    // タグ頻度分析
-    const tagFreq: { [tag: string]: number } = {};
-    const typeFreq: { [type: string]: number } = {};
-    const keywordFreq: { [keyword: string]: number } = {};
 
-    // 全カードの文書コーパスを作成（TF-IDF計算用）
-    const documents = clusterCards.map(card => 
-      this.prepareDocumentText(card.title, card.content, card.tags)
+
+  /**
+   * コンテンツベースの安全なラベル生成（タイプ情報除外版）
+   */
+  private static generateSafeLabelsFromContent(topTag: string, cardCount: number): string[] {
+    const labels: string[] = [];
+    
+    // タグベースの安全なラベル
+    if (topTag && this.isValidSemanticLabel(topTag)) {
+      const tagMapping: { [key: string]: string[] } = {
+        'design': ['Design Concepts', 'Design Ideas'],
+        'research': ['Research Findings', 'Research Notes'],
+        'ux': ['UX Research', 'User Experience'],
+        'ui': ['UI Design', 'Interface Design'],
+        'accessibility': ['Accessibility Guidelines', 'A11y Standards'],
+        'usability': ['Usability Studies', 'User Testing'],
+        'prototype': ['Prototype Development', 'Prototyping'],
+        'testing': ['Testing Methods', 'Quality Assurance'],
+        'feedback': ['User Feedback', 'Review Comments'],
+        'analysis': ['Data Analysis', 'Research Analysis']
+      };
+      
+      const mappedLabels = tagMapping[topTag.toLowerCase()];
+      if (mappedLabels) {
+        labels.push(...mappedLabels);
+      }
+    }
+    
+    // カード数ベースの一般的ラベル
+    if (cardCount >= 5) {
+      labels.push('Major Topic', 'Key Theme');
+    } else if (cardCount >= 3) {
+      labels.push('Sub Topic', 'Related Items');
+    } else {
+      labels.push('Discussion Point', 'Related Notes');
+    }
+    
+    return labels;
+  }
+
+  /**
+   * ラベルがセマンティックに有効かチェック（固有名詞排除）
+   */
+  private static isValidSemanticLabel(label: string): boolean {
+    if (!label || label.length === 0) return false;
+    
+    // 固有名詞パターンの完全チェック
+    const properNounPatterns = [
+      /^[A-Z][a-z]+$/,  // 単純な固有名詞
+      /^[A-Z][a-z]+[A-Z][a-z]+/,  // CamelCase
+      /mina|john|jane|alex|mike|sarah|david|tom|lisa|anna|ken|yuki|taro|hanako/i,
+      /speaker|user|admin|moderator|participant|member/i,
+      /notebook|llm|gpt|claude|openai|anthropic/i,
+      /twitter|facebook|instagram|youtube|slack|zoom/i,
+      /react|vue|angular|python|java|javascript/i,
+      /^\d+$/, // 数字のみ
+      /^[a-zA-Z]$/ // 単一文字
+    ];
+    
+    // 固有名詞パターンに一致する場合は無効
+    if (properNounPatterns.some(pattern => pattern.test(label))) {
+      return false;
+    }
+    
+    // セマンティックに意味のある語かチェック
+    const meaningfulPatterns = [
+      // 日本語の意味のある概念語
+      /^(分析|設計|開発|改善|検証|評価|調査|研究|実装|運用|管理|企画|計画|戦略|手法|方法|技術|機能|システム|プロセス|ワークフロー|インターフェース|ユーザビリティ|アクセシビリティ|セキュリティ|パフォーマンス|品質|効率|生産性|創造性|革新|変更|更新|最適化|自動化|可視化|標準化)/,
+      // 英語の意味のある概念語
+      /^(analysis|design|development|improvement|verification|evaluation|research|implementation|operation|management|planning|strategy|method|technology|function|system|process|workflow|interface|usability|accessibility|security|performance|quality|efficiency|productivity|creativity|innovation|change|update|optimization|automation|visualization|standardization)/i,
+      // カテゴリ系の語
+      /^(insights?|themes?|questions?|actions?|ideas?|concepts?|problems?|solutions?|observations?|hypotheses?)$/i,
+      // 一般的な形容詞・名詞（日本語）
+      /^(重要|主要|基本|基礎|応用|実践|実用|実際|現実|理想|具体|抽象|全体|部分|個別|共通|特定|一般|特別|普通|通常|異常|正常|標準|独自|固有|共有|公開|非公開|内部|外部|前面|背面|上位|下位|同等|類似|相違|対照|対応|関連|無関係).*$/,
+      // 一般的な形容詞・名詞（英語）
+      /^(important|main|basic|fundamental|applied|practical|actual|real|ideal|concrete|abstract|whole|part|individual|common|specific|general|special|normal|usual|standard|unique|shared|public|private|internal|external|upper|lower|similar|different|related|relevant).*$/i
+    ];
+    
+    return meaningfulPatterns.some(pattern => pattern.test(label)) || label.length >= 4;
+  }
+
+  /**
+   * 安全なラベルリストを生成（ホワイトリスト方式）
+   */
+  private static generateSafeLabels(topTag: string, topType: string, cardCount: number): string[] {
+    const safeLabels: string[] = [];
+    
+    // タグベースの安全なラベル
+    const safeTagLabels: { [key: string]: string } = {
+      'ux': 'UX',
+      'ui': 'UI', 
+      'design': 'デザイン',
+      'research': 'リサーチ',
+      'usability': 'ユーザビリティ',
+      'accessibility': 'アクセシビリティ',
+      'testing': 'テスト',
+      'analysis': '分析',
+      'strategy': '戦略',
+      'planning': '企画',
+      'implementation': '実装',
+      'evaluation': '評価'
+    };
+    
+    if (topTag && safeTagLabels[topTag.toLowerCase()]) {
+      safeLabels.push(safeTagLabels[topTag.toLowerCase()]);
+    }
+    
+    // タイプベースの安全なラベル
+    const safeTypeLabels: { [key: string]: string } = {
+      'INSIGHTS': 'インサイト',
+      'THEMES': 'テーマ',
+      'QUESTIONS': '質問',
+      'ACTIONS': 'アクション',
+      'INBOX': 'アイデア',
+      'IDEAS': 'アイデア',
+      'PROBLEMS': '課題',
+      'SOLUTIONS': '解決策'
+    };
+    
+    if (safeTypeLabels[topType]) {
+      safeLabels.push(safeTypeLabels[topType]);
+    }
+    
+    // サイズベースの安全なラベル
+    if (cardCount >= 5) {
+      safeLabels.push('主要グループ');
+    } else if (cardCount >= 3) {
+      safeLabels.push('関連グループ');
+    } else {
+      safeLabels.push('小グループ');
+    }
+    
+    return safeLabels;
+  }
+
+  /**
+   * テキストからキーワードを抽出（TF-IDFベース改善版）
+   */
+  private static extractKeywords(text: string): string[] {
+    // 1. 基本的な前処理
+    const stopWords = new Set([
+      'の', 'を', 'に', 'は', 'が', 'と', 'で', 'から', 'まで', 'について', 'による',
+      'する', 'した', 'して', 'される', 'できる', 'ある', 'いる', 'なる', 'もの',
+      'こと', 'これ', 'それ', 'あれ', 'この', 'その', 'あの', 'ここ', 'そこ', 'あそこ',
+      'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by',
+      'とか', 'なんか', 'でも', 'だから', 'そう', 'はい', 'いえ', 'まあ', 'ちょっと', 'えーと'
+    ]);
+
+    // 2. 固有名詞・サービス名パターン（簡潔版）
+    const properNounPatterns = [
+      /^[A-Z][a-z]+[A-Z][a-z]+/, // CamelCase
+      /^[A-Z][a-z]{2,8}$/, // 一般的な固有名詞
+      /mina|john|jane|alex|mike|sarah|speaker|user|admin/i,
+      /notebook|llm|gpt|claude|openai|slack|zoom/i,
+      /^\d+$/, /^[a-zA-Z]$/ // 数字・単一文字
+    ];
+
+    // 3. 初期単語抽出
+    const allWords = text
+      .toLowerCase()
+      .replace(/[^\w\s\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/g, ' ')
+      .split(/\s+/)
+      .filter(word => {
+        if (word.length < 2) return false;
+        if (stopWords.has(word)) return false;
+        if (properNounPatterns.some(pattern => pattern.test(word))) return false;
+        return true;
+      });
+
+    // 4. 頻度分析
+    const wordFreq: { [word: string]: number } = {};
+    allWords.forEach(word => {
+      wordFreq[word] = (wordFreq[word] || 0) + 1;
+    });
+
+    const frequencies = Object.values(wordFreq);
+    if (frequencies.length === 0) return [];
+
+    // 5. 統計学的外れ値検出（Z-score + IQR併用）
+    const mean = frequencies.reduce((a, b) => a + b, 0) / frequencies.length;
+    const variance = frequencies.reduce((acc, freq) => acc + Math.pow(freq - mean, 2), 0) / frequencies.length;
+    const stdDev = Math.sqrt(variance);
+
+    // IQR計算
+    const sortedFreqs = [...frequencies].sort((a, b) => a - b);
+    const q1 = sortedFreqs[Math.floor(sortedFreqs.length * 0.25)];
+    const q3 = sortedFreqs[Math.floor(sortedFreqs.length * 0.75)];
+    const iqr = q3 - q1;
+
+    console.log('📊 Statistical Analysis:', {
+      totalWords: allWords.length,
+      uniqueWords: Object.keys(wordFreq).length,
+      mean: Math.round(mean * 100) / 100,
+      stdDev: Math.round(stdDev * 100) / 100,
+      q1, q3, iqr
+    });
+
+    // 6. 合理的フィルタリング（統計的外れ値除去）
+    const validKeywords = Object.entries(wordFreq)
+      .filter(([word, freq]) => {
+        // Z-scoreチェック（異常に高い頻度を除外）
+        const zScore = stdDev > 0 ? (freq - mean) / stdDev : 0;
+        if (zScore > 2.0) { // 2σ以上は固定見出し・定型文の可能性
+          console.log(`❌ Statistical outlier excluded: "${word}" (freq: ${freq}, z-score: ${Math.round(zScore * 100) / 100})`);
+          return false;
+        }
+
+        // IQR外れ値チェック（補助的）
+        const iqrThreshold = q3 + (1.5 * iqr);
+        if (freq > iqrThreshold && freq > 3) { // 頻度3以上かつIQR外れ値
+          console.log(`❌ IQR outlier excluded: "${word}" (freq: ${freq}, threshold: ${Math.round(iqrThreshold)})`);
+          return false;
+        }
+
+        // 意味的価値チェック（簡潔版）
+        if (word.length < 3 && !/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(word)) {
+          return false; // 短い英単語を除外（日本語は2文字以上OK）
+        }
+
+        return true;
+      })
+      .sort(([, a], [, b]) => b - a) // 頻度順
+      .slice(0, 20) // 上位20個まで
+      .map(([word]) => word);
+
+    console.log('✅ Valid keywords after statistical filtering:', validKeywords.slice(0, 10));
+    return validKeywords;
+  }
+
+  /**
+   * 統計的共起分析（改良版）
+   */
+  private static analyzeStatisticalCooccurrence(clusterCards: BoardItem[]): Array<{term: string, frequency: number}> {
+    const termPairs = new Map<string, number>();
+    
+    // 各カードのキーワードセットを取得
+    const cardKeywords = clusterCards.map(card => 
+      new Set(this.extractKeywords(card.title + ' ' + (card.content || '')))
     );
 
+    // ペアワイズ共起分析
+    for (let i = 0; i < cardKeywords.length; i++) {
+      for (let j = i + 1; j < cardKeywords.length; j++) {
+        const intersection = new Set([...cardKeywords[i]].filter(x => cardKeywords[j].has(x)));
+        
+        intersection.forEach(term => {
+          if (term.length >= 3) { // 3文字以上のみ
+            termPairs.set(term, (termPairs.get(term) || 0) + 1);
+          }
+        });
+      }
+    }
+
+    return Array.from(termPairs.entries())
+      .map(([term, frequency]) => ({ term, frequency }))
+      .sort((a, b) => b.frequency - a.frequency)
+      .slice(0, 5);
+  }
+
+  /**
+   * タグラベルの美化
+   */
+  private static beautifyTagLabel(tag: string): string | null {
+    const tagMapping: { [key: string]: string } = {
+      'ux': 'UXリサーチ',
+      'ui': 'UI設計',
+      'design': 'デザイン',
+      'research': 'リサーチ',
+      'test': 'テスト分析',
+      'accessibility': 'アクセシビリティ',
+      'usability': 'ユーザビリティ',
+      'prototype': 'プロトタイプ',
+      'feedback': 'フィードバック',
+      'analysis': '分析結果'
+    };
+
+    return tagMapping[tag.toLowerCase()] || (tag.length >= 3 ? tag.toUpperCase() : null);
+  }
+
+  /**
+   * 意味的な組み合わせラベル作成
+   */
+  private static createMeaningfulCombination(word1: string, word2: string): string {
+    // 自然な日本語組み合わせパターン
+    const combinations: { [key: string]: (w1: string, w2: string) => string } = {
+      'design,analysis': () => 'デザイン分析',
+      'user,research': () => 'ユーザーリサーチ',
+      'test,result': () => 'テスト結果',
+      'feedback,analysis': () => 'フィードバック分析'
+    };
+
+    const key1 = `${word1},${word2}`;
+    const key2 = `${word2},${word1}`;
+    
+    if (combinations[key1]) return combinations[key1](word1, word2);
+    if (combinations[key2]) return combinations[key2](word2, word1);
+    
+    // デフォルトの組み合わせ（15文字以内）
+    const combined = `${word1}・${word2}`;
+    return combined.length <= 15 ? combined : word1;
+  }
+
+  /**
+   * 統計学的に合理的なクラスターラベル生成
+   */
+  private static generateClusterLabel(clusterCards: BoardItem[], clusterIndex: number): string {
+    // 1. タグ頻度分析（最も信頼性が高い）
+    const tagFreq: { [tag: string]: number } = {};
     clusterCards.forEach(card => {
-      // タグをカウント
       card.tags?.forEach(tag => {
         tagFreq[tag] = (tagFreq[tag] || 0) + 1;
       });
-      
-      // タイプをカウント
-      typeFreq[card.column_type] = (typeFreq[card.column_type] || 0) + 1;
-      
-      // タイトルとコンテンツからキーワード抽出
-      const keywords = this.extractKeywords(card.title + ' ' + (card.content || ''));
-      keywords.forEach(keyword => {
-        keywordFreq[keyword] = (keywordFreq[keyword] || 0) + 1;
-      });
     });
 
-    // TF-IDF分析で重要キーワードを特定
-    const importantKeywords = this.calculateTFIDF(documents, clusterCards);
-    
-    // 共起関係分析
-    const cooccurrenceTerms = this.analyzeCooccurrence(clusterCards);
-    
-    // セマンティック分析結果をログ出力
-    console.log(`🔍 Cluster ${clusterIndex + 1} Semantic Analysis:`, {
-      importantKeywords: importantKeywords.slice(0, 5),
-      cooccurrenceTerms: cooccurrenceTerms.slice(0, 3),
-      dominantTag: Object.keys(tagFreq).length > 0 ? Object.keys(tagFreq).reduce((a, b) => tagFreq[a] > tagFreq[b] ? a : b) : 'none',
-      dominantType: Object.keys(typeFreq).reduce((a, b) => typeFreq[a] > typeFreq[b] ? a : b)
+    // 2. キーワード抽出（統計的フィルタリング済み）
+    const allText = clusterCards
+      .map(card => `${card.title} ${card.content || ''}`)
+      .join(' ');
+    const keywords = this.extractKeywords(allText);
+
+    // 3. 意味的コンテンツの共起分析
+    const cooccurrenceTerms = this.analyzeStatisticalCooccurrence(clusterCards);
+
+    console.log(`🎯 Cluster ${clusterIndex + 1} Rational Analysis:`, {
+      cardCount: clusterCards.length,
+      dominantTags: Object.entries(tagFreq).sort(([,a], [,b]) => b - a).slice(0, 3),
+      topKeywords: keywords.slice(0, 5),
+      cooccurrenceTerms: cooccurrenceTerms.slice(0, 3)
     });
 
-    // 最も一般的な要素を特定
-    const topTag = Object.keys(tagFreq).length > 0 
-      ? Object.keys(tagFreq).reduce((a, b) => tagFreq[a] > tagFreq[b] ? a : b) 
-      : '';
-    const topType = Object.keys(typeFreq).reduce((a, b) => typeFreq[a] > typeFreq[b] ? a : b);
-    const topKeyword = Object.keys(keywordFreq).length > 0
-      ? Object.keys(keywordFreq).reduce((a, b) => keywordFreq[a] > keywordFreq[b] ? a : b)
-      : '';
-
-    // ラベル生成戦略（セマンティック分析結果を活用）
-    const labelStrategies = [
-      // セマンティック分析ベースラベル（新機能）
+    // 4. 合理的ラベル生成戦略（シンプル→複雑）
+    const strategies = [
+      // 戦略1: 高頻度タグ（最も信頼性が高い）
       () => {
-        if (importantKeywords.length > 0 && cooccurrenceTerms.length > 0) {
-          const topKeyword = importantKeywords[0].word;
-          const topCooccurrence = cooccurrenceTerms[0].term;
+        if (Object.keys(tagFreq).length > 0) {
+          const topTag = Object.keys(tagFreq).reduce((a, b) => tagFreq[a] > tagFreq[b] ? a : b);
+          const coverage = tagFreq[topTag] / clusterCards.length;
           
-          // 重要キーワードと共起語の組み合わせ
-          if (topKeyword !== topCooccurrence && topKeyword.length > 2 && topCooccurrence.length > 2) {
-            return `${topKeyword} × ${topCooccurrence}`;
-          }
-          
-          // 単独で十分に重要なキーワード
-          if (importantKeywords[0].score > 0.01) {
-            return this.beautifyLabel(topKeyword);
+          if (coverage >= 0.6) { // 60%以上のカードが共有
+            const beautified = this.beautifyTagLabel(topTag);
+            if (beautified) return beautified;
           }
         }
         return null;
       },
-      
-      // タグベースラベル
+
+      // 戦略2: 意味的キーワード組み合わせ
       () => {
-        const tagLabels: { [key: string]: string } = {
-          'ux': 'UX Research',
-          'psychology': 'Psychology',
-          'design': 'Design',
-          'research': 'Research',
-          'behavior': 'Behavior',
-          'user': 'User Experience',
-          'interface': 'Interface Design',
-          'usability': 'Usability',
-          'accessibility': 'Accessibility'
-        };
-        return tagLabels[topTag] || (topTag ? topTag.toUpperCase() : null);
-      },
-      
-      // タイプベースラベル
-      () => {
-        const typeLabels: { [key: string]: string } = {
-          'INSIGHTS': 'Insights',
-          'THEMES': 'Themes',
-          'QUESTIONS': 'Questions',
-          'ACTIONS': 'Actions',
-          'INBOX': 'Ideas'
-        };
-        return typeLabels[topType] || topType;
-      },
-      
-      // キーワードベースラベル
-      () => topKeyword && topKeyword.length > 2 ? topKeyword : null,
-      
-      // 組み合わせラベル
-      () => {
-        if (topTag && topType && topTag !== '') {
-          const tagLabel = topTag.toUpperCase();
-          const typeLabel = topType.toLowerCase();
-          return `${tagLabel} ${typeLabel}`;
+        if (keywords.length >= 2) {
+          const keyword1 = keywords[0];
+          const keyword2 = keywords[1];
+          
+          if (keyword1.length >= 3 && keyword2.length >= 3) {
+            return this.createMeaningfulCombination(keyword1, keyword2);
+          }
         }
         return null;
       },
-      
-      // ワークフロー型ラベル
+
+      // 戦略3: 統計的共起語
       () => {
-        const types = Object.keys(typeFreq);
-        if (types.includes('QUESTIONS') && types.includes('INSIGHTS')) {
-          return 'Q&A Process';
-        }
-        if (types.includes('INSIGHTS') && types.includes('ACTIONS')) {
-          return 'Implementation';
-        }
-        if (types.includes('THEMES') && types.includes('INSIGHTS')) {
-          return 'Theme Analysis';
+        if (cooccurrenceTerms.length > 0) {
+          const topCooccurrence = cooccurrenceTerms[0];
+          if (topCooccurrence.frequency >= 2) { // 2回以上共起
+            return this.beautifyLabel(topCooccurrence.term);
+          }
         }
         return null;
       },
-      
-      // フォールバック
-      () => `Cluster ${clusterIndex + 1}`
+
+      // 戦略4: 単一キーワード
+      () => {
+        if (keywords.length > 0) {
+          return this.beautifyLabel(keywords[0]);
+        }
+        return null;
+      },
+
+      // 戦略5: カード数ベースのフォールバック
+      () => {
+        if (clusterCards.length >= 5) return `主要テーマ ${clusterIndex + 1}`;
+        if (clusterCards.length >= 3) return `関連項目 ${clusterIndex + 1}`;
+        return `グループ ${clusterIndex + 1}`;
+      }
     ];
 
-    // 戦略を順次試行
-    for (const strategy of labelStrategies) {
+    // 戦略を順次実行
+    for (const strategy of strategies) {
       const label = strategy();
-      if (label && label.length > 0) {
+      if (label && label.length > 0 && label.length <= 25) {
+        console.log(`✅ Selected strategy label: "${label}"`);
         return label;
       }
     }
 
-    return `Group ${clusterIndex + 1}`;
+    return `グループ ${clusterIndex + 1}`;
   }
 
   /**
-   * キーワード抽出（改良版・日本語対応強化）
+   * 推論関係性を自動生成（ルールベース）
    */
-  private static extractKeywords(text: string): string[] {
-    const stopWords = [
-      // 日本語ストップワード
-      'の', 'を', 'に', 'は', 'が', 'と', 'で', 'から', 'まで', 'について', 'による', 
-      'する', 'した', 'して', 'です', 'である', 'こと', 'もの', 'これ', 'それ', 'あれ',
-      'その', 'この', 'あの', 'どの', 'など', 'また', 'さらに', 'しかし', 'でも', 'けれども',
-      // 英語ストップワード
-      'the', 'is', 'at', 'which', 'on', 'and', 'or', 'but', 'in', 'with', 'to', 'for',
-      'of', 'as', 'by', 'that', 'this', 'it', 'from', 'be', 'are', 'was', 'were',
-    ];
+  static async generateDerivedRelationships(boardId: string): Promise<AnalysisResult> {
+    const startTime = Date.now();
+    const result: AnalysisResult = {
+      success: false,
+      relationshipsCreated: 0,
+      processingTime: 0,
+      details: { ruleBreakdown: {}, cardTypes: {}, errors: [] },
+      relationships: []
+    };
 
-    const words = text.toLowerCase()
-      .replace(/[^\w\s\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/g, ' ') // 日本語文字を保持
-      .split(/\s+/)
-      .filter(word => {
-        if (word.length < 2) return false;
+    try {
+      console.log('[AnalysisService] Generating derived relationships...');
+      
+      const cards = await this.getBoardCards(boardId);
+      
+      if (cards.length < 2) {
+        result.details.errors!.push('分析には2枚以上のカードが必要です');
+        result.processingTime = Date.now() - startTime;
+        return result;
+      }
+
+      // 既存の derived 関係性を取得
+      const existingRelationships = await this.getCardRelationships(boardId);
+      const existingDerivedRelationships = new Set(
+        existingRelationships
+          .filter(rel => rel.relationship_type === 'derived')
+          .map(rel => `${rel.card_id}-${rel.related_card_id}`)
+      );
+
+      const newRelationships = [];
+      const ruleStats: { [rule: string]: number } = {};
+
+      // カラムタイプごとにグループ化
+      const cardsByType = cards.reduce((acc, card) => {
+        if (!acc[card.column_type]) acc[card.column_type] = [];
+        acc[card.column_type].push(card);
+        return acc;
+      }, {} as Record<string, typeof cards>);
+
+      // カラムタイプ統計
+      result.details.cardTypes = Object.fromEntries(
+        Object.entries(cardsByType).map(([type, cards]) => [type, cards.length])
+      );
+
+      // ルール1: THEMESとINSIGHTSの関係
+      if (cardsByType.THEMES && cardsByType.INSIGHTS) {
+        for (const theme of cardsByType.THEMES) {
+          for (const insight of cardsByType.INSIGHTS) {
+            // テーマのメタデータに関連するインサイトIDがある場合
+            if (theme.metadata?.relatedInsightIds?.includes(insight.id)) {
+              const pairKey = `${theme.id}-${insight.id}`;
+              const reversePairKey = `${insight.id}-${theme.id}`;
+              
+              if (!existingDerivedRelationships.has(pairKey) && !existingDerivedRelationships.has(reversePairKey)) {
+                const relationshipData = {
+                  card_id: theme.id,
+                  related_card_id: insight.id,
+                  relationship_type: 'derived' as const,
+                  strength: 0.8,
+                  confidence: 0.9,
+                  metadata: {
+                    derivationRule: 'theme_insight_metadata',
+                    explanation: 'テーマのメタデータに関連インサイトとして記録されています',
+                    autoGenerated: true,
+                    generatedAt: new Date().toISOString(),
+                  }
+                };
+
+                newRelationships.push(relationshipData);
+                ruleStats['テーマ→インサイト(メタデータ)'] = (ruleStats['テーマ→インサイト(メタデータ)'] || 0) + 1;
+
+                result.relationships.push({
+                  cardA: { id: theme.id, title: theme.title, type: theme.column_type },
+                  cardB: { id: insight.id, title: insight.title, type: insight.column_type },
+                  strength: 0.8,
+                  explanation: 'メタデータによる関連付け'
+                });
+              }
+            }
+          }
+        }
+      }
+
+      // ルール2: QUESTIONSとINSIGHTSの関係（作成時間ベース）
+      if (cardsByType.QUESTIONS && cardsByType.INSIGHTS) {
+        for (const question of cardsByType.QUESTIONS) {
+          for (const insight of cardsByType.INSIGHTS) {
+            const questionTime = new Date(question.created_at).getTime();
+            const insightTime = new Date(insight.created_at).getTime();
+            
+            // 質問の後1時間以内に作成されたインサイト
+            if (insightTime > questionTime && insightTime - questionTime < 3600000) {
+              const pairKey = `${question.id}-${insight.id}`;
+              const reversePairKey = `${insight.id}-${question.id}`;
+              
+              if (!existingDerivedRelationships.has(pairKey) && !existingDerivedRelationships.has(reversePairKey)) {
+                const timeDiff = insightTime - questionTime;
+                const strength = Math.max(0.4, 0.8 - (timeDiff / 3600000) * 0.4); // 時間が近いほど強い関係
+                
+                const relationshipData = {
+                  card_id: question.id,
+                  related_card_id: insight.id,
+                  relationship_type: 'derived' as const,
+                  strength,
+                  confidence: 0.7,
+                  metadata: {
+                    derivationRule: 'question_insight_temporal',
+                    explanation: `質問後 ${Math.round(timeDiff / 60000)} 分以内に作成されたインサイト`,
+                    timeDifferenceMinutes: Math.round(timeDiff / 60000),
+                    autoGenerated: true,
+                    generatedAt: new Date().toISOString(),
+                  }
+                };
+
+                newRelationships.push(relationshipData);
+                ruleStats['質問→インサイト(時間)'] = (ruleStats['質問→インサイト(時間)'] || 0) + 1;
+
+                result.relationships.push({
+                  cardA: { id: question.id, title: question.title, type: question.column_type },
+                  cardB: { id: insight.id, title: insight.title, type: insight.column_type },
+                  strength,
+                  explanation: `時間差 ${Math.round(timeDiff / 60000)} 分`
+                });
+              }
+            }
+          }
+        }
+      }
+
+      // ルール3: INSIGHTSとACTIONSの関係（ワークフロー的関係）
+      if (cardsByType.INSIGHTS && cardsByType.ACTIONS) {
+        for (const insight of cardsByType.INSIGHTS) {
+          for (const action of cardsByType.ACTIONS) {
+            // インサイトとアクションが同じタグを持つ場合
+            const insightTags = new Set(insight.tags || []);
+            const actionTags = new Set(action.tags || []);
+            const commonTags = [...insightTags].filter(tag => actionTags.has(tag));
+            
+            if (commonTags.length > 0) {
+              const pairKey = `${insight.id}-${action.id}`;
+              const reversePairKey = `${action.id}-${insight.id}`;
+              
+              if (!existingDerivedRelationships.has(pairKey) && !existingDerivedRelationships.has(reversePairKey)) {
+                const strength = Math.min(0.8, 0.5 + (commonTags.length * 0.1));
+                
+                const relationshipData = {
+                  card_id: insight.id,
+                  related_card_id: action.id,
+                  relationship_type: 'derived' as const,
+                  strength,
+                  confidence: 0.8,
+                  metadata: {
+                    derivationRule: 'insight_action_workflow',
+                    explanation: `共通タグ「${commonTags.join(', ')}」による洞察→行動の関係`,
+                    commonTags,
+                    autoGenerated: true,
+                    generatedAt: new Date().toISOString(),
+                  }
+                };
+
+                newRelationships.push(relationshipData);
+                ruleStats['インサイト→アクション(ワークフロー)'] = (ruleStats['インサイト→アクション(ワークフロー)'] || 0) + 1;
+
+                result.relationships.push({
+                  cardA: { id: insight.id, title: insight.title, type: insight.column_type },
+                  cardB: { id: action.id, title: action.title, type: action.column_type },
+                  strength,
+                  explanation: `共通タグ「${commonTags.join(', ')}」`
+                });
+              }
+            }
+          }
+        }
+      }
+
+      if (newRelationships.length === 0) {
+        result.details.errors!.push('新しい推論関係性は見つかりませんでした');
+        result.processingTime = Date.now() - startTime;
+        return result;
+      }
+
+      // 提案レベルで返す（DB作成はしない）
+      result.details.ruleBreakdown = ruleStats;
+      result.success = true;
+      result.relationshipsCreated = 0; // 提案レベルなので0
+      result.proposedRelationships = newRelationships; // 提案データを追加
+      result.processingTime = Date.now() - startTime;
+
+      console.log(`Generated ${newRelationships.length} derived relationship proposals`);
+      return result;
+    } catch (error) {
+      console.error('Failed to generate derived relationships:', error);
+      result.details.errors!.push(`処理エラー: ${error instanceof Error ? error.message : '不明なエラー'}`);
+      result.processingTime = Date.now() - startTime;
+      return result;
+    }
+  }
+
+  /**
+   * 既存のaiタイプ関係性を適切なタイプに変換（マイグレーション）
+   */
+  static async migrateAiRelationshipsToProperTypes(boardId: string): Promise<void> {
+    try {
+      console.log('[AnalysisService] Migrating AI relationships to proper types...');
+      
+      // aiタイプの関係性を取得
+      const existingRelationships = await this.getCardRelationships(boardId);
+      const aiRelationships = existingRelationships.filter(rel => rel.relationship_type === 'ai');
+      
+      if (aiRelationships.length === 0) {
+        console.log('No AI relationships to migrate');
+        return;
+      }
+
+      console.log(`Found ${aiRelationships.length} AI relationships to migrate`);
+      
+      // ボードのカードを取得（タグ情報が必要）
+      const cards = await this.getBoardCards(boardId);
+      const cardMap = new Map(cards.map(card => [card.id, card]));
+
+      const updates = [];
+
+      for (const relationship of aiRelationships) {
+        const sourceCard = cardMap.get(relationship.card_id);
+        const targetCard = cardMap.get(relationship.related_card_id);
         
-        // ストップワードチェック
-        return !stopWords.includes(word);
-      });
-    
-    return words;
+        if (!sourceCard || !targetCard) {
+          console.warn(`Cards not found for relationship ${relationship.id}`);
+          continue;
+        }
+
+        // メタデータから元のAI分類を確認
+        const originalAiType = relationship.metadata?.originalAiType;
+        let newRelationshipType: 'semantic' | 'tag_similarity' | 'derived' = 'semantic';
+
+        if (originalAiType) {
+          // メタデータに元のAI分類がある場合、それを使用
+          switch (originalAiType) {
+            case 'topical':
+              newRelationshipType = 'tag_similarity';
+              break;
+            case 'conceptual':
+            case 'semantic':
+            default:
+              newRelationshipType = 'semantic';
+              break;
+          }
+        } else {
+          // メタデータがない場合、カード情報から推測
+          const sourceTags = new Set(sourceCard.tags || []);
+          const targetTags = new Set(targetCard.tags || []);
+          const commonTags = [...sourceTags].filter(tag => targetTags.has(tag));
+          
+          if (commonTags.length > 0) {
+            // 共通タグがある場合はタグ類似性
+            newRelationshipType = 'tag_similarity';
+          } else if (sourceCard.column_type === targetCard.column_type) {
+            // 同じカテゴリの場合は推論関係性
+            newRelationshipType = 'derived';
+          } else {
+            // その他は意味的関係性
+            newRelationshipType = 'semantic';
+          }
+        }
+
+        // メタデータを更新（マイグレーション情報を追加）
+        const updatedMetadata = {
+          ...relationship.metadata,
+          migratedFrom: 'ai',
+          migratedAt: new Date().toISOString(),
+          migrationReason: originalAiType 
+            ? `Original AI type: ${originalAiType}` 
+            : 'Inferred from card properties',
+        };
+
+        updates.push({
+          id: relationship.id,
+          newType: newRelationshipType,
+          metadata: updatedMetadata,
+        });
+      }
+
+      if (updates.length === 0) {
+        console.log('No relationships to update');
+        return;
+      }
+
+      // バッチ更新を実行
+      console.log(`Updating ${updates.length} relationships...`);
+      
+      for (const update of updates) {
+        const { error } = await supabase
+          .from('board_card_relations')
+          .update({
+            relationship_type: update.newType,
+            metadata: update.metadata,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', update.id);
+
+        if (error) {
+          console.error(`Failed to update relationship ${update.id}:`, error);
+        }
+      }
+
+      console.log(`Successfully migrated ${updates.length} AI relationships to proper types`);
+      
+      // 統計を表示
+      const typeCount = updates.reduce((acc, update) => {
+        acc[update.newType] = (acc[update.newType] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+      
+      console.log('Migration summary:', typeCount);
+      
+    } catch (error) {
+      console.error('Failed to migrate AI relationships:', error);
+      throw error;
+    }
   }
 
   /**
@@ -1444,5 +1976,122 @@ export class AnalysisService {
            (keyword.length > 0 ? keyword.charAt(0).toUpperCase() + keyword.slice(1) : keyword);
   }
 
+  /**
+   * 自然な組み合わせラベルを生成
+   */
+  private static createNaturalCombination(keyword1: string, keyword2: string): string {
+    const beautified1 = this.beautifyLabel(keyword1);
+    const beautified2 = this.beautifyLabel(keyword2);
+    
+    // 日本語の自然なパターンで組み合わせ
+    const patterns = [
+      // 動作系キーワードの組み合わせ
+      () => {
+        if (keyword1.match(/(改善|向上|分析|検証|設計|開発)/) || keyword2.match(/(改善|向上|分析|検証|設計|開発)/)) {
+          const actionWord = keyword1.match(/(改善|向上|分析|検証|設計|開発)/) ? beautified1 : beautified2;
+          const targetWord = keyword1.match(/(改善|向上|分析|検証|設計|開発)/) ? beautified2 : beautified1;
+          return `${targetWord}${actionWord}`;
+        }
+        return null;
+      },
+      
+      // 手法・プロセス系の組み合わせ
+      () => {
+        if (keyword1.match(/(手法|方法|プロセス|アプローチ)/) || keyword2.match(/(手法|方法|プロセス|アプローチ)/)) {
+          const methodWord = keyword1.match(/(手法|方法|プロセス|アプローチ)/) ? beautified1 : beautified2;
+          const domainWord = keyword1.match(/(手法|方法|プロセス|アプローチ)/) ? beautified2 : beautified1;
+          return `${domainWord}${methodWord}`;
+        }
+        return null;
+      },
+      
+      // ドメイン特化組み合わせ
+      () => {
+        if (keyword1.match(/(ユーザー|デザイン|インターフェース)/) || keyword2.match(/(ユーザー|デザイン|インターフェース)/)) {
+          const domainWord = keyword1.match(/(ユーザー|デザイン|インターフェース)/) ? beautified1 : beautified2;
+          const specWord = keyword1.match(/(ユーザー|デザイン|インターフェース)/) ? beautified2 : beautified1;
+          return `${domainWord}${specWord}`;
+        }
+        return null;
+      },
+      
+      // デフォルト組み合わせ
+      () => `${beautified1}${beautified2}`
+    ];
+    
+    for (const pattern of patterns) {
+      const result = pattern();
+      if (result) return result;
+    }
+    
+    return `${beautified1}${beautified2}`;
+  }
+  
+  /**
+   * セマンティック組み合わせラベルを生成
+   */
+  private static createSemanticCombination(keyword: string, tag: string): string {
+    const beautifiedKeyword = this.beautifyLabel(keyword);
+    const beautifiedTag = this.beautifyLabel(tag);
+    
+    // 組み合わせパターン
+    const combinationPatterns = [
+      // タグが手法系の場合
+      () => {
+        if (['research', 'analysis', 'testing', 'evaluation', 'design', 'ux'].includes(tag.toLowerCase())) {
+          return `${beautifiedTag}${beautifiedKeyword}`;
+        }
+        return null;
+      },
+      
+      // キーワードが動作系の場合
+      () => {
+        if (keyword.match(/(改善|向上|分析|検証|設計|開発)/)) {
+          return `${beautifiedTag}の${beautifiedKeyword}`;
+        }
+        return null;
+      },
+      
+      // デフォルト組み合わせ
+      () => {
+        if (beautifiedKeyword.length + beautifiedTag.length <= 20) {
+          return `${beautifiedTag}${beautifiedKeyword}`;
+        }
+        return null;
+      }
+    ];
+    
+    for (const pattern of combinationPatterns) {
+      const result = pattern();
+      if (result) return result;
+    }
+    
+    return beautifiedKeyword; // フォールバック
+  }
 
+  private static generateLabelReasoning(
+    cards: BoardItem[],
+    keywords: string[],
+    dominantTags: string[],
+    _unusedType: string
+  ): string {
+    const reasons: string[] = [];
+    
+    if (keywords.length > 0) {
+      reasons.push(`キーワード「${keywords[0]}」が頻出`);
+    }
+    
+    if (dominantTags.length > 0) {
+      reasons.push(`タグ「${dominantTags[0]}」が共通`);
+    }
+    
+    // ❌ タイプ情報削除 - 構造メタデータ使用を停止
+    // if (dominantType) {
+    //   reasons.push(`タイプ「${this.getTypeLabel(dominantType)}」が主要`);
+    // }
+    
+    reasons.push(`${cards.length}個のカードで構成`);
+    
+    return reasons.join('、');
+  }
 } 

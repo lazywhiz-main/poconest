@@ -5,6 +5,7 @@ import { useBoardContext } from '../../../board-space/contexts/BoardContext';
 import { CardModal } from '../../../board-space/components/BoardSpace';
 import { AIAnalysisService, type SuggestedRelationship } from '../../../../services/AIAnalysisService';
 import { AnalysisService, AnalysisResult, ClusterLabel } from '../../../../services/AnalysisService';
+import { SmartClusteringService, ClusteringConfig, ClusteringResult } from '../../../../services/SmartClusteringService';
 import type { BoardColumnType } from '../../../../types/board';
 import AnalysisResultModal from './AnalysisResultModal';
 import { supabase } from '../../../../services/supabase/client';
@@ -193,6 +194,42 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     tag_similarity: true,
     derived: true
   });
+
+  // 解析モード切り替えの状態
+  const [analysisMode, setAnalysisMode] = useState<'simple' | 'advanced'>('simple');
+
+  // 高度解析モード用の状態
+  const [advancedConfig, setAdvancedConfig] = useState({
+    // アルゴリズム設定
+    algorithm: 'dbscan' as 'dbscan' | 'kmeans' | 'hierarchical',
+    
+    // 類似性重み設定
+    weights: {
+      edgeStrength: 0.4,      // エッジ強度
+      tagSimilarity: 0.3,     // タグ類似性
+      semanticSimilarity: 0.3  // 意味的類似性
+    },
+    
+    // クラスタリングパラメータ
+    clustering: {
+      minClusterSize: 2,
+      maxClusterSize: 8,
+      similarityThreshold: 0.5
+    },
+    
+    // ラベリング設定
+    labeling: {
+      useSemanticLabeling: true,
+      maxLabelsPerCluster: 3,
+      confidenceThreshold: 0.6
+    }
+  });
+
+  // 高度解析の実行状態
+  const [isAdvancedAnalyzing, setIsAdvancedAnalyzing] = useState(false);
+  const [smartClusteringResult, setSmartClusteringResult] = useState<ClusteringResult | null>(null);
+
+
 
   // フィルター済み提案リスト（統合分析用）
   const unifiedSuggestions = useMemo(() => {
@@ -538,6 +575,89 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     };
   }, [cards, relationships, config.edgeFilter, activeFilters, nodePositions, containerDimensions]);
 
+  // UIの設定をSmartClusteringServiceの形式に変換
+  const convertToClusteringConfig = useCallback((uiConfig: typeof advancedConfig): ClusteringConfig => {
+    return {
+      algorithm: uiConfig.algorithm === 'kmeans' ? 'community' : uiConfig.algorithm, // k-meansをcommunityにマップ
+      minClusterSize: uiConfig.clustering.minClusterSize,
+      maxClusterSize: uiConfig.clustering.maxClusterSize,
+      similarityThreshold: uiConfig.clustering.similarityThreshold,
+      useSemanticAnalysis: uiConfig.labeling.useSemanticLabeling,
+      useTagSimilarity: uiConfig.weights.tagSimilarity > 0,
+      useContentSimilarity: true,
+      weightStrength: uiConfig.weights.edgeStrength,
+      weightSemantic: uiConfig.weights.semanticSimilarity,
+      weightTag: uiConfig.weights.tagSimilarity,
+    };
+  }, []);
+
+  // 高度解析の実行
+  const performAdvancedClustering = useCallback(async () => {
+    if (isAdvancedAnalyzing) return;
+    
+    setIsAdvancedAnalyzing(true);
+    try {
+      console.log('🔬 Starting Advanced Clustering Analysis...');
+      
+      // UIの設定をSmartClusteringServiceの形式に変換
+      const clusteringConfig = convertToClusteringConfig(advancedConfig);
+      
+      // SmartClusteringServiceを実行
+      const result = await SmartClusteringService.performSmartClustering(
+        networkData.nodes,
+        networkData.edges,
+        cards,
+        clusteringConfig
+      );
+      
+      setSmartClusteringResult(result);
+      
+      // 結果をネットワーク表示に反映
+      const clusterNodeIds = result.clusters.map(cluster => cluster.nodes);
+      setFilteredClusters(clusterNodeIds);
+      setShowFilteredClusters(true);
+      
+      // ラベルを設定
+      const smartLabels: ClusterLabel[] = result.clusters.map((cluster, index) => ({
+        id: `smart-cluster-${index}`,
+        text: cluster.suggestedLabel,
+        cardIds: cluster.nodes,
+        position: {
+          x: cluster.centroid.x,
+          y: cluster.centroid.y - 40
+        },
+        theme: cluster.semanticTheme || 'default',
+        confidence: cluster.confidence,
+        metadata: {
+          dominantTags: cluster.dominantTags,
+          dominantTypes: cluster.dominantTypes,
+          cardCount: cluster.nodes.length
+        }
+      }));
+      
+      setClusterLabels(smartLabels);
+      setShowLabels(true);
+      
+      console.log(`✅ Advanced Clustering Complete: ${result.clusters.length} clusters, quality score: ${result.quality.silhouetteScore.toFixed(2)}`);
+      
+      showCustomDialog(
+        '🔬 高度解析完了',
+        `${result.clusters.length}個のクラスターを検出しました。\n品質スコア: ${result.quality.silhouetteScore.toFixed(2)}\nアルゴリズム: ${result.algorithm.toUpperCase()}`,
+        () => hideCustomDialog()
+      );
+      
+    } catch (error) {
+      console.error('Advanced clustering failed:', error);
+      showCustomDialog(
+        'エラー',
+        `高度解析に失敗しました: ${error instanceof Error ? error.message : String(error)}`,
+        () => hideCustomDialog()
+      );
+    } finally {
+      setIsAdvancedAnalyzing(false);
+    }
+  }, [advancedConfig, convertToClusteringConfig, networkData, cards, showCustomDialog, hideCustomDialog, isAdvancedAnalyzing]);
+
   // ノード選択ハンドラー
   const handleNodeClick = useCallback((nodeId: string) => {
     setSelectedNode(nodeId);
@@ -584,7 +704,9 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     }));
   };
 
-  // クラスター検出（重み閾値フィルタリング対応）
+
+
+  // 従来のクラスター検出（重み閾値フィルタリング対応）
   const detectClusters = useCallback((strengthThreshold: number = 0.3, useWeightFiltering: boolean = true) => {
     const adjacencyList: { [key: string]: string[] } = {};
     networkData.nodes.forEach(node => {
@@ -2270,6 +2392,39 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       fontSize: '10px',
       lineHeight: '1.4',
     },
+    // タブ用のスタイル
+    tabContainer: {
+      display: 'flex',
+      gap: '4px',
+    },
+    tabButton: {
+      background: THEME_COLORS.bgTertiary,
+      border: `1px solid ${THEME_COLORS.borderSecondary}`,
+      borderRadius: THEME_COLORS.borderRadius.small,
+      color: THEME_COLORS.textSecondary,
+      padding: '8px 16px',
+      fontSize: '12px',
+      fontWeight: '600',
+      cursor: 'pointer',
+      transition: 'all 0.2s ease',
+      fontFamily: 'JetBrains Mono, monospace',
+      minWidth: '80px',
+      textAlign: 'center' as const,
+    },
+    // 高度解析モード用のスタイル
+    select: {
+      background: THEME_COLORS.bgSecondary,
+      border: `1px solid ${THEME_COLORS.borderSecondary}`,
+      borderRadius: THEME_COLORS.borderRadius.small,
+      color: THEME_COLORS.textPrimary,
+      padding: '8px 12px',
+      fontSize: '12px',
+      fontFamily: 'JetBrains Mono, monospace',
+      cursor: 'pointer',
+    },
+    sliderGroup: {
+      marginBottom: '12px',
+    },
   };
 
   // Auto Labels機能 - Clustering Controlsのフィルタリングされたクラスターに対応
@@ -2977,6 +3132,8 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         <button style={styles.controlBtn}>Analyze Density</button>
         <button style={styles.controlBtn}>Export</button>
         
+
+        
         {/* クラスタリング制御ボタン */}
         <button
           style={{
@@ -3008,7 +3165,58 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       {showClusteringControls && (
         <div style={styles.clusteringControlsPanel}>
           <div style={styles.panelHeader}>
-            <h4 style={styles.panelTitle}>クラスタリング設定</h4>
+            <div style={styles.tabContainer}>
+              <button
+                style={{
+                  ...styles.tabButton,
+                  background: analysisMode === 'simple' ? THEME_COLORS.primaryGreen : THEME_COLORS.bgTertiary,
+                  color: analysisMode === 'simple' ? THEME_COLORS.textInverse : THEME_COLORS.textSecondary,
+                  borderColor: analysisMode === 'simple' ? THEME_COLORS.primaryGreen : THEME_COLORS.borderSecondary,
+                }}
+                onClick={() => setAnalysisMode('simple')}
+                onMouseEnter={(e) => {
+                  if (analysisMode !== 'simple') {
+                    e.currentTarget.style.background = THEME_COLORS.primaryGreen;
+                    e.currentTarget.style.color = THEME_COLORS.textInverse;
+                    e.currentTarget.style.borderColor = THEME_COLORS.primaryGreen;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (analysisMode !== 'simple') {
+                    e.currentTarget.style.background = THEME_COLORS.bgTertiary;
+                    e.currentTarget.style.color = THEME_COLORS.textSecondary;
+                    e.currentTarget.style.borderColor = THEME_COLORS.borderSecondary;
+                  }
+                }}
+              >
+                シンプル
+              </button>
+              <button
+                style={{
+                  ...styles.tabButton,
+                  background: analysisMode === 'advanced' ? THEME_COLORS.primaryGreen : THEME_COLORS.bgTertiary,
+                  color: analysisMode === 'advanced' ? THEME_COLORS.textInverse : THEME_COLORS.textSecondary,
+                  borderColor: analysisMode === 'advanced' ? THEME_COLORS.primaryGreen : THEME_COLORS.borderSecondary,
+                }}
+                onClick={() => setAnalysisMode('advanced')}
+                onMouseEnter={(e) => {
+                  if (analysisMode !== 'advanced') {
+                    e.currentTarget.style.background = THEME_COLORS.primaryGreen;
+                    e.currentTarget.style.color = THEME_COLORS.textInverse;
+                    e.currentTarget.style.borderColor = THEME_COLORS.primaryGreen;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (analysisMode !== 'advanced') {
+                    e.currentTarget.style.background = THEME_COLORS.bgTertiary;
+                    e.currentTarget.style.color = THEME_COLORS.textSecondary;
+                    e.currentTarget.style.borderColor = THEME_COLORS.borderSecondary;
+                  }
+                }}
+              >
+                高度解析 🔬
+              </button>
+            </div>
             <button
               style={styles.closeButton}
               onClick={() => setShowClusteringControls(false)}
@@ -3017,17 +3225,20 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
             </button>
           </div>
           
-          <div style={styles.controlGroup}>
-            <label style={styles.controlLabel}>
-              <input
-                type="checkbox"
-                checked={useWeightFiltering}
-                onChange={(e) => setUseWeightFiltering(e.target.checked)}
-                style={styles.checkbox}
-              />
-              重み閾値フィルタリングを使用
-            </label>
-          </div>
+          {/* モード別コンテンツ */}
+          {analysisMode === 'simple' && (
+            <div>
+              <div style={styles.controlGroup}>
+                <label style={styles.controlLabel}>
+                  <input
+                    type="checkbox"
+                    checked={useWeightFiltering}
+                    onChange={(e) => setUseWeightFiltering(e.target.checked)}
+                    style={styles.checkbox}
+                  />
+                  重み閾値フィルタリングを使用
+                </label>
+              </div>
           
           {useWeightFiltering && (
             <div style={styles.controlGroup}>
@@ -3065,7 +3276,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
           <div style={styles.controlGroup}>
             <button
               style={styles.applyButton}
-              onClick={() => {
+              onClick={async () => {
                 // 既存のラベルをクリア（新しいクラスターに対応するため）
                 if (showLabels) {
                   clearLabels();
@@ -3081,6 +3292,41 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
                 // フィルタリング結果を自動的に表示
                 if (newClusters.length > 0) {
                   setShowFilteredClusters(true);
+                  
+                  // 自動ラベル生成・表示（高度解析と同じ仕様）
+                  try {
+                    console.log('🏷️ Auto-generating labels for simple mode clusters...');
+                    const labels = await AnalysisService.generateClusterLabels(
+                      boardState.boardId || '',
+                      newClusters
+                    );
+                    
+                    // ノード位置を反映してラベル位置を更新
+                    const updatedLabels = labels.map(label => {
+                      const clusterCards = label.cardIds.map(id => networkData.nodes.find(n => n.id === id)).filter(Boolean);
+                      if (clusterCards.length === 0) return label;
+
+                      // 実際のノード位置を使用して位置を再計算
+                      const centerX = clusterCards.reduce((sum, node) => sum + (nodePositions[node!.id]?.x || node!.x), 0) / clusterCards.length;
+                      const centerY = clusterCards.reduce((sum, node) => sum + (nodePositions[node!.id]?.y || node!.y), 0) / clusterCards.length;
+                      const minY = Math.min(...clusterCards.map(node => (nodePositions[node!.id]?.y || node!.y)));
+
+                      return {
+                        ...label,
+                        position: {
+                          x: centerX,
+                          y: minY - 40
+                        }
+                      };
+                    });
+                    
+                    setClusterLabels(updatedLabels);
+                    setShowLabels(true);
+                    console.log('🏷️ Simple mode labels auto-generated successfully:', updatedLabels.length);
+                  } catch (error) {
+                    console.error('Failed to auto-generate simple mode labels:', error);
+                    // エラーが発生してもクラスタリング自体は成功しているので、ユーザーに警告は出さない
+                  }
                 }
                 
                 console.log('🚀 Applied new clustering settings:', {
@@ -3088,7 +3334,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
                   strengthThreshold,
                   newClusters: newClusters.length,
                   showVisualization: newClusters.length > 0,
-                  labelsCleared: showLabels
+                  labelsAutoGenerated: newClusters.length > 0
                 });
               }}
               onMouseEnter={(e) => {
@@ -3145,6 +3391,335 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
               ラベル: {showLabels ? `🏷️ ${clusterLabels.length}個表示中` : '❌非表示'}
             </small>
           </div>
+            </div>
+          )}
+          
+          {/* 高度解析モード */}
+          {analysisMode === 'advanced' && (
+            <div>
+              {/* アルゴリズム選択 */}
+              <div style={styles.controlGroup}>
+                <label style={styles.controlLabel}>
+                  🧮 クラスタリングアルゴリズム
+                </label>
+                <select
+                  value={advancedConfig.algorithm}
+                  onChange={(e) => setAdvancedConfig(prev => ({
+                    ...prev,
+                    algorithm: e.target.value as 'dbscan' | 'kmeans' | 'hierarchical'
+                  }))}
+                  style={{
+                    ...styles.select,
+                    width: '100%',
+                    marginTop: '4px'
+                  }}
+                >
+                  <option value="dbscan">DBSCAN (密度ベース)</option>
+                  <option value="kmeans">K-means (重心ベース)</option>
+                  <option value="hierarchical">階層クラスタリング</option>
+                </select>
+              </div>
+
+              {/* 類似性重み設定 */}
+              <div style={styles.controlGroup}>
+                <label style={styles.controlLabel}>
+                  ⚖️ 類似性重み設定
+                </label>
+                
+                <div style={{ marginTop: '8px' }}>
+                  <div style={styles.sliderGroup}>
+                    <label style={styles.sliderLabel}>
+                      エッジ強度: {advancedConfig.weights.edgeStrength.toFixed(1)}
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.1"
+                      value={advancedConfig.weights.edgeStrength}
+                      onChange={(e) => setAdvancedConfig(prev => ({
+                        ...prev,
+                        weights: {
+                          ...prev.weights,
+                          edgeStrength: parseFloat(e.target.value)
+                        }
+                      }))}
+                      style={styles.slider}
+                    />
+                  </div>
+                  
+                  <div style={styles.sliderGroup}>
+                    <label style={styles.sliderLabel}>
+                      タグ類似性: {advancedConfig.weights.tagSimilarity.toFixed(1)}
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.1"
+                      value={advancedConfig.weights.tagSimilarity}
+                      onChange={(e) => setAdvancedConfig(prev => ({
+                        ...prev,
+                        weights: {
+                          ...prev.weights,
+                          tagSimilarity: parseFloat(e.target.value)
+                        }
+                      }))}
+                      style={styles.slider}
+                    />
+                  </div>
+                  
+                  <div style={styles.sliderGroup}>
+                    <label style={styles.sliderLabel}>
+                      意味的類似性: {advancedConfig.weights.semanticSimilarity.toFixed(1)}
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.1"
+                      value={advancedConfig.weights.semanticSimilarity}
+                      onChange={(e) => setAdvancedConfig(prev => ({
+                        ...prev,
+                        weights: {
+                          ...prev.weights,
+                          semanticSimilarity: parseFloat(e.target.value)
+                        }
+                      }))}
+                      style={styles.slider}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* クラスタリングパラメータ */}
+              <div style={styles.controlGroup}>
+                <label style={styles.controlLabel}>
+                  🎯 クラスタリングパラメータ
+                </label>
+                
+                <div style={{ marginTop: '8px' }}>
+                  <div style={styles.sliderGroup}>
+                    <label style={styles.sliderLabel}>
+                      最小クラスタサイズ: {advancedConfig.clustering.minClusterSize}
+                    </label>
+                    <input
+                      type="range"
+                      min="2"
+                      max="6"
+                      step="1"
+                      value={advancedConfig.clustering.minClusterSize}
+                      onChange={(e) => setAdvancedConfig(prev => ({
+                        ...prev,
+                        clustering: {
+                          ...prev.clustering,
+                          minClusterSize: parseInt(e.target.value)
+                        }
+                      }))}
+                      style={styles.slider}
+                    />
+                  </div>
+                  
+                  <div style={styles.sliderGroup}>
+                    <label style={styles.sliderLabel}>
+                      最大クラスタサイズ: {advancedConfig.clustering.maxClusterSize}
+                    </label>
+                    <input
+                      type="range"
+                      min="4"
+                      max="15"
+                      step="1"
+                      value={advancedConfig.clustering.maxClusterSize}
+                      onChange={(e) => setAdvancedConfig(prev => ({
+                        ...prev,
+                        clustering: {
+                          ...prev.clustering,
+                          maxClusterSize: parseInt(e.target.value)
+                        }
+                      }))}
+                      style={styles.slider}
+                    />
+                  </div>
+                  
+                  <div style={styles.sliderGroup}>
+                    <label style={styles.sliderLabel}>
+                      類似性閾値: {advancedConfig.clustering.similarityThreshold.toFixed(1)}
+                    </label>
+                    <input
+                      type="range"
+                      min="0.1"
+                      max="0.9"
+                      step="0.1"
+                      value={advancedConfig.clustering.similarityThreshold}
+                      onChange={(e) => setAdvancedConfig(prev => ({
+                        ...prev,
+                        clustering: {
+                          ...prev.clustering,
+                          similarityThreshold: parseFloat(e.target.value)
+                        }
+                      }))}
+                      style={styles.slider}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* ラベリング設定 */}
+              <div style={styles.controlGroup}>
+                <label style={styles.controlLabel}>
+                  <input
+                    type="checkbox"
+                    checked={advancedConfig.labeling.useSemanticLabeling}
+                    onChange={(e) => setAdvancedConfig(prev => ({
+                      ...prev,
+                      labeling: {
+                        ...prev.labeling,
+                        useSemanticLabeling: e.target.checked
+                      }
+                    }))}
+                    style={styles.checkbox}
+                  />
+                  🏷️ 高度なセマンティックラベリングを使用
+                </label>
+              </div>
+
+              {/* 実行ボタン */}
+              <div style={styles.controlGroup}>
+                <button
+                  style={{
+                    ...styles.applyButton,
+                    background: THEME_COLORS.primaryBlue,
+                    borderColor: THEME_COLORS.primaryBlue,
+                  }}
+                  onClick={performAdvancedClustering}
+                  disabled={isAdvancedAnalyzing}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = THEME_COLORS.primaryCyan;
+                    e.currentTarget.style.borderColor = THEME_COLORS.primaryCyan;
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = THEME_COLORS.primaryBlue;
+                    e.currentTarget.style.borderColor = THEME_COLORS.primaryBlue;
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                >
+                  {isAdvancedAnalyzing ? '🔬 解析中...' : '🚀 高度解析実行'}
+                </button>
+              </div>
+
+              {/* Auto Labels (高度解析版) */}
+              <div style={styles.controlGroup}>
+                <button
+                  style={{
+                    ...styles.applyButton,
+                    background: showLabels ? THEME_COLORS.primaryRed : THEME_COLORS.primaryPurple,
+                    borderColor: showLabels ? THEME_COLORS.primaryRed : THEME_COLORS.primaryPurple,
+                    opacity: isGeneratingLabels ? 0.7 : 1,
+                    cursor: isGeneratingLabels ? 'not-allowed' : 'pointer',
+                  }}
+                  onClick={async () => {
+                    if (isGeneratingLabels) return;
+                    
+                    if (showLabels) {
+                      // ラベルクリア
+                      setShowLabels(false);
+                      setClusterLabels([]);
+                      console.log('🏷️ Advanced labels cleared');
+                                          } else {
+                        // 高度解析のラベル再生成
+                        if (smartClusteringResult && smartClusteringResult.clusters.length > 0) {
+                          setIsGeneratingLabels(true);
+                          try {
+                            console.log('🏷️ Regenerating advanced semantic labels with current node positions...');
+                            
+                            // SmartClusteringResultから既存のラベルを再表示（現在のノード位置で更新）
+                            const smartLabels: ClusterLabel[] = smartClusteringResult.clusters.map((cluster, index) => {
+                              // クラスター内のカードを取得
+                              const clusterCards = cluster.nodes.map(id => networkData.nodes.find(n => n.id === id)).filter(Boolean);
+                              
+                              // 現在のノード位置を使用してラベル位置を再計算
+                              let centerX, centerY, minY;
+                              
+                              if (clusterCards.length > 0) {
+                                // 実際のノード位置を使用して位置を再計算
+                                centerX = clusterCards.reduce((sum, node) => sum + (nodePositions[node!.id]?.x || node!.x), 0) / clusterCards.length;
+                                centerY = clusterCards.reduce((sum, node) => sum + (nodePositions[node!.id]?.y || node!.y), 0) / clusterCards.length;
+                                minY = Math.min(...clusterCards.map(node => (nodePositions[node!.id]?.y || node!.y)));
+                              } else {
+                                // フォールバック: 元のcentroid位置を使用
+                                centerX = cluster.centroid.x;
+                                centerY = cluster.centroid.y;
+                                minY = cluster.centroid.y;
+                              }
+                              
+                              return {
+                                id: `smart-cluster-${index}`,
+                                text: cluster.suggestedLabel,
+                                cardIds: cluster.nodes,
+                                position: {
+                                  x: centerX,
+                                  y: minY - 40 // ラベルをクラスターの上40px
+                                },
+                                theme: cluster.semanticTheme || 'default',
+                                confidence: cluster.confidence,
+                                metadata: {
+                                  dominantTags: cluster.dominantTags,
+                                  dominantTypes: cluster.dominantTypes,
+                                  cardCount: cluster.nodes.length
+                                }
+                              };
+                            });
+                            
+                            setClusterLabels(smartLabels);
+                            setShowLabels(true);
+                            console.log('🏷️ Advanced labels regenerated with updated positions successfully');
+                          } catch (error) {
+                            console.error('Failed to regenerate advanced labels:', error);
+                          } finally {
+                            setIsGeneratingLabels(false);
+                          }
+                        } else {
+                        showCustomDialog(
+                          '高度解析が必要',
+                          'ラベル表示には先に「🚀 高度解析実行」を行ってください。',
+                          () => hideCustomDialog()
+                        );
+                      }
+                    }
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isGeneratingLabels) {
+                      const hoverColor = showLabels ? THEME_COLORS.primaryRed : THEME_COLORS.primaryCyan;
+                      e.currentTarget.style.background = hoverColor;
+                      e.currentTarget.style.borderColor = hoverColor;
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isGeneratingLabels) {
+                      const originalColor = showLabels ? THEME_COLORS.primaryRed : THEME_COLORS.primaryPurple;
+                      e.currentTarget.style.background = originalColor;
+                      e.currentTarget.style.borderColor = originalColor;
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }
+                  }}
+                >
+                  {isGeneratingLabels ? '🔬 高度ラベル生成中...' : showLabels ? '🏷️ ラベルクリア' : '🔬 高度Auto Labels'}
+                </button>
+              </div>
+              
+              {/* 高度解析統計情報 */}
+              <div style={styles.debugInfo}>
+                <small style={styles.debugText}>
+                  アルゴリズム: {advancedConfig.algorithm.toUpperCase()}<br/>
+                  重み配分: E{advancedConfig.weights.edgeStrength.toFixed(1)} | T{advancedConfig.weights.tagSimilarity.toFixed(1)} | S{advancedConfig.weights.semanticSimilarity.toFixed(1)}<br/>
+                  クラスタサイズ: {advancedConfig.clustering.minClusterSize}-{advancedConfig.clustering.maxClusterSize} | 閾値: {advancedConfig.clustering.similarityThreshold.toFixed(1)}<br/>
+                  セマンティック: {advancedConfig.labeling.useSemanticLabeling ? '🟢有効' : '❌無効'}
+                </small>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -3444,73 +4019,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         )}
       </div>
 
-      {/* Minimap */}
-      {showMinimap && (
-        <div style={{
-          position: 'absolute',
-          bottom: '20px',
-          right: '20px',
-          width: '200px',
-          height: '150px',
-          background: THEME_COLORS.bgSecondary,
-          border: `1px solid ${THEME_COLORS.borderPrimary}`,
-          borderRadius: '8px',
-          overflow: 'hidden',
-          zIndex: 10,
-        }}>
-          <div style={{
-            padding: '8px',
-            fontSize: '10px',
-            fontWeight: '600',
-            color: THEME_COLORS.textSecondary,
-            borderBottom: `1px solid ${THEME_COLORS.borderPrimary}`,
-            fontFamily: 'JetBrains Mono, monospace',
-          }}>
-            MINIMAP
-          </div>
-          <div style={{
-            position: 'relative',
-            width: '100%',
-            height: 'calc(100% - 30px)',
-            background: THEME_COLORS.bgTertiary,
-          }}>
-            {/* ミニマップのノード表示 */}
-            {networkData.nodes.map(node => {
-              const miniX = (node.x / containerDimensions.width) * 200;
-              const miniY = (node.y / containerDimensions.height) * 120;
-              
-              return (
-                <div
-                  key={`mini-${node.id}`}
-                  style={{
-                    position: 'absolute',
-                    left: miniX - 2,
-                    top: miniY - 2,
-                    width: 4,
-                    height: 4,
-                    background: node.color,
-                    borderRadius: '50%',
-                    opacity: selectedNode === node.id ? 1 : 0.7,
-                    transform: selectedNode === node.id ? 'scale(1.5)' : 'scale(1)',
-                  }}
-                />
-              );
-            })}
-            
-            {/* 現在のビューポート表示 */}
-            <div style={{
-              position: 'absolute',
-              left: Math.max(0, (-transform.x / containerDimensions.width) * 200),
-              top: Math.max(0, (-transform.y / containerDimensions.height) * 120),
-              width: Math.min(200, (window.innerWidth / containerDimensions.width / transform.scale) * 200),
-              height: Math.min(120, (window.innerHeight / containerDimensions.height / transform.scale) * 120),
-              border: `2px solid ${THEME_COLORS.primaryGreen}`,
-              borderRadius: '2px',
-              pointerEvents: 'none',
-            }} />
-          </div>
-        </div>
-      )}
+
 
       {/* AI関係性提案パネル */}
       {showSuggestionsPanel && (
@@ -4228,16 +4737,86 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         </div>
       )}
 
-      {/* Zoom Controls */}
+      {/* Bottom Controls Container: Minimap + Zoom Controls */}
       <div style={{
         position: 'absolute',
         bottom: '20px',
         right: '20px',
         display: 'flex',
-        flexDirection: 'column',
-        gap: '10px',
+        alignItems: 'flex-end',
+        gap: '20px',
         zIndex: 10,
       }}>
+        {/* Minimap (moved here from separate block) */}
+        {showMinimap && (
+          <div style={{
+            width: '200px',
+            height: '150px',
+            background: THEME_COLORS.bgSecondary,
+            border: `1px solid ${THEME_COLORS.borderPrimary}`,
+            borderRadius: '8px',
+            overflow: 'hidden',
+          }}>
+            <div style={{
+              padding: '8px',
+              fontSize: '10px',
+              fontWeight: '600',
+              color: THEME_COLORS.textSecondary,
+              borderBottom: `1px solid ${THEME_COLORS.borderPrimary}`,
+              fontFamily: 'JetBrains Mono, monospace',
+            }}>
+              MINIMAP
+            </div>
+            <div style={{
+              position: 'relative',
+              width: '100%',
+              height: 'calc(100% - 30px)',
+              background: THEME_COLORS.bgTertiary,
+            }}>
+              {/* ミニマップのノード表示 */}
+              {networkData.nodes.map(node => {
+                const miniX = (node.x / containerDimensions.width) * 200;
+                const miniY = (node.y / containerDimensions.height) * 120;
+                
+                return (
+                  <div
+                    key={`mini-${node.id}`}
+                    style={{
+                      position: 'absolute',
+                      left: miniX - 2,
+                      top: miniY - 2,
+                      width: 4,
+                      height: 4,
+                      background: node.color,
+                      borderRadius: '50%',
+                      opacity: selectedNode === node.id ? 1 : 0.7,
+                      transform: selectedNode === node.id ? 'scale(1.5)' : 'scale(1)',
+                    }}
+                  />
+                );
+              })}
+              
+              {/* 現在のビューポート表示 */}
+              <div style={{
+                position: 'absolute',
+                left: Math.max(0, (-transform.x / containerDimensions.width) * 200),
+                top: Math.max(0, (-transform.y / containerDimensions.height) * 120),
+                width: Math.min(200, (window.innerWidth / containerDimensions.width / transform.scale) * 200),
+                height: Math.min(120, (window.innerHeight / containerDimensions.height / transform.scale) * 120),
+                border: `2px solid ${THEME_COLORS.primaryGreen}`,
+                borderRadius: '2px',
+                pointerEvents: 'none',
+              }} />
+            </div>
+          </div>
+        )}
+
+        {/* Zoom Controls */}
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '10px',
+        }}>
         <button
           style={{
             background: THEME_COLORS.bgSecondary,
@@ -4280,6 +4859,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         >
           −
         </button>
+        </div>
       </div>
 
       {/* Card Editing Modal */}

@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ポコの巣 - レスポンシブテスト（独立版）</title>
+    <style>
+        /* 既存のデザインを模倣したテスト用CSS */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #0f0f23;
+            color: #e2e8f0;
+            line-height: 1.4;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .test-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: #1a1a2e;
+            border: 1px solid #333366;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .title {
+            color: #00ff88;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #a6adc8;
+            font-size: 14px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .info-card {
+            background: #1a1a2e;
+            border: 1px solid #333366;
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        .info-title {
+            color: #00ff88;
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .info-item {
+            margin-bottom: 5px;
+            font-family: monospace;
+            font-size: 13px;
+        }
+
+        .test-section {
+            background: #1a1a2e;
+            border: 1px solid #333366;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            color: #00ff88;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+
+        /* レスポンシブテスト用のグリッド */
+        .responsive-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
+            gap: clamp(12px, 2vw, 20px);
+            margin-bottom: 20px;
+        }
+
+        .grid-item {
+            background: #4a6da7;
+            padding: clamp(12px, 3vw, 20px);
+            border-radius: 6px;
+            text-align: center;
+            color: white;
+            font-size: clamp(12px, 2.5vw, 14px);
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* レスポンシブテキスト */
+        .responsive-text-sm {
+            font-size: clamp(10px, 2vw, 11px);
+        }
+
+        .responsive-text-base {
+            font-size: clamp(12px, 2.5vw, 14px);
+        }
+
+        .responsive-text-lg {
+            font-size: clamp(14px, 3vw, 16px);
+        }
+
+        /* ブレークポイント表示 */
+        .breakpoint-indicator {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: #00ff88;
+            color: #0f0f23;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 12px;
+            z-index: 1000;
+        }
+
+        /* メディアクエリテスト */
+        .device-indicator {
+            display: none;
+            background: #ff6b6b;
+            color: white;
+            padding: 10px;
+            border-radius: 6px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 767px) {
+            .device-indicator.mobile {
+                display: block;
+            }
+        }
+
+        @media (min-width: 768px) and (max-width: 991px) {
+            .device-indicator.tablet {
+                display: block;
+            }
+        }
+
+        @media (min-width: 992px) {
+            .device-indicator.desktop {
+                display: block;
+            }
+        }
+
+        /* 安全性確認 */
+        .safety-notice {
+            background: #2d5a27;
+            border: 1px solid #4caf50;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .safety-notice strong {
+            color: #4caf50;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <div class="header">
+            <div class="title">🔧 レスポンシブテスト（安全版）</div>
+            <div class="subtitle">既存コードに影響しない独立テスト環境</div>
+        </div>
+
+        <div class="safety-notice">
+            <strong>✅ 安全性確認:</strong> このテストは完全に独立しており、既存のアプリケーションコードには一切影響しません。
+        </div>
+
+        <div class="device-indicator mobile">📱 モバイル表示中 (< 768px)</div>
+        <div class="device-indicator tablet">📱 タブレット表示中 (768px - 991px)</div>
+        <div class="device-indicator desktop">💻 デスクトップ表示中 (≥ 992px)</div>
+
+        <div class="breakpoint-indicator" id="breakpoint">
+            幅: <span id="width">0</span>px
+        </div>
+
+        <div class="info-grid">
+            <div class="info-card">
+                <div class="info-title">📏 画面情報</div>
+                <div class="info-item">幅: <span id="screen-width">0</span>px</div>
+                <div class="info-item">高さ: <span id="screen-height">0</span>px</div>
+                <div class="info-item">比率: <span id="aspect-ratio">0</span></div>
+                <div class="info-item">向き: <span id="orientation">-</span></div>
+            </div>
+
+            <div class="info-card">
+                <div class="info-title">📱 デバイス判定</div>
+                <div class="info-item">タイプ: <span id="device-type">-</span></div>
+                <div class="info-item">ブレークポイント: <span id="breakpoint-name">-</span></div>
+                <div class="info-item">モバイル: <span id="is-mobile">-</span></div>
+                <div class="info-item">タブレット: <span id="is-tablet">-</span></div>
+            </div>
+
+            <div class="info-card">
+                <div class="info-title">🎨 既存テーマ確認</div>
+                <div class="info-item">背景色: #0f0f23 ✅</div>
+                <div class="info-item">アクセント: #00ff88 ✅</div>
+                <div class="info-item">セカンダリ: #1a1a2e ✅</div>
+                <div class="info-item">フォント: Space Grotesk ✅</div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <div class="section-title">📐 レスポンシブグリッドテスト</div>
+            <div class="responsive-grid">
+                <div class="grid-item">アイテム 1</div>
+                <div class="grid-item">アイテム 2</div>
+                <div class="grid-item">アイテム 3</div>
+                <div class="grid-item">アイテム 4</div>
+                <div class="grid-item">アイテム 5</div>
+                <div class="grid-item">アイテム 6</div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <div class="section-title">📝 レスポンシブテキストテスト</div>
+            <p class="responsive-text-sm">小さいテキスト (clamp 10px-11px)</p>
+            <p class="responsive-text-base">標準テキスト (clamp 12px-14px)</p>
+            <p class="responsive-text-lg">大きいテキスト (clamp 14px-16px)</p>
+        </div>
+
+        <div class="test-section">
+            <div class="section-title">📊 ブレークポイント動作テスト</div>
+            <div id="breakpoint-test">
+                ブラウザの幅を変更して、レスポンシブ動作を確認してください。
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 安全なJavaScript（既存コードに影響なし）
+        function updateScreenInfo() {
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            const aspectRatio = (width / height).toFixed(2);
+            const orientation = width > height ? 'ランドスケープ' : 'ポートレート';
+
+            // ブレークポイント判定
+            let deviceType = 'デスクトップ';
+            let breakpointName = 'xl';
+            let isMobile = false;
+            let isTablet = false;
+
+            if (width < 768) {
+                deviceType = 'モバイル';
+                breakpointName = width < 576 ? 'xs' : 'sm';
+                isMobile = true;
+            } else if (width < 992) {
+                deviceType = 'タブレット';
+                breakpointName = 'md';
+                isTablet = true;
+            } else if (width < 1200) {
+                breakpointName = 'lg';
+            }
+
+            // 表示更新
+            document.getElementById('width').textContent = width;
+            document.getElementById('screen-width').textContent = width;
+            document.getElementById('screen-height').textContent = height;
+            document.getElementById('aspect-ratio').textContent = aspectRatio;
+            document.getElementById('orientation').textContent = orientation;
+            document.getElementById('device-type').textContent = deviceType;
+            document.getElementById('breakpoint-name').textContent = breakpointName;
+            document.getElementById('is-mobile').textContent = isMobile ? 'はい' : 'いいえ';
+            document.getElementById('is-tablet').textContent = isTablet ? 'はい' : 'いいえ';
+        }
+
+        // 初期実行とリサイズ監視
+        updateScreenInfo();
+        window.addEventListener('resize', updateScreenInfo);
+
+        console.log('✅ レスポンシブテスト開始 - 既存コードへの影響なし');
+    </script>
+</body>
+</html> 

@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>レイアウト切り替えテスト - ポコの巣</title>
+    <style>
+        body {
+            font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #0f0f23;
+            color: #e2e8f0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .card {
+            background: #1a1a2e;
+            border: 1px solid #333366;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .title {
+            color: #00ff88;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        
+        .subtitle {
+            color: #00ff88;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+        
+        .status {
+            font-family: monospace;
+            background: #333366;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        
+        .success {
+            color: #4caf50;
+        }
+        
+        .warning {
+            color: #ff9800;
+        }
+        
+        .error {
+            color: #f44336;
+        }
+        
+        .button {
+            background: #00ff88;
+            color: #0f0f23;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            margin: 5px;
+        }
+        
+        .button:hover {
+            background: #00cc6a;
+        }
+        
+        .code {
+            background: #333366;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="title">🔄 レイアウト切り替えテスト</div>
+        
+        <div class="card">
+            <div class="subtitle">📊 現在の状態</div>
+            <div class="status">
+                <div>画面幅: <span id="screenWidth">-</span>px</div>
+                <div>デバイス: <span id="deviceType">-</span></div>
+                <div>推奨レイアウト: <span id="recommendedLayout">-</span></div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="subtitle">🎯 実装状況</div>
+            <div class="status success">
+                ✅ BottomNavigationLayoutコンポーネント作成完了<br>
+                ✅ App.tsxに環境変数による切り替え機能実装完了<br>
+                ✅ 既存Layoutコンポーネントとの互換性確保<br>
+                ✅ レスポンシブフック統合完了
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="subtitle">🚀 テスト手順</div>
+            <div style="color: #a6adc8;">
+                <p><strong>1. 従来レイアウトでテスト:</strong></p>
+                <div class="code">npm run dev</div>
+                <p>→ 既存のサイドメニューレイアウトで動作</p>
+                
+                <p><strong>2. ボトムナビゲーションでテスト:</strong></p>
+                <div class="code">VITE_USE_BOTTOM_NAV=true npm run dev</div>
+                <p>→ 新しいボトムナビゲーションレイアウトで動作</p>
+                
+                <p><strong>3. ブラウザ開発者ツールでレスポンシブテスト:</strong></p>
+                <ul>
+                    <li>iPhone SE (375px) → ボトムナビ表示</li>
+                    <li>iPad (768px) → サイドメニュー表示</li>
+                    <li>Desktop (1200px) → サイドメニュー表示</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="subtitle">🔧 アクセス方法</div>
+            <div style="color: #a6adc8;">
+                <p><strong>メインアプリケーション:</strong></p>
+                <button class="button" onclick="openApp()">http://localhost:5173 を開く</button>
+                
+                <p><strong>独立テストページ:</strong></p>
+                <button class="button" onclick="openBottomNavTest()">ボトムナビテストページを開く</button>
+                
+                <p><strong>デバッグ情報:</strong></p>
+                <div class="status">
+                    ブラウザのコンソールで「🎯 BottomNavigationLayout loaded」を確認
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="subtitle">⚠️ 注意事項</div>
+            <div style="color: #ff9800;">
+                <ul>
+                    <li>環境変数変更後はサーバーの再起動が必要</li>
+                    <li>既存の機能は一切変更されていません</li>
+                    <li>問題が発生した場合は環境変数をfalseに戻してください</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="subtitle">📱 レスポンシブ動作確認</div>
+            <div id="responsiveDemo" style="border: 2px solid #333366; padding: 15px; border-radius: 4px;">
+                <div style="text-align: center; color: #a6adc8;">
+                    ブラウザの幅を変更してレスポンシブ動作を確認してください
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function updateStatus() {
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            
+            let deviceType = 'デスクトップ';
+            let recommendedLayout = 'サイドメニュー';
+            
+            if (width < 768) {
+                deviceType = 'モバイル';
+                recommendedLayout = 'ボトムナビゲーション';
+            } else if (width < 992) {
+                deviceType = 'タブレット';
+                recommendedLayout = 'サイドメニュー（コンパクト）';
+            }
+            
+            document.getElementById('screenWidth').textContent = width;
+            document.getElementById('deviceType').textContent = deviceType;
+            document.getElementById('recommendedLayout').textContent = recommendedLayout;
+            
+            // レスポンシブデモの更新
+            const demo = document.getElementById('responsiveDemo');
+            if (width < 768) {
+                demo.style.background = '#2d5a27';
+                demo.style.borderColor = '#4caf50';
+                demo.innerHTML = '<div style="color: #4caf50; font-weight: bold;">📱 モバイル: ボトムナビゲーション推奨</div>';
+            } else if (width < 992) {
+                demo.style.background = '#5a4d27';
+                demo.style.borderColor = '#ff9800';
+                demo.innerHTML = '<div style="color: #ff9800; font-weight: bold;">📱 タブレット: コンパクトサイドメニュー</div>';
+            } else {
+                demo.style.background = '#27345a';
+                demo.style.borderColor = '#2196f3';
+                demo.innerHTML = '<div style="color: #2196f3; font-weight: bold;">💻 デスクトップ: フルサイドメニュー</div>';
+            }
+        }
+        
+        function openApp() {
+            window.open('http://localhost:5173', '_blank');
+        }
+        
+        function openBottomNavTest() {
+            window.open('./bottom-navigation-test.html', '_blank');
+        }
+        
+        // 初期実行とリサイズ監視
+        updateStatus();
+        window.addEventListener('resize', updateStatus);
+        
+        console.log('🔄 レイアウト切り替えテストページ読み込み完了');
+    </script>
+</body>
+</html> 

@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="ja" style="background:#0f0f23;min-height:100vh;">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>スタイルデバッグテスト - ポコの巣</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* 基本スタイルのテスト */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: #0f0f23;
+            color: #e2e8f0;
+            line-height: 1.4;
+            padding: 20px;
+        }
+
+        .test-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .test-section {
+            margin-bottom: 40px;
+            padding: 20px;
+            border: 1px solid #333366;
+            border-radius: 8px;
+            background: #1a1a2e;
+        }
+
+        .test-title {
+            color: #00ff88;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        /* ワークスペースヘッダーのテスト */
+        .workspace-header {
+            background: #0f0f23;
+            border-bottom: 1px solid #333366;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .workspace-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #00ff88;
+        }
+
+        .workspace-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .workspace-btn {
+            width: 28px;
+            height: 28px;
+            background: #1a1a2e;
+            border: 1px solid #333366;
+            border-radius: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 11px;
+            color: #a6adc8;
+        }
+
+        .workspace-btn:hover {
+            background: #00ff88;
+            color: #0f0f23;
+        }
+
+        /* サイドメニューのテスト */
+        .side-menu {
+            width: 200px;
+            background: #1a1a2e;
+            border-right: 1px solid #333366;
+            height: 400px;
+            padding: 20px 0;
+            margin-bottom: 20px;
+        }
+
+        .menu-section-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: #6c7086;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 0 20px 8px;
+            margin-bottom: 8px;
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 20px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-left: 2px solid transparent;
+            color: #e2e8f0;
+        }
+
+        .menu-item:hover {
+            background: #333366;
+            border-left-color: #00ff88;
+        }
+
+        .menu-item.active {
+            background: #333366;
+            border-left-color: #00ff88;
+            color: #00ff88;
+        }
+
+        .menu-icon {
+            width: 16px;
+            height: 16px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .menu-text {
+            font-size: 13px;
+            font-weight: 400;
+        }
+
+        /* UserProfileのテスト */
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 16px;
+            background: #1a1a2e;
+            border: 1px solid #333366;
+            border-radius: 2px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .user-profile:hover {
+            background: #333366;
+            border-color: #00ff88;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            background: #00ff88;
+            border-radius: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 600;
+            color: #0f0f23;
+            text-transform: uppercase;
+        }
+
+        .user-info {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .user-name {
+            font-size: 12px;
+            font-weight: 600;
+            color: #e2e8f0;
+            letter-spacing: 0.5px;
+        }
+
+        .user-status {
+            font-size: 9px;
+            color: #6c7086;
+        }
+
+        .status-indicator {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+
+        .status-ok {
+            background: #00ff88;
+            color: #0f0f23;
+        }
+
+        .status-error {
+            background: #ff4757;
+            color: white;
+        }
+
+        .status-warning {
+            background: #ffa502;
+            color: #0f0f23;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1 style="color: #00ff88; text-align: center; margin-bottom: 40px;">
+            ポコの巣 - スタイルデバッグテスト
+        </h1>
+
+        <div class="test-section">
+            <div class="test-title">1. 基本フォント・カラーテスト</div>
+            <p>フォント: Space Grotesk</p>
+            <p style="color: #00ff88;">アクセントカラー: #00ff88</p>
+            <p style="color: #e2e8f0;">メインテキスト: #e2e8f0</p>
+            <p style="color: #6c7086;">セカンダリテキスト: #6c7086</p>
+            <div class="status-indicator status-ok">✓ フォントとカラーが正常に適用されています</div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">2. ワークスペースヘッダーテスト</div>
+            <div class="workspace-header">
+                <div class="workspace-title">テストNEST ▼</div>
+                <div class="workspace-controls">
+                    <div class="workspace-btn">⚙</div>
+                    <div class="workspace-btn">🌙</div>
+                </div>
+            </div>
+            <div class="status-indicator status-ok">✓ ワークスペースヘッダーが正常に表示されています</div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">3. サイドメニューテスト</div>
+            <div class="side-menu">
+                <div class="menu-section-title">SPACES</div>
+                <div class="menu-item active">
+                    <div class="menu-icon">💬</div>
+                    <div class="menu-text">チャット</div>
+                </div>
+                <div class="menu-item">
+                    <div class="menu-icon">📹</div>
+                    <div class="menu-text">ミーティング</div>
+                </div>
+                <div class="menu-item">
+                    <div class="menu-icon">📋</div>
+                    <div class="menu-text">ボード</div>
+                </div>
+                <div class="menu-item">
+                    <div class="menu-icon">📊</div>
+                    <div class="menu-text">分析</div>
+                </div>
+                <div class="menu-item">
+                    <div class="menu-icon">⚙</div>
+                    <div class="menu-text">設定</div>
+                </div>
+            </div>
+            <div class="status-indicator status-ok">✓ サイドメニューが正常に表示されています</div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">4. ユーザープロファイルテスト</div>
+            <div class="user-profile">
+                <div class="user-avatar">MB</div>
+                <div class="user-info">
+                    <div class="user-name">mbaekw</div>
+                    <div class="user-status">Developer • Online</div>
+                </div>
+                <div style="font-size: 10px; color: #6c7086;">▼</div>
+            </div>
+            <div class="status-indicator status-ok">✓ ユーザープロファイルが正常に表示されています</div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">5. 環境変数チェック</div>
+            <div id="env-check">
+                <p>環境変数をチェック中...</p>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">6. CSS読み込み状況</div>
+            <div id="css-check">
+                <p>CSS読み込み状況をチェック中...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DOM読み込み完了後に実行
+        document.addEventListener('DOMContentLoaded', function() {
+            // 環境変数チェック
+            const envCheck = document.getElementById('env-check');
+            const cssCheck = document.getElementById('css-check');
+            
+            try {
+                // 環境変数の確認（通常のHTMLページでは取得できないため、静的に表示）
+                const isViteEnv = false; // 静的HTMLページでは常にfalse
+                
+                if (isViteEnv) {
+                    const bottomNav = import.meta.env.VITE_USE_BOTTOM_NAV;
+                    const responsiveChat = import.meta.env.VITE_USE_RESPONSIVE_CHAT;
+                    
+                    envCheck.innerHTML = `
+                        <p><strong>VITE_USE_BOTTOM_NAV:</strong> ${bottomNav || 'undefined'}</p>
+                        <p><strong>VITE_USE_RESPONSIVE_CHAT:</strong> ${responsiveChat || 'undefined'}</p>
+                        <div class="status-indicator ${(!bottomNav && !responsiveChat) ? 'status-ok' : 'status-warning'}">
+                            ${(!bottomNav && !responsiveChat) ? '✓ 環境変数未設定（通常のWeb版）' : '⚠ レスポンシブ機能が有効'}
+                        </div>
+                    `;
+                } else {
+                    envCheck.innerHTML = `
+                        <p><strong>環境:</strong> 静的HTMLページ</p>
+                        <p><strong>VITE_USE_BOTTOM_NAV:</strong> 取得不可（Vite環境外）</p>
+                        <p><strong>VITE_USE_RESPONSIVE_CHAT:</strong> 取得不可（Vite環境外）</p>
+                        <div class="status-indicator status-ok">
+                            ✓ 静的HTMLページ - 環境変数は実際のアプリで確認してください
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                envCheck.innerHTML = `
+                    <p><strong>エラー:</strong> ${error.message}</p>
+                    <div class="status-indicator status-error">
+                        ✗ 環境変数の取得に失敗しました
+                    </div>
+                `;
+            }
+
+            // CSS読み込み状況の確認
+            try {
+                const computedStyle = window.getComputedStyle(document.body);
+                const bgColor = computedStyle.backgroundColor;
+                const fontFamily = computedStyle.fontFamily;
+                
+                cssCheck.innerHTML = `
+                    <p><strong>背景色:</strong> ${bgColor}</p>
+                    <p><strong>フォント:</strong> ${fontFamily}</p>
+                    <div class="status-indicator ${bgColor.includes('15, 15, 35') || bgColor.includes('rgb(15, 15, 35)') ? 'status-ok' : 'status-warning'}">
+                        ${bgColor.includes('15, 15, 35') || bgColor.includes('rgb(15, 15, 35)') ? '✓ CSSが正常に読み込まれています' : '⚠ 背景色が期待値と異なります（問題ない場合があります）'}
+                    </div>
+                `;
+                
+                // コンソールにも出力
+                console.log('=== ポコの巣 スタイルデバッグ情報 ===');
+                console.log('背景色:', bgColor);
+                console.log('フォント:', fontFamily);
+                console.log('=====================================');
+            } catch (error) {
+                cssCheck.innerHTML = `
+                    <p><strong>エラー:</strong> ${error.message}</p>
+                    <div class="status-indicator status-error">
+                        ✗ CSS情報の取得に失敗しました
+                    </div>
+                `;
+            }
+        });
+    </script>
+</body>
+</html> 

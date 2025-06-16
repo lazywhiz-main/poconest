@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ポコの巣 - レスポンシブチャットテスト（独立版）</title>
+    <style>
+        /* 既存のデザインを正確に模倣 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #0f0f23;
+            color: #e2e8f0;
+            line-height: 1.4;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        /* レスポンシブブレークポイント */
+        .container {
+            display: flex;
+            height: 100vh;
+            background: #0f0f23;
+        }
+
+        /* サイドバー（デスクトップ・タブレット） */
+        .sidebar {
+            width: 240px;
+            background: #1a1a2e;
+            border-right: 1px solid #333366;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 16px;
+            border-bottom: 1px solid #333366;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .sidebar-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #e2e8f0;
+        }
+
+        .add-channel-btn {
+            width: 28px;
+            height: 28px;
+            border-radius: 14px;
+            background: #00ff88;
+            border: none;
+            color: #0f0f23;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .channel-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .channel-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            cursor: pointer;
+            min-height: 44px;
+            transition: background-color 0.2s;
+        }
+
+        .channel-item:hover {
+            background: rgba(0, 255, 136, 0.1);
+        }
+
+        .channel-item.active {
+            background: rgba(0, 255, 136, 0.15);
+            border-left: 3px solid #00ff88;
+        }
+
+        .channel-icon {
+            margin-right: 12px;
+            font-size: 16px;
+            color: #6c7086;
+        }
+
+        .channel-info {
+            flex: 1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .channel-name {
+            font-size: 14px;
+            color: #6c7086;
+        }
+
+        .channel-item.active .channel-name {
+            font-weight: 600;
+            color: #e2e8f0;
+        }
+
+        .unread-badge {
+            background: #00ff88;
+            color: #0f0f23;
+            font-size: 11px;
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 10px;
+            min-width: 20px;
+            text-align: center;
+        }
+
+        /* メッセージエリア */
+        .messages-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #0f0f23;
+        }
+
+        /* モバイルヘッダー */
+        .mobile-header {
+            display: none;
+            padding: 12px;
+            background: #1a1a2e;
+            border-bottom: 1px solid #333366;
+            justify-content: space-between;
+            align-items: center;
+            min-height: 56px;
+            position: relative;
+            z-index: 100;
+        }
+
+        .channel-selector {
+            flex: 1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-right: 12px;
+            background: none;
+            border: none;
+            color: #e2e8f0;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .mobile-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .mobile-action-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border: none;
+            color: #e2e8f0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* デスクトップヘッダー */
+        .desktop-header {
+            padding: 16px;
+            background: #1a1a2e;
+            border-bottom: 1px solid #333366;
+        }
+
+        .channel-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #e2e8f0;
+        }
+
+        .channel-description {
+            font-size: 14px;
+            color: #6c7086;
+            margin-top: 4px;
+        }
+
+        /* メッセージエリア */
+        .message-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        .messages-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 24px;
+        }
+
+        .message {
+            display: flex;
+            margin-bottom: 16px;
+            padding: 8px;
+            border-radius: 2px;
+            background: #0f0f23;
+            align-items: flex-start;
+        }
+
+        .message-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 2px;
+            background: #333366;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            color: #00ff88;
+            font-weight: 700;
+            font-size: 15px;
+        }
+
+        .message-content {
+            flex: 1;
+        }
+
+        .message-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+
+        .message-sender {
+            font-size: 13px;
+            font-weight: 500;
+            color: #e2e8f0;
+            margin-right: 8px;
+        }
+
+        .message-time {
+            font-size: 10px;
+            color: #6c7086;
+        }
+
+        .message-text {
+            font-size: 13px;
+            color: #a6adc8;
+            line-height: 18px;
+        }
+
+        .typing-indicator {
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 8px;
+            align-self: flex-start;
+            margin-left: 16px;
+            margin-bottom: 16px;
+        }
+
+        .typing-text {
+            font-size: 12px;
+            color: #6c7086;
+            font-style: italic;
+        }
+
+        .empty-message {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 32px;
+        }
+
+        .empty-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #e2e8f0;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .empty-subtitle {
+            font-size: 14px;
+            color: #6c7086;
+            text-align: center;
+        }
+
+        /* 入力エリア */
+        .input-container {
+            background: #1a1a2e;
+            border-top: 1px solid #333366;
+            padding: 16px;
+        }
+
+        .input-wrapper {
+            display: flex;
+            align-items: flex-end;
+            gap: 12px;
+        }
+
+        .message-input {
+            flex: 1;
+            background: #0f0f23;
+            border: 1px solid #333366;
+            border-radius: 2px;
+            padding: 12px;
+            color: #e2e8f0;
+            font-size: 13px;
+            min-height: 40px;
+            max-height: 120px;
+            resize: vertical;
+            font-family: inherit;
+        }
+
+        .message-input::placeholder {
+            color: #6c7086;
+        }
+
+        .send-btn {
+            background: #00ff88;
+            color: #0f0f23;
+            border: none;
+            border-radius: 2px;
+            padding: 12px 20px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 13px;
+            transition: opacity 0.2s;
+        }
+
+        .send-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* モバイルモーダル */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: flex-start;
+            align-items: flex-start;
+            z-index: 1000;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .channel-modal {
+            background: #1a1a2e;
+            border-radius: 16px;
+            margin: 60px 16px 0;
+            max-height: 80%;
+            overflow: hidden;
+            width: calc(100% - 32px);
+            transform: translateY(-300px);
+            transition: transform 0.3s ease;
+        }
+
+        .modal-overlay.show .channel-modal {
+            transform: translateY(0);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px;
+            border-bottom: 1px solid #333366;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #e2e8f0;
+        }
+
+        .modal-close {
+            width: 32px;
+            height: 32px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: none;
+            color: #e2e8f0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-channel-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .add-channel-modal {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            border-top: 1px solid #333366;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        .add-channel-text {
+            font-size: 16px;
+            font-weight: 500;
+            color: #00ff88;
+        }
+
+        /* レスポンシブ */
+        @media (max-width: 767px) {
+            .sidebar {
+                display: none;
+            }
+            
+            .mobile-header {
+                display: flex;
+            }
+            
+            .desktop-header {
+                display: none;
+            }
+            
+            .messages-list {
+                padding: 16px;
+            }
+            
+            .input-container {
+                padding-bottom: 8px;
+            }
+        }
+
+        @media (min-width: 768px) and (max-width: 991px) {
+            .sidebar {
+                width: 200px;
+            }
+        }
+
+        /* テスト用コントロール */
+        .test-controls {
+            position: fixed;
+            bottom: 80px;
+            right: 10px;
+            background: #1a1a2e;
+            border: 1px solid #333366;
+            border-radius: 8px;
+            padding: 12px;
+            z-index: 2000;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            max-width: 200px;
+        }
+
+        .test-btn {
+            background: #333366;
+            color: #e2e8f0;
+            border: none;
+            border-radius: 4px;
+            padding: 6px 12px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .test-btn:hover {
+            background: #00ff88;
+            color: #0f0f23;
+        }
+
+        .test-btn.active {
+            background: #00ff88;
+            color: #0f0f23;
+        }
+
+        .screen-info {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(26, 26, 46, 0.9);
+            border: 1px solid #333366;
+            border-radius: 4px;
+            padding: 8px 12px;
+            font-size: 12px;
+            color: #6c7086;
+            z-index: 2000;
+        }
+
+        /* モバイル時のテストコントロール調整 */
+        @media (max-width: 767px) {
+            .test-controls {
+                bottom: 120px;
+                right: 5px;
+                left: 5px;
+                max-width: none;
+                flex-direction: column;
+            }
+            
+            .test-btn {
+                width: 100%;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- テスト用コントロール -->
+    <div class="test-controls">
+        <button class="test-btn" onclick="setScreenSize(390, 844)">iPhone 12 Pro</button>
+        <button class="test-btn" onclick="setScreenSize(768, 1024)">iPad</button>
+        <button class="test-btn" onclick="setScreenSize(1200, 800)">Desktop</button>
+        <button class="test-btn" onclick="toggleChannelModal()">チャンネル選択</button>
+        <button class="test-btn" onclick="addMessage()">メッセージ追加</button>
+        <button class="test-btn" onclick="toggleTyping()">タイピング表示</button>
+    </div>
+
+    <!-- 画面情報表示 -->
+    <div class="screen-info">
+        <span id="screen-size">画面: <span id="width">0</span>×<span id="height">0</span>px</span>
+        <span id="breakpoint"> | ブレークポイント: <span id="bp-name">Desktop</span></span>
+    </div>
+
+    <!-- メインコンテナ -->
+    <div class="container">
+        <!-- サイドバー（デスクトップ・タブレット） -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-title">チャンネル</div>
+                <button class="add-channel-btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19"/>
+                        <line x1="5" y1="12" x2="19" y2="12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="channel-list">
+                <div class="channel-item active">
+                    <div class="channel-icon">#</div>
+                    <div class="channel-info">
+                        <div class="channel-name">一般</div>
+                        <div class="unread-badge">3</div>
+                    </div>
+                </div>
+                <div class="channel-item">
+                    <div class="channel-icon">#</div>
+                    <div class="channel-info">
+                        <div class="channel-name">開発</div>
+                    </div>
+                </div>
+                <div class="channel-item">
+                    <div class="channel-icon">#</div>
+                    <div class="channel-info">
+                        <div class="channel-name">雑談</div>
+                        <div class="unread-badge">1</div>
+                    </div>
+                </div>
+                <div class="channel-item">
+                    <div class="channel-icon">#</div>
+                    <div class="channel-info">
+                        <div class="channel-name">アイデア</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- メッセージエリア -->
+        <div class="messages-container">
+            <!-- モバイルヘッダー -->
+            <div class="mobile-header">
+                <button class="channel-selector" onclick="toggleChannelModal()">
+                    <span># 一般</span>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="1"/>
+                        <circle cx="19" cy="12" r="1"/>
+                        <circle cx="5" cy="12" r="1"/>
+                    </svg>
+                </button>
+                <div class="mobile-actions">
+                    <button class="mobile-action-btn">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8"/>
+                            <path d="M21 21l-4.35-4.35"/>
+                        </svg>
+                    </button>
+                    <button class="mobile-action-btn">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="1"/>
+                            <circle cx="19" cy="12" r="1"/>
+                            <circle cx="5" cy="12" r="1"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- デスクトップヘッダー -->
+            <div class="desktop-header">
+                <div class="channel-title"># 一般</div>
+                <div class="channel-description">チーム全体での一般的な議論</div>
+            </div>
+
+            <!-- メッセージエリア -->
+            <div class="message-area">
+                <div class="messages-list" id="messages-list">
+                    <div class="message">
+                        <div class="message-avatar">A</div>
+                        <div class="message-content">
+                            <div class="message-header">
+                                <div class="message-sender">Alice</div>
+                                <div class="message-time">14:30</div>
+                            </div>
+                            <div class="message-text">こんにちは！新しいプロジェクトについて話し合いましょう。</div>
+                        </div>
+                    </div>
+                    <div class="message">
+                        <div class="message-avatar">B</div>
+                        <div class="message-content">
+                            <div class="message-header">
+                                <div class="message-sender">Bob</div>
+                                <div class="message-time">14:32</div>
+                            </div>
+                            <div class="message-text">いいですね！どのような機能を実装する予定ですか？</div>
+                        </div>
+                    </div>
+                    <div class="message">
+                        <div class="message-avatar">C</div>
+                        <div class="message-content">
+                            <div class="message-header">
+                                <div class="message-sender">Charlie</div>
+                                <div class="message-time">14:35</div>
+                            </div>
+                            <div class="message-text">レスポンシブデザインとモバイル対応が重要だと思います。ユーザビリティを向上させましょう。</div>
+                        </div>
+                    </div>
+                    <div class="typing-indicator" id="typing-indicator" style="display: none;">
+                        <div class="typing-text">ポコは入力中...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 入力エリア -->
+            <div class="input-container">
+                <div class="input-wrapper">
+                    <textarea 
+                        class="message-input" 
+                        id="message-input"
+                        placeholder="# 一般にメッセージを送信"
+                        rows="1"
+                    ></textarea>
+                    <button class="send-btn" id="send-btn" onclick="sendMessage()">送信</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- モバイル用チャンネル選択モーダル -->
+    <div class="modal-overlay" id="channel-modal">
+        <div class="channel-modal">
+            <div class="modal-header">
+                <div class="modal-title">チャンネル</div>
+                <button class="modal-close" onclick="toggleChannelModal()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-channel-list">
+                <div class="channel-item active" onclick="selectChannel('一般', this)">
+                    <div class="channel-icon">#</div>
+                    <div class="channel-info">
+                        <div class="channel-name">一般</div>
+                        <div class="unread-badge">3</div>
+                    </div>
+                </div>
+                <div class="channel-item" onclick="selectChannel('開発', this)">
+                    <div class="channel-icon">#</div>
+                    <div class="channel-info">
+                        <div class="channel-name">開発</div>
+                    </div>
+                </div>
+                <div class="channel-item" onclick="selectChannel('雑談', this)">
+                    <div class="channel-icon">#</div>
+                    <div class="channel-info">
+                        <div class="channel-name">雑談</div>
+                        <div class="unread-badge">1</div>
+                    </div>
+                </div>
+                <div class="channel-item" onclick="selectChannel('アイデア', this)">
+                    <div class="channel-icon">#</div>
+                    <div class="channel-info">
+                        <div class="channel-name">アイデア</div>
+                    </div>
+                </div>
+            </div>
+            <div class="add-channel-modal">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                <span class="add-channel-text">新しいチャンネル</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let messageCounter = 4;
+        let isTyping = false;
+
+        // 画面サイズ情報を更新
+        function updateScreenInfo() {
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            document.getElementById('width').textContent = width;
+            document.getElementById('height').textContent = height;
+            
+            let breakpoint = 'Desktop';
+            if (width < 768) {
+                breakpoint = 'Mobile';
+            } else if (width < 992) {
+                breakpoint = 'Tablet';
+            }
+            document.getElementById('bp-name').textContent = breakpoint;
+        }
+
+        // 画面サイズを設定（テスト用）
+        function setScreenSize(width, height) {
+            // 実際のブラウザでは画面サイズを変更できないので、
+            // 代わりにコンテナのサイズを変更してシミュレート
+            const container = document.querySelector('.container');
+            container.style.width = width + 'px';
+            container.style.height = height + 'px';
+            container.style.margin = '0 auto';
+            container.style.border = '2px solid #00ff88';
+            
+            // 画面情報を更新
+            document.getElementById('width').textContent = width;
+            document.getElementById('height').textContent = height;
+            
+            let breakpoint = 'Desktop';
+            if (width < 768) {
+                breakpoint = 'Mobile';
+            } else if (width < 992) {
+                breakpoint = 'Tablet';
+            }
+            document.getElementById('bp-name').textContent = breakpoint;
+        }
+
+        // チャンネルモーダルの表示切り替え
+        function toggleChannelModal() {
+            const modal = document.getElementById('channel-modal');
+            modal.classList.toggle('show');
+        }
+
+        // チャンネル選択
+        function selectChannel(channelName, element) {
+            // アクティブ状態を更新
+            document.querySelectorAll('.channel-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            element.classList.add('active');
+            
+            // ヘッダーのチャンネル名を更新
+            document.querySelector('.channel-selector span').textContent = `# ${channelName}`;
+            document.querySelector('.channel-title').textContent = `# ${channelName}`;
+            
+            // モーダルを閉じる
+            toggleChannelModal();
+        }
+
+        // メッセージ追加
+        function addMessage() {
+            const messagesList = document.getElementById('messages-list');
+            const names = ['David', 'Eve', 'Frank', 'Grace', 'Henry'];
+            const messages = [
+                'いい感じですね！',
+                'この機能は便利そうです。',
+                'テストしてみました。問題ありません。',
+                'ドキュメントも更新しておきます。',
+                'お疲れ様でした！'
+            ];
+            
+            const name = names[Math.floor(Math.random() * names.length)];
+            const message = messages[Math.floor(Math.random() * messages.length)];
+            const time = new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+            
+            const messageElement = document.createElement('div');
+            messageElement.className = 'message';
+            messageElement.innerHTML = `
+                <div class="message-avatar">${name[0]}</div>
+                <div class="message-content">
+                    <div class="message-header">
+                        <div class="message-sender">${name}</div>
+                        <div class="message-time">${time}</div>
+                    </div>
+                    <div class="message-text">${message}</div>
+                </div>
+            `;
+            
+            // タイピングインジケーターの前に挿入
+            const typingIndicator = document.getElementById('typing-indicator');
+            messagesList.insertBefore(messageElement, typingIndicator);
+            
+            // スクロールを最下部に
+            messagesList.scrollTop = messagesList.scrollHeight;
+            
+            messageCounter++;
+        }
+
+        // タイピング表示切り替え
+        function toggleTyping() {
+            const typingIndicator = document.getElementById('typing-indicator');
+            isTyping = !isTyping;
+            typingIndicator.style.display = isTyping ? 'block' : 'none';
+            
+            if (isTyping) {
+                const messagesList = document.getElementById('messages-list');
+                messagesList.scrollTop = messagesList.scrollHeight;
+            }
+        }
+
+        // メッセージ送信
+        function sendMessage() {
+            const input = document.getElementById('message-input');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            const messagesList = document.getElementById('messages-list');
+            const time = new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+            
+            const messageElement = document.createElement('div');
+            messageElement.className = 'message';
+            messageElement.innerHTML = `
+                <div class="message-avatar">あ</div>
+                <div class="message-content">
+                    <div class="message-header">
+                        <div class="message-sender">あなた</div>
+                        <div class="message-time">${time}</div>
+                    </div>
+                    <div class="message-text">${message}</div>
+                </div>
+            `;
+            
+            // タイピングインジケーターの前に挿入
+            const typingIndicator = document.getElementById('typing-indicator');
+            messagesList.insertBefore(messageElement, typingIndicator);
+            
+            // 入力をクリア
+            input.value = '';
+            
+            // スクロールを最下部に
+            messagesList.scrollTop = messagesList.scrollHeight;
+            
+            // 自動でボットの返信をシミュレート
+            setTimeout(() => {
+                toggleTyping();
+                setTimeout(() => {
+                    addMessage();
+                    toggleTyping();
+                }, 2000);
+            }, 500);
+        }
+
+        // 入力エリアのEnterキー処理
+        document.getElementById('message-input').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // 送信ボタンの有効/無効切り替え
+        document.getElementById('message-input').addEventListener('input', function(e) {
+            const sendBtn = document.getElementById('send-btn');
+            sendBtn.disabled = !e.target.value.trim();
+        });
+
+        // モーダル外クリックで閉じる
+        document.getElementById('channel-modal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                toggleChannelModal();
+            }
+        });
+
+        // 初期化
+        window.addEventListener('resize', updateScreenInfo);
+        updateScreenInfo();
+        
+        // 初期状態で送信ボタンを無効化
+        document.getElementById('send-btn').disabled = true;
+        
+        console.log('🎯 レスポンシブチャットテスト準備完了！');
+        console.log('📱 モバイル: < 768px');
+        console.log('📱 タブレット: 768px - 991px');  
+        console.log('🖥️ デスクトップ: ≥ 992px');
+    </script>
+</body>
+</html> 
