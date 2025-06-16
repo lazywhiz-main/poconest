@@ -103,8 +103,8 @@ const EDGE_COLORS = {
 
 // ノードサイズの取得（重複回避のためさらに調整）
 const getNodeSize = (size: 'small' | 'medium' | 'large' | 'xlarge') => {
-  const sizes = { small: 28, medium: 38, large: 48, xlarge: 58 }; // 全体的にサイズを少し縮小
-  return sizes[size] || 38;
+  const sizes = { small: 20, medium: 26, large: 32, xlarge: 38 }; // さらに小さく、よりコンパクトに
+  return sizes[size] || 26;
 };
 
 const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
@@ -124,8 +124,8 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   const [activeFilters, setActiveFilters] = useState<{ tags: string[], types: string[] }>({ tags: [], types: [] });
   const [detectedClusters, setDetectedClusters] = useState<string[][]>([]);
   
-  // 動的な描画領域サイズ
-  const [containerDimensions, setContainerDimensions] = useState({ width: 1200, height: 900 });
+  // 動的な描画領域サイズ（より大きく）
+  const [containerDimensions, setContainerDimensions] = useState({ width: 1600, height: 1200 });
   
   // ノード位置を独立して管理
   const [nodePositions, setNodePositions] = useState<{ [key: string]: { x: number, y: number } }>({});
@@ -184,6 +184,8 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   const [showClusteringControls, setShowClusteringControls] = useState(false);
   const [showFilteredClusters, setShowFilteredClusters] = useState(false);
   const [filteredClusters, setFilteredClusters] = useState<string[][]>([]);
+  const [isFilterPanelCollapsed, setIsFilterPanelCollapsed] = useState(false);
+  const [showMinimap, setShowMinimap] = useState(true);
 
   // 統合分析フィルターの状態
   const [methodFilters, setMethodFilters] = useState({
@@ -2779,33 +2781,67 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
                   handleNodeClick(node.id);
                 }}
                 onMouseEnter={(e) => {
-                  const label = e.currentTarget.querySelector('.node-label') as HTMLElement;
-                  if (label) label.style.opacity = '1';
+                  // ホバー時にツールチップ表示
+                  const tooltip = document.createElement('div');
+                  tooltip.id = `tooltip-${node.id}`;
+                  tooltip.style.cssText = `
+                    position: fixed;
+                    background: ${THEME_COLORS.bgSecondary};
+                    border: 1px solid ${THEME_COLORS.borderPrimary};
+                    border-radius: 8px;
+                    padding: 12px;
+                    color: ${THEME_COLORS.textPrimary};
+                    font-size: 12px;
+                    font-family: 'JetBrains Mono, monospace';
+                    z-index: 1000;
+                    max-width: 250px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                    pointer-events: none;
+                  `;
+                  tooltip.innerHTML = `
+                    <div style="font-weight: 600; margin-bottom: 4px; color: ${THEME_COLORS.primaryGreen};">${node.title}</div>
+                    <div style="font-size: 10px; color: ${THEME_COLORS.textMuted}; margin-bottom: 6px;">${node.type}</div>
+                    <div style="font-size: 11px; line-height: 1.3;">${node.content.substring(0, 100)}${node.content.length > 100 ? '...' : ''}</div>
+                    ${node.tags.length > 0 ? `<div style="margin-top: 6px; font-size: 10px; color: ${THEME_COLORS.primaryCyan};">#${node.tags.join(' #')}</div>` : ''}
+                  `;
+                  
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  tooltip.style.left = `${rect.right + 10}px`;
+                  tooltip.style.top = `${rect.top}px`;
+                  
+                  document.body.appendChild(tooltip);
                 }}
                 onMouseLeave={(e) => {
-                  if (!isSelected) {
-                    const label = e.currentTarget.querySelector('.node-label') as HTMLElement;
-                    if (label) label.style.opacity = '0';
+                  // ツールチップ削除
+                  const tooltip = document.getElementById(`tooltip-${node.id}`);
+                  if (tooltip) {
+                    tooltip.remove();
                   }
                 }}
               >
-                <div style={{
-                  ...styles.nodeIcon,
-                  fontSize: size <= 50 ? '14px' : size >= 80 ? '24px' : '18px',
-                  color: THEME_COLORS.textPrimary,
-                }}>
-                  {node.icon || '●'}
-                </div>
+                {/* コンパクトなテキストラベル（常時表示） */}
                 <div 
                   className="node-label"
                   style={{
-                    ...styles.nodeLabel,
-                    opacity: isSelected ? 1 : 0,
-                    color: isSelected ? THEME_COLORS.primaryGreen : THEME_COLORS.textSecondary,
-                    borderColor: isSelected ? THEME_COLORS.primaryGreen : THEME_COLORS.borderPrimary,
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    fontSize: size <= 26 ? '8px' : '9px',
+                    fontWeight: '600',
+                    color: isSelected ? THEME_COLORS.primaryGreen : THEME_COLORS.textPrimary,
+                    textAlign: 'center',
+                    lineHeight: '1.1',
+                    maxWidth: `${size - 4}px`,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    fontFamily: 'JetBrains Mono, monospace',
+                    letterSpacing: '-0.5px',
+                    textShadow: '0 1px 2px rgba(0,0,0,0.5)',
                   }}
                 >
-                  {node.title}
+                  {node.title.length > 8 ? node.title.substring(0, 8) + '...' : node.title}
                 </div>
               </div>
             );
@@ -2898,7 +2934,26 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
             e.currentTarget.style.transform = 'translateY(0)';
           }}
         >
-          Reset View
+          🎯 Reset View
+        </button>
+        
+        <button
+          style={styles.controlBtn}
+          onClick={() => setShowMinimap(!showMinimap)}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = THEME_COLORS.primaryCyan;
+            e.currentTarget.style.color = THEME_COLORS.textInverse;
+            e.currentTarget.style.borderColor = THEME_COLORS.primaryCyan;
+            e.currentTarget.style.transform = 'translateY(-2px)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = THEME_COLORS.bgSecondary;
+            e.currentTarget.style.color = THEME_COLORS.textSecondary;
+            e.currentTarget.style.borderColor = THEME_COLORS.borderPrimary;
+            e.currentTarget.style.transform = 'translateY(0)';
+          }}
+        >
+          {showMinimap ? '🗺️ Hide Map' : '🗺️ Show Map'}
         </button>
         <button
           style={styles.controlBtn}
@@ -3133,22 +3188,53 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         </div>
       </div>
 
-      {/* Filter Panel */}
+      {/* Collapsible Filter Panel */}
       <div style={{
         ...styles.panel,
         bottom: '20px',
         left: '20px',
-        minWidth: '220px',
+        minWidth: isFilterPanelCollapsed ? '120px' : '220px',
+        maxHeight: isFilterPanelCollapsed ? '50px' : '400px',
+        overflow: 'hidden',
+        transition: 'all 0.3s ease',
       }}>
         <div style={{
-          color: THEME_COLORS.textPrimary,
-          fontSize: '14px',
-          fontWeight: '600',
-          marginBottom: '16px',
-          fontFamily: 'JetBrains Mono, monospace',
-        }}>
-          Filters
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: isFilterPanelCollapsed ? '0' : '16px',
+          cursor: 'pointer',
+        }}
+        onClick={() => setIsFilterPanelCollapsed(!isFilterPanelCollapsed)}
+        >
+          <div style={{
+            color: THEME_COLORS.textPrimary,
+            fontSize: '14px',
+            fontWeight: '600',
+            fontFamily: 'JetBrains Mono, monospace',
+          }}>
+            Filters
+          </div>
+          <div style={{
+            color: THEME_COLORS.textMuted,
+            fontSize: '12px',
+            transform: isFilterPanelCollapsed ? 'rotate(180deg)' : 'rotate(0deg)',
+            transition: 'transform 0.3s ease',
+          }}>
+            ▼
+          </div>
         </div>
+        
+        {!isFilterPanelCollapsed && (
+          <div style={{ animation: 'fadeIn 0.3s ease' }}>
+            <style>
+              {`
+                @keyframes fadeIn {
+                  from { opacity: 0; transform: translateY(-10px); }
+                  to { opacity: 1; transform: translateY(0); }
+                }
+              `}
+            </style>
         
         <div style={{ marginBottom: '16px' }}>
           <div style={{
@@ -3354,7 +3440,77 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
             })}
           </div>
         </div>
+          </div>
+        )}
       </div>
+
+      {/* Minimap */}
+      {showMinimap && (
+        <div style={{
+          position: 'absolute',
+          bottom: '20px',
+          right: '20px',
+          width: '200px',
+          height: '150px',
+          background: THEME_COLORS.bgSecondary,
+          border: `1px solid ${THEME_COLORS.borderPrimary}`,
+          borderRadius: '8px',
+          overflow: 'hidden',
+          zIndex: 10,
+        }}>
+          <div style={{
+            padding: '8px',
+            fontSize: '10px',
+            fontWeight: '600',
+            color: THEME_COLORS.textSecondary,
+            borderBottom: `1px solid ${THEME_COLORS.borderPrimary}`,
+            fontFamily: 'JetBrains Mono, monospace',
+          }}>
+            MINIMAP
+          </div>
+          <div style={{
+            position: 'relative',
+            width: '100%',
+            height: 'calc(100% - 30px)',
+            background: THEME_COLORS.bgTertiary,
+          }}>
+            {/* ミニマップのノード表示 */}
+            {networkData.nodes.map(node => {
+              const miniX = (node.x / containerDimensions.width) * 200;
+              const miniY = (node.y / containerDimensions.height) * 120;
+              
+              return (
+                <div
+                  key={`mini-${node.id}`}
+                  style={{
+                    position: 'absolute',
+                    left: miniX - 2,
+                    top: miniY - 2,
+                    width: 4,
+                    height: 4,
+                    background: node.color,
+                    borderRadius: '50%',
+                    opacity: selectedNode === node.id ? 1 : 0.7,
+                    transform: selectedNode === node.id ? 'scale(1.5)' : 'scale(1)',
+                  }}
+                />
+              );
+            })}
+            
+            {/* 現在のビューポート表示 */}
+            <div style={{
+              position: 'absolute',
+              left: Math.max(0, (-transform.x / containerDimensions.width) * 200),
+              top: Math.max(0, (-transform.y / containerDimensions.height) * 120),
+              width: Math.min(200, (window.innerWidth / containerDimensions.width / transform.scale) * 200),
+              height: Math.min(120, (window.innerHeight / containerDimensions.height / transform.scale) * 120),
+              border: `2px solid ${THEME_COLORS.primaryGreen}`,
+              borderRadius: '2px',
+              pointerEvents: 'none',
+            }} />
+          </div>
+        </div>
+      )}
 
       {/* AI関係性提案パネル */}
       {showSuggestionsPanel && (
