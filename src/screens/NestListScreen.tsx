@@ -8,6 +8,7 @@ import { ServiceHeader } from '../components/ServiceHeader';
 import CommonButton from '../components/CommonButton';
 import Icon from '../components/ui/Icon';
 import { useNest } from '../features/nest/contexts/NestContext';
+import LegalFooter from '../components/layout/LegalFooter';
 
 interface OwnerInfo {
   id: string;
@@ -330,6 +331,7 @@ export const NestListScreen: React.FC = () => {
           )}
         </div>
       </main>
+      <LegalFooter />
     </div>
   );
 };  

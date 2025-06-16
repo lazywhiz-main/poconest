@@ -1,0 +1,2065 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POCONEST - チームの知恵を、成長の原動力に</title>
+    <meta name="description" content="散らばったフロー情報からAIが自動で洞察を抽出。組織の集合知を可視化し、戦略的意思決定を支援するナレッジプラットフォーム">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #00ff88;
+            --primary-dark: #00cc6a;
+            --secondary: #6366f1;
+            --background: #0f0f23;
+            --surface: #1a1a2e;
+            --surface-light: #333366;
+            --text: #e2e8f0;
+            --text-muted: #a6adc8;
+            --text-faded: #6c7086;
+            --accent-orange: #f59e0b;
+            --accent-pink: #ec4899;
+            --accent-purple: #8b5cf6;
+        }
+
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: var(--background);
+            color: var(--text);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .container-wide {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .section {
+            padding: 120px 0;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 80px;
+        }
+
+        .section-title {
+            font-size: 48px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: var(--text);
+        }
+
+        .section-subtitle {
+            font-size: 20px;
+            color: var(--text-muted);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header {
+            background: rgba(15, 15, 35, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--surface-light);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 0;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .logo-icon::before {
+            content: '';
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: var(--background);
+            border-radius: 50%;
+            box-shadow: 
+                0 0 0 0 var(--background),
+                8px 0 0 0 var(--background),
+                -8px 0 0 0 var(--background),
+                0 8px 0 0 var(--background),
+                0 -8px 0 0 var(--background),
+                6px 6px 0 0 var(--background),
+                -6px -6px 0 0 var(--background),
+                6px -6px 0 0 var(--background),
+                -6px 6px 0 0 var(--background);
+        }
+
+        .logo-text {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text);
+            text-transform: lowercase;
+            letter-spacing: 1px;
+        }
+
+        .nav {
+            display: flex;
+            gap: 32px;
+            align-items: center;
+        }
+
+        .nav-link {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 14px;
+            transition: color 0.2s ease;
+        }
+
+        .nav-link:hover {
+            color: var(--text);
+        }
+
+        .header-cta {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .mobile-menu-btn {
+            display: none;
+            background: none;
+            border: none;
+            color: var(--text);
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 14px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: var(--background);
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 255, 136, 0.3);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--text);
+            border: 1px solid var(--surface-light);
+        }
+
+        .btn-secondary:hover {
+            background: var(--surface);
+            border-color: var(--primary);
+        }
+
+        .btn-large {
+            padding: 16px 32px;
+            font-size: 16px;
+        }
+
+        .btn-white {
+            background: white;
+            color: var(--background);
+        }
+
+        .btn-white:hover {
+            background: #f0f0f0;
+            transform: translateY(-2px);
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: white;
+            border: 2px solid white;
+        }
+
+        .btn-outline:hover {
+            background: white;
+            color: var(--background);
+        }
+
+        /* Hero Section */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(135deg, var(--background) 0%, #1a1a3a 50%, var(--background) 100%);
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 20% 80%, rgba(0, 255, 136, 0.15) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 20%, rgba(99, 102, 241, 0.1) 0%, transparent 50%);
+        }
+
+        .hero-content {
+            text-align: center;
+            position: relative;
+            z-index: 2;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .hero-badge {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            color: var(--primary);
+            padding: 8px 20px;
+            border-radius: 50px;
+            font-size: 14px;
+            font-weight: 600;
+            display: inline-block;
+            margin-bottom: 32px;
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        .hero-text h1 {
+            font-size: 64px;
+            font-weight: 800;
+            line-height: 1.1;
+            margin-bottom: 24px;
+            background: linear-gradient(135deg, var(--text) 0%, var(--primary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: fadeInUp 0.8s ease-out 0.2s both;
+        }
+
+        .hero-subtitle {
+            font-size: 22px;
+            color: var(--text-muted);
+            margin-bottom: 48px;
+            line-height: 1.5;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            animation: fadeInUp 1s ease-out 0.4s both;
+        }
+
+        .hero-cta {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-bottom: 60px;
+            animation: fadeInUp 1.2s ease-out 0.6s both;
+        }
+
+        .primary-cta {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .primary-cta::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.6s ease;
+        }
+
+        .primary-cta:hover::before {
+            left: 100%;
+        }
+
+        .trust-proof {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 48px;
+            animation: fadeInUp 1.4s ease-out 0.8s both;
+        }
+
+        .trust-stat {
+            text-align: center;
+        }
+
+        .trust-number {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--primary);
+            font-family: 'JetBrains Mono', monospace;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .trust-label {
+            font-size: 12px;
+            color: var(--text-faded);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Interactive Demo Section */
+        .demo-section {
+            padding: 120px 0;
+            background: var(--surface);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .demo-container {
+            display: grid;
+            grid-template-columns: 1fr 1.2fr;
+            gap: 80px;
+            align-items: center;
+        }
+
+        .demo-text {
+            padding-left: 40px;
+        }
+
+        .demo-title {
+            font-size: 48px;
+            font-weight: 700;
+            margin-bottom: 24px;
+            color: var(--text);
+        }
+
+        .demo-description {
+            font-size: 18px;
+            color: var(--text-muted);
+            margin-bottom: 32px;
+            line-height: 1.6;
+        }
+
+        .demo-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        .demo-stat {
+            padding: 20px;
+            background: rgba(0, 255, 136, 0.05);
+            border-radius: 8px;
+            border-left: 4px solid var(--primary);
+        }
+
+        .demo-stat-number {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary);
+            font-family: 'JetBrains Mono', monospace;
+            margin-bottom: 4px;
+        }
+
+        .demo-stat-label {
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        .interactive-demo {
+            background: var(--background);
+            border: 1px solid var(--surface-light);
+            border-radius: 16px;
+            padding: 32px;
+            position: relative;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .demo-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+        }
+
+        .demo-tab {
+            padding: 8px 16px;
+            background: var(--surface);
+            border: 1px solid var(--surface-light);
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .demo-tab.active {
+            background: var(--primary);
+            color: var(--background);
+            border-color: var(--primary);
+        }
+
+        .demo-tab:hover:not(.active) {
+            background: var(--surface-light);
+        }
+
+        .demo-content {
+            min-height: 300px;
+        }
+
+        .demo-content-panel {
+            display: none;
+        }
+
+        .demo-content-panel.active {
+            display: block;
+        }
+
+        .insight-stream {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .insight-item {
+            background: var(--surface);
+            border: 1px solid var(--surface-light);
+            border-radius: 8px;
+            padding: 16px;
+            transform: translateX(-20px);
+            opacity: 0;
+            animation: slideInRight 0.6s ease-out forwards;
+        }
+
+        .insight-item:nth-child(1) { animation-delay: 0.2s; }
+        .insight-item:nth-child(2) { animation-delay: 0.4s; }
+        .insight-item:nth-child(3) { animation-delay: 0.6s; }
+
+        .insight-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .insight-tag {
+            background: var(--primary);
+            color: var(--background);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .insight-confidence {
+            font-size: 11px;
+            color: var(--text-faded);
+            font-family: 'JetBrains Mono', monospace;
+            margin-left: auto;
+        }
+
+        .insight-text {
+            font-size: 14px;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        /* Problem-Solution Combined */
+        .problem-solution {
+            padding: 120px 0;
+            background: linear-gradient(135deg, var(--background) 0%, var(--surface) 100%);
+        }
+
+        .ps-header {
+            text-align: center;
+            margin-bottom: 80px;
+        }
+
+        .ps-title {
+            font-size: 48px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: var(--text);
+        }
+
+        .ps-subtitle {
+            font-size: 20px;
+            color: var(--text-muted);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .ps-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 80px;
+        }
+
+        .problems-side h3 {
+            font-size: 32px;
+            font-weight: 600;
+            color: #ff6b6b;
+            margin-bottom: 32px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .solutions-side h3 {
+            font-size: 32px;
+            font-weight: 600;
+            color: var(--primary);
+            margin-bottom: 32px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .ps-item {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 32px;
+            padding: 24px;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .problem-item {
+            background: rgba(255, 107, 107, 0.05);
+            border-left: 4px solid #ff6b6b;
+        }
+
+        .solution-item {
+            background: rgba(0, 255, 136, 0.05);
+            border-left: 4px solid var(--primary);
+        }
+
+        .ps-item:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+        }
+
+        .ps-icon {
+            font-size: 24px;
+            flex-shrink: 0;
+            margin-top: 4px;
+        }
+
+        .ps-content h4 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+
+        .ps-content p {
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        /* Features Showcase */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 40px;
+        }
+
+        .feature-card {
+            background: var(--surface);
+            border: 1px solid var(--surface-light);
+            border-radius: 12px;
+            padding: 32px;
+            text-align: center;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--primary);
+        }
+
+        .feature-card::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, var(--primary) 0%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+
+        .feature-card:hover::after {
+            opacity: 0.03;
+        }
+
+        .feature-demo {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+            font-size: 32px;
+        }
+
+        .feature-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--text);
+        }
+
+        .feature-description {
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        /* How It Works */
+        .workflow {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 40px;
+            position: relative;
+        }
+
+        .workflow::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 15%;
+            right: 15%;
+            height: 2px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary), var(--primary));
+            z-index: 1;
+        }
+
+        .workflow-step {
+            background: var(--surface);
+            border: 1px solid var(--surface-light);
+            border-radius: 12px;
+            padding: 32px;
+            text-align: center;
+            position: relative;
+            z-index: 2;
+        }
+
+        .step-number {
+            width: 48px;
+            height: 48px;
+            background: var(--primary);
+            color: var(--background);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 18px;
+            margin: 0 auto 24px;
+        }
+
+        .step-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--text);
+        }
+
+        .step-description {
+            color: var(--text-muted);
+        }
+
+        /* Social Proof */
+        .testimonials {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 32px;
+        }
+
+        .testimonial {
+            background: var(--surface);
+            border: 1px solid var(--surface-light);
+            border-radius: 12px;
+            padding: 32px;
+            position: relative;
+        }
+
+        .testimonial::before {
+            content: '"';
+            position: absolute;
+            top: -10px;
+            left: 20px;
+            font-size: 60px;
+            color: var(--primary);
+            font-weight: 700;
+        }
+
+        .testimonial-text {
+            color: var(--text-muted);
+            font-style: italic;
+            margin-bottom: 24px;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+
+        .testimonial-author {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .author-avatar {
+            width: 48px;
+            height: 48px;
+            background: var(--primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: var(--background);
+        }
+
+        .author-info h4 {
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 4px;
+        }
+
+        .author-info p {
+            color: var(--text-faded);
+            font-size: 14px;
+        }
+
+        /* Pricing */
+        .pricing {
+            background: var(--surface);
+        }
+
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 32px;
+        }
+
+        .pricing-card {
+            background: var(--background);
+            border: 1px solid var(--surface-light);
+            border-radius: 12px;
+            padding: 40px 32px;
+            text-align: center;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .pricing-card.featured {
+            border-color: var(--primary);
+            transform: scale(1.05);
+        }
+
+        .pricing-card.featured::before {
+            content: 'Most Popular';
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--primary);
+            color: var(--background);
+            padding: 6px 20px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .plan-name {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+
+        .plan-price {
+            font-size: 48px;
+            font-weight: 700;
+            color: var(--primary);
+            font-family: 'JetBrains Mono', monospace;
+            margin-bottom: 8px;
+        }
+
+        .plan-period {
+            color: var(--text-faded);
+            margin-bottom: 32px;
+        }
+
+        .plan-features {
+            list-style: none;
+            margin-bottom: 32px;
+        }
+
+        .plan-features li {
+            padding: 8px 0;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .plan-features li::before {
+            content: '✓';
+            color: var(--primary);
+            font-weight: 700;
+            font-size: 16px;
+        }
+
+        /* CTA Section */
+        .cta-section {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: var(--background);
+            text-align: center;
+        }
+
+        .cta-content h2 {
+            font-size: 48px;
+            font-weight: 700;
+            margin-bottom: 20px;
+        }
+
+        .cta-content p {
+            font-size: 20px;
+            margin-bottom: 32px;
+            opacity: 0.9;
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+        }
+
+        /* Footer */
+        .footer {
+            background: var(--background);
+            border-top: 1px solid var(--surface-light);
+            padding: 60px 0 40px;
+        }
+
+        .footer-content {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 60px;
+            margin-bottom: 40px;
+        }
+
+        .footer-brand h3 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            color: var(--text);
+        }
+
+        .footer-brand p {
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        .footer-section h4 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: var(--text);
+        }
+
+        .footer-links {
+            list-style: none;
+        }
+
+        .footer-links li {
+            margin-bottom: 12px;
+        }
+
+        .footer-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+
+        .footer-links a:hover {
+            color: var(--primary);
+        }
+
+        .footer-bottom {
+            border-top: 1px solid var(--surface-light);
+            padding-top: 32px;
+            text-align: center;
+            color: var(--text-faded);
+            font-size: 14px;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1024px) {
+            .demo-container {
+                grid-template-columns: 1fr;
+                text-align: center;
+                gap: 40px;
+            }
+
+            .demo-text {
+                padding-left: 0;
+            }
+
+            .ps-grid {
+                grid-template-columns: 1fr;
+                gap: 40px;
+            }
+
+            .features-grid,
+            .workflow,
+            .testimonials {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .pricing-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .pricing-card.featured {
+                transform: none;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .nav {
+                display: none;
+            }
+
+            .mobile-menu-btn {
+                display: block;
+            }
+
+            .nav.mobile-open {
+                display: flex;
+                position: absolute;
+                top: 100%;
+                left: 0;
+                right: 0;
+                background: var(--background);
+                flex-direction: column;
+                padding: 20px;
+                border-top: 1px solid var(--surface-light);
+            }
+
+            .hero-text h1 {
+                font-size: 40px;
+            }
+
+            .section-title {
+                font-size: 36px;
+            }
+
+            .demo-title {
+                font-size: 36px;
+            }
+
+            .ps-title {
+                font-size: 36px;
+            }
+
+            .hero-cta {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .trust-proof {
+                flex-direction: column;
+                gap: 16px;
+            }
+
+            .demo-stats {
+                grid-template-columns: 1fr;
+            }
+
+            .features-grid,
+            .workflow,
+            .testimonials {
+                grid-template-columns: 1fr;
+            }
+
+            .workflow::before {
+                display: none;
+            }
+
+            .footer-content {
+                grid-template-columns: 1fr;
+                gap: 40px;
+            }
+
+            .cta-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .demo-tabs {
+                flex-wrap: wrap;
+                gap: 4px;
+            }
+
+            .demo-tab {
+                font-size: 11px;
+                padding: 6px 12px;
+            }
+        }
+
+        /* Animations */
+        .fade-in-up {
+            animation: fadeInUp 0.6s ease-out forwards;
+            opacity: 0;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                transform: translateY(30px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideInRight {
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* Intersection Observer Classes */
+        .animate-on-scroll {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.6s ease-out;
+        }
+
+        .animate-on-scroll.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Utility Classes */
+        .text-gradient {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Loading States */
+        .demo-loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 200px;
+            color: var(--text-muted);
+        }
+
+        .demo-loading::after {
+            content: '';
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--surface-light);
+            border-top: 2px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 12px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <a href="#" class="logo">
+                    <div class="logo-icon"></div>
+                    <span class="logo-text">poconest</span>
+                </a>
+                <nav class="nav">
+                    <a href="#features" class="nav-link">Features</a>
+                    <a href="#how-it-works" class="nav-link">How it works</a>
+                    <a href="#pricing" class="nav-link">Pricing</a>
+                    <a href="#contact" class="nav-link">Contact</a>
+                </nav>
+                <div class="header-cta">
+                    <a href="#" class="btn btn-secondary">Sign In</a>
+                    <a href="#" class="btn btn-primary">Start Free Trial</a>
+                    <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <div class="hero-badge">
+                    🚀 1,200+チームが生産性を31%向上
+                </div>
+                
+                <div class="hero-text">
+                    <h1>散らばった情報から、<br>戦略的洞察を</h1>
+                    <p class="hero-subtitle">
+                        AIが24時間365日、チームの会話や資料を分析。<br>
+                        見落としていた重要な関係性を発見し、次の一手を提案します。
+                    </p>
+                </div>
+                
+                <div class="hero-cta">
+                    <a href="#" class="btn btn-primary btn-large primary-cta">
+                        ✨ 14日間無料で体験する
+                    </a>
+                    <a href="#demo" class="btn btn-secondary btn-large">
+                        📊 実際のデモを見る
+                    </a>
+                </div>
+                
+                <div class="trust-proof">
+                    <div class="trust-stat">
+                        <span class="trust-number">90%</span>
+                        <span class="trust-label">分析時間削減</span>
+                    </div>
+                    <div class="trust-stat">
+                        <span class="trust-number">3倍</span>
+                        <span class="trust-label">洞察発見速度</span>
+                    </div>
+                    <div class="trust-stat">
+                        <span class="trust-number">24h</span>
+                        <span class="trust-label">自動監視</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Interactive Demo Section -->
+    <section class="demo-section" id="demo">
+        <div class="container">
+            <div class="demo-container">
+                <div class="demo-text animate-on-scroll">
+                    <h2 class="demo-title">AIが見つける、<br>人間が見落とす洞察</h2>
+                    <p class="demo-description">
+                        実際のSlackメッセージから、わずか数秒で重要なパターンを発見。
+                        右のデモで、POCONESTの分析力を体験してください。
+                    </p>
+                    
+                    <div class="demo-stats">
+                        <div class="demo-stat">
+                            <div class="demo-stat-number">73%</div>
+                            <div class="demo-stat-label">ユーザーが見落とす関係性</div>
+                        </div>
+                        <div class="demo-stat">
+                            <div class="demo-stat-number">3秒</div>
+                            <div class="demo-stat-label">平均分析完了時間</div>
+                        </div>
+                    </div>
+                    
+                    <a href="#" class="btn btn-primary">🚀 無料で始める</a>
+                </div>
+                
+                <div class="interactive-demo animate-on-scroll">
+                    <div class="demo-tabs">
+                        <div class="demo-tab active" onclick="switchDemoTab(this, 'slack')">Slack分析</div>
+                        <div class="demo-tab" onclick="switchDemoTab(this, 'meeting')">会議録</div>
+                        <div class="demo-tab" onclick="switchDemoTab(this, 'feedback')">フィードバック</div>
+                    </div>
+                    
+                    <div class="demo-content">
+                        <div class="demo-content-panel active" id="demo-slack">
+                            <div class="insight-stream">
+                                <div class="insight-item">
+                                    <div class="insight-header">
+                                        <div class="insight-tag">関係性発見</div>
+                                        <div class="insight-confidence">信頼度: 87%</div>
+                                    </div>
+                                    <div class="insight-text">
+                                        「ユーザビリティ改善」の議論と「売上向上」の相関を検出 → 改善優先度を上位に推奨
+                                    </div>
+                                </div>
+                                
+                                <div class="insight-item">
+                                    <div class="insight-header">
+                                        <div class="insight-tag">パターン認識</div>
+                                        <div class="insight-confidence">信頼度: 92%</div>
+                                    </div>
+                                    <div class="insight-text">
+                                        過去3回の会議で「リソース不足」が言及 → プロジェクト遅延リスクを事前警告
+                                    </div>
+                                </div>
+                                
+                                <div class="insight-item">
+                                    <div class="insight-header">
+                                        <div class="insight-tag">提案生成</div>
+                                        <div class="insight-confidence">信頼度: 78%</div>
+                                    </div>
+                                    <div class="insight-text">
+                                        チーム間の情報共有頻度から、週次同期会議の新設を提案
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="demo-content-panel" id="demo-meeting">
+                            <div class="insight-stream">
+                                <div class="insight-item">
+                                    <div class="insight-header">
+                                        <div class="insight-tag">議題分析</div>
+                                        <div class="insight-confidence">信頼度: 94%</div>
+                                    </div>
+                                    <div class="insight-text">
+                                        「予算承認」が3週連続で未解決 → 意思決定プロセスのボトルネック特定
+                                    </div>
+                                </div>
+                                
+                                <div class="insight-item">
+                                    <div class="insight-header">
+                                        <div class="insight-tag">感情分析</div>
+                                        <div class="insight-confidence">信頼度: 89%</div>
+                                    </div>
+                                    <div class="insight-text">
+                                        チームの士気低下を検出 → 1on1ミーティングの実施を推奨
+                                    </div>
+                                </div>
+                                
+                                <div class="insight-item">
+                                    <div class="insight-header">
+                                        <div class="insight-tag">行動項目</div>
+                                        <div class="insight-confidence">信頼度: 96%</div>
+                                    </div>
+                                    <div class="insight-text">
+                                        未完了タスクの担当者パターンから、負荷分散の必要性を示唆
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="demo-content-panel" id="demo-feedback">
+                            <div class="insight-stream">
+                                <div class="insight-item">
+                                    <div class="insight-header">
+                                        <div class="insight-tag">顧客ニーズ</div>
+                                        <div class="insight-confidence">信頼度: 91%</div>
+                                    </div>
+                                    <div class="insight-text">
+                                        「使いやすさ」と「機能充実」の要望が拮抗 → UI/UX優先開発を提案
+                                    </div>
+                                </div>
+                                
+                                <div class="insight-item">
+                                    <div class="insight-header">
+                                        <div class="insight-tag">満足度予測</div>
+                                        <div class="insight-confidence">信頼度: 85%</div>
+                                    </div>
+                                    <div class="insight-text">
+                                        レスポンス速度改善により、顧客満足度15%向上の見込み
+                                    </div>
+                                </div>
+                                
+                                <div class="insight-item">
+                                    <div class="insight-header">
+                                        <div class="insight-tag">競合分析</div>
+                                        <div class="insight-confidence">信頼度: 88%</div>
+                                    </div>
+                                    <div class="insight-text">
+                                        他社乗り換え理由から、価格戦略の見直しポイントを特定
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Problem-Solution Combined Section -->
+    <section class="problem-solution">
+        <div class="container">
+            <div class="ps-header animate-on-scroll">
+                <h2 class="ps-title">従来のやり方 vs POCONESTの力</h2>
+                <p class="ps-subtitle">
+                    手作業での情報整理から、AI駆動の洞察発見へ
+                </p>
+            </div>
+            
+            <div class="ps-grid">
+                <div class="problems-side">
+                    <h3>😰 よくある課題</h3>
+                    
+                    <div class="problem-item ps-item animate-on-scroll">
+                        <div class="ps-icon">⏰</div>
+                        <div class="ps-content">
+                            <h4>分析に週2日を消費</h4>
+                            <p>Slackログ、会議録、ドキュメントを手動で読み返し、パターンを探す作業に膨大な時間</p>
+                        </div>
+                    </div>
+                    
+                    <div class="problem-item ps-item animate-on-scroll">
+                        <div class="ps-icon">👁</div>
+                        <div class="ps-content">
+                            <h4>重要な関係性を見落とし</h4>
+                            <p>人間の認知限界により、データ間の隠れた相関や因果関係を発見できない</p>
+                        </div>
+                    </div>
+                    
+                    <div class="problem-item ps-item animate-on-scroll">
+                        <div class="ps-icon">📚</div>
+                        <div class="ps-content">
+                            <h4>過去の知見が埋もれる</h4>
+                            <p>組織に蓄積された貴重な洞察が検索不可能な状態で散らばり、再利用されない</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="solutions-side">
+                    <h3>✨ POCONESTの解決</h3>
+                    
+                    <div class="solution-item ps-item animate-on-scroll">
+                        <div class="ps-icon">⚡</div>
+                        <div class="ps-content">
+                            <h4>3秒で自動分析完了</h4>
+                            <p>AIが瞬時に全データを解析し、重要なパターンや洞察を自動抽出。人的工数を90%削減</p>
+                        </div>
+                    </div>
+                    
+                    <div class="solution-item ps-item animate-on-scroll">
+                        <div class="ps-icon">🔍</div>
+                        <div class="ps-content">
+                            <h4>隠れた関係性を発見</h4>
+                            <p>高度なAI分析により、人間では気づけない複雑な相関関係や因果パターンを特定</p>
+                        </div>
+                    </div>
+                    
+                    <div class="solution-item ps-item animate-on-scroll">
+                        <div class="ps-icon">🧠</div>
+                        <div class="ps-content">
+                            <h4>組織知を活用可能に</h4>
+                            <p>全ての洞察を構造化し、検索・活用可能な状態で蓄積。組織の集合知を最大化</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Showcase -->
+    <section class="section" id="features">
+        <div class="container">
+            <div class="section-header animate-on-scroll">
+                <h2 class="section-title">あなたのチームを加速する、3つの力</h2>
+                <p class="section-subtitle">
+                    POCONESTの核心機能が、組織の知的生産性を劇的に向上させます
+                </p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card animate-on-scroll">
+                    <div class="feature-demo">📤</div>
+                    <h3 class="feature-title">知識自動抽出</h3>
+                    <p class="feature-description">
+                        チャット、メール、会議録から重要な概念や決定事項を自動抽出。
+                        手動整理の時間を90%削減し、見落としを防ぎます。
+                    </p>
+                </div>
+                <div class="feature-card animate-on-scroll">
+                    <div class="feature-demo">🔍</div>
+                    <h3 class="feature-title">関係性分析</h3>
+                    <p class="feature-description">
+                        蓄積された情報から隠れたパターンや相関関係を発見。
+                        人間では気づけない洞察を数秒で特定します。
+                    </p>
+                </div>
+                <div class="feature-card animate-on-scroll">
+                    <div class="feature-demo">💡</div>
+                    <h3 class="feature-title">洞察生成</h3>
+                    <p class="feature-description">
+                        複数のデータソースを横断して新たな示唆を生成。
+                        戦略的意思決定に必要な具体的な提案を提供します。
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works -->
+    <section class="section" id="how-it-works">
+        <div class="container">
+            <div class="section-header animate-on-scroll">
+                <h2 class="section-title">3ステップで始める、知識革命</h2>
+                <p class="section-subtitle">
+                    簡単セットアップで、すぐに価値を実感できます
+                </p>
+            </div>
+            <div class="workflow">
+                <div class="workflow-step animate-on-scroll">
+                    <div class="step-number">1</div>
+                    <h3 class="step-title">データソース接続</h3>
+                    <p class="step-description">
+                        Slack、メール、会議ツールなど、既存のデータソースを簡単接続。
+                        セキュアな環境で自動的にデータを収集開始。
+                    </p>
+                </div>
+                <div class="workflow-step animate-on-scroll">
+                    <div class="step-number">2</div>
+                    <h3 class="step-title">AI自動分析</h3>
+                    <p class="step-description">
+                        最先端のAIが24時間365日、あなたのデータを分析。
+                        重要な概念抽出から関係性発見まで、全て自動実行。
+                    </p>
+                </div>
+                <div class="workflow-step animate-on-scroll">
+                    <div class="step-number">3</div>
+                    <h3 class="step-title">洞察活用</h3>
+                    <p class="step-description">
+                        生成された洞察をダッシュボードで確認。
+                        チーム共有から戦略立案まで、実践的に活用。
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Social Proof -->
+    <section class="section">
+        <div class="container">
+            <div class="section-header animate-on-scroll">
+                <h2 class="section-title">成功事例の声</h2>
+                <p class="section-subtitle">
+                    既に多くのチームが、POCONESTで生産性を向上させています
+                </p>
+            </div>
+            <div class="testimonials">
+                <div class="testimonial animate-on-scroll">
+                    <p class="testimonial-text">
+                        「ユーザーインタビューの分析時間が70%短縮。AIが抽出した洞察の精度も高く、
+                        ステークホルダーへの報告が圧倒的に説得力を持つようになりました。」
+                    </p>
+                    <div class="testimonial-author">
+                        <div class="author-avatar">M.S</div>
+                        <div class="author-info">
+                            <h4>佐藤 美咲</h4>
+                            <p>Senior UX Researcher</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="testimonial animate-on-scroll">
+                    <p class="testimonial-text">
+                        「顧客フィードバックから真のニーズを素早く特定。機能優先順位の判断精度が
+                        格段に向上し、プロダクト開発のスピードも2倍になりました。」
+                    </p>
+                    <div class="testimonial-author">
+                        <div class="author-avatar">K.T</div>
+                        <div class="author-info">
+                            <h4>田中 健太</h4>
+                            <p>Senior Product Manager</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="testimonial animate-on-scroll">
+                    <p class="testimonial-text">
+                        「組織が大きくなっても、重要な知見が埋もれることがなくなった。
+                        投資家への報告でも、データに裏付けられた説得力ある説明ができています。」
+                    </p>
+                    <div class="testimonial-author">
+                        <div class="author-avatar">N.Y</div>
+                        <div class="author-info">
+                            <h4>山田 直樹</h4>
+                            <p>CEO / Founder</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing -->
+    <section class="section pricing" id="pricing">
+        <div class="container">
+            <div class="section-header animate-on-scroll">
+                <h2 class="section-title">シンプルで透明な料金体系</h2>
+                <p class="section-subtitle">
+                    チームサイズに合わせて選択。14日間の無料トライアルでリスクゼロでお試し
+                </p>
+            </div>
+            <div class="pricing-grid">
+                <div class="pricing-card animate-on-scroll">
+                    <h3 class="plan-name">Starter</h3>
+                    <div class="plan-price">¥9,800</div>
+                    <p class="plan-period">/ month</p>
+                    <ul class="plan-features">
+                        <li>5ユーザーまで</li>
+                        <li>基本的なAI分析</li>
+                        <li>3つのデータソース接続</li>
+                        <li>メール & チャットサポート</li>
+                        <li>月間1,000件の分析</li>
+                    </ul>
+                    <a href="#" class="btn btn-secondary">無料トライアル</a>
+                </div>
+                <div class="pricing-card featured animate-on-scroll">
+                    <h3 class="plan-name">Professional</h3>
+                    <div class="plan-price">¥29,800</div>
+                    <p class="plan-period">/ month</p>
+                    <ul class="plan-features">
+                        <li>25ユーザーまで</li>
+                        <li>高度なAI分析 & 洞察生成</li>
+                        <li>無制限データソース接続</li>
+                        <li>専用サポート & オンボーディング</li>
+                        <li>月間10,000件の分析</li>
+                        <li>カスタムダッシュボード</li>
+                        <li>API連携</li>
+                    </ul>
+                    <a href="#" class="btn btn-primary">14日間無料で始める</a>
+                </div>
+                <div class="pricing-card animate-on-scroll">
+                    <h3 class="plan-name">Enterprise</h3>
+                    <div class="plan-price">要相談</div>
+                    <p class="plan-period">/ month</p>
+                    <ul class="plan-features">
+                        <li>無制限ユーザー</li>
+                        <li>カスタムAIモデル</li>
+                        <li>専用環境 & セキュリティ</li>
+                        <li>24/7専任サポート</li>
+                        <li>無制限分析</li>
+                        <li>高度なセキュリティ機能</li>
+                        <li>SLA保証</li>
+                    </ul>
+                    <a href="#" class="btn btn-secondary">相談する</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta-section">
+        <div class="container">
+            <div class="cta-content animate-on-scroll">
+                <h2>今すぐ始めて、チームの可能性を解放</h2>
+                <p>14日間の無料トライアル。クレジットカード不要。いつでもキャンセル可能。</p>
+                <div class="cta-buttons">
+                    <a href="#" class="btn btn-white btn-large">🚀 無料トライアルを開始</a>
+                    <a href="#" class="btn btn-outline btn-large">📞 個別デモを予約</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer" id="contact">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <h3>poconest</h3>
+                    <p>
+                        AIによる知識抽出・分析で、チームの集合知を最大化。
+                        散らばった情報から戦略的洞察を生み出す、
+                        次世代ナレッジプラットフォーム。
+                    </p>
+                </div>
+                <div class="footer-section">
+                    <h4>プロダクト</h4>
+                    <ul class="footer-links">
+                        <li><a href="#">機能一覧</a></li>
+                        <li><a href="#">料金プラン</a></li>
+                        <li><a href="#">セキュリティ</a></li>
+                        <li><a href="#">API</a></li>
+                        <li><a href="#">アップデート</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>サポート</h4>
+                    <ul class="footer-links">
+                        <li><a href="#">ヘルプセンター</a></li>
+                        <li><a href="#">ドキュメント</a></li>
+                        <li><a href="#">コミュニティ</a></li>
+                        <li><a href="#">お問い合わせ</a></li>
+                        <li><a href="#">ステータス</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>会社情報</h4>
+                    <ul class="footer-links">
+                        <li><a href="#">私たちについて</a></li>
+                        <li><a href="#">ブログ</a></li>
+                        <li><a href="#">キャリア</a></li>
+                        <li><a href="#">プレス</a></li>
+                        <li><a href="#">パートナー</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 POCONEST. All rights reserved. | 
+                   <a href="#" style="color: var(--text-faded);">プライバシーポリシー</a> | 
+                   <a href="#" style="color: var(--text-faded);">利用規約</a>
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Demo Tab Switching Function
+        function switchDemoTab(tabElement, tabName) {
+            // Remove active class from all tabs and panels
+            document.querySelectorAll('.demo-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.demo-content-panel').forEach(panel => {
+                panel.classList.remove('active');
+            });
+            
+            // Add active class to clicked tab
+            tabElement.classList.add('active');
+            
+            // Show corresponding panel
+            document.getElementById('demo-' + tabName).classList.add('active');
+            
+            // Reset and restart animations for the new panel
+            const activePanel = document.getElementById('demo-' + tabName);
+            const insightItems = activePanel.querySelectorAll('.insight-item');
+            
+            insightItems.forEach((item, index) => {
+                item.style.animation = 'none';
+                item.offsetHeight; // Trigger reflow
+                item.style.animation = `slideInRight 0.6s ease-out ${0.2 + index * 0.2}s forwards`;
+            });
+        }
+
+        // Mobile Menu Toggle
+        function toggleMobileMenu() {
+            const nav = document.querySelector('.nav');
+            nav.classList.toggle('mobile-open');
+        }
+
+        // Smooth scroll for navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Header scroll effect
+        window.addEventListener('scroll', () => {
+            const header = document.querySelector('.header');
+            if (window.scrollY > 100) {
+                header.style.background = 'rgba(15, 15, 35, 0.98)';
+                header.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.1)';
+            } else {
+                header.style.background = 'rgba(15, 15, 35, 0.95)';
+                header.style.boxShadow = 'none';
+            }
+        });
+
+        // Intersection Observer for animations
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('.animate-on-scroll').forEach(el => {
+            observer.observe(el);
+        });
+
+        // Demo interface animations
+        function startDemoAnimations() {
+            const activePanel = document.querySelector('.demo-content-panel.active');
+            if (!activePanel) return;
+            
+            const insightItems = activePanel.querySelectorAll('.insight-item');
+            let currentIndex = 0;
+
+            function showNextInsight() {
+                insightItems.forEach((item, index) => {
+                    if (index === currentIndex) {
+                        item.style.opacity = '1';
+                        item.style.transform = 'scale(1.02)';
+                        item.style.borderColor = 'var(--primary)';
+                    } else {
+                        item.style.opacity = '0.7';
+                        item.style.transform = 'scale(1)';
+                        item.style.borderColor = 'var(--surface-light)';
+                    }
+                });
+                
+                currentIndex = (currentIndex + 1) % insightItems.length;
+            }
+
+            // Start animation
+            const intervalId = setInterval(showNextInsight, 3000);
+            showNextInsight();
+            
+            // Store interval ID for cleanup
+            activePanel.demoInterval = intervalId;
+        }
+
+        // Cleanup previous demo animations
+        function cleanupDemoAnimations() {
+            document.querySelectorAll('.demo-content-panel').forEach(panel => {
+                if (panel.demoInterval) {
+                    clearInterval(panel.demoInterval);
+                    panel.demoInterval = null;
+                }
+            });
+        }
+
+        // Enhanced demo tab switching
+        window.switchDemoTab = function(tabElement, tabName) {
+            // Cleanup previous animations
+            cleanupDemoAnimations();
+            
+            // Remove active class from all tabs and panels
+            document.querySelectorAll('.demo-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.demo-content-panel').forEach(panel => {
+                panel.classList.remove('active');
+            });
+            
+            // Add active class to clicked tab
+            tabElement.classList.add('active');
+            
+            // Show corresponding panel
+            const targetPanel = document.getElementById('demo-' + tabName);
+            targetPanel.classList.add('active');
+            
+            // Reset and restart animations for the new panel
+            const insightItems = targetPanel.querySelectorAll('.insight-item');
+            insightItems.forEach((item, index) => {
+                item.style.animation = 'none';
+                item.offsetHeight; // Trigger reflow
+                item.style.animation = `slideInRight 0.6s ease-out ${0.2 + index * 0.2}s forwards`;
+            });
+            
+            // Start new demo animations after a delay
+            setTimeout(() => {
+                startDemoAnimations();
+            }, 1000);
+        };
+
+        // Start demo animations after page load
+        window.addEventListener('load', () => {
+            setTimeout(startDemoAnimations, 2000);
+        });
+
+        // Feature card hover effects
+        document.querySelectorAll('.feature-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-8px) scale(1.02)';
+                this.style.boxShadow = '0 20px 40px rgba(0, 255, 136, 0.1)';
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0) scale(1)';
+                this.style.boxShadow = 'none';
+            });
+        });
+
+        // Pricing card interactions
+        document.querySelectorAll('.pricing-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                if (!this.classList.contains('featured')) {
+                    this.style.transform = 'translateY(-4px)';
+                    this.style.borderColor = 'var(--primary)';
+                    this.style.boxShadow = '0 12px 30px rgba(0, 255, 136, 0.1)';
+                }
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                if (!this.classList.contains('featured')) {
+                    this.style.transform = 'translateY(0)';
+                    this.style.borderColor = 'var(--surface-light)';
+                    this.style.boxShadow = 'none';
+                }
+            });
+        });
+
+        // Enhanced CTA button effects
+        document.querySelectorAll('.btn-primary').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                // Create ripple effect
+                const ripple = document.createElement('span');
+                const rect = this.getBoundingClientRect();
+                const size = Math.max(rect.width, rect.height);
+                const x = e.clientX - rect.left - size / 2;
+                const y = e.clientY - rect.top - size / 2;
+                
+                ripple.style.cssText = `
+                    position: absolute;
+                    border-radius: 50%;
+                    background: rgba(255, 255, 255, 0.3);
+                    transform: scale(0);
+                    animation: ripple 0.6s linear;
+                    width: ${size}px;
+                    height: ${size}px;
+                    left: ${x}px;
+                    top: ${y}px;
+                `;
+                
+                this.style.position = 'relative';
+                this.style.overflow = 'hidden';
+                this.appendChild(ripple);
+                
+                setTimeout(() => {
+                    ripple.remove();
+                }, 600);
+                
+                console.log('CTA clicked:', this.textContent);
+            });
+        });
+
+        // Add ripple animation CSS
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes ripple {
+                to {
+                    transform: scale(4);
+                    opacity: 0;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Parallax effect for hero section
+        window.addEventListener('scroll', () => {
+            const scrolled = window.pageYOffset;
+            const hero = document.querySelector('.hero');
+            const heroContent = document.querySelector('.hero-content');
+            
+            if (hero && scrolled < hero.offsetHeight) {
+                heroContent.style.transform = `translateY(${scrolled * 0.3}px)`;
+                hero.style.opacity = 1 - scrolled / hero.offsetHeight;
+            }
+        });
+
+        // Counter animation for trust stats
+        function animateCounters() {
+            const counters = document.querySelectorAll('.trust-number');
+            
+            counters.forEach(counter => {
+                const target = counter.textContent;
+                const isPercent = target.includes('%');
+                const isMultiplier = target.includes('倍');
+                const isTime = target.includes('h');
+                
+                let endValue;
+                let suffix = '';
+                
+                if (isPercent) {
+                    endValue = parseInt(target);
+                    suffix = '%';
+                } else if (isMultiplier) {
+                    endValue = parseInt(target);
+                    suffix = '倍';
+                } else if (isTime) {
+                    endValue = parseInt(target);
+                    suffix = 'h';
+                } else {
+                    endValue = parseInt(target);
+                }
+                
+                let startValue = 0;
+                const increment = endValue / 50;
+                
+                const timer = setInterval(() => {
+                    startValue += increment;
+                    if (startValue >= endValue) {
+                        counter.textContent = endValue + suffix;
+                        clearInterval(timer);
+                    } else {
+                        counter.textContent = Math.floor(startValue) + suffix;
+                    }
+                }, 40);
+            });
+        }
+
+        // Trigger counter animation when trust section is visible
+        const trustSection = document.querySelector('.trust-proof');
+        if (trustSection) {
+            const trustObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        animateCounters();
+                        trustObserver.unobserve(entry.target);
+                    }
+                });
+            });
+            
+            trustObserver.observe(trustSection);
+        }
+
+        // Close mobile menu when clicking outside
+        document.addEventListener('click', (e) => {
+            const nav = document.querySelector('.nav');
+            const mobileBtn = document.querySelector('.mobile-menu-btn');
+            
+            if (nav.classList.contains('mobile-open') && 
+                !nav.contains(e.target) && 
+                !mobileBtn.contains(e.target)) {
+                nav.classList.remove('mobile-open');
+            }
+        });
+
+        // Keyboard navigation support
+        document.addEventListener('keydown', (e) => {
+            // Close mobile menu with Escape key
+            if (e.key === 'Escape') {
+                const nav = document.querySelector('.nav');
+                if (nav.classList.contains('mobile-open')) {
+                    nav.classList.remove('mobile-open');
+                }
+            }
+            
+            // Navigate demo tabs with arrow keys
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                const activeDemoTab = document.querySelector('.demo-tab.active');
+                if (activeDemoTab) {
+                    const tabs = Array.from(document.querySelectorAll('.demo-tab'));
+                    const currentIndex = tabs.indexOf(activeDemoTab);
+                    let newIndex;
+                    
+                    if (e.key === 'ArrowLeft') {
+                        newIndex = currentIndex > 0 ? currentIndex - 1 : tabs.length - 1;
+                    } else {
+                        newIndex = currentIndex < tabs.length - 1 ? currentIndex + 1 : 0;
+                    }
+                    
+                    const newTab = tabs[newIndex];
+                    const tabNames = ['slack', 'meeting', 'feedback'];
+                    switchDemoTab(newTab, tabNames[newIndex]);
+                }
+            }
+        });
+
+        // Performance optimization - Lazy load images
+        const imageObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const img = entry.target;
+                    if (img.dataset.src) {
+                        img.src = img.dataset.src;
+                        img.removeAttribute('data-src');
+                        imageObserver.unobserve(img);
+                    }
+                }
+            });
+        });
+
+        // Observe all images with data-src
+        document.querySelectorAll('img[data-src]').forEach(img => {
+            imageObserver.observe(img);
+        });
+
+        // Form validation for newsletter signup (if added)
+        function validateEmail(email) {
+            const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return re.test(email);
+        }
+
+        // Add accessibility improvements
+        document.querySelectorAll('.btn').forEach(btn => {
+            btn.addEventListener('focus', function() {
+                this.style.outline = '2px solid var(--primary)';
+                this.style.outlineOffset = '2px';
+            });
+            
+            btn.addEventListener('blur', function() {
+                this.style.outline = 'none';
+            });
+        });
+
+        // Performance monitoring
+        window.addEventListener('load', () => {
+            // Check page load performance
+            const perfData = performance.timing;
+            const pageLoadTime = perfData.loadEventEnd - perfData.navigationStart;
+            console.log('Page load time:', pageLoadTime + 'ms');
+            
+            // Optional: Send analytics data
+            // analytics.track('page_loaded', { loadTime: pageLoadTime });
+        });
+
+        console.log('POCONEST Landing Page - All systems operational 🚀');
+    </script>
+</body>
+</html>

@@ -28,6 +28,9 @@ import WelcomeScreen from '@screens/auth/WelcomeScreen';
 import AuthenticatedRoutes from './navigation';
 import Icon from './components/ui/Icon';
 import AcceptInviteScreen from './features/nest/invitation/screens/AcceptInviteScreen';
+import TermsOfServiceScreen from './screens/legal/TermsOfServiceScreen';
+import PrivacyPolicyScreen from './screens/legal/PrivacyPolicyScreen';
+import { LandingPage } from './features/landing/components/LandingPage';
 // Webではreact-native-screensを無効化
 if (typeof window !== 'undefined') {
   // @ts-ignore
@@ -813,7 +816,17 @@ const App: React.FC = () => {
               </AuthGuard>
             } />
             <Route path="/invite/:token" element={<AcceptInviteScreen />} />
-            <Route path="*" element={<Navigate to="/login" />} />
+            <Route path="/terms-of-service" element={<TermsOfServiceScreen />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicyScreen />} />
+            
+            {/* ランディングページルート */}
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/landing" element={<LandingPage />} />
+            <Route path="/ux-researcher" element={<LandingPage />} />
+            <Route path="/product-manager" element={<LandingPage />} />
+            <Route path="/startup-founder" element={<LandingPage />} />
+            
+            <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </AuthProvider>
       </Router>

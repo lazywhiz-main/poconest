@@ -7,6 +7,7 @@ import theme from '../../styles/theme';
 import ReactDOM from 'react-dom';
 import { useNavigation } from '@react-navigation/native';
 import { useNavigate, Navigate, useLocation } from 'react-router-dom';
+import LegalFooter from '../../components/layout/LegalFooter';
 
 // SVGアイコンコンポーネント
 interface IconProps {
@@ -517,7 +518,12 @@ const LoginScreen: React.FC = () => {
                       <Text style={styles.checkmark}>✓</Text>
                     </TouchableOpacity>
                     <Text style={styles.checkboxLabel}>
-                      <Text style={styles.checkboxLink}>利用規約</Text> および <Text style={styles.checkboxLink}>プライバシーポリシー</Text> に同意する
+                      <TouchableOpacity onPress={() => navigate && navigate('/terms-of-service')}>
+                        <Text style={styles.checkboxLink}>利用規約</Text>
+                      </TouchableOpacity> および{' '}
+                      <TouchableOpacity onPress={() => navigate && navigate('/privacy-policy')}>
+                        <Text style={styles.checkboxLink}>プライバシーポリシー</Text>
+                      </TouchableOpacity> に同意する
                     </Text>
                   </View>
                 )}
@@ -836,7 +842,12 @@ const LoginScreen: React.FC = () => {
                       <Text style={styles.checkmark}>✓</Text>
                     </TouchableOpacity>
                     <Text style={styles.checkboxLabel}>
-                      <Text style={styles.checkboxLink}>利用規約</Text> および <Text style={styles.checkboxLink}>プライバシーポリシー</Text> に同意する
+                      <TouchableOpacity onPress={() => navigate && navigate('/terms-of-service')}>
+                        <Text style={styles.checkboxLink}>利用規約</Text>
+                      </TouchableOpacity> および{' '}
+                      <TouchableOpacity onPress={() => navigate && navigate('/privacy-policy')}>
+                        <Text style={styles.checkboxLink}>プライバシーポリシー</Text>
+                      </TouchableOpacity> に同意する
                     </Text>
                   </View>
                 )}
@@ -907,6 +918,7 @@ const LoginScreen: React.FC = () => {
           </View>
         </View>
       )}
+      <LegalFooter />
     </Screen>
   );
 };
