@@ -117,7 +117,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
 }) => {
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [highlightedNodes, setHighlightedNodes] = useState<Set<string>>(new Set());
-  const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
+  const [transform, setTransform] = useState({ x: 0, y: 0, scale: 0.3 }); // コンテナ拡張に合わせて初期スケールを調整
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [showClusters, setShowClusters] = useState(false);
@@ -125,8 +125,8 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   const [activeFilters, setActiveFilters] = useState<{ tags: string[], types: string[] }>({ tags: [], types: [] });
   const [detectedClusters, setDetectedClusters] = useState<string[][]>([]);
   
-  // 動的な描画領域サイズ（より大きく）
-  const [containerDimensions, setContainerDimensions] = useState({ width: 1600, height: 1200 });
+  // 動的な描画領域サイズ（ノード間距離確保のためさらに拡大）
+  const [containerDimensions, setContainerDimensions] = useState({ width: 4800, height: 3600 }); // ボードサイズを2倍に拡張
   
   // ノード位置を独立して管理
   const [nodePositions, setNodePositions] = useState<{ [key: string]: { x: number, y: number } }>({});
@@ -410,7 +410,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         const currentNodeSize = getNodeSize(size);
         
         // ノード間の最小距離を設定（重複回避のため）
-        const minDistance = currentNodeSize * 1.5; // ノードサイズの1.5倍の距離
+        const minDistance = currentNodeSize * 3.0; // ボード拡張に合わせてノード間距離をさらに拡大
         
         // 配置試行回数
         let attempts = 0;
@@ -445,7 +445,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
           finalY = centerY + distance * Math.sin(angle);
           
           // 追加のランダムな変動（自然感を増す）
-          const jitterAmount = 40 + (placementAttempt * 20); // 試行を重ねるほど大きく散らす
+          const jitterAmount = 60 + (placementAttempt * 30); // ボード拡張に合わせてジッター量拡大
           finalX += (Math.random() - 0.5) * jitterAmount;
           finalY += (Math.random() - 0.5) * jitterAmount;
           
@@ -478,7 +478,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
           // 衝突が検出された場合、位置を少しずらして再試行
           if (!validPosition && attempts < maxAttempts) {
             const offsetAngle = Math.random() * 2 * Math.PI;
-            const offsetDistance = minDistance + Math.random() * 30;
+            const offsetDistance = minDistance + Math.random() * 90; // ボード拡張に合わせてオフセット距離拡大
             finalX += Math.cos(offsetAngle) * offsetDistance;
             finalY += Math.sin(offsetAngle) * offsetDistance;
           }
@@ -771,6 +771,50 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     return clusters;
   }, [networkData]);
 
+  // クラスターラベル位置を更新する関数
+  const updateClusterLabelPositions = useCallback((newNodePositions: { [key: string]: { x: number, y: number } }) => {
+    const updatedLabels = clusterLabels.map(label => {
+      // ラベルに関連するノード（カード）を取得
+      const clusterCards = label.cardIds.map(id => networkData.nodes.find(n => n.id === id)).filter(Boolean);
+      if (clusterCards.length === 0) return label;
+
+      // 新しいノード位置を使用してラベル位置を再計算
+      const centerX = clusterCards.reduce((sum, node) => {
+        const pos = newNodePositions[node!.id] || { x: node!.x, y: node!.y };
+        return sum + pos.x;
+      }, 0) / clusterCards.length;
+      
+      const centerY = clusterCards.reduce((sum, node) => {
+        const pos = newNodePositions[node!.id] || { x: node!.x, y: node!.y };
+        return sum + pos.y;
+      }, 0) / clusterCards.length;
+      
+      // クラスター内のノードの最上部にラベルを配置
+      const minY = Math.min(...clusterCards.map(node => {
+        const pos = newNodePositions[node!.id] || { x: node!.x, y: node!.y };
+        return pos.y;
+      }));
+
+      return {
+        ...label,
+        position: {
+          x: centerX,
+          y: minY - 40 // ノードの上部に少し余裕を持って配置
+        }
+      };
+    });
+
+    setClusterLabels(updatedLabels);
+    console.log('🏷️ Cluster label positions updated after layout change');
+  }, [clusterLabels, networkData.nodes]);
+
+  // nodePositionsが変更された際にラベル位置を自動更新
+  useEffect(() => {
+    if (showLabels && clusterLabels.length > 0 && Object.keys(nodePositions).length > 0) {
+      updateClusterLabelPositions(nodePositions);
+    }
+  }, [nodePositions, showLabels, clusterLabels, updateClusterLabelPositions]);
+
   // 関係性を考慮したクラスター型レイアウトアルゴリズム
   const applyForceLayout = useCallback(() => {
     // 動的なコンテナサイズを使用
@@ -795,7 +839,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         // 少数ノード: 美しい円形配置（半径をさらに拡大）
         sortedNodes.forEach((node, index) => {
           const angle = (index / sortedNodes.length) * 2 * Math.PI;
-          const radius = Math.min(containerWidth, containerHeight) * 0.25; // 0.35→0.25（コンテナが大きくなったので係数は下げるが実際の距離は増加）
+          const radius = Math.min(containerWidth, containerHeight) * 0.35; // より広範囲に配置
           newPositions[node.id] = {
             x: centerX + radius * Math.cos(angle),
             y: centerY + radius * Math.sin(angle)
@@ -807,7 +851,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         newPositions[centerNode.id] = { x: centerX, y: centerY };
 
         const innerNodes = sortedNodes.slice(1, Math.min(7, sortedNodes.length));
-        const innerRadius = 200; // 160→200に拡大
+        const innerRadius = 300; // ボード拡張に合わせて半径拡大
         innerNodes.forEach((node, index) => {
           const angle = (index / innerNodes.length) * 2 * Math.PI;
           newPositions[node.id] = {
@@ -818,7 +862,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
 
         const outerNodes = sortedNodes.slice(7);
         if (outerNodes.length > 0) {
-          const outerRadius = 350; // 280→350に拡大
+          const outerRadius = 500; // ボード拡張に合わせて半径拡大
           outerNodes.forEach((node, index) => {
             const angle = (index / outerNodes.length) * 2 * Math.PI;
             newPositions[node.id] = {
@@ -830,8 +874,8 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       }
     } else {
       // クラスターがある場合：クラスター型配置
-      const margin = 120; // 80→120に拡大
-      const clusterRadius = 180; // 140→180に拡大
+      const margin = 180; // ボード拡張に合わせてマージン拡大
+      const clusterRadius = 250; // ボード拡張に合わせてクラスター半径拡大
       
       // 孤立ノード（クラスターに属さない）
       const clusteredNodeIds = new Set(clusters.flat());
@@ -843,7 +887,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       clusters.forEach((cluster, clusterIndex) => {
         // クラスターの中心位置を決定（距離をさらに拡大）
         const clusterAngle = (clusterIndex / totalGroups) * 2 * Math.PI;
-        const clusterDistance = Math.min(containerWidth, containerHeight) * 0.35; // 0.4→0.35（コンテナが大きくなったので係数は下げるが実際の距離は増加）
+                  const clusterDistance = Math.min(containerWidth, containerHeight) * 0.45; // クラスター間距離をさらに拡大
         const clusterCenterX = centerX + clusterDistance * Math.cos(clusterAngle);
         const clusterCenterY = centerY + clusterDistance * Math.sin(clusterAngle);
         
@@ -863,7 +907,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
           };
         } else if (clusterNodes.length === 2) {
           // 2ノード：一直線（距離をさらに拡大）
-          const distance = 140; // 100→140に拡大
+          const distance = 200; // ボード拡張に合わせて距離拡大
           newPositions[clusterNodes[0]!.id] = {
             x: clusterCenterX - distance / 2,
             y: clusterCenterY
@@ -897,7 +941,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         const isolatedAngle = clusters.length > 0 
           ? (clusters.length / totalGroups) * 2 * Math.PI 
           : 0;
-        const isolatedDistance = Math.min(containerWidth, containerHeight) * 0.4; // 0.45→0.4（コンテナが大きくなったので係数は下げるが実際の距離は増加）
+                  const isolatedDistance = Math.min(containerWidth, containerHeight) * 0.5; // 孤立ノードの距離をさらに拡大
         const isolatedCenterX = centerX + isolatedDistance * Math.cos(isolatedAngle);
         const isolatedCenterY = centerY + isolatedDistance * Math.sin(isolatedAngle);
         
@@ -907,10 +951,10 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
             y: isolatedCenterY
           };
         } else {
-          // 孤立ノードを小さな円形に配置（半径をさらに拡大）
-          isolatedNodes.forEach((node, index) => {
-            const angle = (index / isolatedNodes.length) * 2 * Math.PI;
-            const radius = 160; // 120→160に拡大
+                      // 孤立ノードを小さな円形に配置（半径をさらに拡大）
+            isolatedNodes.forEach((node, index) => {
+              const angle = (index / isolatedNodes.length) * 2 * Math.PI;
+              const radius = 220; // ボード拡張に合わせて半径拡大
             newPositions[node.id] = {
               x: isolatedCenterX + radius * Math.cos(angle),
               y: isolatedCenterY + radius * Math.sin(angle)
@@ -946,14 +990,14 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
               Math.pow(nodeA.x - nodeB.x, 2) + Math.pow(nodeA.y - nodeB.y, 2)
             );
             
-            const minDistance = (nodeA.size + nodeB.size) / 2 + 25; // 最小距離
+            const minDistance = (nodeA.size + nodeB.size) / 2 + 60; // ボード拡張に合わせて最小距離拡大
             
             if (distance < minDistance) {
               hasCollisions = true;
               
               // 衝突回避：ノードを離す
               const angle = Math.atan2(nodeB.y - nodeA.y, nodeB.x - nodeA.x);
-              const moveDistance = (minDistance - distance) / 2 + 5;
+              const moveDistance = (minDistance - distance) / 2 + 15; // ボード拡張に合わせて移動距離拡大
               
               // 両方のノードを反対方向に移動
               nodeA.x -= Math.cos(angle) * moveDistance;
@@ -961,9 +1005,9 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
               nodeB.x += Math.cos(angle) * moveDistance;
               nodeB.y += Math.sin(angle) * moveDistance;
               
-              // 境界チェック
-              const marginA = nodeA.size / 2 + 40;
-              const marginB = nodeB.size / 2 + 40;
+                          // 境界チェック
+            const marginA = nodeA.size / 2 + 60;
+            const marginB = nodeB.size / 2 + 60;
               
               nodeA.x = Math.max(marginA, Math.min(containerWidth - marginA, nodeA.x));
               nodeA.y = Math.max(marginA, Math.min(containerHeight - marginA, nodeA.y));
@@ -985,12 +1029,17 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       return adjustedPositions;
     };
 
-    // 重複回避処理を適用
-    const adjustedPositions = performCollisionAvoidance(newPositions);
+        // 重複回避処理を適用
+  const adjustedPositions = performCollisionAvoidance(newPositions);
 
-    setNodePositions(adjustedPositions);
-    console.log('Cluster-based layout applied with collision avoidance:', adjustedPositions);
-  }, [networkData, getNodeSize, detectClusters, containerDimensions]);
+  setNodePositions(adjustedPositions);
+  console.log('Cluster-based layout applied with collision avoidance:', adjustedPositions);
+  
+  // ラベルが表示されている場合は位置を更新
+  if (showLabels && clusterLabels.length > 0) {
+    updateClusterLabelPositions(adjustedPositions);
+  }
+}, [networkData, getNodeSize, detectClusters, containerDimensions, showLabels, clusterLabels, updateClusterLabelPositions]);
 
   // フィルタ機能
   const toggleTagFilter = (tag: string) => {
@@ -1141,7 +1190,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     
     networkData.nodes.forEach((node, index) => {
       const currentNodeSize = getNodeSize(node.size);
-      const minDistance = currentNodeSize * 1.5;
+      const minDistance = currentNodeSize * 3.0; // ボード拡張に合わせてノード間距離をさらに拡大
       
       let attempts = 0;
       const maxAttempts = 50;
@@ -1154,8 +1203,8 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         const placementAttempt = Math.floor(attempts / 10);
         const areaMultiplier = 1 + (placementAttempt * 0.3);
         
-        // 中心からの距離をランダムに設定
-        const maxDistance = Math.min(containerWidth, containerHeight) * 0.4 * areaMultiplier;
+        // 中心からの距離をランダムに設定（より広範囲に配置）
+        const maxDistance = Math.min(containerWidth, containerHeight) * 0.45 * areaMultiplier;
         const minDistanceFromCenter = 30;
         
         // 距離の分布を調整
@@ -1171,7 +1220,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         finalY = centerY + distance * Math.sin(angle);
         
         // 追加のランダムな変動
-        const jitterAmount = 40 + (placementAttempt * 20);
+        const jitterAmount = 60 + (placementAttempt * 30);
         finalX += (Math.random() - 0.5) * jitterAmount;
         finalY += (Math.random() - 0.5) * jitterAmount;
         
@@ -1204,7 +1253,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         
         if (!validPosition && attempts < maxAttempts) {
           const offsetAngle = Math.random() * 2 * Math.PI;
-          const offsetDistance = minDistance + Math.random() * 30;
+          const offsetDistance = minDistance + Math.random() * 90; // ボード拡張に合わせてオフセット距離拡大
           finalX += Math.cos(offsetAngle) * offsetDistance;
           finalY += Math.sin(offsetAngle) * offsetDistance;
         }
@@ -1264,7 +1313,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
 
   // コントロール関数
   const resetView = () => {
-    setTransform({ x: 0, y: 0, scale: 1 });
+    setTransform({ x: 0, y: 0, scale: 0.3 }); // リセット時もコンテナサイズに合わせたスケール
     setSelectedNode(null);
     setHighlightedNodes(new Set());
     setShowDensity(false);
@@ -3036,7 +3085,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
             }
           }}
         >
-          {isAnalyzing ? '関係性分析中...' : `🧠 関係性を一括分析 (${cards.length}枚)`}
+          {isAnalyzing ? 'Analyzing...' : '🔗 Relationships'}
         </button>
         
         {/* 完全分析強制実行ボタン */}
@@ -3070,7 +3119,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
             }
           }}
         >
-          🔄 完全再分析
+          🔄 Re-analysis
         </button>
         
         <button
@@ -3108,7 +3157,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
             e.currentTarget.style.transform = 'translateY(0)';
           }}
         >
-          {showMinimap ? '🗺️ Hide Map' : '🗺️ Show Map'}
+          {showMinimap ? '🗺️ Mini Map' : '🗺️ Mini Map'}
         </button>
         <button
           style={styles.controlBtn}
@@ -3126,11 +3175,35 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
             e.currentTarget.style.transform = 'translateY(0)';
           }}
         >
-          Auto Layout
+          📐 Auto Layout
         </button>
 
-        <button style={styles.controlBtn}>Analyze Density</button>
-        <button style={styles.controlBtn}>Export</button>
+        <button 
+          style={{
+            ...styles.controlBtn,
+            opacity: 0.6,
+            cursor: 'not-allowed',
+            background: THEME_COLORS.bgTertiary,
+            borderColor: THEME_COLORS.borderSecondary,
+            color: THEME_COLORS.textMuted,
+          }}
+          disabled
+        >
+          📊 Density (TBD)
+        </button>
+        <button 
+          style={{
+            ...styles.controlBtn,
+            opacity: 0.6,
+            cursor: 'not-allowed',
+            background: THEME_COLORS.bgTertiary,
+            borderColor: THEME_COLORS.borderSecondary,
+            color: THEME_COLORS.textMuted,
+          }}
+          disabled
+        >
+          💾 Export (TBD)
+        </button>
         
 
         
@@ -3157,7 +3230,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
             e.currentTarget.style.transform = 'translateY(0)';
           }}
         >
-          Clustering Controls
+          🎛️ Clustering
         </button>
       </div>
       
@@ -3727,7 +3800,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       <div style={{
         ...styles.panel,
         top: '20px',
-        left: '180px',
+        right: '20px',
         padding: '12px',
         minWidth: '180px',
       }}>
@@ -3738,28 +3811,28 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
           marginBottom: '8px',
           fontFamily: 'JetBrains Mono, monospace',
         }}>
-          ネットワーク統計
+          📊 Network Stats
         </div>
         <div style={{
           color: THEME_COLORS.textSecondary,
           fontSize: '10px',
           marginBottom: '2px',
         }}>
-          ノード: {networkData.metrics?.totalNodes || 0}
+          Nodes: {networkData.metrics?.totalNodes || 0}
         </div>
         <div style={{
           color: THEME_COLORS.textSecondary,
           fontSize: '10px',
           marginBottom: '2px',
         }}>
-          関係: {networkData.metrics?.totalEdges || 0}
+          Edges: {networkData.metrics?.totalEdges || 0}
         </div>
         <div style={{
           color: THEME_COLORS.textSecondary,
           fontSize: '10px',
           marginBottom: '2px',
         }}>
-          密度: {networkData.metrics ? (networkData.metrics.networkDensity * 100).toFixed(1) : 0}%
+          Density: {networkData.metrics ? (networkData.metrics.networkDensity * 100).toFixed(1) : 0}%
         </div>
       </div>
 
