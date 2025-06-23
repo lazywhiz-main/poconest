@@ -127,7 +127,7 @@ const NotificationSettings: React.FC = () => {
       if (!user) return;
 
       // ユーザーの設定を取得（実際のテーブルがない場合はデフォルト値を使用）
-      const defaultTypeSettings: Record<NotificationType, any> = {};
+      const defaultTypeSettings: Record<NotificationType, any> = {} as Record<NotificationType, any>;
       notificationTypes.forEach(({ type }) => {
         defaultTypeSettings[type] = {
           enabled: true,

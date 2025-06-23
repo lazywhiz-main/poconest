@@ -24,7 +24,8 @@ export type IconName =
   | 'more'
   | 'chevron-down'
   | 'more-vertical'
-  | 'loader';
+  | 'loader'
+  | 'check';
 
 interface IconProps {
   name: IconName;
@@ -184,6 +185,11 @@ const icons: Record<IconName, (props: { size: number; color: string }) => JSX.El
   loader: ({ size, color }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+    </svg>
+  ),
+  check: ({ size, color }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20,6 9,17 4,12" />
     </svg>
   ),
 };

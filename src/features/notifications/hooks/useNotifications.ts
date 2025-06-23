@@ -376,7 +376,6 @@ export const useNotifications = (options: UseNotificationsOptions = {}): UseNoti
       createdAt: new Date(dbItem.created_at),
       updatedAt: dbItem.updated_at ? new Date(dbItem.updated_at) : undefined,
       readAt: dbItem.read_at ? new Date(dbItem.read_at) : undefined,
-      isSticky: dbItem.is_sticky || false,
       actionable: Boolean(dbItem.data?.actions?.length)
     };
   }, []);
