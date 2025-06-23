@@ -35,6 +35,8 @@ import { BoardCardUI } from '../../../../types/board';
 import { getOrCreateDefaultBoard, addCardsToBoard } from '../../../../services/BoardService';
 import { getOrCreateMeetingSource, addCardSource } from '@/services/BoardService';
 import { getUsersByIds, UserInfo } from '../../../../services/UserService';
+import { useToast } from '../../../../components/ui/Toast';
+import { useBackgroundJobs } from '../../../meeting-space/hooks/useBackgroundJobs';
 
 interface MeetingSpaceProps {
   nestId: string;
@@ -50,6 +52,8 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
   
   const { currentNest } = useNest();
   const { user } = useAuth();
+  const { showToast } = useToast();
+  const { createJob } = useBackgroundJobs();
   
   const [showForm, setShowForm] = useState(false);
   
@@ -280,128 +284,66 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
   // カード抽出
   const handleCardExtraction = useCallback(async () => {
     if (!selectedMeeting || !selectedMeeting.transcript || selectedMeeting.transcript.trim() === '') {
-      alert('文字起こしファイルがアップロードされていません。');
+      showToast({ title: 'エラー', message: '文字起こしファイルがアップロードされていません。', type: 'error' });
       return;
     }
     
     if (!user?.id) {
-      alert('ユーザー情報が取得できません。');
+      showToast({ title: 'エラー', message: 'ユーザー情報が取得できません。', type: 'error' });
       return;
     }
 
-    console.log('🔍 [カード抽出デバッグ] === 開始 ===');
-    console.log('🔍 [カード抽出デバッグ] nestId:', nestId);
-    console.log('🔍 [カード抽出デバッグ] user.id:', user.id);
-    console.log('🔍 [カード抽出デバッグ] selectedMeeting.id:', selectedMeeting.id);
-
     try {
-      let extractedCards: any[];
-      
-      // AI使用量のログ記録のためのコンテキストを追加
-      const context = {
-        userId: user.id,
-        nestId,
-        meetingId: selectedMeeting.id
-      };
-      
-      console.log('🔍 [カード抽出デバッグ] context:', context);
-      
-      // OpenAI APIキーがある場合は実際のカード抽出を実行
-      extractedCards = await extractCardsFromMeeting(selectedMeeting.id, context);
-      
-      console.log('🔍 [カード抽出デバッグ] 抽出されたカード数:', extractedCards.length);
-      
-      if (extractedCards.length > 0) {
-        // デフォルトボードを取得または作成
-        console.log('🔍 [カード抽出デバッグ] getOrCreateDefaultBoard呼び出し前 - nestId:', nestId, ', userId:', user.id);
-        const boardId = await getOrCreateDefaultBoard(nestId, user.id);
-        console.log('🔍 [カード抽出デバッグ] getOrCreateDefaultBoard結果 - boardId:', boardId);
-        
-        // カードをボードに追加
-        console.log('🔍 [カード抽出デバッグ] addCardsToBoard呼び出し前 - boardId:', boardId, ', userId:', user.id, ', meetingId:', selectedMeeting.id);
-        const savedCards = await addCardsToBoard(
-          boardId,
-          extractedCards,
-          user.id,
-          selectedMeeting.id
-        );
-        
-        console.log('🔍 [カード抽出デバッグ] 保存されたカード数:', savedCards.length);
-        console.log('🔍 [カード抽出デバッグ] 保存されたカードのboard_id:', savedCards.map(c => c.boardId));
-        
-        // --- ここで出典紐付け ---
-        try {
-          const meetingSource = await getOrCreateMeetingSource(selectedMeeting.id, selectedMeeting.title);
-          await Promise.all(savedCards.map(card => addCardSource({ card_id: card.id, source_id: meetingSource.id })));
-        } catch (err) {
-          console.error('出典紐付けエラー:', err);
+      // Background jobでカード抽出を実行
+      await createJob(
+        'card_extraction',
+        selectedMeeting.id,
+        {
+          nestId: nestId,
+          userId: user.id,
+          meetingTitle: selectedMeeting.title,
+          transcript: selectedMeeting.transcript
         }
-        // --- ここまで追加 ---
-        const cardCount = savedCards.length;
-        const cardTypes = extractedCards.map(card => card.type).join(', ');
-        
-        console.log('🔍 [カード抽出デバッグ] === 完了 ===');
-        
-        console.log('ボードに追加されたカード:', savedCards);
-      } else {
-        console.log('🔍 [カード抽出デバッグ] カード抽出結果が空でした');
-        // alert削除: デザインシステムのモーダルに置き換え済み
-      }
+      );
+      
+      showToast({ title: '成功', message: 'カード抽出を開始しました。処理完了まで少々お待ちください。', type: 'success' });
     } catch (error) {
-      console.error('🔍 [カード抽出デバッグ] エラー発生:', error);
-      console.error('カード抽出エラー:', error);
-      // alert削除: デザインシステムのモーダルに置き換え済み
+      console.error('カード抽出ジョブ作成エラー:', error);
+      showToast({ title: 'エラー', message: 'カード抽出の開始に失敗しました。', type: 'error' });
     }
-  }, [selectedMeeting, user?.id, nestId]);
+  }, [selectedMeeting, user?.id, nestId, createJob, showToast]);
   
   // AI要約
   const handleAISummary = useCallback(async () => {
     if (!selectedMeeting || !selectedMeeting.transcript || selectedMeeting.transcript.trim() === '') {
-      // alert削除: デザインシステムのモーダルに置き換え済み
+      showToast({ title: 'エラー', message: '文字起こしファイルがアップロードされていません。', type: 'error' });
       return;
     }
 
     if (!user?.id) {
-      // alert削除: デザインシステムのモーダルに置き換え済み
+      showToast({ title: 'エラー', message: 'ユーザー情報が取得できません。', type: 'error' });
       return;
     }
 
     try {
-      let summary: string;
-      // 常にEdge Function経由でAI要約を生成
-      // AI使用量のログ記録のためのコンテキストを追加
-      const context = {
-        userId: user.id,
-        nestId,
-        meetingId: selectedMeeting.id
-      };
+      // Background jobでAI要約を実行
+      await createJob(
+        'ai_summary',
+        selectedMeeting.id,
+        {
+          nestId: nestId,
+          userId: user.id,
+          meetingTitle: selectedMeeting.title,
+          transcript: selectedMeeting.transcript
+        }
+      );
       
-      summary = await generateMeetingSummary(selectedMeeting.transcript, context);
-      
-      // 直接Supabaseに保存
-      const { error } = await supabase
-        .from('meetings')
-        .update({
-          ai_summary: summary,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', selectedMeeting.id);
-      
-      if (error) {
-        console.error('AI要約保存エラー:', error);
-        // alert削除: デザインシステムのモーダルに置き換え済み
-        return;
-      }
-      
-      // selectedMeetingを更新
-      setSelectedMeeting(prev => prev ? { ...prev, aiSummary: summary } : null);
-      
-      // alert削除: デザインシステムのモーダルに置き換え済み
+      showToast({ title: '成功', message: 'AI要約を開始しました。処理完了まで少々お待ちください。', type: 'success' });
     } catch (error) {
-      console.error('AI要約生成エラー:', error);
-      // alert削除: デザインシステムのモーダルに置き換え済み
+      console.error('AI要約ジョブ作成エラー:', error);
+      showToast({ title: 'エラー', message: 'AI要約の開始に失敗しました。', type: 'error' });
     }
-  }, [selectedMeeting, user?.id, nestId]);
+  }, [selectedMeeting, user?.id, nestId, createJob, showToast]);
   
   // ファイルアップロード
   const handleFileUpload = useCallback(async (file: File) => {
@@ -502,7 +444,7 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
       return (
         <div style={{ height: '100vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
           <div style={{ flex: 1, display: 'flex', flexDirection: 'row', overflow: 'hidden' }}>
-            {/* 左カラム：ミーティングリスト＋新規追加 */}
+            {/* 左カラム：ミーティングリスト+新規追加 */}
             <div style={{ 
               width: 260, 
               padding: 16, 
@@ -707,7 +649,7 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
       return (
         <div style={{ height: '100vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
           <div style={{ flex: 1, display: 'flex', flexDirection: 'row', overflow: 'hidden' }}>
-            {/* 左カラム：ミーティングリスト＋新規追加 */}
+            {/* 左カラム：ミーティングリスト+新規追加 */}
             <div style={{ 
               width: 260, 
               padding: 16, 
@@ -911,7 +853,7 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
     return (
       <div style={{ height: '100vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'row', overflow: 'hidden' }}>
-          {/* 左カラム：ミーティングリスト＋新規追加 */}
+          {/* 左カラム：ミーティングリスト+新規追加 */}
           <div style={{ 
             width: 260, 
             padding: 16, 

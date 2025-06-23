@@ -23,7 +23,8 @@ export type IconName =
   | 'share'
   | 'more'
   | 'chevron-down'
-  | 'more-vertical';
+  | 'more-vertical'
+  | 'loader';
 
 interface IconProps {
   name: IconName;
@@ -178,6 +179,11 @@ const icons: Record<IconName, (props: { size: number; color: string }) => JSX.El
       <circle cx="12" cy="12" r="1" />
       <circle cx="12" cy="5" r="1" />
       <circle cx="12" cy="19" r="1" />
+    </svg>
+  ),
+  loader: ({ size, color }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
     </svg>
   ),
 };

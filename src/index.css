@@ -48,6 +48,16 @@ body, html, #root {
   min-height: 100vh;
 }
 
+/* --- アニメーション --- */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* --- 追加: .bg-secondaryクラス --- */
 .bg-secondary {
   background: var(--bg-secondary) !important;

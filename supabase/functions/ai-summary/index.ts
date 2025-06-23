@@ -151,6 +151,13 @@ async function callAIWithFallback(prompt: string, action: string, settings: Nest
   const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
   const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
 
+  // デバッグ用ログ追加
+  console.log(`[ai-summary] DEBUG: API Keys availability:`, {
+    openai: openaiApiKey ? `Set (length: ${openaiApiKey.length})` : 'NOT SET',
+    gemini: geminiApiKey ? `Set (length: ${geminiApiKey.length})` : 'NOT SET',
+    primaryProvider: settings.primaryProvider
+  });
+
   // プライマリプロバイダーで試行
   try {
     console.log(`[ai-summary] Trying primary provider: ${settings.primaryProvider}`);

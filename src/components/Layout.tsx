@@ -1,6 +1,8 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import Icon from './ui/Icon';
 import { UserProfile } from './UserProfile';
+import { useNotifications } from '../features/notifications/hooks/useNotifications';
 
 interface LayoutProps {
     children?: React.ReactNode;
@@ -28,6 +30,12 @@ export const Layout: React.FC<LayoutProps> = ({
     nestId,
     onSettingsClick,
 }) => {
+    const navigate = useNavigate();
+    const { unreadCount } = useNotifications({ limit: 1 }); // 未読数だけ取得
+
+    const handleNotificationClick = () => {
+        navigate('/notifications');
+    };
 
     return (
         <div style={{ height: '100vh', background: '#0f0f23', display: 'flex', flexDirection: 'column' }}>
@@ -42,9 +50,11 @@ export const Layout: React.FC<LayoutProps> = ({
                 </div>
                 <div className="header-controls">
                     <div className="global-actions">
-                        <button className="global-action-btn" title="Notifications">
+                        <button className="global-action-btn" title="Notifications" onClick={handleNotificationClick}>
                             <Icon name="bell" size={18} />
-                            <div className="notification-count">3</div>
+                            {unreadCount > 0 && (
+                                <div className="notification-count">{unreadCount}</div>
+                            )}
                         </button>
                         <button className="global-action-btn" title="Global Search">
                             <Icon name="search" size={18} />

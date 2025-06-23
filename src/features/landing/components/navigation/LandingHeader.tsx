@@ -124,6 +124,30 @@ export const LandingHeader: React.FC<LandingHeaderProps> = ({
             >
               お客様の声
             </a>
+            <a
+              href="/demo/background-jobs"
+              style={{
+                color: '#3B82F6',
+                textDecoration: 'none',
+                fontSize: 'var(--text-sm)',
+                fontWeight: '500',
+                transition: 'var(--transition-normal)',
+                cursor: 'pointer',
+                padding: '4px 8px',
+                border: '1px solid #3B82F6',
+                borderRadius: '4px'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#3B82F6';
+                e.currentTarget.style.color = 'white';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.color = '#3B82F6';
+              }}
+            >
+              🚀 デモ
+            </a>
           </nav>
 
           {/* デスクトップアクションボタン */}

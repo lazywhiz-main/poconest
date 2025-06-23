@@ -25,12 +25,19 @@ import UserProfileSpace from './features/user-profile/components/UserProfileSpac
 import { MeetingProvider } from './features/meeting-space/contexts/MeetingContext';
 import { NestListScreen } from './screens/NestListScreen';
 import WelcomeScreen from '@screens/auth/WelcomeScreen';
+import BackgroundJobDemo from './features/meeting-space/components/BackgroundJobDemo';
+import NotificationDemo from './features/notifications/components/NotificationDemo';
+import NotificationPage from './features/notifications/components/NotificationPage';
+import NotificationTester from './features/notifications/components/NotificationTester';
+import NotificationSettings from './features/notifications/components/NotificationSettings';
 import AuthenticatedRoutes from './navigation';
 import Icon from './components/ui/Icon';
 import AcceptInviteScreen from './features/nest/invitation/screens/AcceptInviteScreen';
 import TermsOfServiceScreen from './screens/legal/TermsOfServiceScreen';
 import PrivacyPolicyScreen from './screens/legal/PrivacyPolicyScreen';
 import { LandingPage } from './features/landing/components/LandingPage';
+import { startBackgroundJobWorker } from './services/backgroundJobWorker';
+import { ToastProvider } from './components/ui/Toast';
 // Webではreact-native-screensを無効化
 if (typeof window !== 'undefined') {
   // @ts-ignore
@@ -743,91 +750,115 @@ const AppRoutes: React.FC = () => {
 };
 
 const App: React.FC = () => {
+  // バックグラウンドジョブワーカーを起動
+  useEffect(() => {
+    console.log('[App] Starting background job worker...');
+    startBackgroundJobWorker();
+    
+    // クリーンアップは通常不要（アプリ全体のライフサイクルなので）
+    // return () => stopBackgroundJobWorker();
+  }, []);
+
   return (
     <View style={{ flex: 1 }}>
       <Router>
         <AuthProvider>
-          <Routes>
-            <Route path="/login" element={<LoginScreen />} />
-            <Route path="/nest-list" element={
-              <AuthGuard>
-                <NestProvider>
-                  <NestSpaceProvider>
-                    <ChatProvider>
-                      <NestListScreen />
-                    </ChatProvider>
-                  </NestSpaceProvider>
-                </NestProvider>
-              </AuthGuard>
-            } />
-            <Route path="/nests/:id" element={
-              <AuthGuard>
-                <NestProvider>
-                  <NestSpaceProvider>
-                    <ChatProvider>
-                      <NestTopScreen />
-                    </ChatProvider>
-                  </NestSpaceProvider>
-                </NestProvider>
-              </AuthGuard>
-            } />
-            <Route path="/nests/create" element={
-              <AuthGuard>
-                <NestProvider>
-                  <NestSpaceProvider>
-                    <ChatProvider>
-                      <CreateTestNestScreenWrapper />
-                    </ChatProvider>
-                  </NestSpaceProvider>
-                </NestProvider>
-              </AuthGuard>
-            } />
-            <Route path="/nest-top" element={
-              <AuthGuard>
-                <NestProvider>
-                  <NestSpaceProvider>
-                    <ChatProvider>
-                      <NestTopScreen />
-                    </ChatProvider>
-                  </NestSpaceProvider>
-                </NestProvider>
-              </AuthGuard>
-            } />
-            <Route path="/create-nest" element={
-              <AuthGuard>
-                <NestProvider>
-                  <NestSpaceProvider>
-                    <ChatProvider>
-                      <CreateTestNestScreenWrapper />
-                    </ChatProvider>
-                  </NestSpaceProvider>
-                </NestProvider>
-              </AuthGuard>
-            } />
-            <Route path="/nest-settings" element={
-              <AuthGuard>
-                <NestProvider>
-                  <NestSpaceProvider>
-                    <ChatProvider>
-                      <NestSettingsScreenWrapper />
-                    </ChatProvider>
-                  </NestSpaceProvider>
-                </NestProvider>
-              </AuthGuard>
-            } />
-            <Route path="/invite/:token" element={<AcceptInviteScreen />} />
-            <Route path="/terms-of-service" element={<TermsOfServiceScreen />} />
-            <Route path="/privacy-policy" element={<PrivacyPolicyScreen />} />
-            
-            {/* ランディングページルート */}
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/landing" element={<LandingPage />} />
-            <Route path="/ux-researcher" element={<LandingPage />} />
-            <Route path="/product-manager" element={<LandingPage />} />
-            <Route path="/startup-founder" element={<LandingPage />} />
-            
-            <Route path="*" element={<Navigate to="/" />} />
-          </Routes>
+          <ToastProvider>
+            <Routes>
+              <Route path="/login" element={<LoginScreen />} />
+              <Route path="/nest-list" element={
+                <AuthGuard>
+                  <NestProvider>
+                    <NestSpaceProvider>
+                      <ChatProvider>
+                        <NestListScreen />
+                      </ChatProvider>
+                    </NestSpaceProvider>
+                  </NestProvider>
+                </AuthGuard>
+              } />
+              <Route path="/nests/:id" element={
+                <AuthGuard>
+                  <NestProvider>
+                    <NestSpaceProvider>
+                      <ChatProvider>
+                        <NestTopScreen />
+                      </ChatProvider>
+                    </NestSpaceProvider>
+                  </NestProvider>
+                </AuthGuard>
+              } />
+              <Route path="/nests/create" element={
+                <AuthGuard>
+                  <NestProvider>
+                    <NestSpaceProvider>
+                      <ChatProvider>
+                        <CreateTestNestScreenWrapper />
+                      </ChatProvider>
+                    </NestSpaceProvider>
+                  </NestProvider>
+                </AuthGuard>
+              } />
+              <Route path="/nest-top" element={
+                <AuthGuard>
+                  <NestProvider>
+                    <NestSpaceProvider>
+                      <ChatProvider>
+                        <NestTopScreen />
+                      </ChatProvider>
+                    </NestSpaceProvider>
+                  </NestProvider>
+                </AuthGuard>
+              } />
+              <Route path="/create-nest" element={
+                <AuthGuard>
+                  <NestProvider>
+                    <NestSpaceProvider>
+                      <ChatProvider>
+                        <CreateTestNestScreenWrapper />
+                      </ChatProvider>
+                    </NestSpaceProvider>
+                  </NestProvider>
+                </AuthGuard>
+              } />
+              <Route path="/nest-settings" element={
+                <AuthGuard>
+                  <NestProvider>
+                    <NestSpaceProvider>
+                      <ChatProvider>
+                        <NestSettingsScreenWrapper />
+                      </ChatProvider>
+                    </NestSpaceProvider>
+                  </NestProvider>
+                </AuthGuard>
+              } />
+              <Route path="/invite/:token" element={<AcceptInviteScreen />} />
+              <Route path="/terms-of-service" element={<TermsOfServiceScreen />} />
+              <Route path="/privacy-policy" element={<PrivacyPolicyScreen />} />
+              
+              {/* ランディングページルート */}
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/landing" element={<LandingPage />} />
+              <Route path="/ux-researcher" element={<LandingPage />} />
+              <Route path="/product-manager" element={<LandingPage />} />
+              <Route path="/startup-founder" element={<LandingPage />} />
+              
+              {/* 通知ページ */}
+              <Route path="/notifications" element={<NotificationPage />} />
+              <Route path="/notification-demo" element={<NotificationDemo />} />
+              <Route path="/notification-tester" element={<NotificationTester />} />
+              <Route path="/notification-settings" element={<NotificationSettings />} />
+              
+              {/* デモページルート */}
+              <Route path="/demo/background-jobs" element={
+                <AuthGuard>
+                  <BackgroundJobDemo />
+                </AuthGuard>
+              } />
+              
+              <Route path="*" element={<Navigate to="/" />} />
+            </Routes>
+          </ToastProvider>
         </AuthProvider>
       </Router>
     </View>

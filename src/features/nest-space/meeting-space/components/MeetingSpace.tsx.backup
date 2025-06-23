@@ -1,0 +1,642 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  SafeAreaView,
+  useWindowDimensions,
+  ActivityIndicator,
+  TextInput,
+  FlatList,
+  Modal,
+  Alert
+} from 'react-native';
+import { useZoomSpace } from '../hooks/useZoomSpace';
+import MeetingList from './MeetingList';
+import RecordingPlayer from './RecordingPlayer';
+import MeetingInsights from './MeetingInsights';
+import MeetingForm from './MeetingForm';
+import MeetingDetailPanel from './MeetingDetailPanel';
+import { supabase } from '../../../../services/supabase/client';
+import { useNest } from '../../../nest/contexts/NestContext';
+import { useAuth } from '../../../../contexts/AuthContext';
+import MeetingDetail from './MeetingDetail';
+import { Meeting, MeetingUI, toMeetingUI, toMeetingDB } from '../../../meeting-space/types/meeting';
+import EmptyState from '../../../../components/ui/EmptyState';
+import Input from '../../../../components/ui/Input';
+import Tag from '../../../../components/ui/Tag';
+import StatusBadge from '../../../../components/ui/StatusBadge';
+import Button from '../../../../components/common/Button';
+import { Icon } from '../../../../components/Icon';
+import { generateMeetingSummary, extractCardsFromMeeting, generateMockSummary, generateMockCards } from '../../../../services/ai/openai';
+import { BoardCardUI } from '../../../../types/board';
+import { getOrCreateDefaultBoard, addCardsToBoard } from '../../../../services/BoardService';
+import { getOrCreateMeetingSource, addCardSource } from '@/services/BoardService';
+import { getUsersByIds, UserInfo } from '../../../../services/UserService';
+import { MeetingFormData } from './MeetingForm';
+
+interface MeetingSpaceProps {
+  nestId: string;
+}
+
+// ZoomSpaceコンポーネント
+const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
+  const { width } = useWindowDimensions();
+  const isDesktop = width > 1024;
+  const isTablet = width > 768 && width <= 1024;
+  
+  // useZoomSpaceは使わず、CRUD用stateのみ利用
+  
+  const { currentNest } = useNest();
+  const { user } = useAuth();
+  
+  const [showForm, setShowForm] = useState(false);
+  
+  const [meetingSpace, setMeetingSpace] = useState<any>(null);
+  const [checkingSpace, setCheckingSpace] = useState(true);
+  const [creatingSpace, setCreatingSpace] = useState(false);
+  
+  const [searchQuery, setSearchQuery] = useState('');
+  const [uploadResult, setUploadResult] = useState('');
+  const [transcript, setTranscript] = useState('');
+  const [summary, setSummary] = useState('');
+  const [extracting, setExtracting] = useState(false);
+  
+  const [meetings, setMeetings] = useState<MeetingUI[]>([]);
+  const [loadingMeetings, setLoadingMeetings] = useState(false);
+  const [selectedMeeting, setSelectedMeeting] = useState<MeetingUI | null>(null);
+  
+  // タブ状態管理
+  const [activeTab, setActiveTab] = useState<'transcript' | 'summary' | 'cards'>('transcript');
+  
+  const [userCache, setUserCache] = useState<Record<string, UserInfo>>({});
+
+  // ミーティング削除
+  const deleteMeeting = async (meetingId: string) => {
+    try {
+      const { error } = await supabase
+        .from('meetings')
+        .delete()
+        .eq('id', meetingId);
+
+      if (error) throw error;
+
+      setMeetings(meetings.filter(m => m.id !== meetingId));
+      if (selectedMeeting?.id === meetingId) {
+        setSelectedMeeting(null);
+      }
+    } catch (error) {
+      console.error('Error deleting meeting:', error);
+      Alert.alert('Error', 'Failed to delete meeting');
+    }
+  };
+
+  // ユーザー情報の取得とキャッシュ
+  const fetchUserInfo = useCallback(async (userIds: string[]) => {
+    const uncachedIds = userIds.filter(id => !userCache[id]);
+    if (uncachedIds.length === 0) return;
+
+    try {
+      const usersRecord = await getUsersByIds(uncachedIds);
+      const newCache = { ...userCache };
+      Object.values(usersRecord).forEach((user: UserInfo) => {
+        newCache[user.id] = user;
+      });
+      setUserCache(newCache);
+    } catch (error) {
+      console.error('Error fetching user info:', error);
+    }
+  }, [userCache]);
+
+  // ミーティング一覧取得
+  const fetchMeetings = useCallback(async () => {
+    if (!nestId) return;
+    
+    setLoadingMeetings(true);
+    try {
+      const { data: meetings, error } = await supabase
+        .from('meetings')
+        .select('*')
+        .eq('nest_id', nestId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const meetingUIs: MeetingUI[] = meetings.map(meeting => toMeetingUI(meeting));
+      setMeetings(meetingUIs);
+
+      // 参加者のユーザー情報を取得
+      const allParticipantIds = meetingUIs
+        .flatMap(m => m.participants || [])
+        .filter(Boolean)
+        .filter(p => typeof p === 'string'); // string型のIDのみを抽出
+      if (allParticipantIds.length > 0) {
+        await fetchUserInfo(allParticipantIds as string[]);
+      }
+    } catch (error) {
+      console.error('Error fetching meetings:', error);
+    } finally {
+      setLoadingMeetings(false);
+    }
+  }, [nestId, fetchUserInfo]);
+
+  // 初期データ読み込み
+  useEffect(() => {
+    fetchMeetings();
+  }, [fetchMeetings]);
+
+  // ミーティング選択
+  const handleMeetingSelect = (meeting: MeetingUI) => {
+    setSelectedMeeting(meeting);
+  };
+
+  // 新規ミーティング作成成功時の処理
+  const handleMeetingCreated = async (meetingData: MeetingFormData) => {
+    try {
+      if (!nestId || !user) return;
+
+      // MeetingFormDataをDBに保存
+      const meetingToCreate = {
+        nest_id: nestId,
+        title: meetingData.title,
+        description: meetingData.notes,
+        start_time: meetingData.date.toISOString(),
+        end_time: new Date(meetingData.date.getTime() + 60 * 60 * 1000).toISOString(), // 1時間後
+        participants: meetingData.participants.map(p => ({ id: p, name: p })),
+        transcript: meetingData.transcript,
+        status: 'scheduled' as const,
+        tags: [],
+        created_by: user.id,
+      };
+
+      const { data, error } = await supabase
+        .from('meetings')
+        .insert([meetingToCreate])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const newMeeting = toMeetingUI(data);
+      setMeetings([newMeeting, ...meetings]);
+      setShowForm(false);
+      setSelectedMeeting(newMeeting);
+    } catch (error) {
+      console.error('Error creating meeting:', error);
+      Alert.alert('Error', 'Failed to create meeting');
+    }
+  };
+
+  // 検索フィルタ
+  const filteredMeetings = meetings.filter(meeting =>
+    meeting.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    meeting.description?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // 選択された会議の取得
+  const selectedMeetingId = selectedMeeting?.id || null;
+
+  // ステータスをStatusBadgeに合う形式に変換
+  const getStatusBadgeStatus = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return 'active';
+      case 'scheduled':
+        return 'warning';
+      case 'cancelled':
+        return 'error';
+      default:
+        return 'inactive';
+    }
+  };
+
+  // デスクトップレイアウト
+  if (isDesktop) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.desktopContainer}>
+          {/* 左サイドバー：ミーティングリスト */}
+          <View style={styles.sidebar}>
+            <View style={styles.sidebarHeader}>
+              <Text style={styles.sidebarTitle}>Meetings</Text>
+              <TouchableOpacity
+                style={styles.addButton}
+                onPress={() => setShowForm(true)}
+              >
+                <Icon name="plus" size={16} color="#fff" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.searchContainer}>
+              <Icon name="search" size={16} color="#6b7280" />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search meetings..."
+                placeholderTextColor="#6b7280"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+            </View>
+
+            <ScrollView style={styles.meetingsList}>
+              {loadingMeetings ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="small" color="#3b82f6" />
+                </View>
+              ) : filteredMeetings.length === 0 ? (
+                <EmptyState
+                  title="No meetings found"
+                  description="Create your first meeting to get started"
+                />
+              ) : (
+                filteredMeetings.map((meeting) => (
+                  <TouchableOpacity
+                    key={meeting.id}
+                    style={[
+                      styles.meetingCard,
+                      selectedMeeting?.id === meeting.id && styles.selectedMeetingCard
+                    ]}
+                    onPress={() => handleMeetingSelect(meeting)}
+                  >
+                    <View style={styles.meetingCardHeader}>
+                      <Text style={styles.meetingTitle}>{meeting.title}</Text>
+                      <StatusBadge status={getStatusBadgeStatus(meeting.status)}>
+                        {meeting.status.toUpperCase()}
+                      </StatusBadge>
+                    </View>
+                    
+                    {meeting.description && (
+                      <Text style={styles.meetingDescription} numberOfLines={2}>
+                        {meeting.description}
+                      </Text>
+                    )}
+                    
+                    <View style={styles.meetingMeta}>
+                      <Text style={styles.meetingDate}>
+                        {new Date(meeting.createdAt).toLocaleDateString()}
+                      </Text>
+                      {meeting.tags && meeting.tags.length > 0 && (
+                        <View style={styles.tagsContainer}>
+                          {meeting.tags.slice(0, 2).map((tag, index) => (
+                            <Tag key={index} variant="primary">{tag}</Tag>
+                          ))}
+                          {meeting.tags.length > 2 && (
+                            <Text style={styles.moreTagsText}>
+                              +{meeting.tags.length - 2}
+                            </Text>
+                          )}
+                        </View>
+                      )}
+                    </View>
+
+                    <TouchableOpacity
+                      style={styles.deleteButton}
+                      onPress={() => deleteMeeting(meeting.id)}
+                    >
+                      <Icon name="trash" size={12} color="#ef4444" />
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                ))
+              )}
+            </ScrollView>
+          </View>
+
+          {/* メインコンテンツ：詳細パネル */}
+          <View style={styles.mainContent}>
+            {selectedMeeting ? (
+              <MeetingDetailPanel
+                meeting={selectedMeeting}
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
+              />
+            ) : (
+              <View style={styles.emptySelection}>
+                <Icon name="calendar" size={48} color="#9ca3af" />
+                <Text style={styles.emptySelectionTitle}>Select a meeting</Text>
+                <Text style={styles.emptySelectionDescription}>
+                  Choose a meeting from the list to view details
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* 新規作成モーダル */}
+        <Modal
+          visible={showForm}
+          animationType="slide"
+          presentationStyle="pageSheet"
+        >
+          <SafeAreaView style={styles.modalContainer}>
+            <MeetingForm
+              onSubmit={handleMeetingCreated}
+              onCancel={() => setShowForm(false)}
+            />
+          </SafeAreaView>
+        </Modal>
+      </SafeAreaView>
+    );
+  }
+
+  // タブレット・モバイルレイアウト
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Meetings</Text>
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => setShowForm(true)}
+        >
+          <Icon name="plus" size={16} color="#fff" />
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.searchContainer}>
+        <Icon name="search" size={16} color="#6b7280" />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search meetings..."
+          placeholderTextColor="#6b7280"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+      </View>
+
+      {loadingMeetings ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#3b82f6" />
+        </View>
+      ) : filteredMeetings.length === 0 ? (
+        <EmptyState
+          title="No meetings found"
+          description="Create your first meeting to get started"
+        />
+      ) : (
+        <FlatList
+          data={filteredMeetings}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item: meeting }) => (
+            <TouchableOpacity
+              style={styles.meetingCard}
+              onPress={() => handleMeetingSelect(meeting)}
+            >
+              <View style={styles.meetingCardHeader}>
+                <Text style={styles.meetingTitle}>{meeting.title}</Text>
+                <StatusBadge status={getStatusBadgeStatus(meeting.status)}>
+                  {meeting.status.toUpperCase()}
+                </StatusBadge>
+              </View>
+              
+              {meeting.description && (
+                <Text style={styles.meetingDescription} numberOfLines={2}>
+                  {meeting.description}
+                </Text>
+              )}
+              
+              <View style={styles.meetingMeta}>
+                <Text style={styles.meetingDate}>
+                  {new Date(meeting.createdAt).toLocaleDateString()}
+                </Text>
+                {meeting.tags && meeting.tags.length > 0 && (
+                  <View style={styles.tagsContainer}>
+                    {meeting.tags.slice(0, 2).map((tag, index) => (
+                      <Tag key={index} variant="primary">{tag}</Tag>
+                    ))}
+                    {meeting.tags.length > 2 && (
+                      <Text style={styles.moreTagsText}>
+                        +{meeting.tags.length - 2}
+                      </Text>
+                    )}
+                  </View>
+                )}
+              </View>
+
+              <TouchableOpacity
+                style={styles.deleteButton}
+                onPress={() => deleteMeeting(meeting.id)}
+              >
+                <Icon name="trash" size={12} color="#ef4444" />
+              </TouchableOpacity>
+            </TouchableOpacity>
+          )}
+          contentContainerStyle={styles.listContainer}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
+
+      {/* 詳細モーダル */}
+      {selectedMeeting && (
+        <Modal
+          visible={!!selectedMeeting}
+          animationType="slide"
+          presentationStyle="pageSheet"
+        >
+          <SafeAreaView style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => setSelectedMeeting(null)}
+              >
+                <Icon name="close" size={20} color="#6b7280" />
+              </TouchableOpacity>
+            </View>
+            <MeetingDetailPanel
+              meeting={selectedMeeting}
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+            />
+          </SafeAreaView>
+        </Modal>
+      )}
+
+      {/* 新規作成モーダル */}
+      <Modal
+        visible={showForm}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <MeetingForm
+            onSubmit={handleMeetingCreated}
+            onCancel={() => setShowForm(false)}
+          />
+        </SafeAreaView>
+      </Modal>
+    </SafeAreaView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#111827',
+  },
+  desktopContainer: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  sidebar: {
+    width: 320,
+    backgroundColor: '#1f2937',
+    borderRightWidth: 1,
+    borderRightColor: '#374151',
+  },
+  sidebarHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#374151',
+  },
+  sidebarTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#f9fafb',
+  },
+  addButton: {
+    backgroundColor: '#3b82f6',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#374151',
+    margin: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: 8,
+    color: '#f9fafb',
+    fontSize: 14,
+  },
+  meetingsList: {
+    flex: 1,
+    paddingHorizontal: 16,
+  },
+  meetingCard: {
+    backgroundColor: '#374151',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 12,
+    position: 'relative',
+  },
+  selectedMeetingCard: {
+    backgroundColor: '#1e40af',
+    borderColor: '#3b82f6',
+    borderWidth: 1,
+  },
+  meetingCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  meetingTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#f9fafb',
+    flex: 1,
+    marginRight: 8,
+  },
+  meetingDescription: {
+    fontSize: 14,
+    color: '#d1d5db',
+    marginBottom: 8,
+    lineHeight: 20,
+  },
+  meetingMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  meetingDate: {
+    fontSize: 12,
+    color: '#9ca3af',
+  },
+  tagsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  moreTagsText: {
+    fontSize: 12,
+    color: '#9ca3af',
+    marginLeft: 4,
+  },
+  deleteButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    padding: 4,
+  },
+  mainContent: {
+    flex: 1,
+    backgroundColor: '#111827',
+  },
+  emptySelection: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  emptySelectionTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#f9fafb',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptySelectionDescription: {
+    fontSize: 14,
+    color: '#9ca3af',
+    textAlign: 'center',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#374151',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#f9fafb',
+  },
+  listContainer: {
+    padding: 16,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 32,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#111827',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#374151',
+  },
+  closeButton: {
+    padding: 8,
+  },
+});
+
+export default MeetingSpace; 

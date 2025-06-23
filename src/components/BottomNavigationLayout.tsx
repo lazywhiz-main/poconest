@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Icon from './ui/Icon';
 import { UserProfile } from './UserProfile';
 import { useResponsive } from '../hooks/useResponsive';
+import { useNotifications } from '../features/notifications/hooks/useNotifications';
 import '../styles/responsive.css';
 
 interface LayoutProps {
@@ -30,7 +32,9 @@ export const BottomNavigationLayout: React.FC<LayoutProps> = ({
     nestId,
     onSettingsClick,
 }) => {
+    const navigate = useNavigate();
     const { isMobile, isTablet } = useResponsive();
+    const { unreadCount } = useNotifications({ limit: 1 }); // 未読数だけ取得
 
     // デバッグ情報
     console.log('🎯 BottomNavigationLayout loaded:', { isMobile, isTablet, screenWidth: window.innerWidth });
@@ -40,6 +44,10 @@ export const BottomNavigationLayout: React.FC<LayoutProps> = ({
 
     const handleMenuItemClick = (itemId: string) => {
         onMenuItemClick(itemId);
+    };
+
+    const handleNotificationClick = () => {
+        navigate('/notifications');
     };
 
     return (
@@ -79,9 +87,11 @@ export const BottomNavigationLayout: React.FC<LayoutProps> = ({
                     {/* デスクトップ時のみ全ての操作を表示 */}
                     {!isMobile && (
                         <div className="global-actions">
-                            <button className="global-action-btn" title="Notifications">
+                            <button className="global-action-btn" title="Notifications" onClick={handleNotificationClick}>
                                 <Icon name="bell" size={18} />
-                                <div className="notification-count">3</div>
+                                {unreadCount > 0 && (
+                                    <div className="notification-count">{unreadCount}</div>
+                                )}
                             </button>
                             <button className="global-action-btn" title="Global Search">
                                 <Icon name="search" size={18} />

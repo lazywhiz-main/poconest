@@ -17,6 +17,9 @@ import { CardModal } from '../../../board-space/components/BoardSpace';
 import MiniCalendar from '../../../../components/ui/MiniCalendar';
 import TimeSelect from '../../../../components/ui/TimeSelect';
 import { getUserById, UserInfo } from '../../../../services/UserService';
+import { useToast } from '../../../../components/ui/Toast';
+import ConfirmModal from '../../../../components/ui/ConfirmModal';
+import { JobType } from '../../../meeting-space/types/backgroundJob';
 
 interface MeetingDetailPanelProps {
   meeting: MeetingUI;
@@ -27,6 +30,8 @@ interface MeetingDetailPanelProps {
   onCardExtraction?: () => void;
   onFileUpload?: (file: File) => void;
   isCardExtractionDisabled?: boolean;
+  isAISummaryDisabled?: boolean;
+  isCreatingJob?: JobType | null;
   onDeleteMeeting?: (meetingId: string) => void;
 }
 
@@ -69,6 +74,14 @@ const markdownComponents = {
   pre: (props: any) => <pre {...props} style={{ backgroundColor: '#0f0f23', color: '#e2e8f0', padding: '1em', borderRadius: '4px', overflow: 'auto', fontFamily: 'JetBrains Mono, monospace' }} />,
 };
 
+// スピンアニメーション用のCSS
+const spinKeyframes = `
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+`;
+
 const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
   meeting,
   activeTab,
@@ -78,6 +91,8 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
   onCardExtraction,
   onFileUpload,
   isCardExtractionDisabled = false,
+  isAISummaryDisabled = false,
+  isCreatingJob = null,
   onDeleteMeeting,
 }) => {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -107,6 +122,67 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
   const [aiSummaryCompleted, setAiSummaryCompleted] = useState(false);
   const [cardExtractionCompleted, setCardExtractionCompleted] = useState(false);
   const [extractedCards, setExtractedCards] = useState<BoardCardUI[]>([]);
+
+  // トーストシステム
+  const { showToast } = useToast();
+
+  // ボタン状態の管理
+  const getButtonState = (jobType: 'ai_summary' | 'card_extraction') => {
+    const isRunning = isCreatingJob === jobType;
+    
+    // デバッグ用ログを追加
+    console.log(`[MeetingDetailPanel] getButtonState: jobType=${jobType}, isCreatingJob=${isCreatingJob}, isRunning=${isRunning}`);
+    
+    // プロパティから受け取った無効化状態を確認
+    const isBaseDisabled = jobType === 'ai_summary' ? isAISummaryDisabled : isCardExtractionDisabled;
+    
+    if (jobType === 'ai_summary') {
+      if (isRunning) {
+        return {
+          text: 'AI要約実行中...',
+          icon: 'loader' as const,
+          disabled: true,
+          spinning: true
+        };
+      }
+      return {
+        text: 'AI要約',
+        icon: 'settings' as const,
+        disabled: isBaseDisabled,
+        spinning: false
+      };
+    } else {
+      if (isRunning) {
+        return {
+          text: 'カード抽出実行中...',
+          icon: 'loader' as const,
+          disabled: true,
+          spinning: true
+        };
+      }
+      return {
+        text: 'カード抽出',
+        icon: 'settings' as const,
+        disabled: isBaseDisabled,
+        spinning: false
+      };
+    }
+  };
+
+  // スピンアニメーション用のスタイルを動的に追加
+  useEffect(() => {
+    if (!document.getElementById('meeting-detail-spinner-styles')) {
+      const style = document.createElement('style');
+      style.id = 'meeting-detail-spinner-styles';
+      style.textContent = `
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+  }, []);
 
   const loadRelatedCards = useCallback(async () => {
     setLoadingCards(true);
@@ -282,36 +358,124 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
   };
 
   // AI要約処理のハンドラー
-  const handleAISummaryWithModal = async () => {
-    setIsAISummaryLoading(true);
-    try {
-      if (onAISummary) {
-        await onAISummary();
-      }
-      setAiSummaryCompleted(true);
-    } catch (error) {
-      console.error('AI要約生成エラー:', error);
-    } finally {
-      setIsAISummaryLoading(false);
-    }
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<'ai-summary' | 'card-extraction' | null>(null);
+
+  const handleAISummaryWithModal = () => {
+    setConfirmAction('ai-summary');
+    setShowConfirmModal(true);
   };
 
-  // カード抽出処理のハンドラー
-  const handleCardExtractionWithModal = async () => {
-    setIsCardExtractionLoading(true);
-    try {
-      if (onCardExtraction) {
-        await onCardExtraction();
-      }
-      // カード抽出後にリロードして新しいカードを取得
-      await loadRelatedCards();
-      // リロード後のカードを抽出完了モーダルで表示するために状態を更新
-      setCardExtractionCompleted(true);
-    } catch (error) {
-      console.error('カード抽出エラー:', error);
-    } finally {
-      setIsCardExtractionLoading(false);
+  const handleCardExtractionWithModal = () => {
+    setConfirmAction('card-extraction');
+    setShowConfirmModal(true);
+  };
+
+  const handleAISummary = useCallback(() => {
+    if (onAISummary) {
+      onAISummary();
+      
+      // 開始トーストを表示
+      showToast({
+        type: 'info',
+        title: 'AI要約を開始しました',
+        message: 'バックグラウンドで処理中です...',
+        duration: 3000
+      });
     }
+  }, [onAISummary, showToast]);
+
+  const handleCardExtraction = useCallback(() => {
+    if (onCardExtraction) {
+      onCardExtraction();
+      
+      // 開始トーストを表示
+      showToast({
+        type: 'info',
+        title: 'カード抽出を開始しました',
+        message: 'バックグラウンドで処理中です...',
+        duration: 3000
+      });
+    }
+  }, [onCardExtraction, showToast]);
+
+  const handleConfirmAction = () => {
+    if (confirmAction === 'ai-summary') {
+      handleAISummary();
+    } else if (confirmAction === 'card-extraction') {
+      handleCardExtraction();
+    }
+    setShowConfirmModal(false);
+    setConfirmAction(null);
+  };
+
+  const handleCancelAction = () => {
+    setShowConfirmModal(false);
+    setConfirmAction(null);
+  };
+
+  const getConfirmModalConfig = () => {
+    if (confirmAction === 'ai-summary') {
+      return {
+        title: 'AI要約の実行確認',
+        message: `この処理には時間がかかる場合があります。\n\n処理中も他の機能をご利用いただけます。\n完了時にはトースト通知でお知らせいたします。\n\n実行しますか？`,
+        type: 'info' as const
+      };
+    } else if (confirmAction === 'card-extraction') {
+      return {
+        title: 'カード抽出の実行確認',
+        message: `この処理には時間がかかる場合があります。\n\n処理中も他の機能をご利用いただけます。\n完了時にはトースト通知でお知らせいたします。\n\n実行しますか？`,
+        type: 'info' as const
+      };
+    }
+    return {
+      title: '確認',
+      message: '実行しますか？',
+      type: 'info' as const
+    };
+  };
+
+  // ボタンスタイルのヘルパー関数
+  const getButtonBackgroundColor = (buttonType: 'ai-summary' | 'card-extraction') => {
+    const jobType = buttonType === 'ai-summary' ? 'ai_summary' : 'card_extraction';
+    const state = getButtonState(jobType);
+    
+    if (state.disabled) return '#1a1a2e';
+    return state.spinning ? '#2a2a4e' : '#333366';
+  };
+
+  const getButtonTextColor = (buttonType: 'ai-summary' | 'card-extraction') => {
+    const jobType = buttonType === 'ai-summary' ? 'ai_summary' : 'card_extraction';
+    const state = getButtonState(jobType);
+    
+    return state.disabled ? '#6c7086' : '#e2e8f0';
+  };
+
+  // ボタンスタイル
+  const styles = {
+    actionButton: {
+      border: 'none',
+      borderRadius: 2,
+      padding: '8px 16px',
+      fontSize: 12,
+      fontWeight: 600,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+      transition: 'all 0.2s ease',
+    },
+    actionButtonDisabled: {
+      cursor: 'not-allowed',
+    },
+    buttonContent: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+    },
+    buttonText: {
+      fontSize: 12,
+      fontWeight: 600,
+    },
   };
 
   // タブUI
@@ -628,23 +792,28 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
                 )}
               </div>
               <button
-                style={{ 
-                  background: '#333366', 
-                  color: '#e2e8f0', 
-                  border: 'none', 
-                  borderRadius: 2, 
-                  padding: '8px 16px', 
-                  fontSize: 12, 
-                  fontWeight: 600, 
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
+                style={{
+                  ...styles.actionButton,
+                  ...(getButtonState('ai_summary').disabled ? styles.actionButtonDisabled : {}),
+                  backgroundColor: getButtonBackgroundColor('ai-summary'),
+                  color: getButtonTextColor('ai-summary'),
+                  opacity: getButtonState('ai_summary').disabled ? 0.6 : 1,
+                  cursor: getButtonState('ai_summary').disabled ? 'not-allowed' : 'pointer',
                 }}
                 onClick={handleAISummaryWithModal}
+                disabled={getButtonState('ai_summary').disabled}
               >
-                <Icon name="ai-summary" size={14} color="#e2e8f0" />
-                AI要約
+                <div style={styles.buttonContent}>
+                  <Icon 
+                    name={getButtonState('ai_summary').icon} 
+                    size={16} 
+                    color={getButtonTextColor('ai-summary')}
+                    style={{
+                      ...(getButtonState('ai_summary').spinning ? { animation: 'spin 1s linear infinite' } : {})
+                    }}
+                  />
+                  <span style={styles.buttonText}>{getButtonState('ai_summary').text}</span>
+                </div>
               </button>
             </div>
 
@@ -722,30 +891,28 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
                 {relatedCards.length > 0 ? `${relatedCards.length}個のカード` : 'カードなし'}
               </div>
               <button
-                style={{ 
-                  background: '#333366', 
-                  color: '#e2e8f0', 
-                  border: 'none', 
-                  borderRadius: 2, 
-                  padding: '8px 16px', 
-                  fontSize: 12, 
-                  fontWeight: 600, 
-                  cursor: isCardExtractionDisabled ? 'not-allowed' : 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  opacity: isCardExtractionDisabled ? 0.5 : 1,
+                style={{
+                  ...styles.actionButton,
+                  ...(getButtonState('card_extraction').disabled ? styles.actionButtonDisabled : {}),
+                  backgroundColor: getButtonBackgroundColor('card-extraction'),
+                  color: getButtonTextColor('card-extraction'),
+                  opacity: getButtonState('card_extraction').disabled ? 0.6 : 1,
+                  cursor: getButtonState('card_extraction').disabled ? 'not-allowed' : 'pointer',
                 }}
-                onClick={() => {
-                  if (isCardExtractionDisabled) {
-                    return;
-                  }
-                  if (onCardExtraction) handleCardExtractionWithModal();
-                }}
-                disabled={isCardExtractionDisabled}
+                onClick={handleCardExtractionWithModal}
+                disabled={getButtonState('card_extraction').disabled}
               >
-                <Icon name="card-extract" size={14} color="#e2e8f0" />
-                カード抽出
+                <div style={styles.buttonContent}>
+                  <Icon 
+                    name={getButtonState('card_extraction').icon} 
+                    size={16} 
+                    color={getButtonTextColor('card-extraction')}
+                    style={{
+                      ...(getButtonState('card_extraction').spinning ? { animation: 'spin 1s linear infinite' } : {})
+                    }}
+                  />
+                  <span style={styles.buttonText}>{getButtonState('card_extraction').text}</span>
+                </div>
               </button>
             </div>
 
@@ -917,331 +1084,6 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
         </div>
       </Modal>
       
-      {/* AI要約処理中モーダル */}
-      {isAISummaryLoading && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0, 0, 0, 0.8)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-          backdropFilter: 'blur(8px)',
-        }}>
-          <div style={{
-            background: '#1a1a2e',
-            border: '1px solid #333366',
-            borderRadius: '12px',
-            padding: '40px',
-            textAlign: 'center',
-            maxWidth: '400px',
-            boxShadow: '0 16px 40px rgba(0, 0, 0, 0.4)',
-          }}>
-            {/* スピナー */}
-            <div style={{
-              width: '60px',
-              height: '60px',
-              border: '3px solid #333366',
-              borderTop: '3px solid #ffa500',
-              borderRadius: '50%',
-              animation: 'spin 1s linear infinite',
-              margin: '0 auto 24px',
-            }} />
-            
-            <div style={{
-              color: '#ffa500',
-              fontSize: '20px',
-              fontWeight: '600',
-              marginBottom: '16px',
-              fontFamily: 'Space Grotesk, system-ui, sans-serif',
-            }}>
-              AI要約生成中
-            </div>
-            
-            <div style={{
-              color: '#a6adc8',
-              fontSize: '14px',
-              lineHeight: '1.5',
-              marginBottom: '24px',
-            }}>
-              ミーティング内容を分析して要約を生成しています...
-            </div>
-            
-            <div style={{
-              color: '#6c7086',
-              fontSize: '12px',
-              fontStyle: 'italic',
-            }}>
-              処理を中断しないでください...
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* AI要約完了モーダル */}
-      {aiSummaryCompleted && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0, 0, 0, 0.7)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1001,
-          backdropFilter: 'blur(4px)',
-        }}>
-          <div style={{
-            background: '#1a1a2e',
-            border: '1px solid #333366',
-            borderRadius: '8px',
-            padding: '32px',
-            maxWidth: '480px',
-            maxHeight: '80vh',
-            overflow: 'auto',
-            boxShadow: '0 12px 32px rgba(0, 0, 0, 0.3)',
-          }}>
-            <div style={{
-              color: '#00ff88',
-              fontSize: '18px',
-              fontWeight: '600',
-              marginBottom: '16px',
-              fontFamily: 'Space Grotesk, system-ui, sans-serif',
-            }}>
-              AI要約が完了しました
-            </div>
-            
-            <div style={{
-              color: '#a6adc8',
-              fontSize: '14px',
-              lineHeight: '1.6',
-              marginBottom: '24px',
-            }}>
-              ミーティングの要約が正常に生成されました。要約タブで内容を確認できます。
-            </div>
-            
-            <div style={{
-              display: 'flex',
-              gap: '12px',
-              justifyContent: 'flex-end',
-            }}>
-              <button
-                style={{
-                  background: '#00ff88',
-                  border: '1px solid #00ff88',
-                  borderRadius: '4px',
-                  color: '#0f0f23',
-                  padding: '12px 24px',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  fontFamily: 'JetBrains Mono, monospace',
-                }}
-                onClick={() => setAiSummaryCompleted(false)}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = '#00cc6a';
-                  e.currentTarget.style.borderColor = '#00cc6a';
-                  e.currentTarget.style.transform = 'translateY(-1px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = '#00ff88';
-                  e.currentTarget.style.borderColor = '#00ff88';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }}
-              >
-                確認
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* カード抽出処理中モーダル */}
-      {isCardExtractionLoading && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0, 0, 0, 0.8)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-          backdropFilter: 'blur(8px)',
-        }}>
-          <div style={{
-            background: '#1a1a2e',
-            border: '1px solid #333366',
-            borderRadius: '12px',
-            padding: '40px',
-            textAlign: 'center',
-            maxWidth: '400px',
-            boxShadow: '0 16px 40px rgba(0, 0, 0, 0.4)',
-          }}>
-            {/* スピナー */}
-            <div style={{
-              width: '60px',
-              height: '60px',
-              border: '3px solid #333366',
-              borderTop: '3px solid #9c27b0',
-              borderRadius: '50%',
-              animation: 'spin 1s linear infinite',
-              margin: '0 auto 24px',
-            }} />
-            
-            <div style={{
-              color: '#9c27b0',
-              fontSize: '20px',
-              fontWeight: '600',
-              marginBottom: '16px',
-              fontFamily: 'Space Grotesk, system-ui, sans-serif',
-            }}>
-              カード抽出中
-            </div>
-            
-            <div style={{
-              color: '#a6adc8',
-              fontSize: '14px',
-              lineHeight: '1.5',
-              marginBottom: '24px',
-            }}>
-              ミーティング内容を分析してカードを抽出しています...
-            </div>
-            
-            <div style={{
-              color: '#6c7086',
-              fontSize: '12px',
-              fontStyle: 'italic',
-            }}>
-              処理を中断しないでください...
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* カード抽出完了モーダル */}
-      {cardExtractionCompleted && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0, 0, 0, 0.7)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1001,
-          backdropFilter: 'blur(4px)',
-        }}>
-          <div style={{
-            background: '#1a1a2e',
-            border: '1px solid #333366',
-            borderRadius: '8px',
-            padding: '32px',
-            maxWidth: '480px',
-            maxHeight: '80vh',
-            overflow: 'auto',
-            boxShadow: '0 12px 32px rgba(0, 0, 0, 0.3)',
-          }}>
-            <div style={{
-              color: '#00ff88',
-              fontSize: '18px',
-              fontWeight: '600',
-              marginBottom: '16px',
-              fontFamily: 'Space Grotesk, system-ui, sans-serif',
-            }}>
-              カード抽出が完了しました
-            </div>
-            
-            <div style={{
-              color: '#a6adc8',
-              fontSize: '14px',
-              lineHeight: '1.6',
-              marginBottom: '16px',
-            }}>
-              {relatedCards.length > 0 ? `${relatedCards.length}個のカードが抽出されました:` : 'カードが抽出されました。'}
-            </div>
-
-            {/* 抽出されたカードのタイトルリスト */}
-            {relatedCards.length > 0 && (
-              <div style={{
-                background: '#0f0f23',
-                border: '1px solid #333366',
-                borderRadius: '4px',
-                padding: '16px',
-                marginBottom: '24px',
-                maxHeight: '200px',
-                overflowY: 'auto',
-              }}>
-                {relatedCards.map((card, index) => (
-                  <div key={card.id} style={{
-                    color: '#e2e8f0',
-                    fontSize: '13px',
-                    padding: '4px 0',
-                    borderBottom: index < relatedCards.length - 1 ? '1px solid #333366' : 'none',
-                    fontFamily: 'JetBrains Mono, monospace',
-                  }}>
-                    • {card.title || '無題のカード'}
-                  </div>
-                ))}
-              </div>
-            )}
-            
-            <div style={{
-              display: 'flex',
-              gap: '12px',
-              justifyContent: 'flex-end',
-            }}>
-              <button
-                style={{
-                  background: '#00ff88',
-                  border: '1px solid #00ff88',
-                  borderRadius: '4px',
-                  color: '#0f0f23',
-                  padding: '12px 24px',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  fontFamily: 'JetBrains Mono, monospace',
-                }}
-                onClick={() => setCardExtractionCompleted(false)}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = '#00cc6a';
-                  e.currentTarget.style.borderColor = '#00cc6a';
-                  e.currentTarget.style.transform = 'translateY(-1px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = '#00ff88';
-                  e.currentTarget.style.borderColor = '#00ff88';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }}
-              >
-                確認
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* スピナーアニメーション用のスタイル */}
-      <style>{`
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-      `}</style>
-      
       {/* 新規カード作成モーダル */}
       {showNewCardModal && (
         <CardModal
@@ -1320,6 +1162,14 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
         columnType={editingCard?.columnType as any || 'INBOX'}
         setColumnType={() => {}}
         boardId={editingCard?.boardId || ''}
+      />
+
+      {/* 確認モーダル */}
+      <ConfirmModal
+        open={showConfirmModal}
+        {...getConfirmModalConfig()}
+        onConfirm={handleConfirmAction}
+        onCancel={handleCancelAction}
       />
     </div>
   );
