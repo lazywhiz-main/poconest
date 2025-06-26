@@ -171,7 +171,7 @@ const MeetingSpaceUnified: React.FC<MeetingSpaceUnifiedProps> = ({ nestId }) => 
     const now = new Date().toISOString();
     
     if (!(formData.date instanceof Date) || isNaN(formData.date.getTime())) {
-      showToast('日時が不正です。正しい形式で入力してください', 'error');
+      showToast({ title: 'エラー', message: '日時が不正です。正しい形式で入力してください。', type: 'error' });
       return;
     }
     
@@ -197,11 +197,11 @@ const MeetingSpaceUnified: React.FC<MeetingSpaceUnifiedProps> = ({ nestId }) => 
     
     const { error } = await supabase.from('meetings').insert([dbMeeting]);
     if (error) {
-      showToast('ミーティングの保存に失敗しました: ' + error.message, 'error');
+      showToast({ title: 'エラー', message: 'ミーティングの保存に失敗しました: ' + error.message, type: 'error' });
       return;
     }
     
-    showToast('ミーティングが作成されました', 'success');
+    showToast({ title: '成功', message: 'ミーティングが作成されました', type: 'success' });
     await refreshUnifiedMeetings();
   }, [nestId, user, showToast, refreshUnifiedMeetings]);
 
@@ -224,7 +224,7 @@ const MeetingSpaceUnified: React.FC<MeetingSpaceUnifiedProps> = ({ nestId }) => 
         recordingUrl: meeting.actualData?.recordingUrl,
         transcript: meeting.actualData?.transcript,
         aiSummary: meeting.actualData?.aiSummary,
-        status: meeting.status,
+        status: meeting.status === 'in_progress' ? 'completed' : meeting.status,
         tags: meeting.tags,
         createdAt: meeting.createdAt.toISOString(),
         updatedAt: meeting.updatedAt.toISOString(),
@@ -241,9 +241,9 @@ const MeetingSpaceUnified: React.FC<MeetingSpaceUnifiedProps> = ({ nestId }) => 
   const handleMigrateToActual = useCallback(async (scheduledMeetingId: string) => {
     try {
       await migrateScheduledToActual(scheduledMeetingId);
-      showToast('ミーティングが開始されました', 'success');
+      showToast({ title: '成功', message: 'ミーティングが開始されました', type: 'success' });
     } catch (error) {
-      showToast('ミーティングの開始に失敗しました', 'error');
+      showToast({ title: 'エラー', message: 'ミーティングの開始に失敗しました', type: 'error' });
       console.error('Failed to migrate scheduled meeting:', error);
     }
   }, [migrateScheduledToActual, showToast]);
@@ -271,33 +271,30 @@ const MeetingSpaceUnified: React.FC<MeetingSpaceUnifiedProps> = ({ nestId }) => 
 
   // ファイルアップロード処理
   const handleUpload = async (data: any) => {
-    if (!selectedUnifiedMeeting?.type === 'actual' || !selectedUnifiedMeeting?.actualMeetingId) {
-      showToast('実際のミーティングを選択してください', 'warning');
+    if (selectedUnifiedMeeting?.type !== 'actual' || !selectedUnifiedMeeting?.actualMeetingId) {
+      showToast({ title: '警告', message: '実際のミーティングを選択してください', type: 'warning' });
       return;
     }
 
     // ファイルアップロード処理のロジックは既存のものを使用
-    showToast('ファイルアップロード機能は実装中です', 'info');
+    showToast({ title: '情報', message: 'ファイルアップロード機能は実装中です', type: 'info' });
   };
 
   // AI要約処理
   const handleExtractInsight = async () => {
-    if (!selectedUnifiedMeeting?.type === 'actual' || !selectedUnifiedMeeting?.actualMeetingId) {
-      showToast('実際のミーティングを選択してください', 'warning');
+    if (selectedUnifiedMeeting?.type !== 'actual' || !selectedUnifiedMeeting?.actualMeetingId) {
+      showToast({ title: '警告', message: '実際のミーティングを選択してください', type: 'warning' });
       return;
     }
 
     try {
-      await createJob({
-        type: 'ai_summary' as JobType,
-        meetingId: selectedUnifiedMeeting.actualMeetingId,
-        progress: 0,
-        result: null,
-        error: null,
-      });
-      showToast('AI要約処理を開始しました', 'success');
+      await createJob(
+        'ai_summary' as JobType,
+        selectedUnifiedMeeting.actualMeetingId
+      );
+      showToast({ title: '成功', message: 'AI要約処理を開始しました', type: 'success' });
     } catch (error) {
-      showToast('AI要約処理の開始に失敗しました', 'error');
+      showToast({ title: 'エラー', message: 'AI要約処理の開始に失敗しました', type: 'error' });
       console.error('Failed to start AI summary job:', error);
     }
   };
@@ -332,11 +329,10 @@ const MeetingSpaceUnified: React.FC<MeetingSpaceUnifiedProps> = ({ nestId }) => 
             description="ミーティング機能を使用するには、まず空間を作成する必要があります" 
           />
           <Button 
+            title={creatingSpace ? '作成中...' : 'ミーティング空間を作成'}
             onPress={handleCreateMeetingSpace}
             disabled={creatingSpace}
-          >
-            {creatingSpace ? '作成中...' : 'ミーティング空間を作成'}
-          </Button>
+          />
         </div>
       );
     }
@@ -462,9 +458,10 @@ const MeetingSpaceUnified: React.FC<MeetingSpaceUnifiedProps> = ({ nestId }) => 
             {selectedUnifiedMeeting?.type === 'actual' && selectedMeeting ? (
               <MeetingDetailPanel
                 meeting={selectedMeeting}
-                onMeetingUpdate={refreshUnifiedMeetings}
-                onExtractInsight={handleExtractInsight}
-                currentRunningJob={currentRunningJob}
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
+                onSaveMeeting={refreshUnifiedMeetings}
+                onCardExtraction={handleExtractInsight}
                 isJobRunning={isJobRunning}
               />
             ) : selectedUnifiedMeeting?.type === 'scheduled' ? (
