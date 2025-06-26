@@ -99,7 +99,15 @@ export const useBackgroundJobs = (): UseBackgroundJobsResult => {
           
           if (payload.eventType === 'INSERT') {
             const newJob = dbToApp(payload.new as DbBackgroundJob);
-            setJobs(prev => [newJob, ...prev]);
+            // 🔧 重複チェック - 既に存在する場合は追加しない
+            setJobs(prev => {
+              const existingJob = prev.find(job => job.id === newJob.id);
+              if (existingJob) {
+                console.log('[useBackgroundJobs] Job already exists, skipping INSERT:', newJob.id);
+                return prev; // 既存のジョブがあるので追加しない
+              }
+              return [newJob, ...prev];
+            });
           } else if (payload.eventType === 'UPDATE') {
             const updatedJob = dbToApp(payload.new as DbBackgroundJob);
             setJobs(prev => prev.map(job => 
@@ -188,7 +196,12 @@ export const useBackgroundJobs = (): UseBackgroundJobsResult => {
       }
 
       console.log('[useBackgroundJobs] Job created successfully:', data);
-      return dbToApp(data as DbBackgroundJob);
+      const newJob = dbToApp(data as DbBackgroundJob);
+      
+      // 🔧 即座にローカル状態を更新（UIに即反映させる）
+      setJobs(prev => [newJob, ...prev]);
+      
+      return newJob;
     } catch (err) {
       console.error('[useBackgroundJobs] Create job error:', err);
       const errorMessage = err instanceof Error ? err.message : 'ジョブの作成に失敗しました';
@@ -217,6 +230,13 @@ export const useBackgroundJobs = (): UseBackgroundJobsResult => {
 
       if (updateError) throw updateError;
 
+      // 🔧 即座にローカル状態を更新
+      setJobs(prev => prev.map(job => 
+        job.id === jobId 
+          ? { ...job, status: 'cancelled' as JobStatus, updatedAt: new Date() }
+          : job
+      ));
+
       return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ジョブのキャンセルに失敗しました');
@@ -240,6 +260,19 @@ export const useBackgroundJobs = (): UseBackgroundJobsResult => {
         .eq('id', jobId);
 
       if (updateError) throw updateError;
+
+      // 🔧 即座にローカル状態を更新
+      setJobs(prev => prev.map(job => 
+        job.id === jobId 
+          ? { 
+              ...job, 
+              status: 'pending' as JobStatus, 
+              progress: 0, 
+              errorMessage: undefined,
+              updatedAt: new Date() 
+            }
+          : job
+      ));
 
       return true;
     } catch (err) {

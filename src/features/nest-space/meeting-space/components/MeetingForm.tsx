@@ -124,13 +124,36 @@ const MeetingForm: React.FC<MeetingFormProps> = ({ onSubmit, onCancel, droppedFi
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.name.endsWith('.txt')) {
-      alert('テキストファイル（.txt）のみアップロード可能です');
+    
+    // ファイルサイズをチェック（100MB制限）
+    const maxSizeBytes = 100 * 1024 * 1024; // 100MB
+    if (file.size > maxSizeBytes) {
+      alert(`ファイルサイズが大きすぎます。100MB以下のファイルをご利用ください。（現在: ${Math.round(file.size / (1024 * 1024))}MB）`);
       return;
     }
-    const text = await file.text();
-    setTranscript(text);
-    setUploadFileName(file.name);
+    
+    const isAudio = file.type.startsWith('audio/');
+    const isVideo = file.type.startsWith('video/');
+    const isText = file.type === 'text/plain' || file.name.endsWith('.txt');
+    
+    if (isText) {
+      // テキストファイルの場合：即座に内容を読み込み
+      const text = await file.text();
+      setTranscript(text);
+      setUploadFileName(file.name);
+    } else if (isAudio || isVideo) {
+      // 音声・動画ファイルの場合：ファイル情報を保存（実際の文字起こしは後で処理）
+      setUploadFileName(file.name);
+      setTranscript(`[${isAudio ? '音声' : '動画'}ファイル] ${file.name} - 作成後に自動文字起こしされます`);
+      // ファイルを保存（droppedFileとして保持）
+      if (typeof droppedFile === 'undefined') {
+        // droppedFileプロパティがない場合のフォールバック
+        console.log('Audio/Video file selected:', file.name);
+      }
+    } else {
+      alert('サポートされていないファイル形式です。テキスト、音声、動画ファイルをご利用ください。');
+      return;
+    }
   };
 
   return (
@@ -160,14 +183,14 @@ const MeetingForm: React.FC<MeetingFormProps> = ({ onSubmit, onCancel, droppedFi
       </View>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>文字起こしファイル（.txt）</Text>
+        <Text style={styles.label}>ファイル（テキスト / 音声 / 動画）</Text>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <CommonButton variant="primary" type="button">
             <label style={{ cursor: 'pointer', margin: 0 }}>
               ファイルを選択
               <input
                 type="file"
-                accept=".txt"
+                accept=".txt,.mp3,.wav,.m4a,.mp4,.webm,.mov"
                 onChange={handleFileChange}
                 style={{ display: 'none' }}
               />
@@ -180,6 +203,9 @@ const MeetingForm: React.FC<MeetingFormProps> = ({ onSubmit, onCancel, droppedFi
         {transcript && (
           <Text style={{ color: '#a6adc8', fontSize: 11, marginTop: 4 }}>（内容: {transcript.slice(0, 40)}...）</Text>
         )}
+        <Text style={{ color: '#6c7086', fontSize: 10, marginTop: 4 }}>
+          💡 音声・動画ファイルは自動的に文字起こしされます
+        </Text>
       </View>
 
       <View style={styles.buttonContainer}>

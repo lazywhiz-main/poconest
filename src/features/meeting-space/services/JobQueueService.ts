@@ -6,16 +6,53 @@ import type {
   JobType, 
   JobStatus
 } from '../types/backgroundJob';
-import { EstimatedDuration } from '../types/backgroundJob';
+import { EstimatedDuration, RetryConfiguration } from '../types/backgroundJob';
 
 export class JobQueueService {
+  // 🔧 動的な推定完了時間を計算
+  private static async calculateEstimatedCompletion(jobType: JobType): Promise<Date> {
+    const baseDuration = EstimatedDuration[jobType];
+    
+    // 同じタイプの最近のジョブの平均処理時間を取得
+    const { data: recentJobs } = await supabase
+      .from('background_jobs')
+      .select('created_at, updated_at')
+      .eq('type', jobType)
+      .eq('status', 'completed')
+      .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()) // 過去7日
+      .order('updated_at', { ascending: false })
+      .limit(10);
+
+    if (recentJobs && recentJobs.length > 0) {
+      // 平均処理時間を計算
+      const totalDuration = recentJobs.reduce((sum, job) => {
+        const start = new Date(job.created_at);
+        const end = new Date(job.updated_at);
+        return sum + (end.getTime() - start.getTime());
+      }, 0);
+      
+      const avgDurationMs = totalDuration / recentJobs.length;
+      const avgDurationMinutes = Math.ceil(avgDurationMs / (1000 * 60));
+      
+      // ベース時間と実績平均の間で調整（重み付き平均）
+      const adjustedDuration = Math.ceil((baseDuration + avgDurationMinutes) / 2);
+      
+      console.log(`[JobQueueService] Estimated duration for ${jobType}: ${adjustedDuration}min (base: ${baseDuration}min, avg: ${avgDurationMinutes}min)`);
+      
+      return new Date(Date.now() + adjustedDuration * 60 * 1000);
+    }
+    
+    // データ不足の場合はベース時間を使用
+    return new Date(Date.now() + baseDuration * 60 * 1000);
+  }
+
   /**
-   * 新しいジョブをキューに追加
+   * 🔧 強化されたジョブキューへの追加（リトライ設定付き）
    */
   static async enqueueJob(request: CreateJobRequest): Promise<string> {
     try {
-      const estimatedDuration = EstimatedDuration[request.type];
-      const estimatedCompletion = new Date(Date.now() + estimatedDuration * 60 * 1000);
+      const estimatedCompletion = await this.calculateEstimatedCompletion(request.type);
+      const retryConfig = RetryConfiguration[request.type];
 
       const { data, error } = await supabase
         .from('background_jobs')
@@ -26,7 +63,11 @@ export class JobQueueService {
           metadata: request.metadata || {},
           estimated_completion: estimatedCompletion.toISOString(),
           status: 'pending',
-          progress: 0
+          progress: 0,
+          // 🔧 リトライ設定を追加
+          retry_count: 0,
+          max_retries: retryConfig.maxRetries,
+          timeout_at: new Date(Date.now() + retryConfig.timeoutMinutes * 60 * 1000).toISOString()
         })
         .select()
         .single();
@@ -313,8 +354,4 @@ export class JobQueueService {
   /**
    * ジョブタイプに基づく推定完了時間を計算
    */
-  static calculateEstimatedCompletion(jobType: JobType): Date {
-    const durationMinutes = EstimatedDuration[jobType];
-    return new Date(Date.now() + durationMinutes * 60 * 1000);
-  }
 } 

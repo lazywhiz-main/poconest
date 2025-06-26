@@ -116,6 +116,12 @@ const BackgroundJobProgress: React.FC<BackgroundJobProgressProps> = ({
                 <span className={`text-sm font-medium ${getStatusColor(job.status)}`}>
                   {getJobTypeLabel(job.type)}
                 </span>
+                {/* 🔧 リトライ情報表示 */}
+                {job.retryCount && job.retryCount > 0 && (
+                  <span className="text-xs px-2 py-1 rounded-full bg-orange-100 text-orange-700">
+                    リトライ {job.retryCount}/{job.maxRetries || 3}
+                  </span>
+                )}
               </div>
             </div>
             
@@ -172,6 +178,12 @@ const BackgroundJobProgress: React.FC<BackgroundJobProgressProps> = ({
               {(job.status === 'pending' || job.status === 'running') && job.estimatedCompletion &&
                 `予想完了: ${new Date(job.estimatedCompletion).toLocaleTimeString()}`
               }
+              {/* 🔧 タイムアウト情報表示 */}
+              {(job.status === 'running' || job.status === 'pending') && job.timeoutAt && (
+                <span className="text-orange-600 ml-2">
+                  (タイムアウト: {job.timeoutAt.toLocaleTimeString()})
+                </span>
+              )}
             </span>
           </div>
 

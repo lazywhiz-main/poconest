@@ -1,5 +1,5 @@
 import { supabase } from './supabase/client';
-import { BackgroundJob, JobType, JobStatus } from '../features/meeting-space/types/backgroundJob';
+import { BackgroundJob, JobType, JobStatus, RetryConfiguration } from '../features/meeting-space/types/backgroundJob';
 import { NotificationService } from '../features/notifications/services/NotificationService';
 import { generateMeetingSummary, extractCardsFromMeeting, generateMockSummary, generateMockCards } from './ai/openai';
 import { getOrCreateDefaultBoard, addCardsToBoard } from './BoardService';
@@ -197,6 +197,150 @@ class CardExtractionProcessor implements JobProcessor {
   }
 }
 
+// 文字起こし処理
+class TranscriptionProcessor implements JobProcessor {
+  async process(job: BackgroundJob): Promise<any> {
+    console.log(`[TranscriptionProcessor] Processing job ${job.id}`);
+    
+    // Step 1: ミーティングデータ取得 (25%)
+    await this.updateProgress(job.id, 25, 'ミーティングデータを取得中...');
+    
+    const { data: meeting, error } = await supabase
+      .from('meetings')
+      .select('*')
+      .eq('id', job.meetingId)
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to fetch meeting: ${error.message}`);
+    }
+
+    if (!meeting) {
+      throw new Error('Meeting not found');
+    }
+
+    // Step 2: 音声ファイル取得・文字起こし処理 (75%)
+    await this.updateProgress(job.id, 75, '音声を文字起こし中...');
+    
+    let transcript: string;
+    
+    // ユーザーコンテキストを設定
+    const context = {
+      userId: job.userId || 'system',
+      nestId: meeting.nest_id,
+      meetingId: job.meetingId
+    };
+    
+    // ファイル情報を取得
+    const fileName = job.metadata?.fileName;
+    const fileType = job.metadata?.fileType;
+    const storagePath = job.metadata?.storagePath;
+    
+    if (!fileName || !fileType || !storagePath) {
+      throw new Error('ファイル情報が不完全です。ファイルアップロードが完了していない可能性があります。');
+    }
+    
+    try {
+      // Step 2a: ストレージ内ファイル確認
+      await this.updateProgress(job.id, 40, 'アップロード済みファイルを確認中...');
+      console.log('🔧 [TranscriptionProcessor] Storage内ファイル確認開始:', storagePath);
+      
+      const { data: fileData, error: downloadError } = await supabase.storage
+        .from('meeting-files')
+        .download(storagePath);
+      
+      if (downloadError) {
+        console.error('🔧 [TranscriptionProcessor] ファイルダウンロード失敗:', downloadError);
+        throw new Error(`ファイルアクセスエラー: ${downloadError.message}`);
+      }
+      
+      console.log('🔧 [TranscriptionProcessor] ファイル確認成功:', {
+        size: fileData.size,
+        type: fileData.type
+      });
+      
+      // Step 2b: 文字起こし処理
+      await this.updateProgress(job.id, 80, '音声を文字起こし中...');
+      
+      // TODO: 実際のWhisper API呼び出し
+      // 現在はモック実装
+      transcript = await this.generateMockTranscript(fileName, fileType);
+      
+    } catch (error) {
+      console.error('[TranscriptionProcessor] Transcription failed:', error);
+      throw new Error(`文字起こしに失敗しました: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+
+    // Step 3: データベース保存 (100%)
+    await this.updateProgress(job.id, 100, '文字起こしをデータベースに保存中...');
+    
+    const { error: updateError } = await supabase
+      .from('meetings')
+      .update({ 
+        transcript: transcript,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', job.meetingId);
+
+    if (updateError) {
+      throw new Error(`Failed to save transcript: ${updateError.message}`);
+    }
+
+    const result = { 
+      transcript,
+      wordCount: transcript.length,
+      meetingId: job.meetingId,
+      fileName: job.metadata?.fileName,
+      fileType: job.metadata?.fileType,
+      storagePath: `meetings/${job.meetingId}/${job.metadata?.fileName}`,
+      timestamp: new Date().toISOString()
+    };
+
+    console.log(`[TranscriptionProcessor] Job ${job.id} completed with result:`, result);
+    return result;
+  }
+
+  private async generateMockTranscript(fileName: string, fileType: string): Promise<string> {
+    // モック実装 - 実際のWhisper API呼び出しに置き換える予定
+    await new Promise(resolve => setTimeout(resolve, 2000)); // 2秒待機
+    
+    const fileTypeDisplay = fileType.startsWith('audio/') ? '音声' : '動画';
+    
+    return `【自動文字起こし結果】
+この${fileTypeDisplay}ファイルの文字起こしが完了しました。
+
+ファイル名: ${fileName}
+ファイル形式: ${fileType}
+処理時刻: ${new Date().toLocaleString('ja-JP')}
+
+実際の音声内容がここに表示されます。
+現在はモック実装のため、サンプルテキストを表示しています。
+
+今後、OpenAI Whisper APIまたは他の音声認識サービスと連携して、
+実際の音声コンテンツを文字起こしします。
+
+音声の長さや品質に応じて、処理時間が変動します。
+高品質な文字起こしを提供するため、最適化を継続的に行います。
+
+ファイルはSupabase Storageに正常に保存されました。`;
+  }
+
+  private async updateProgress(jobId: string | null, progress: number, message: string) {
+    if (!jobId) return;
+    
+    await supabase
+      .from('background_jobs')
+      .update({ 
+        progress,
+        metadata: { current_step: message },
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', jobId);
+  }
+}
+
+
+
 // ワーカーマネージャー
 export class BackgroundJobWorker {
   private processors: Map<JobType, JobProcessor> = new Map();
@@ -206,13 +350,17 @@ export class BackgroundJobWorker {
   constructor() {
     this.processors.set('ai_summary', new AISummaryProcessor());
     this.processors.set('card_extraction', new CardExtractionProcessor());
+    this.processors.set('transcription', new TranscriptionProcessor());
   }
 
   // ワーカー開始
   start() {
-    if (this.isRunning) return;
+    if (this.isRunning) {
+      console.log('🔧 [BackgroundJobWorker] ワーカーは既に動作中です');
+      return;
+    }
     
-    console.log('[BackgroundJobWorker] Starting worker...');
+    console.log('🔧 [BackgroundJobWorker] ワーカーを開始します...');
     this.isRunning = true;
     this.poll();
   }
@@ -225,8 +373,10 @@ export class BackgroundJobWorker {
 
   // ポーリング処理
   private async poll() {
+    console.log('🔧 [BackgroundJobWorker] ポーリング開始');
     while (this.isRunning) {
       try {
+        console.log('🔧 [BackgroundJobWorker] 次のジョブを探しています...');
         await this.processNextJob();
       } catch (error) {
         console.error('[BackgroundJobWorker] Polling error:', error);
@@ -234,11 +384,39 @@ export class BackgroundJobWorker {
       
       await new Promise(resolve => setTimeout(resolve, this.pollingInterval));
     }
+    console.log('🔧 [BackgroundJobWorker] ポーリング終了');
   }
 
   // 次のジョブを処理
   private async processNextJob() {
+    // 🔧 デバッグ: 全ジョブを確認
+    console.log('🔧 [BackgroundJobWorker] 全ジョブを確認中...');
+    const { data: allJobs, error: allError } = await supabase
+      .from('background_jobs')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(5);
+      
+    if (allError) {
+      console.error('🔧 [BackgroundJobWorker] 全ジョブ取得エラー:', allError);
+    } else {
+      console.log('🔧 [BackgroundJobWorker] 最近のジョブ一覧:', allJobs);
+      // 🔧 各ジョブのステータスを詳細表示
+      allJobs?.forEach((job, index) => {
+        console.log(`🔧 [BackgroundJobWorker] ジョブ${index}: `, {
+          id: job.id,
+          type: job.type || job.job_type,
+          status: job.status,
+          meeting_id: job.meeting_id,
+          created_at: job.created_at,
+          error_message: job.error_message,
+          progress: job.progress
+        });
+      });
+    }
+    
     // pending状態のジョブを取得
+    console.log('🔧 [BackgroundJobWorker] pending状態のジョブを検索中...');
     const { data: jobs, error } = await supabase
       .from('background_jobs')
       .select('*')
@@ -247,37 +425,48 @@ export class BackgroundJobWorker {
       .limit(1);
 
     if (error) {
-      console.error('[BackgroundJobWorker] Failed to fetch jobs:', error);
+      console.error('🔧 [BackgroundJobWorker] Failed to fetch jobs:', error);
       return;
     }
 
+    console.log('🔧 [BackgroundJobWorker] 取得したジョブ数:', jobs?.length || 0);
+    
     if (!jobs || jobs.length === 0) {
+      console.log('🔧 [BackgroundJobWorker] 処理するジョブがありません');
       return; // 処理するジョブなし
     }
 
+    console.log('🔧 [BackgroundJobWorker] ジョブ処理開始:', jobs[0]);
     const job = this.dbToApp(jobs[0]);
     await this.processJob(job);
   }
 
-  // ジョブ処理
+  // シンプルなジョブ処理
   private async processJob(job: BackgroundJob) {
     console.log(`[BackgroundJobWorker] Processing job ${job.id} (${job.type})`);
+    
+    // 🔧 デバッグ: 登録されているプロセッサーを確認
+    console.log('🔧 [BackgroundJobWorker] 登録済みプロセッサー:', Array.from(this.processors.keys()));
+    console.log('🔧 [BackgroundJobWorker] 要求されたジョブタイプ:', job.type);
 
     // ジョブをrunning状態に更新
     await this.updateJobStatus(job.id, 'running', 0);
 
     try {
       const processor = this.processors.get(job.type);
+      console.log('🔧 [BackgroundJobWorker] プロセッサー取得結果:', !!processor);
+      
       if (!processor) {
         throw new Error(`No processor found for job type: ${job.type}`);
       }
 
+      // ジョブ実行
       const result = await processor.process(job);
 
       // 完了状態に更新
       await this.updateJobStatus(job.id, 'completed', 100, result);
       
-      // 🔔 成功通知を送信
+      // 成功通知を送信
       await this.sendCompletionNotification(job, true, result);
       
       console.log(`[BackgroundJobWorker] Job ${job.id} completed successfully`);
@@ -288,15 +477,9 @@ export class BackgroundJobWorker {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       
       // 失敗状態に更新
-      await this.updateJobStatus(
-        job.id, 
-        'failed', 
-        job.progress, 
-        null, 
-        errorMessage
-      );
+      await this.updateJobStatus(job.id, 'failed', job.progress, null, errorMessage);
       
-      // 🔔 失敗通知を送信
+      // 失敗通知を送信
       await this.sendCompletionNotification(job, false, null, errorMessage);
     }
   }
@@ -325,7 +508,7 @@ export class BackgroundJobWorker {
     }
   }
 
-  // ジョブステータス更新
+  // シンプルなジョブステータス更新
   private async updateJobStatus(
     jobId: string, 
     status: JobStatus, 
@@ -357,6 +540,8 @@ export class BackgroundJobWorker {
     }
   }
 
+
+
   // データベース形式からアプリ形式に変換
   private dbToApp(dbJob: any): BackgroundJob {
     return {
@@ -381,9 +566,17 @@ let globalWorker: BackgroundJobWorker | null = null;
 
 // ワーカー開始関数
 export const startBackgroundJobWorker = () => {
-  if (!globalWorker) {
-    globalWorker = new BackgroundJobWorker();
+  console.log('🔧 [BackgroundJobWorker] startBackgroundJobWorker 呼び出し');
+  
+  // 🔧 強制的に既存ワーカーを停止して新しいインスタンスを作成
+  if (globalWorker) {
+    console.log('🔧 [BackgroundJobWorker] 既存ワーカーを停止します');
+    globalWorker.stop();
+    globalWorker = null;
   }
+  
+  console.log('🔧 [BackgroundJobWorker] 新しいワーカーインスタンス作成');
+  globalWorker = new BackgroundJobWorker();
   globalWorker.start();
 };
 

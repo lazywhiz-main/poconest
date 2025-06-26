@@ -20,6 +20,7 @@ import { getUserById, UserInfo } from '../../../../services/UserService';
 import { useToast } from '../../../../components/ui/Toast';
 import ConfirmModal from '../../../../components/ui/ConfirmModal';
 import { JobType } from '../../../meeting-space/types/backgroundJob';
+import { useBackgroundJobs } from '../../../meeting-space/hooks/useBackgroundJobs';
 
 interface MeetingDetailPanelProps {
   meeting: MeetingUI;
@@ -32,6 +33,7 @@ interface MeetingDetailPanelProps {
   isCardExtractionDisabled?: boolean;
   isAISummaryDisabled?: boolean;
   isCreatingJob?: JobType | null;
+  isJobRunning?: (jobType: 'ai_summary' | 'card_extraction') => boolean;
   onDeleteMeeting?: (meetingId: string) => void;
 }
 
@@ -93,8 +95,12 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
   isCardExtractionDisabled = false,
   isAISummaryDisabled = false,
   isCreatingJob = null,
+  isJobRunning,
   onDeleteMeeting,
 }) => {
+  // 🔧 独自の背景ジョブ状態管理
+  const { getJobsByMeeting } = useBackgroundJobs();
+  const meetingJobs = getJobsByMeeting(meeting.id);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isEditingDateTime, setIsEditingDateTime] = useState(false);
   const [editedTitle, setEditedTitle] = useState(meeting.title || '');
@@ -128,10 +134,11 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
 
   // ボタン状態の管理
   const getButtonState = (jobType: 'ai_summary' | 'card_extraction') => {
-    const isRunning = isCreatingJob === jobType;
+    // 新しいisJobRunning関数を優先して使用
+    const isRunning = isJobRunning ? isJobRunning(jobType) : (isCreatingJob === jobType);
     
     // デバッグ用ログを追加
-    console.log(`[MeetingDetailPanel] getButtonState: jobType=${jobType}, isCreatingJob=${isCreatingJob}, isRunning=${isRunning}`);
+    console.log(`[MeetingDetailPanel] getButtonState: jobType=${jobType}, isJobRunning=${isJobRunning ? isJobRunning(jobType) : 'undefined'}, isCreatingJob=${isCreatingJob}, isRunning=${isRunning}`);
     
     // プロパティから受け取った無効化状態を確認
     const isBaseDisabled = jobType === 'ai_summary' ? isAISummaryDisabled : isCardExtractionDisabled;
@@ -147,7 +154,7 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
       }
       return {
         text: 'AI要約',
-        icon: 'settings' as const,
+        icon: 'ai-summary' as const,
         disabled: isBaseDisabled,
         spinning: false
       };
@@ -162,7 +169,7 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
       }
       return {
         text: 'カード抽出',
-        icon: 'settings' as const,
+        icon: 'card-extract' as const,
         disabled: isBaseDisabled,
         spinning: false
       };
@@ -609,6 +616,63 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
           ) : (
             <StatusBadge status="inactive">文字起こしなし</StatusBadge>
           )}
+          {/* Background Job Progress - UPLOADEDバッジの右側に配置 */}
+          {(() => {
+            // 🔧 リアルタイムの背景ジョブ状態を取得
+            const activeJobs = meetingJobs.filter(job => 
+              job.status === 'pending' || job.status === 'running'
+            );
+            
+            // 最近完了したジョブも表示（10秒以内）
+            const recentJobs = meetingJobs.filter(job => 
+              (job.status === 'completed' || job.status === 'failed') &&
+              Date.now() - job.updatedAt.getTime() < 10000
+            );
+            
+            const displayJobs = [...activeJobs, ...recentJobs];
+            
+            if (meeting.transcript && displayJobs.length > 0) {
+              return displayJobs.map(job => (
+                <div key={job.id} style={{ 
+                  fontSize: 11, 
+                  color: '#64b5f6', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: 6,
+                  padding: '2px 6px',
+                  background: 'rgba(100, 181, 246, 0.1)',
+                  borderRadius: 2,
+                  border: '1px solid rgba(100, 181, 246, 0.3)',
+                  marginTop: 2
+                }}>
+                  {job.status === 'running' && (
+                    <div style={{
+                      width: 10,
+                      height: 10,
+                      border: '1.5px solid #64b5f6',
+                      borderTopColor: 'transparent',
+                      borderRadius: '50%',
+                      animation: 'spin 1s linear infinite'
+                    }} />
+                  )}
+                  {job.status === 'completed' && (
+                    <div style={{ color: '#00ff88', fontSize: 10 }}>✓</div>
+                  )}
+                  {job.status === 'failed' && (
+                    <div style={{ color: '#ff6b6b', fontSize: 10 }}>✗</div>
+                  )}
+                  <span>
+                    {job.type === 'ai_summary' ? 'AI要約' : 'カード抽出'}
+                    {job.status === 'running' && ` ${job.progress}%`}
+                    {job.status === 'pending' && ' 待機中'}
+                    {job.status === 'completed' && ' 完了'}
+                    {job.status === 'failed' && ' 失敗'}
+                  </span>
+                </div>
+              ));
+            }
+            return null;
+          })()}
         </div>
         {/* ファイルアップロードボタン（左寄せ） */}
         <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
@@ -1163,6 +1227,8 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
         setColumnType={() => {}}
         boardId={editingCard?.boardId || ''}
       />
+
+
 
       {/* 確認モーダル */}
       <ConfirmModal

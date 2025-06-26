@@ -88,7 +88,7 @@ port = 54324
 [storage]
 enabled = true
 # The maximum file size allowed (e.g. "5MB", "500KB").
-file_size_limit = "50MiB"
+file_size_limit = "100MB"
 
 # Image transformation API is available to Supabase Pro plan.
 # [storage.image_transformation]
@@ -97,8 +97,8 @@ file_size_limit = "50MiB"
 # Configure local storage buckets
 [storage.buckets.meeting-files]
 public = true
-file_size_limit = "50MiB"
-allowed_mime_types = ["text/plain", "video/mp4", "audio/mpeg"]
+file_size_limit = "100MB"
+allowed_mime_types = ["text/plain", "video/mp4", "video/webm", "video/quicktime", "audio/mp3", "audio/wav", "audio/m4a", "audio/mpeg"]
 
 # Uncomment to configure local storage buckets
 # [storage.buckets.images]

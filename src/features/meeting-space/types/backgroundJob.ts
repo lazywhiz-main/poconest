@@ -15,6 +15,12 @@ export interface BackgroundJob {
   createdAt: Date;
   updatedAt: Date;
   estimatedCompletion?: Date;
+  
+  // 🔧 新追加: リトライとタイムアウト管理
+  retryCount?: number;
+  maxRetries?: number;
+  timeoutAt?: Date;
+  lastErrorAt?: Date;
 }
 
 export interface BackgroundJobLog {
@@ -81,9 +87,31 @@ export const ProcessingSteps = {
 
 // ジョブタイプごとの推定時間（分）
 export const EstimatedDuration = {
-  ai_summary: 3,
-  card_extraction: 2,
-  transcription: 5
+  ai_summary: 3,     // AI要約: 3分
+  card_extraction: 2, // カード抽出: 2分
+  transcription: 5   // 文字起こし: 5分
+} as const;
+
+// 🔧 新追加: ジョブタイプ別リトライ設定
+export const RetryConfiguration = {
+  ai_summary: {
+    maxRetries: 3,
+    baseDelayMs: 2000,     // 2秒
+    maxDelayMs: 30000,     // 30秒
+    timeoutMinutes: 10     // 10分でタイムアウト
+  },
+  card_extraction: {
+    maxRetries: 3,
+    baseDelayMs: 1000,     // 1秒
+    maxDelayMs: 20000,     // 20秒
+    timeoutMinutes: 8      // 8分でタイムアウト
+  },
+  transcription: {
+    maxRetries: 2,
+    baseDelayMs: 3000,     // 3秒
+    maxDelayMs: 60000,     // 60秒
+    timeoutMinutes: 15     // 15分でタイムアウト
+  }
 } as const;
 
 // UI表示用のメッセージ

@@ -200,6 +200,8 @@ const MeetingList: React.FC<MeetingListProps> = ({
           </Text>
         </View>
         
+
+        
         {!compact && (
           <>
             <View style={styles.meetingHost}>
