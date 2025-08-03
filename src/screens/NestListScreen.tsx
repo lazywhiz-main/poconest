@@ -320,6 +320,7 @@ export const NestListScreen: React.FC = () => {
                 </div>
                 <div className="nest-meta-info" style={{ fontSize: '11px', fontFamily: 'var(--font-family-mono)', color: 'var(--text-secondary)', marginTop: '8px', marginBottom: '8px' }}>
                   <div>Created : {new Date(nest.created_at).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '/')}</div>
+                  <div>Updated : {new Date(nest.updated_at).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '/')}</div>
                   <div>Owner : {ownerInfo[nest.owner_id]?.display_name || 'Anonymous User'}</div>
                 </div>
                 <div className="nestlist-btn-row">

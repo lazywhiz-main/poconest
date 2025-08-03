@@ -23,9 +23,13 @@ import MeetingSpace from './features/nest-space/meeting-space/components/Meeting
 import AnalysisSpace from './features/analysis-space/components/AnalysisSpace';
 import UserProfileSpace from './features/user-profile/components/UserProfileSpace';
 import { MeetingProvider } from './features/meeting-space/contexts/MeetingContext';
+import NestHomeSpace from './features/nest-space/home-space/components/NestHomeSpace';
 import { NestListScreen } from './screens/NestListScreen';
+import ProfilePage from './features/user-profile/components/ProfilePage';
+import SettingsPage from './features/user-profile/components/SettingsPage';
 import WelcomeScreen from '@screens/auth/WelcomeScreen';
 import BackgroundJobDemo from './features/meeting-space/components/BackgroundJobDemo';
+import TranscriptionTestPage from './features/meeting-space/components/TranscriptionTestPage';
 import NotificationDemo from './features/notifications/components/NotificationDemo';
 import NotificationPage from './features/notifications/components/NotificationPage';
 import NotificationTester from './features/notifications/components/NotificationTester';
@@ -381,7 +385,7 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     if (currentNest) {
       if (window.location.pathname === '/') {
-        navigate(`/nest-top?nestId=${currentNest.id}&space=chat`, { replace: true });
+        navigate(`/nest-top?nestId=${currentNest.id}&space=home`, { replace: true });
       }
     }
   }, [currentNest, navigate]);
@@ -423,11 +427,12 @@ const AppContent: React.FC = () => {
       return null; // リダイレクト中は何も表示しない
     }
     const params = new URLSearchParams(window.location.search);
-    const space = params.get('space') || 'chat';
+    const space = params.get('space') || 'home';
     const menuSections = [
       {
         title: '',
         items: [
+          { id: 'home', icon: <Icon name="nest" size={18} />, text: 'NEST ホーム', isActive: space === 'home' },
           { id: 'chat', icon: <Icon name="chat" size={18} />, text: 'チャット', isActive: space === 'chat' },
           { id: 'meeting', icon: <Icon name="meeting" size={18} />, text: 'ミーティング', isActive: space === 'meeting' },
           { id: 'board', icon: <Icon name="board" size={18} />, text: 'ボード', isActive: space === 'board' },
@@ -523,7 +528,7 @@ const AppContent: React.FC = () => {
 const NestTopScreen: React.FC = () => {
   const params = new URLSearchParams(window.location.search);
   const nestId = params.get('nestId');
-  const space = params.get('space') || 'chat';
+  const space = params.get('space') || 'home';
   const { userNests, currentNest, setCurrentNestById } = useNest();
   const { user } = useAuth();
   const [nestSelectorVisible, setNestSelectorVisible] = useState(false);
@@ -555,6 +560,9 @@ const NestTopScreen: React.FC = () => {
   
   let SpaceComponent = null;
   switch (space) {
+    case 'home':
+      SpaceComponent = <NestHomeSpace nestId={nest.id} />;
+      break;
     case 'chat':
       SpaceComponent = (
         <BoardProvider currentNestId={nest.id}>
@@ -610,6 +618,7 @@ const NestTopScreen: React.FC = () => {
     {
       title: '',
       items: [
+        { id: 'home', icon: <Icon name="nest" size={18} />, text: 'NEST ホーム', isActive: space === 'home' },
         { id: 'chat', icon: <Icon name="chat" size={18} />, text: 'チャット', isActive: space === 'chat' },
         { id: 'meeting', icon: <Icon name="meeting" size={18} />, text: 'ミーティング', isActive: space === 'meeting' },
         { id: 'board', icon: <Icon name="board" size={18} />, text: 'ボード', isActive: space === 'board' },
@@ -849,10 +858,19 @@ const App: React.FC = () => {
               <Route path="/notification-tester" element={<NotificationTester />} />
               <Route path="/notification-settings" element={<NotificationSettings />} />
               
+              {/* ユーザープロフィールページ */}
+              <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              
               {/* デモページルート */}
               <Route path="/demo/background-jobs" element={
                 <AuthGuard>
                   <BackgroundJobDemo />
+                </AuthGuard>
+              } />
+              <Route path="/demo/transcription-test" element={
+                <AuthGuard>
+                  <TranscriptionTestPage />
                 </AuthGuard>
               } />
               

@@ -1,0 +1,1268 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>総合メニューアイコンデモ - NEST・HOME対応</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: #0f0f23;
+            color: #e2e8f0;
+            line-height: 1.4;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .section {
+            margin-bottom: 40px;
+            background: #1a1a2e;
+            border: 1px solid #333366;
+            border-radius: 4px;
+            padding: 30px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #00ff88;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border-bottom: 1px solid #333366;
+            padding-bottom: 10px;
+        }
+
+        /* アイコンコンポーネント */
+        .svg-icon {
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .svg-icon.small {
+            width: 14px;
+            height: 14px;
+        }
+
+        .svg-icon {
+            width: 18px;
+            height: 18px;
+        }
+
+        .svg-icon.large {
+            width: 24px;
+            height: 24px;
+        }
+
+        /* アイコンデモ */
+        .icon-showcase {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .icon-showcase-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            padding: 20px;
+            background: #333366;
+            border-radius: 4px;
+            text-align: center;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .icon-showcase-item:hover {
+            background: #45475a;
+            transform: translateY(-2px);
+        }
+
+        .icon-showcase-icon {
+            color: #00ff88;
+        }
+
+        .icon-showcase-label {
+            font-size: 12px;
+            color: #e2e8f0;
+            font-weight: 600;
+        }
+
+        .icon-showcase-desc {
+            font-size: 10px;
+            color: #a6adc8;
+        }
+
+        .category-header {
+            font-size: 16px;
+            color: #00ff88;
+            margin: 30px 0 20px 0;
+            padding: 10px 0;
+            border-bottom: 1px solid #333366;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* メニューサンプル */
+        .menu-demo {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-top: 30px;
+        }
+
+        .main-menu {
+            display: flex;
+            gap: 8px;
+            padding: 16px;
+            background: #1a1a2e;
+            border: 1px solid #333366;
+            border-radius: 4px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .menu-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            padding: 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            min-width: 80px;
+        }
+
+        .menu-item:hover {
+            background: #333366;
+        }
+
+        .menu-item.active {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+        }
+
+        .menu-item.active .svg-icon {
+            color: #00ff88;
+        }
+
+        .menu-label {
+            font-size: 11px;
+            color: #a6adc8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .menu-item.active .menu-label {
+            color: #00ff88;
+        }
+
+        /* コードブロック */
+        .code-block {
+            background: #333366;
+            padding: 20px;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: #e2e8f0;
+            overflow-x: auto;
+            margin-top: 20px;
+        }
+
+        .code-title {
+            color: #00ff88;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .code-content {
+            margin-bottom: 15px;
+        }
+
+        .special-category {
+            background: rgba(0, 255, 136, 0.05);
+            border: 1px solid rgba(0, 255, 136, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 style="color: #00ff88; text-align: center; margin-bottom: 40px; text-transform: uppercase; letter-spacing: 2px;">
+            総合メニューアイコンデモ - NEST・HOME対応
+        </h1>
+
+        <!-- NEST・HOME 特別カテゴリ -->
+        <div class="section special-category">
+            <div class="section-title">🏠 NEST・HOME コアアイコン</div>
+            <div class="icon-showcase">
+                <!-- HOME -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                        <polyline points="9,22 9,12 15,12 15,22"/>
+                    </svg>
+                    <div class="icon-showcase-label">HOME</div>
+                    <div class="icon-showcase-desc">ホーム画面<br>メインダッシュボード</div>
+                </div>
+
+                <!-- NEST -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <path d="M12 2l9 4.5v11L12 22l-9-4.5v-11L12 2z"/>
+                        <path d="M12 2v20"/>
+                        <path d="M3 6.5l9 4.5 9-4.5"/>
+                        <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                    <div class="icon-showcase-label">NEST</div>
+                    <div class="icon-showcase-desc">ネスト構造<br>階層管理・組織</div>
+                </div>
+
+                <!-- WORKSPACE -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                        <line x1="8" y1="21" x2="16" y2="21"/>
+                        <line x1="12" y1="17" x2="12" y2="21"/>
+                        <rect x="6" y="7" width="4" height="6"/>
+                        <rect x="14" y="7" width="4" height="3"/>
+                    </svg>
+                    <div class="icon-showcase-label">WORKSPACE</div>
+                    <div class="icon-showcase-desc">ワークスペース<br>作業環境・デスクトップ</div>
+                </div>
+
+                <!-- FAMILY -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <path d="M16 4a4 4 0 0 1 0 8 4 4 0 0 1 0-8z"/>
+                        <path d="M8 6a3 3 0 0 1 0 6 3 3 0 0 1 0-6z"/>
+                        <path d="M20 19v-2a4 4 0 0 0-4-4h-8a3 3 0 0 0-3 3v3"/>
+                        <circle cx="18" cy="20" r="2"/>
+                    </svg>
+                    <div class="icon-showcase-label">FAMILY</div>
+                    <div class="icon-showcase-desc">ファミリー<br>家族・グループ管理</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 基本ナビゲーション -->
+        <div class="section">
+            <div class="section-title">基本ナビゲーション</div>
+            <div class="icon-showcase">
+                <!-- ダッシュボード -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <rect x="3" y="3" width="7" height="7"/>
+                        <rect x="14" y="3" width="7" height="7"/>
+                        <rect x="14" y="14" width="7" height="7"/>
+                        <rect x="3" y="14" width="7" height="7"/>
+                    </svg>
+                    <div class="icon-showcase-label">ダッシュボード</div>
+                    <div class="icon-showcase-desc">全体概要<br>メインパネル</div>
+                </div>
+
+                <!-- メニュー -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <line x1="3" y1="6" x2="21" y2="6"/>
+                        <line x1="3" y1="12" x2="21" y2="12"/>
+                        <line x1="3" y1="18" x2="21" y2="18"/>
+                    </svg>
+                    <div class="icon-showcase-label">メニュー</div>
+                    <div class="icon-showcase-desc">ハンバーガーメニュー<br>ナビゲーション</div>
+                </div>
+
+                <!-- 検索 -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <circle cx="11" cy="11" r="8"/>
+                        <path d="M21 21l-4.35-4.35"/>
+                    </svg>
+                    <div class="icon-showcase-label">検索</div>
+                    <div class="icon-showcase-desc">サーチ機能<br>情報検索</div>
+                </div>
+
+                <!-- 通知 -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                        <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                    </svg>
+                    <div class="icon-showcase-label">通知</div>
+                    <div class="icon-showcase-desc">アラート・お知らせ<br>重要情報</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- コミュニケーション -->
+        <div class="section">
+            <div class="section-title">コミュニケーション</div>
+            <div class="icon-showcase">
+                <!-- チャット -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+                    </svg>
+                    <div class="icon-showcase-label">チャット</div>
+                    <div class="icon-showcase-desc">メッセージ<br>リアルタイム会話</div>
+                </div>
+
+                <!-- メール -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                        <polyline points="22,6 12,13 2,6"/>
+                    </svg>
+                    <div class="icon-showcase-label">メール</div>
+                    <div class="icon-showcase-desc">Eメール<br>電子メール管理</div>
+                </div>
+
+                <!-- ミーティング -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <rect x="2" y="4" width="20" height="16" rx="2"/>
+                        <circle cx="8" cy="10" r="2"/>
+                        <path d="M14 10h4M14 14h4M6 16h2"/>
+                    </svg>
+                    <div class="icon-showcase-label">ミーティング</div>
+                    <div class="icon-showcase-desc">ビデオ会議<br>オンライン会議</div>
+                </div>
+
+                <!-- 電話 -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                    </svg>
+                    <div class="icon-showcase-label">電話</div>
+                    <div class="icon-showcase-desc">音声通話<br>コール機能</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- プロジェクト管理 -->
+        <div class="section">
+            <div class="section-title">プロジェクト管理</div>
+            <div class="icon-showcase">
+                <!-- タスク -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <polyline points="9,11 12,14 22,4"/>
+                        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                    </svg>
+                    <div class="icon-showcase-label">タスク</div>
+                    <div class="icon-showcase-desc">Todo管理<br>課題・やることリスト</div>
+                </div>
+
+                <!-- ボード -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                        <rect x="7" y="7" width="3" height="9"/>
+                        <rect x="14" y="7" width="3" height="5"/>
+                    </svg>
+                    <div class="icon-showcase-label">ボード</div>
+                    <div class="icon-showcase-desc">カンバンボード<br>プロジェクト管理</div>
+                </div>
+
+                <!-- カレンダー -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                        <line x1="16" y1="2" x2="16" y2="6"/>
+                        <line x1="8" y1="2" x2="8" y2="6"/>
+                        <line x1="3" y1="10" x2="21" y2="10"/>
+                    </svg>
+                    <div class="icon-showcase-label">カレンダー</div>
+                    <div class="icon-showcase-desc">スケジュール<br>日程管理</div>
+                </div>
+
+                <!-- タイムライン -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <line x1="3" y1="12" x2="21" y2="12"/>
+                        <circle cx="7" cy="12" r="2"/>
+                        <circle cx="12" cy="12" r="2"/>
+                        <circle cx="17" cy="12" r="2"/>
+                        <line x1="7" y1="10" x2="7" y2="6"/>
+                        <line x1="12" y1="14" x2="12" y2="18"/>
+                        <line x1="17" y1="10" x2="17" y2="6"/>
+                    </svg>
+                    <div class="icon-showcase-label">タイムライン</div>
+                    <div class="icon-showcase-desc">進捗管理<br>時系列表示</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- データ・分析 -->
+        <div class="section">
+            <div class="section-title">データ・分析</div>
+            <div class="icon-showcase">
+                <!-- 分析 -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <line x1="12" y1="20" x2="12" y2="10"/>
+                        <line x1="18" y1="20" x2="18" y2="4"/>
+                        <line x1="6" y1="20" x2="6" y2="16"/>
+                    </svg>
+                    <div class="icon-showcase-label">分析</div>
+                    <div class="icon-showcase-desc">データ分析<br>統計・レポート</div>
+                </div>
+
+                <!-- グラフ -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/>
+                    </svg>
+                    <div class="icon-showcase-label">グラフ</div>
+                    <div class="icon-showcase-desc">チャート<br>データ可視化</div>
+                </div>
+
+                <!-- データベース -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <ellipse cx="12" cy="5" rx="9" ry="3"/>
+                        <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+                        <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+                    </svg>
+                    <div class="icon-showcase-label">データベース</div>
+                    <div class="icon-showcase-desc">DB管理<br>データストレージ</div>
+                </div>
+
+                <!-- レポート -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14,2 14,8 20,8"/>
+                        <line x1="16" y1="13" x2="8" y2="13"/>
+                        <line x1="16" y1="17" x2="8" y2="17"/>
+                        <polyline points="10,9 9,9 8,9"/>
+                    </svg>
+                    <div class="icon-showcase-label">レポート</div>
+                    <div class="icon-showcase-desc">報告書<br>文書・資料</div>
+                </div>
+
+                <!-- 統計 -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                        <circle cx="9" cy="12" r="1"/>
+                        <path d="M21 9l-2-2-2 2"/>
+                        <path d="M3 15l2 2 2-2"/>
+                        <line x1="12" y1="3" x2="12" y2="21"/>
+                        <line x1="16" y1="7" x2="20" y2="11"/>
+                        <line x1="4" y1="13" x2="8" y2="17"/>
+                    </svg>
+                    <div class="icon-showcase-label">統計</div>
+                    <div class="icon-showcase-desc">統計データ<br>数値分析・トレンド</div>
+                </div>
+
+                <!-- 円グラフ -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <path d="M21.21 15.89A10 10 0 1 1 8 2.83"/>
+                        <path d="M22 12A10 10 0 0 0 12 2v10z"/>
+                    </svg>
+                    <div class="icon-showcase-label">円グラフ</div>
+                    <div class="icon-showcase-desc">パイチャート<br>割合・比率表示</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ユーザー・設定 -->
+        <div class="section">
+            <div class="section-title">ユーザー・設定</div>
+            <div class="icon-showcase">
+                <!-- プロフィール -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                        <circle cx="12" cy="7" r="4"/>
+                    </svg>
+                    <div class="icon-showcase-label">プロフィール</div>
+                    <div class="icon-showcase-desc">個人情報<br>アカウント管理</div>
+                </div>
+
+                <!-- 設定 -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                    </svg>
+                    <div class="icon-showcase-label">設定</div>
+                    <div class="icon-showcase-desc">システム設定<br>環境設定</div>
+                </div>
+
+                <!-- ユーザー管理 -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                        <circle cx="9" cy="7" r="4"/>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    </svg>
+                    <div class="icon-showcase-label">ユーザー管理</div>
+                    <div class="icon-showcase-desc">チーム管理<br>権限設定</div>
+                </div>
+
+                <!-- ヘルプ -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                        <line x1="12" y1="17" x2="12.01" y2="17"/>
+                    </svg>
+                    <div class="icon-showcase-label">ヘルプ</div>
+                    <div class="icon-showcase-desc">サポート<br>よくある質問</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ファイル・クラウド -->
+        <div class="section">
+            <div class="section-title">ファイル・クラウド</div>
+            <div class="icon-showcase">
+                <!-- フォルダ -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                    </svg>
+                    <div class="icon-showcase-label">フォルダ</div>
+                    <div class="icon-showcase-desc">ディレクトリ<br>ファイル整理</div>
+                </div>
+
+                <!-- ファイル -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14,2 14,8 20,8"/>
+                    </svg>
+                    <div class="icon-showcase-label">ファイル</div>
+                    <div class="icon-showcase-desc">ドキュメント<br>文書管理</div>
+                </div>
+
+                <!-- クラウド -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
+                    </svg>
+                    <div class="icon-showcase-label">クラウド</div>
+                    <div class="icon-showcase-desc">オンラインストレージ<br>同期・バックアップ</div>
+                </div>
+
+                <!-- ダウンロード -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7,10 12,15 17,10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    <div class="icon-showcase-label">ダウンロード</div>
+                    <div class="icon-showcase-desc">ファイル取得<br>保存</div>
+                </div>
+
+                <!-- アップロード -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="17,8 12,3 7,8"/>
+                        <line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                    <div class="icon-showcase-label">アップロード</div>
+                    <div class="icon-showcase-desc">ファイル送信<br>アップロード</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- セキュリティ・権限 -->
+        <div class="section">
+            <div class="section-title">セキュリティ・権限</div>
+            <div class="icon-showcase">
+                <!-- ロック -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                        <circle cx="12" cy="16" r="1"/>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                    </svg>
+                    <div class="icon-showcase-label">ロック</div>
+                    <div class="icon-showcase-desc">セキュリティ<br>保護・暗号化</div>
+                </div>
+
+                <!-- アンロック -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                        <circle cx="12" cy="16" r="1"/>
+                        <path d="M7 11V7a5 5 0 0 1 9.9-1"/>
+                    </svg>
+                    <div class="icon-showcase-label">アンロック</div>
+                    <div class="icon-showcase-desc">解除<br>アクセス許可</div>
+                </div>
+
+                <!-- シールド -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    </svg>
+                    <div class="icon-showcase-label">シールド</div>
+                    <div class="icon-showcase-desc">保護<br>セキュリティ対策</div>
+                </div>
+
+                <!-- 目（表示/非表示） -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                    <div class="icon-showcase-label">表示</div>
+                    <div class="icon-showcase-desc">閲覧権限<br>可視性制御</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ツール・機能 -->
+        <div class="section">
+            <div class="section-title">ツール・機能</div>
+            <div class="icon-showcase">
+                <!-- 編集 -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                    <div class="icon-showcase-label">編集</div>
+                    <div class="icon-showcase-desc">エディット<br>内容変更</div>
+                </div>
+
+                <!-- 削除 -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <polyline points="3,6 5,6 21,6"/>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                        <line x1="10" y1="11" x2="10" y2="17"/>
+                        <line x1="14" y1="11" x2="14" y2="17"/>
+                    </svg>
+                    <div class="icon-showcase-label">削除</div>
+                    <div class="icon-showcase-desc">ゴミ箱<br>アイテム削除</div>
+                </div>
+
+                <!-- 共有 -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <circle cx="18" cy="5" r="3"/>
+                        <circle cx="6" cy="12" r="3"/>
+                        <circle cx="18" cy="19" r="3"/>
+                        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                    </svg>
+                    <div class="icon-showcase-label">共有</div>
+                    <div class="icon-showcase-desc">シェア<br>情報共有</div>
+                </div>
+
+                <!-- コピー -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                    </svg>
+                    <div class="icon-showcase-label">コピー</div>
+                    <div class="icon-showcase-desc">複製<br>内容コピー</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 状態・フィードバック -->
+        <div class="section">
+            <div class="section-title">状態・フィードバック</div>
+            <div class="icon-showcase">
+                <!-- チェック -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <polyline points="20,6 9,17 4,12"/>
+                    </svg>
+                    <div class="icon-showcase-label">チェック</div>
+                    <div class="icon-showcase-desc">完了<br>成功・承認</div>
+                </div>
+
+                <!-- エラー -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="15" y1="9" x2="9" y2="15"/>
+                        <line x1="9" y1="9" x2="15" y2="15"/>
+                    </svg>
+                    <div class="icon-showcase-label">エラー</div>
+                    <div class="icon-showcase-desc">失敗<br>問題・警告</div>
+                </div>
+
+                <!-- 情報 -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="12" y1="16" x2="12" y2="12"/>
+                        <line x1="12" y1="8" x2="12.01" y2="8"/>
+                    </svg>
+                    <div class="icon-showcase-label">情報</div>
+                    <div class="icon-showcase-desc">インフォ<br>詳細・ヒント</div>
+                </div>
+
+                <!-- 警告 -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                        <line x1="12" y1="9" x2="12" y2="13"/>
+                        <line x1="12" y1="17" x2="12.01" y2="17"/>
+                    </svg>
+                    <div class="icon-showcase-label">警告</div>
+                    <div class="icon-showcase-desc">注意<br>アラート</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- その他・拡張 -->
+        <div class="section">
+            <div class="section-title">その他・拡張</div>
+            <div class="icon-showcase">
+                <!-- スター/お気に入り -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/>
+                    </svg>
+                    <div class="icon-showcase-label">お気に入り</div>
+                    <div class="icon-showcase-desc">スター<br>ブックマーク</div>
+                </div>
+
+                <!-- フィルター -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <polygon points="22,3 2,3 10,12.46 10,19 14,21 14,12.46"/>
+                    </svg>
+                    <div class="icon-showcase-label">フィルター</div>
+                    <div class="icon-showcase-desc">絞り込み<br>条件設定</div>
+                </div>
+
+                <!-- ソート -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <line x1="3" y1="6" x2="15" y2="6"/>
+                        <line x1="3" y1="12" x2="21" y2="12"/>
+                        <line x1="3" y1="18" x2="9" y2="18"/>
+                    </svg>
+                    <div class="icon-showcase-label">ソート</div>
+                    <div class="icon-showcase-desc">並び替え<br>順序変更</div>
+                </div>
+
+                <!-- 更新 -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <polyline points="23,4 23,10 17,10"/>
+                        <polyline points="1,20 1,14 7,14"/>
+                        <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/>
+                    </svg>
+                    <div class="icon-showcase-label">更新</div>
+                    <div class="icon-showcase-desc">リフレッシュ<br>再読み込み</div>
+                </div>
+
+                <!-- プラス/追加 -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <line x1="12" y1="5" x2="12" y2="19"/>
+                        <line x1="5" y1="12" x2="19" y2="12"/>
+                    </svg>
+                    <div class="icon-showcase-label">追加</div>
+                    <div class="icon-showcase-desc">新規作成<br>アイテム追加</div>
+                </div>
+
+                <!-- マイナス/削除 -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <line x1="5" y1="12" x2="19" y2="12"/>
+                    </svg>
+                    <div class="icon-showcase-label">削除</div>
+                    <div class="icon-showcase-desc">マイナス<br>アイテム除去</div>
+                </div>
+
+                <!-- チュートリアル -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <path d="M22 12a10 10 0 1 1-10-10"/>
+                        <path d="M22 4L12 14l-3-3"/>
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M16 8h6v6"/>
+                    </svg>
+                    <div class="icon-showcase-label">チュートリアル</div>
+                    <div class="icon-showcase-desc">ガイド<br>操作説明・学習</div>
+                </div>
+
+                <!-- 学習/本 -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                        <path d="M8 7h8"/>
+                        <path d="M8 11h6"/>
+                    </svg>
+                    <div class="icon-showcase-label">学習</div>
+                    <div class="icon-showcase-desc">教材<br>マニュアル・資料</div>
+                </div>
+
+                <!-- ガイド/コンパス -->
+                <div class="icon-showcase-item">
+                    <svg class="svg-icon large icon-showcase-icon" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10"/>
+                        <polygon points="16.24,7.76 14.12,14.12 7.76,16.24 9.88,9.88"/>
+                        <circle cx="12" cy="12" r="2"/>
+                    </svg>
+                    <div class="icon-showcase-label">ガイド</div>
+                    <div class="icon-showcase-desc">ナビゲーション<br>道案内・方向性</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- メニューデモ -->
+        <div class="section">
+            <div class="section-title">実装サンプル - NEST・HOME対応メニュー</div>
+            <div class="main-menu">
+                <div class="menu-item active">
+                    <svg class="svg-icon" viewBox="0 0 24 24">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                        <polyline points="9,22 9,12 15,12 15,22"/>
+                    </svg>
+                    <div class="menu-label">HOME</div>
+                </div>
+
+                <div class="menu-item">
+                    <svg class="svg-icon" viewBox="0 0 24 24">
+                        <path d="M12 2l9 4.5v11L12 22l-9-4.5v-11L12 2z"/>
+                        <path d="M12 2v20"/>
+                        <path d="M3 6.5l9 4.5 9-4.5"/>
+                        <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                    <div class="menu-label">NEST</div>
+                </div>
+
+                <div class="menu-item">
+                    <svg class="svg-icon" viewBox="0 0 24 24">
+                        <rect x="3" y="3" width="7" height="7"/>
+                        <rect x="14" y="3" width="7" height="7"/>
+                        <rect x="14" y="14" width="7" height="7"/>
+                        <rect x="3" y="14" width="7" height="7"/>
+                    </svg>
+                    <div class="menu-label">ダッシュボード</div>
+                </div>
+
+                <div class="menu-item">
+                    <svg class="svg-icon" viewBox="0 0 24 24">
+                        <polyline points="9,11 12,14 22,4"/>
+                        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                    </svg>
+                    <div class="menu-label">タスク</div>
+                </div>
+
+                <div class="menu-item">
+                    <svg class="svg-icon" viewBox="0 0 24 24">
+                        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+                    </svg>
+                    <div class="menu-label">チャット</div>
+                </div>
+
+                <div class="menu-item">
+                    <svg class="svg-icon" viewBox="0 0 24 24">
+                        <line x1="12" y1="20" x2="12" y2="10"/>
+                        <line x1="18" y1="20" x2="18" y2="4"/>
+                        <line x1="6" y1="20" x2="6" y2="16"/>
+                    </svg>
+                    <div class="menu-label">分析</div>
+                </div>
+
+                <div class="menu-item">
+                    <svg class="svg-icon" viewBox="0 0 24 24">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                        <circle cx="12" cy="7" r="4"/>
+                    </svg>
+                    <div class="menu-label">プロフィール</div>
+                </div>
+
+                <div class="menu-item">
+                    <svg class="svg-icon" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                    </svg>
+                    <div class="menu-label">設定</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SVGコード一覧 -->
+        <div class="section">
+            <div class="section-title">SVGコード一覧（コピー用）</div>
+            <div class="code-block">
+                <div class="code-title">🏠 NEST・HOME コアアイコン</div>
+                <div class="code-content">
+                    <strong style="color: #00ff88;">HOME:</strong><br>
+                    &lt;svg class="svg-icon" viewBox="0 0 24 24"&gt;<br>
+                    &nbsp;&nbsp;&lt;path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/&gt;<br>
+                    &nbsp;&nbsp;&lt;polyline points="9,22 9,12 15,12 15,22"/&gt;<br>
+                    &lt;/svg&gt;<br><br>
+
+                    <strong style="color: #00ff88;">NEST:</strong><br>
+                    &lt;svg class="svg-icon" viewBox="0 0 24 24"&gt;<br>
+                    &nbsp;&nbsp;&lt;path d="M12 2l9 4.5v11L12 22l-9-4.5v-11L12 2z"/&gt;<br>
+                    &nbsp;&nbsp;&lt;path d="M12 2v20"/&gt;<br>
+                    &nbsp;&nbsp;&lt;path d="M3 6.5l9 4.5 9-4.5"/&gt;<br>
+                    &nbsp;&nbsp;&lt;circle cx="12" cy="12" r="3"/&gt;<br>
+                    &lt;/svg&gt;<br><br>
+
+                    <strong style="color: #00ff88;">WORKSPACE:</strong><br>
+                    &lt;svg class="svg-icon" viewBox="0 0 24 24"&gt;<br>
+                    &nbsp;&nbsp;&lt;rect x="2" y="3" width="20" height="14" rx="2" ry="2"/&gt;<br>
+                    &nbsp;&nbsp;&lt;line x1="8" y1="21" x2="16" y2="21"/&gt;<br>
+                    &nbsp;&nbsp;&lt;line x1="12" y1="17" x2="12" y2="21"/&gt;<br>
+                    &nbsp;&nbsp;&lt;rect x="6" y="7" width="4" height="6"/&gt;<br>
+                    &nbsp;&nbsp;&lt;rect x="14" y="7" width="4" height="3"/&gt;<br>
+                    &lt;/svg&gt;<br><br>
+
+                    <strong style="color: #00ff88;">FAMILY:</strong><br>
+                    &lt;svg class="svg-icon" viewBox="0 0 24 24"&gt;<br>
+                    &nbsp;&nbsp;&lt;path d="M16 4a4 4 0 0 1 0 8 4 4 0 0 1 0-8z"/&gt;<br>
+                    &nbsp;&nbsp;&lt;path d="M8 6a3 3 0 0 1 0 6 3 3 0 0 1 0-6z"/&gt;<br>
+                    &nbsp;&nbsp;&lt;path d="M20 19v-2a4 4 0 0 0-4-4h-8a3 3 0 0 0-3 3v3"/&gt;<br>
+                    &nbsp;&nbsp;&lt;circle cx="18" cy="20" r="2"/&gt;<br>
+                    &lt;/svg&gt;
+                </div>
+
+                <div class="code-title">📊 基本ナビゲーション</div>
+                <div class="code-content">
+                    <strong style="color: #00ff88;">ダッシュボード:</strong><br>
+                    &lt;svg class="svg-icon" viewBox="0 0 24 24"&gt;<br>
+                    &nbsp;&nbsp;&lt;rect x="3" y="3" width="7" height="7"/&gt;<br>
+                    &nbsp;&nbsp;&lt;rect x="14" y="3" width="7" height="7"/&gt;<br>
+                    &nbsp;&nbsp;&lt;rect x="14" y="14" width="7" height="7"/&gt;<br>
+                    &nbsp;&nbsp;&lt;rect x="3" y="14" width="7" height="7"/&gt;<br>
+                    &lt;/svg&gt;<br><br>
+
+                    <strong style="color: #00ff88;">検索:</strong><br>
+                    &lt;svg class="svg-icon" viewBox="0 0 24 24"&gt;<br>
+                    &nbsp;&nbsp;&lt;circle cx="11" cy="11" r="8"/&gt;<br>
+                    &nbsp;&nbsp;&lt;path d="M21 21l-4.35-4.35"/&gt;<br>
+                    &lt;/svg&gt;<br><br>
+
+                    <strong style="color: #00ff88;">通知:</strong><br>
+                    &lt;svg class="svg-icon" viewBox="0 0 24 24"&gt;<br>
+                    &nbsp;&nbsp;&lt;path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/&gt;<br>
+                    &nbsp;&nbsp;&lt;path d="M13.73 21a2 2 0 0 1-3.46 0"/&gt;<br>
+                    &lt;/svg&gt;
+                </div>
+
+                <div class="code-title">💬 コミュニケーション</div>
+                <div class="code-content">
+                    <strong style="color: #00ff88;">チャット:</strong><br>
+                    &lt;svg class="svg-icon" viewBox="0 0 24 24"&gt;<br>
+                    &nbsp;&nbsp;&lt;path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/&gt;<br>
+                    &lt;/svg&gt;<br><br>
+
+                    <strong style="color: #00ff88;">メール:</strong><br>
+                    &lt;svg class="svg-icon" viewBox="0 0 24 24"&gt;<br>
+                    &nbsp;&nbsp;&lt;path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/&gt;<br>
+                    &nbsp;&nbsp;&lt;polyline points="22,6 12,13 2,6"/&gt;<br>
+                    &lt;/svg&gt;
+                </div>
+
+                <div class="code-title">📁 プロジェクト管理</div>
+                <div class="code-content">
+                    <strong style="color: #00ff88;">タスク:</strong><br>
+                    &lt;svg class="svg-icon" viewBox="0 0 24 24"&gt;<br>
+                    &nbsp;&nbsp;&lt;polyline points="9,11 12,14 22,4"/&gt;<br>
+                    &nbsp;&nbsp;&lt;path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/&gt;<br>
+                    &lt;/svg&gt;<br><br>
+
+                    <strong style="color: #00ff88;">カレンダー:</strong><br>
+                    &lt;svg class="svg-icon" viewBox="0 0 24 24"&gt;<br>
+                    &nbsp;&nbsp;&lt;rect x="3" y="4" width="18" height="18" rx="2" ry="2"/&gt;<br>
+                    &nbsp;&nbsp;&lt;line x1="16" y1="2" x2="16" y2="6"/&gt;<br>
+                    &nbsp;&nbsp;&lt;line x1="8" y1="2" x2="8" y2="6"/&gt;<br>
+                    &nbsp;&nbsp;&lt;line x1="3" y1="10" x2="21" y2="10"/&gt;<br>
+                    &lt;/svg&gt;
+                </div>
+
+                <div class="code-title">🔒 セキュリティ</div>
+                <div class="code-content">
+                    <strong style="color: #00ff88;">ロック:</strong><br>
+                    &lt;svg class="svg-icon" viewBox="0 0 24 24"&gt;<br>
+                    &nbsp;&nbsp;&lt;rect x="3" y="11" width="18" height="11" rx="2" ry="2"/&gt;<br>
+                    &nbsp;&nbsp;&lt;circle cx="12" cy="16" r="1"/&gt;<br>
+                    &nbsp;&nbsp;&lt;path d="M7 11V7a5 5 0 0 1 10 0v4"/&gt;<br>
+                    &lt;/svg&gt;<br><br>
+
+                    <strong style="color: #00ff88;">シールド:</strong><br>
+                    &lt;svg class="svg-icon" viewBox="0 0 24 24"&gt;<br>
+                    &nbsp;&nbsp;&lt;path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/&gt;<br>
+                    &lt;/svg&gt;
+                </div>
+
+                <div class="code-title">⚙️ ツール・機能</div>
+                <div class="code-content">
+                    <strong style="color: #00ff88;">編集:</strong><br>
+                    &lt;svg class="svg-icon" viewBox="0 0 24 24"&gt;<br>
+                    &nbsp;&nbsp;&lt;path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/&gt;<br>
+                    &nbsp;&nbsp;&lt;path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/&gt;<br>
+                    &lt;/svg&gt;<br><br>
+
+                    <strong style="color: #00ff88;">共有:</strong><br>
+                    &lt;svg class="svg-icon" viewBox="0 0 24 24"&gt;<br>
+                    &nbsp;&nbsp;&lt;circle cx="18" cy="5" r="3"/&gt;<br>
+                    &nbsp;&nbsp;&lt;circle cx="6" cy="12" r="3"/&gt;<br>
+                    &nbsp;&nbsp;&lt;circle cx="18" cy="19" r="3"/&gt;<br>
+                    &nbsp;&nbsp;&lt;line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/&gt;<br>
+                    &nbsp;&nbsp;&lt;line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/&gt;<br>
+                    &lt;/svg&gt;<br><br>
+
+                    <strong style="color: #00ff88;">削除:</strong><br>
+                    &lt;svg class="svg-icon" viewBox="0 0 24 24"&gt;<br>
+                    &nbsp;&nbsp;&lt;polyline points="3,6 5,6 21,6"/&gt;<br>
+                    &nbsp;&nbsp;&lt;path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/&gt;<br>
+                    &nbsp;&nbsp;&lt;line x1="10" y1="11" x2="10" y2="17"/&gt;<br>
+                    &nbsp;&nbsp;&lt;line x1="14" y1="11" x2="14" y2="17"/&gt;<br>
+                    &lt;/svg&gt;
+                </div>
+
+                <div class="code-title">✅ 状態・フィードバック</div>
+                <div class="code-content">
+                    <strong style="color: #00ff88;">チェック:</strong><br>
+                    &lt;svg class="svg-icon" viewBox="0 0 24 24"&gt;<br>
+                    &nbsp;&nbsp;&lt;polyline points="20,6 9,17 4,12"/&gt;<br>
+                    &lt;/svg&gt;<br><br>
+
+                    <strong style="color: #00ff88;">情報:</strong><br>
+                    &lt;svg class="svg-icon" viewBox="0 0 24 24"&gt;<br>
+                    &nbsp;&nbsp;&lt;circle cx="12" cy="12" r="10"/&gt;<br>
+                    &nbsp;&nbsp;&lt;line x1="12" y1="16" x2="12" y2="12"/&gt;<br>
+                    &nbsp;&nbsp;&lt;line x1="12" y1="8" x2="12.01" y2="8"/&gt;<br>
+                    &lt;/svg&gt;<br><br>
+
+                    <strong style="color: #00ff88;">警告:</strong><br>
+                    &lt;svg class="svg-icon" viewBox="0 0 24 24"&gt;<br>
+                    &nbsp;&nbsp;&lt;path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/&gt;<br>
+                    &nbsp;&nbsp;&lt;line x1="12" y1="9" x2="12" y2="13"/&gt;<br>
+                    &nbsp;&nbsp;&lt;line x1="12" y1="17" x2="12.01" y2="17"/&gt;<br>
+                    &lt;/svg&gt;
+                </div>
+
+                <div class="code-title">📊 データ・分析（追加分）</div>
+                <div class="code-content">
+                    <strong style="color: #00ff88;">統計:</strong><br>
+                    &lt;svg class="svg-icon" viewBox="0 0 24 24"&gt;<br>
+                    &nbsp;&nbsp;&lt;rect x="3" y="3" width="18" height="18" rx="2" ry="2"/&gt;<br>
+                    &nbsp;&nbsp;&lt;circle cx="9" cy="12" r="1"/&gt;<br>
+                    &nbsp;&nbsp;&lt;path d="M21 9l-2-2-2 2"/&gt;<br>
+                    &nbsp;&nbsp;&lt;path d="M3 15l2 2 2-2"/&gt;<br>
+                    &nbsp;&nbsp;&lt;line x1="12" y1="3" x2="12" y2="21"/&gt;<br>
+                    &nbsp;&nbsp;&lt;line x1="16" y1="7" x2="20" y2="11"/&gt;<br>
+                    &nbsp;&nbsp;&lt;line x1="4" y1="13" x2="8" y2="17"/&gt;<br>
+                    &lt;/svg&gt;<br><br>
+
+                    <strong style="color: #00ff88;">円グラフ:</strong><br>
+                    &lt;svg class="svg-icon" viewBox="0 0 24 24"&gt;<br>
+                    &nbsp;&nbsp;&lt;path d="M21.21 15.89A10 10 0 1 1 8 2.83"/&gt;<br>
+                    &nbsp;&nbsp;&lt;path d="M22 12A10 10 0 0 0 12 2v10z"/&gt;<br>
+                    &lt;/svg&gt;
+                </div>
+
+                <div class="code-title">🎓 学習・チュートリアル</div>
+                <div class="code-content">
+                    <strong style="color: #00ff88;">チュートリアル:</strong><br>
+                    &lt;svg class="svg-icon" viewBox="0 0 24 24"&gt;<br>
+                    &nbsp;&nbsp;&lt;path d="M22 12a10 10 0 1 1-10-10"/&gt;<br>
+                    &nbsp;&nbsp;&lt;path d="M22 4L12 14l-3-3"/&gt;<br>
+                    &nbsp;&nbsp;&lt;circle cx="12" cy="12" r="3"/&gt;<br>
+                    &nbsp;&nbsp;&lt;path d="M16 8h6v6"/&gt;<br>
+                    &lt;/svg&gt;<br><br>
+
+                    <strong style="color: #00ff88;">学習:</strong><br>
+                    &lt;svg class="svg-icon" viewBox="0 0 24 24"&gt;<br>
+                    &nbsp;&nbsp;&lt;path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/&gt;<br>
+                    &nbsp;&nbsp;&lt;path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/&gt;<br>
+                    &nbsp;&nbsp;&lt;path d="M8 7h8"/&gt;<br>
+                    &nbsp;&nbsp;&lt;path d="M8 11h6"/&gt;<br>
+                    &lt;/svg&gt;<br><br>
+
+                    <strong style="color: #00ff88;">ガイド:</strong><br>
+                    &lt;svg class="svg-icon" viewBox="0 0 24 24"&gt;<br>
+                    &nbsp;&nbsp;&lt;circle cx="12" cy="12" r="10"/&gt;<br>
+                    &nbsp;&nbsp;&lt;polygon points="16.24,7.76 14.12,14.12 7.76,16.24 9.88,9.88"/&gt;<br>
+                    &nbsp;&nbsp;&lt;circle cx="12" cy="12" r="2"/&gt;<br>
+                    &lt;/svg&gt;
+                </div>
+                <div class="code-content">
+                    <strong style="color: #00ff88;">フォルダ:</strong><br>
+                    &lt;svg class="svg-icon" viewBox="0 0 24 24"&gt;<br>
+                    &nbsp;&nbsp;&lt;path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/&gt;<br>
+                    &lt;/svg&gt;<br><br>
+
+                    <strong style="color: #00ff88;">クラウド:</strong><br>
+                    &lt;svg class="svg-icon" viewBox="0 0 24 24"&gt;<br>
+                    &nbsp;&nbsp;&lt;path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/&gt;<br>
+                    &lt;/svg&gt;<br><br>
+
+                    <strong style="color: #00ff88;">ダウンロード:</strong><br>
+                    &lt;svg class="svg-icon" viewBox="0 0 24 24"&gt;<br>
+                    &nbsp;&nbsp;&lt;path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/&gt;<br>
+                    &nbsp;&nbsp;&lt;polyline points="7,10 12,15 17,10"/&gt;<br>
+                    &nbsp;&nbsp;&lt;line x1="12" y1="15" x2="12" y2="3"/&gt;<br>
+                    &lt;/svg&gt;
+                </div>
+
+                <div class="code-title">🔄 その他・拡張</div>
+                <div class="code-content">
+                    <strong style="color: #00ff88;">お気に入り:</strong><br>
+                    &lt;svg class="svg-icon" viewBox="0 0 24 24"&gt;<br>
+                    &nbsp;&nbsp;&lt;polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/&gt;<br>
+                    &lt;/svg&gt;<br><br>
+
+                    <strong style="color: #00ff88;">フィルター:</strong><br>
+                    &lt;svg class="svg-icon" viewBox="0 0 24 24"&gt;<br>
+                    &nbsp;&nbsp;&lt;polygon points="22,3 2,3 10,12.46 10,19 14,21 14,12.46"/&gt;<br>
+                    &lt;/svg&gt;<br><br>
+
+                    <strong style="color: #00ff88;">更新:</strong><br>
+                    &lt;svg class="svg-icon" viewBox="0 0 24 24"&gt;<br>
+                    &nbsp;&nbsp;&lt;polyline points="23,4 23,10 17,10"/&gt;<br>
+                    &nbsp;&nbsp;&lt;polyline points="1,20 1,14 7,14"/&gt;<br>
+                    &nbsp;&nbsp;&lt;path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/&gt;<br>
+                    &lt;/svg&gt;<br><br>
+
+                    <strong style="color: #00ff88;">追加:</strong><br>
+                    &lt;svg class="svg-icon" viewBox="0 0 24 24"&gt;<br>
+                    &nbsp;&nbsp;&lt;line x1="12" y1="5" x2="12" y2="19"/&gt;<br>
+                    &nbsp;&nbsp;&lt;line x1="5" y1="12" x2="19" y2="12"/&gt;<br>
+                    &lt;/svg&gt;
+                </div>
+            </div>
+        </div>
+
+        <!-- CSS スタイル定義 -->
+        <div class="section">
+            <div class="section-title">CSS スタイル定義</div>
+            <div class="code-block">
+                <div class="code-title">基本スタイル</div>
+                <div class="code-content">
+                    /* アイコンコンポーネント */<br>
+                    .svg-icon {<br>
+                    &nbsp;&nbsp;fill: none;<br>
+                    &nbsp;&nbsp;stroke: currentColor;<br>
+                    &nbsp;&nbsp;stroke-width: 2;<br>
+                    &nbsp;&nbsp;stroke-linecap: round;<br>
+                    &nbsp;&nbsp;stroke-linejoin: round;<br>
+                    &nbsp;&nbsp;width: 18px;<br>
+                    &nbsp;&nbsp;height: 18px;<br>
+                    }<br><br>
+
+                    /* サイズバリエーション */<br>
+                    .svg-icon.small { width: 14px; height: 14px; }<br>
+                    .svg-icon.large { width: 24px; height: 24px; }<br><br>
+
+                    /* メニューアイテム */<br>
+                    .menu-item {<br>
+                    &nbsp;&nbsp;display: flex;<br>
+                    &nbsp;&nbsp;flex-direction: column;<br>
+                    &nbsp;&nbsp;align-items: center;<br>
+                    &nbsp;&nbsp;gap: 6px;<br>
+                    &nbsp;&nbsp;padding: 12px;<br>
+                    &nbsp;&nbsp;border-radius: 4px;<br>
+                    &nbsp;&nbsp;cursor: pointer;<br>
+                    &nbsp;&nbsp;transition: all 0.2s ease;<br>
+                    &nbsp;&nbsp;min-width: 80px;<br>
+                    }<br><br>
+
+                    /* アクティブ状態 */<br>
+                    .menu-item.active {<br>
+                    &nbsp;&nbsp;background: rgba(0, 255, 136, 0.1);<br>
+                    &nbsp;&nbsp;border: 1px solid rgba(0, 255, 136, 0.3);<br>
+                    }<br><br>
+
+                    .menu-item.active .svg-icon {<br>
+                    &nbsp;&nbsp;color: #00ff88;<br>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- 使用方法・ガイドライン -->
+        <div class="section">
+            <div class="section-title">使用方法・デザインガイドライン</div>
+            <div style="background: #333366; padding: 20px; border-radius: 4px; font-size: 13px; color: #e2e8f0;">
+                <h3 style="color: #00ff88; margin-bottom: 15px;">🎨 デザインの特徴</h3>
+                <ul style="margin-left: 20px; margin-bottom: 20px;">
+                    <li>ダークテーマベースのモダンなデザイン</li>
+                    <li>アクセントカラーに#00ff88（ネオングリーン）を使用</li>
+                    <li>統一されたストロークベースのアイコンデザイン</li>
+                    <li>hover・activeステートによるインタラクティブな反応</li>
+                </ul>
+
+                <h3 style="color: #00ff88; margin-bottom: 15px;">🏠 NEST・HOME概念の実装</h3>
+                <ul style="margin-left: 20px; margin-bottom: 20px;">
+                    <li><strong>HOME:</strong> メインダッシュボード・トップページアイコン</li>
+                    <li><strong>NEST:</strong> 階層構造・組織管理・入れ子構造を表現</li>
+                    <li><strong>WORKSPACE:</strong> 作業環境・デスクトップ環境</li>
+                    <li><strong>FAMILY:</strong> グループ・チーム・家族単位の管理</li>
+                </ul>
+
+                <h3 style="color: #00ff88; margin-bottom: 15px;">⚡ 実装のポイント</h3>
+                <ul style="margin-left: 20px;">
+                    <li>SVGアイコンは24x24pxのviewBoxで統一</li>
+                    <li>stroke-width: 2で一貫したライン幅</li>
+                    <li>カテゴリ別に整理された豊富なアイコンセット</li>
+                    <li>レスポンシブ対応・アクセシビリティ配慮</li>
+                    <li>モジュラー設計でカスタマイズが容易</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // メニューアイテムのクリックイベント
+        document.addEventListener('DOMContentLoaded', function() {
+            // メインメニュー
+            const mainMenuItems = document.querySelectorAll('.main-menu .menu-item');
+            mainMenuItems.forEach(item => {
+                item.addEventListener('click', function() {
+                    mainMenuItems.forEach(i => i.classList.remove('active'));
+                    this.classList.add('active');
+                });
+            });
+
+            // アイコンショーケースのホバーエフェクト
+            const showcaseItems = document.querySelectorAll('.icon-showcase-item');
+            showcaseItems.forEach(item => {
+                item.addEventListener('mouseenter', function() {
+                    this.style.transform = 'translateY(-2px) scale(1.02)';
+                });
+                
+                item.addEventListener('mouseleave', function() {
+                    this.style.transform = 'translateY(0) scale(1)';
+                });
+            });
+
+            console.log('🎨 総合メニューアイコンデモ - NEST・HOME対応 initialized');
+            console.log('📊 アイコン総数:', showcaseItems.length, '（統計・チュートリアル含む）');
+        });
+    </script>
+</body>
+</html>
+                

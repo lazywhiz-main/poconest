@@ -68,9 +68,37 @@ const markdownComponents = {
   h5: (props: any) => <h5 {...props} style={{ color: '#e2e8f0', marginBottom: '0.5em' }} />,
   h6: (props: any) => <h6 {...props} style={{ color: '#e2e8f0', marginBottom: '0.5em' }} />,
   p: (props: any) => <p {...props} style={{ color: '#a6adc8', lineHeight: 1.6, marginBottom: '1em' }} />,
-  ul: (props: any) => <ul {...props} style={{ color: '#a6adc8', paddingLeft: '1.5em' }} />,
+  ul: (props: any) => (
+    <ul 
+      {...props} 
+      style={{ 
+        color: '#a6adc8',
+        listStyle: 'none',
+        paddingLeft: '1.5em',
+        margin: '0.5em 0'
+      }} 
+    />
+  ),
   ol: (props: any) => <ol {...props} style={{ color: '#a6adc8', paddingLeft: '1.5em' }} />,
-  li: (props: any) => <li {...props} style={{ marginBottom: '0.25em' }} />,
+  li: (props: any) => (
+    <li 
+      {...props} 
+      style={{ 
+        position: 'relative',
+        marginBottom: '0.25em',
+        paddingLeft: '0.5em'
+      }}
+    >
+      <span style={{ 
+        position: 'absolute',
+        left: '-1em',
+        color: '#00ff88'
+      }}>
+        •
+      </span>
+      {props.children}
+    </li>
+  ),
   blockquote: (props: any) => <blockquote {...props} style={{ borderLeft: '4px solid #333366', paddingLeft: '1em', margin: '1em 0', color: '#6c7086' }} />,
   code: (props: any) => <code {...props} style={{ backgroundColor: '#333366', color: '#00ff88', padding: '0.2em 0.4em', borderRadius: '2px', fontFamily: 'JetBrains Mono, monospace' }} />,
   pre: (props: any) => <pre {...props} style={{ backgroundColor: '#0f0f23', color: '#e2e8f0', padding: '1em', borderRadius: '4px', overflow: 'auto', fontFamily: 'JetBrains Mono, monospace' }} />,

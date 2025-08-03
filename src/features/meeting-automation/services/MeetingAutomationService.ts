@@ -2,6 +2,7 @@
 // 実行日: 2025-01-09
 
 import { supabase } from '../../../services/supabase/client';
+import { StorageService } from '../../../services/StorageService';
 import type {
   ScheduledMeeting,
   DbScheduledMeeting,
@@ -257,12 +258,36 @@ export class MeetingAutomationService {
   }
 
   /**
-   * 予約ミーティングを削除
+   * 予約ミーティングを削除（関連ファイルも削除）
    */
   static async deleteScheduledMeeting(id: string): Promise<boolean> {
     try {
       console.log('[MeetingAutomationService] Deleting scheduled meeting:', id);
 
+      // 予約ミーティング情報を取得（関連する実際のミーティングIDを確認）
+      const { data: scheduledMeeting, error: fetchError } = await supabase
+        .from('scheduled_meetings')
+        .select('created_meeting_id')
+        .eq('id', id)
+        .single();
+
+      if (fetchError) {
+        console.error('[MeetingAutomationService] Fetch error:', fetchError);
+        throw fetchError;
+      }
+
+      // 関連する実際のミーティングがある場合は、そのファイルも削除
+      if (scheduledMeeting?.created_meeting_id) {
+        try {
+          await StorageService.deleteMeetingAudioFiles(scheduledMeeting.created_meeting_id);
+          console.log('[MeetingAutomationService] Related meeting files deleted:', scheduledMeeting.created_meeting_id);
+        } catch (storageError) {
+          console.error('[MeetingAutomationService] Storage deletion error (continuing):', storageError);
+          // ストレージ削除に失敗しても、予約ミーティング削除は続行
+        }
+      }
+
+      // 予約ミーティングを削除
       const { error } = await supabase
         .from('scheduled_meetings')
         .delete()

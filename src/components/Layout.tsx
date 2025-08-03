@@ -109,7 +109,7 @@ export const Layout: React.FC<LayoutProps> = ({
                     ))}
                 </nav>
                 {/* children（スペース本体） */}
-                <main style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>{children}</main>
+                <main style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>{children}</main>
             </div>
         </div>
     );

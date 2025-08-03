@@ -4,6 +4,8 @@ import { NotificationService } from '../features/notifications/services/Notifica
 import { generateMeetingSummary, extractCardsFromMeeting, generateMockSummary, generateMockCards } from './ai/openai';
 import { getOrCreateDefaultBoard, addCardsToBoard } from './BoardService';
 import { getOrCreateMeetingSource, addCardSource } from './BoardService';
+import { TranscriptionService } from './TranscriptionService';
+import { NestUpdateService } from './NestUpdateService';
 
 // OpenAI APIキーの確認は不要（Edge Function経由で処理）
 
@@ -200,9 +202,10 @@ class CardExtractionProcessor implements JobProcessor {
 // 文字起こし処理
 class TranscriptionProcessor implements JobProcessor {
   async process(job: BackgroundJob): Promise<any> {
-    console.log(`[TranscriptionProcessor] Processing job ${job.id}`);
+    console.log(`🔧 [TranscriptionProcessor] ジョブ処理開始: ${job.id}`);
     
     // Step 1: ミーティングデータ取得 (25%)
+    console.log('🔧 [TranscriptionProcessor] Step 1: ミーティングデータ取得開始');
     await this.updateProgress(job.id, 25, 'ミーティングデータを取得中...');
     
     const { data: meeting, error } = await supabase
@@ -212,14 +215,19 @@ class TranscriptionProcessor implements JobProcessor {
       .single();
 
     if (error) {
+      console.error('🔧 [TranscriptionProcessor] ミーティング取得エラー:', error);
       throw new Error(`Failed to fetch meeting: ${error.message}`);
     }
 
     if (!meeting) {
+      console.error('🔧 [TranscriptionProcessor] ミーティングが見つかりません');
       throw new Error('Meeting not found');
     }
 
+    console.log('🔧 [TranscriptionProcessor] ミーティングデータ取得成功:', meeting.id);
+
     // Step 2: 音声ファイル取得・文字起こし処理 (75%)
+    console.log('🔧 [TranscriptionProcessor] Step 2: 音声ファイル処理開始');
     await this.updateProgress(job.id, 75, '音声を文字起こし中...');
     
     let transcript: string;
@@ -231,17 +239,28 @@ class TranscriptionProcessor implements JobProcessor {
       meetingId: job.meetingId
     };
     
+    console.log('🔧 [TranscriptionProcessor] コンテキスト設定完了:', context);
+    
     // ファイル情報を取得
     const fileName = job.metadata?.fileName;
     const fileType = job.metadata?.fileType;
     const storagePath = job.metadata?.storagePath;
     
+    console.log('🔧 [TranscriptionProcessor] ファイル情報:', {
+      fileName,
+      fileType,
+      storagePath,
+      metadata: job.metadata
+    });
+    
     if (!fileName || !fileType || !storagePath) {
+      console.error('🔧 [TranscriptionProcessor] ファイル情報が不完全です');
       throw new Error('ファイル情報が不完全です。ファイルアップロードが完了していない可能性があります。');
     }
     
     try {
       // Step 2a: ストレージ内ファイル確認
+      console.log('🔧 [TranscriptionProcessor] Step 2a: Storage内ファイル確認開始');
       await this.updateProgress(job.id, 40, 'アップロード済みファイルを確認中...');
       console.log('🔧 [TranscriptionProcessor] Storage内ファイル確認開始:', storagePath);
       
@@ -260,14 +279,52 @@ class TranscriptionProcessor implements JobProcessor {
       });
       
       // Step 2b: 文字起こし処理
+      console.log('🔧 [TranscriptionProcessor] Step 2b: 文字起こし処理開始');
       await this.updateProgress(job.id, 80, '音声を文字起こし中...');
       
-      // TODO: 実際のWhisper API呼び出し
-      // 現在はモック実装
-      transcript = await this.generateMockTranscript(fileName, fileType);
+      // BlobをArrayBufferに変換
+      console.log('🔧 [TranscriptionProcessor] BlobをArrayBufferに変換中...');
+      const arrayBuffer = await fileData.arrayBuffer();
+      console.log('🔧 [TranscriptionProcessor] ArrayBuffer変換完了:', {
+        byteLength: arrayBuffer.byteLength,
+        sizeMB: (arrayBuffer.byteLength / 1024 / 1024).toFixed(2)
+      });
+      
+      // Edge Functionを使用した文字起こし
+      console.log('🔧 [TranscriptionProcessor] TranscriptionService呼び出し開始:', {
+        fileName,
+        fileType,
+        fileSize: arrayBuffer.byteLength,
+        meetingId: job.meetingId,
+        nestId: meeting.nest_id
+      });
+      
+      const transcriptionResult = await TranscriptionService.transcribeAudio(
+        arrayBuffer,
+        fileName,
+        fileType,
+        job.meetingId,
+        meeting.nest_id
+      );
+      
+      console.log('🔧 [TranscriptionProcessor] TranscriptionService呼び出し完了:', {
+        transcriptLength: transcriptionResult.transcript?.length || 0,
+        wordCount: transcriptionResult.wordCount
+      });
+      
+      transcript = transcriptionResult.transcript;
       
     } catch (error) {
-      console.error('[TranscriptionProcessor] Transcription failed:', error);
+      console.error('🔧 [TranscriptionProcessor] Transcription failed:', error);
+      console.error('🔧 [TranscriptionProcessor] Error details:', {
+        name: error instanceof Error ? error.name : 'Unknown',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        jobId: job.id,
+        meetingId: job.meetingId,
+        fileName,
+        fileType
+      });
       throw new Error(`文字起こしに失敗しました: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 
@@ -286,6 +343,15 @@ class TranscriptionProcessor implements JobProcessor {
       throw new Error(`Failed to save transcript: ${updateError.message}`);
     }
 
+    // NESTのupdated_atを更新
+    if (meeting.nest_id) {
+      try {
+        await NestUpdateService.updateNestActivity(meeting.nest_id);
+      } catch (error) {
+        console.warn('Failed to update nest activity:', error);
+      }
+    }
+
     const result = { 
       transcript,
       wordCount: transcript.length,
@@ -300,30 +366,7 @@ class TranscriptionProcessor implements JobProcessor {
     return result;
   }
 
-  private async generateMockTranscript(fileName: string, fileType: string): Promise<string> {
-    // モック実装 - 実際のWhisper API呼び出しに置き換える予定
-    await new Promise(resolve => setTimeout(resolve, 2000)); // 2秒待機
-    
-    const fileTypeDisplay = fileType.startsWith('audio/') ? '音声' : '動画';
-    
-    return `【自動文字起こし結果】
-この${fileTypeDisplay}ファイルの文字起こしが完了しました。
 
-ファイル名: ${fileName}
-ファイル形式: ${fileType}
-処理時刻: ${new Date().toLocaleString('ja-JP')}
-
-実際の音声内容がここに表示されます。
-現在はモック実装のため、サンプルテキストを表示しています。
-
-今後、OpenAI Whisper APIまたは他の音声認識サービスと連携して、
-実際の音声コンテンツを文字起こしします。
-
-音声の長さや品質に応じて、処理時間が変動します。
-高品質な文字起こしを提供するため、最適化を継続的に行います。
-
-ファイルはSupabase Storageに正常に保存されました。`;
-  }
 
   private async updateProgress(jobId: string | null, progress: number, message: string) {
     if (!jobId) return;
@@ -345,24 +388,32 @@ class TranscriptionProcessor implements JobProcessor {
 export class BackgroundJobWorker {
   private processors: Map<JobType, JobProcessor> = new Map();
   private isRunning = false;
-  private pollingInterval = 5000; // 5秒間隔
+  private pollingInterval = 5000; // 5秒間隔（通常運用）
 
   constructor() {
+    console.log('🔧 [BackgroundJobWorker] コンストラクタ開始');
+    
     this.processors.set('ai_summary', new AISummaryProcessor());
     this.processors.set('card_extraction', new CardExtractionProcessor());
     this.processors.set('transcription', new TranscriptionProcessor());
+    
+    console.log('🔧 [BackgroundJobWorker] プロセッサー登録完了:', Array.from(this.processors.keys()));
   }
 
   // ワーカー開始
-  start() {
+  async start() {
+    console.log('🔧 [BackgroundJobWorker] start() メソッド呼び出し');
+    
     if (this.isRunning) {
-      console.log('🔧 [BackgroundJobWorker] ワーカーは既に動作中です');
+      console.log('🔧 [BackgroundJobWorker] 既に実行中です');
       return;
     }
-    
-    console.log('🔧 [BackgroundJobWorker] ワーカーを開始します...');
+
     this.isRunning = true;
+    console.log('🔧 [BackgroundJobWorker] ワーカー開始');
+    
     this.poll();
+    console.log('🔧 [BackgroundJobWorker] poll() メソッド呼び出し完了');
   }
 
   // ワーカー停止
@@ -431,6 +482,26 @@ export class BackgroundJobWorker {
 
     console.log('🔧 [BackgroundJobWorker] 取得したジョブ数:', jobs?.length || 0);
     
+    // 🔧 デバッグ: pending状態のジョブの詳細を表示
+    if (jobs && jobs.length > 0) {
+      console.log('🔧 [BackgroundJobWorker] pending状態のジョブ詳細:', jobs[0]);
+    } else {
+      console.log('🔧 [BackgroundJobWorker] pending状態のジョブが見つかりません');
+      // 🔧 全ステータスのジョブ数を確認
+      const { data: statusCounts, error: countError } = await supabase
+        .from('background_jobs')
+        .select('status')
+        .order('created_at', { ascending: false });
+      
+      if (!countError && statusCounts) {
+        const counts = statusCounts.reduce((acc, job) => {
+          acc[job.status] = (acc[job.status] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>);
+        console.log('🔧 [BackgroundJobWorker] ステータス別ジョブ数:', counts);
+      }
+    }
+    
     if (!jobs || jobs.length === 0) {
       console.log('🔧 [BackgroundJobWorker] 処理するジョブがありません');
       return; // 処理するジョブなし
@@ -443,44 +514,67 @@ export class BackgroundJobWorker {
 
   // シンプルなジョブ処理
   private async processJob(job: BackgroundJob) {
-    console.log(`[BackgroundJobWorker] Processing job ${job.id} (${job.type})`);
+    console.log(`🔧 [BackgroundJobWorker] ジョブ処理開始: ${job.id} (${job.type})`);
+    console.log(`🔧 [BackgroundJobWorker] ジョブ詳細:`, {
+      id: job.id,
+      type: job.type,
+      status: job.status,
+      meetingId: job.meetingId,
+      userId: job.userId,
+      metadata: job.metadata,
+      progress: job.progress,
+      errorMessage: job.errorMessage
+    });
     
     // 🔧 デバッグ: 登録されているプロセッサーを確認
     console.log('🔧 [BackgroundJobWorker] 登録済みプロセッサー:', Array.from(this.processors.keys()));
     console.log('🔧 [BackgroundJobWorker] 要求されたジョブタイプ:', job.type);
 
     // ジョブをrunning状態に更新
+    console.log('🔧 [BackgroundJobWorker] ジョブをrunning状態に更新中...');
     await this.updateJobStatus(job.id, 'running', 0);
+    console.log('🔧 [BackgroundJobWorker] ジョブをrunning状態に更新完了');
 
     try {
+      console.log('🔧 [BackgroundJobWorker] プロセッサー取得開始...');
       const processor = this.processors.get(job.type);
-      console.log('🔧 [BackgroundJobWorker] プロセッサー取得結果:', !!processor);
       
       if (!processor) {
-        throw new Error(`No processor found for job type: ${job.type}`);
+        console.error('🔧 [BackgroundJobWorker] プロセッサーが見つかりません:', job.type);
+        throw new Error(`Unknown job type: ${job.type}`);
       }
-
-      // ジョブ実行
-      const result = await processor.process(job);
-
-      // 完了状態に更新
-      await this.updateJobStatus(job.id, 'completed', 100, result);
       
-      // 成功通知を送信
+      console.log('🔧 [BackgroundJobWorker] プロセッサー取得成功:', job.type);
+      console.log('🔧 [BackgroundJobWorker] プロセッサー呼び出し開始:', job.type);
+      console.log('🔧 [BackgroundJobWorker] ジョブ詳細:', {
+        id: job.id,
+        type: job.type,
+        meetingId: job.meetingId,
+        userId: job.userId,
+        metadata: job.metadata
+      });
+      
+      const result = await processor.process(job);
+      
+      console.log('🔧 [BackgroundJobWorker] プロセッサー処理完了:', job.type);
+      
+      await this.updateJobStatus(job.id, 'completed', 100, result);
       await this.sendCompletionNotification(job, true, result);
       
-      console.log(`[BackgroundJobWorker] Job ${job.id} completed successfully`);
-
     } catch (error) {
-      console.error(`[BackgroundJobWorker] Job ${job.id} failed:`, error);
+      console.error('🔧 [BackgroundJobWorker] ジョブ処理エラー:', error);
+      console.error('🔧 [BackgroundJobWorker] エラー詳細:', {
+        name: error instanceof Error ? error.name : 'Unknown',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        jobId: job.id,
+        jobType: job.type,
+        meetingId: job.meetingId
+      });
       
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      
-      // 失敗状態に更新
-      await this.updateJobStatus(job.id, 'failed', job.progress, null, errorMessage);
-      
-      // 失敗通知を送信
-      await this.sendCompletionNotification(job, false, null, errorMessage);
+      await this.updateJobStatus(job.id, 'failed', 0, undefined, errorMessage);
+      await this.sendCompletionNotification(job, false, undefined, errorMessage);
     }
   }
 

@@ -18,10 +18,14 @@ export const ServiceHeader: React.FC = () => {
     console.log('Search clicked');
   };
 
+  const handleLogoClick = () => {
+    navigate('/nest-list');
+  };
+
   return (
     <header className="header">
       <div className="header-content">
-        <div className="logo">
+        <div className="logo" onClick={handleLogoClick} style={{ cursor: 'pointer' }}>
           <div className="logo-horizontal">
             <div className="logo-icon-circle">
               <div className="network-nodes">

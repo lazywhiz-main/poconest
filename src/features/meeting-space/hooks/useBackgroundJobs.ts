@@ -125,28 +125,21 @@ export const useBackgroundJobs = (): UseBackgroundJobsResult => {
     };
   }, [loadJobs]);
 
-  // 新しいジョブ作成
+  // ジョブ作成
   const createJob = useCallback(async (
     type: JobType, 
     meetingId: string, 
     metadata?: Record<string, any>
   ): Promise<BackgroundJob | null> => {
     try {
+      console.log('🔧 [useBackgroundJobs] createJob開始:', { type, meetingId, metadata });
       setError(null);
-      console.log('[useBackgroundJobs] Creating job with params:', { type, meetingId, metadata });
 
-      // meetingIdのバリデーション
-      if (!meetingId) {
-        throw new Error('Meeting ID is required');
-      }
-      
-      if (!isValidUUID(meetingId)) {
-        throw new Error(`Invalid meeting ID format: ${meetingId}. Expected UUID format.`);
-      }
-
+      // 認証確認
       const { data: { user }, error: authError } = await supabase.auth.getUser();
-      console.log('[useBackgroundJobs] Auth check:', { 
-        userId: user?.id, 
+      
+      console.log('🔧 [useBackgroundJobs] 認証確認結果:', {
+        user: user?.id,
         userEmail: user?.email,
         authError: authError?.message 
       });
@@ -164,6 +157,15 @@ export const useBackgroundJobs = (): UseBackgroundJobsResult => {
       // userIdのバリデーション
       if (!isValidUUID(user.id)) {
         throw new Error(`Invalid user ID format: ${user.id}. Expected UUID format.`);
+      }
+
+      // meetingIdのバリデーション
+      if (!meetingId) {
+        throw new Error('Meeting ID is required');
+      }
+      
+      if (!isValidUUID(meetingId)) {
+        throw new Error(`Invalid meeting ID format: ${meetingId}. Expected UUID format.`);
       }
 
       const jobData = {

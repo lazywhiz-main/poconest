@@ -529,15 +529,6 @@ a:hover {
   list-style: none;
 }
 
-.markdown-preview ul li::before {
-  content: '▶';
-  position: absolute;
-  left: calc(-1 * var(--space-lg, 16px));
-  color: var(--primary-green, #00ff88);
-  font-size: var(--text-sm, 11px);
-  top: 2px;
-}
-
 .markdown-preview ol li::marker {
   color: var(--primary-blue, #64b5f6);
   font-weight: 600;

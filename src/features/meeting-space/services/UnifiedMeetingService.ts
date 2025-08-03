@@ -1,6 +1,7 @@
 import { supabase } from '../../../services/supabase/client';
 import { Meeting } from '../types/meeting';
 import { ScheduledMeeting, dbToScheduledMeeting } from '../../meeting-automation/types/scheduledMeeting';
+import { StorageService } from '../../../services/StorageService';
 import { 
   UnifiedMeeting, 
   scheduledMeetingToUnified, 
@@ -188,7 +189,7 @@ export class UnifiedMeetingService {
   }
 
   /**
-   * ミーティングの削除（論理削除）
+   * ミーティングの削除（論理削除 + ストレージファイル削除）
    */
   async deleteMeeting(unifiedMeeting: UnifiedMeeting): Promise<void> {
     try {
@@ -199,6 +200,14 @@ export class UnifiedMeetingService {
           .update({ status: 'cancelled' })
           .eq('id', unifiedMeeting.scheduledMeetingId);
       } else if (unifiedMeeting.type === 'actual' && unifiedMeeting.actualMeetingId) {
+        // ストレージからオーディオファイルを削除
+        try {
+          await StorageService.deleteMeetingAudioFiles(unifiedMeeting.actualMeetingId);
+        } catch (storageError) {
+          console.error('ストレージファイル削除エラー（処理は続行）:', storageError);
+          // ストレージ削除に失敗しても、ミーティング削除は続行
+        }
+
         // 実際のミーティングの論理削除
         await supabase
           .from('meetings')

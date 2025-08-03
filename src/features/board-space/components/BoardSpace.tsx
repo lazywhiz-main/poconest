@@ -79,9 +79,36 @@ const markdownComponents = {
   h4: (props: any) => <h4 {...props} />,
   h5: (props: any) => <h5 {...props} />,
   h6: (props: any) => <h6 {...props} />,
-  ul: (props: any) => <ul {...props} />,
+  ul: (props: any) => (
+    <ul 
+      {...props} 
+      style={{ 
+        listStyle: 'none',
+        paddingLeft: '1.5em',
+        margin: '0.5em 0'
+      }} 
+    />
+  ),
   ol: (props: any) => <ol {...props} />,
-  li: (props: any) => <li {...props} />,
+  li: (props: any) => (
+    <li 
+      {...props} 
+      style={{ 
+        position: 'relative',
+        marginBottom: '0.25em',
+        paddingLeft: '0.5em'
+      }}
+    >
+      <span style={{ 
+        position: 'absolute',
+        left: '-1em',
+        color: '#00ff88'
+      }}>
+        •
+      </span>
+      {props.children}
+    </li>
+  ),
   blockquote: (props: any) => <blockquote {...props} />,
   code: (props: any) => <code {...props} />,
   pre: (props: any) => <pre {...props} />,
@@ -1230,7 +1257,7 @@ const RelatedCardPreviewModal: React.FC<{ card: BoardItem | null; onClose: () =>
   return (
     <Modal open={!!card} onClose={onClose} title={card.title} width={480}>
       <div style={{ marginBottom: 12 }}>
-        <Markdown>{card.content}</Markdown>
+        <Markdown components={markdownComponents}>{card.content}</Markdown>
       </div>
       <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>作成日: {new Date(card.created_at).toLocaleString()}</div>
       <button
