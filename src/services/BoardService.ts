@@ -356,15 +356,34 @@ export async function addCardsToBoard(
   boardId: string,
   cards: any[],
   userId: string,
-  meetingId?: string
+  meetingId?: string,
+  provider?: string
 ): Promise<BoardCardUI[]> {
   try {
+    // デフォルトボードを取得または作成
+    if (!boardId) {
+      boardId = await getOrCreateDefaultBoard(meetingId || 'default', userId);
+    }
+
     // column_type正規化関数
     const validTypes = ['INBOX', 'QUESTIONS', 'INSIGHTS', 'THEMES', 'ACTIONS'];
     const normalizeColumnType = (type: string) => {
       if (!type) return 'INBOX';
       const upper = type.toUpperCase();
       return validTypes.includes(upper) ? upper : 'INBOX';
+    };
+
+    // プロバイダー情報に基づいてgenerated_byを設定
+    const getGeneratedBy = (provider?: string) => {
+      if (!provider) return 'openai_gpt-4o'; // デフォルト
+      
+      if (provider.includes('openai')) {
+        return 'openai_gpt-4o';
+      } else if (provider.includes('gemini')) {
+        return 'gemini_gemini-2.0-flash';
+      }
+      
+      return 'openai_gpt-4o'; // フォールバック
     };
 
     // カードをデータベースに挿入
@@ -376,7 +395,7 @@ export async function addCardsToBoard(
           priority: card.priority || 'medium',
           assignee: card.assignee,
           deadline: card.deadline,
-          generated_by: 'openai_gpt-3.5-turbo',
+          generated_by: getGeneratedBy(provider),
           generated_at: new Date().toISOString(),
         }
       };
@@ -447,13 +466,35 @@ export async function getOrCreateMeetingSource(meetingId: string, meetingTitle: 
     .eq('type', 'meeting')
     .eq('ref_id', meetingId)
     .single();
-  if (existing) return existing;
-  // なければ新規作成（insertの返り値をそのまま返す）
+  
+  if (existing) {
+    // 既存のsourceがある場合、タイトルが異なれば更新
+    if (existing.label !== meetingTitle) {
+      const { data: updated, error: updateError } = await supabase
+        .from('sources')
+        .update({ label: meetingTitle, updated_at: new Date().toISOString() })
+        .eq('id', existing.id)
+        .select()
+        .single();
+      
+      if (updateError) {
+        console.error('ミーティングソース更新エラー:', updateError);
+        // 更新に失敗しても既存のsourceを返す
+        return existing;
+      }
+      
+      return updated;
+    }
+    return existing;
+  }
+  
+  // なければ新規作成
   const { data: created, error: insertError } = await supabase
     .from('sources')
     .insert([{ type: 'meeting', ref_id: meetingId, label: meetingTitle }])
     .select()
     .single();
+  
   if (insertError || !created) throw insertError || new Error('Failed to create meeting source');
   return created;
 } 

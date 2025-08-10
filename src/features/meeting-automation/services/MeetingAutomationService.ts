@@ -258,6 +258,129 @@ export class MeetingAutomationService {
   }
 
   /**
+   * ミーティングに関連するカードを一括削除
+   */
+  private static async deleteRelatedCards(meetingId: string): Promise<void> {
+    try {
+      console.log(`🗑️ [MeetingAutomationService] ミーティング ${meetingId} の関連カード削除開始`);
+
+      // 1. metadata.meeting_idで関連するカードを検索（手動追加カード用）
+      const { data: directMetadataCards, error: directMetadataError } = await supabase
+        .from('board_cards')
+        .select('id')
+        .contains('metadata', { meeting_id: meetingId });
+
+      if (directMetadataError) {
+        console.error('直接メタデータ関連カード検索エラー:', directMetadataError);
+        throw directMetadataError;
+      }
+
+      // 2. metadata.ai.meeting_idで関連するカードを検索（カード抽出カード用）
+      const { data: aiMetadataCards, error: aiMetadataError } = await supabase
+        .from('board_cards')
+        .select('id')
+        .contains('metadata', { ai: { meeting_id: meetingId } });
+
+      if (aiMetadataError) {
+        console.error('AIメタデータ関連カード検索エラー:', aiMetadataError);
+        throw aiMetadataError;
+      }
+
+      // 関連するカードIDを収集
+      const relatedCardIds = new Set<string>();
+      
+      if (directMetadataCards) {
+        directMetadataCards.forEach(card => relatedCardIds.add(card.id));
+        console.log(`🗑️ [MeetingAutomationService] 直接メタデータ関連カード数: ${directMetadataCards.length}`);
+      }
+      
+      if (aiMetadataCards) {
+        aiMetadataCards.forEach(card => relatedCardIds.add(card.id));
+        console.log(`🗑️ [MeetingAutomationService] AIメタデータ関連カード数: ${aiMetadataCards.length}`);
+      }
+
+      if (relatedCardIds.size === 0) {
+        console.log(`🗑️ [MeetingAutomationService] 関連カードなし: ${meetingId}`);
+        return;
+      }
+
+      console.log(`🗑️ [MeetingAutomationService] 削除対象カード数: ${relatedCardIds.size}`);
+
+      // 関連するリレーションを削除
+      const { error: relationError } = await supabase
+        .from('board_card_relations')
+        .delete()
+        .or(`card_id.in.(${Array.from(relatedCardIds).join(',')}),related_card_id.in.(${Array.from(relatedCardIds).join(',')})`);
+
+      if (relationError) {
+        console.error('カードリレーション削除エラー:', relationError);
+        // リレーション削除に失敗しても、カード削除は続行
+      }
+
+      // 関連するタグを削除
+      const { error: tagError } = await supabase
+        .from('board_card_tags')
+        .delete()
+        .in('card_id', Array.from(relatedCardIds));
+
+      if (tagError) {
+        console.error('カードタグ削除エラー:', tagError);
+        // タグ削除に失敗しても、カード削除は続行
+      }
+
+      // 関連するソースを削除
+      const { error: sourceError } = await supabase
+        .from('board_card_sources')
+        .delete()
+        .in('card_id', Array.from(relatedCardIds));
+
+      if (sourceError) {
+        console.error('カードソース削除エラー:', sourceError);
+        // ソース削除に失敗しても、カード削除は続行
+      }
+
+      // カード埋め込みを削除
+      const { error: embeddingError } = await supabase
+        .from('card_embeddings')
+        .delete()
+        .in('card_id', Array.from(relatedCardIds));
+
+      if (embeddingError) {
+        console.error('カード埋め込み削除エラー:', embeddingError);
+        // 埋め込み削除に失敗しても、カード削除は続行
+      }
+
+      // 関係性提案を削除
+      const { error: suggestionError } = await supabase
+        .from('relationship_suggestions')
+        .delete()
+        .or(`source_card_id.in.(${Array.from(relatedCardIds).join(',')}),target_card_id.in.(${Array.from(relatedCardIds).join(',')})`);
+
+      if (suggestionError) {
+        console.error('関係性提案削除エラー:', suggestionError);
+        // 提案削除に失敗しても、カード削除は続行
+      }
+
+      // カードを削除
+      const { error: cardError } = await supabase
+        .from('board_cards')
+        .delete()
+        .in('id', Array.from(relatedCardIds));
+
+      if (cardError) {
+        console.error('カード削除エラー:', cardError);
+        throw cardError;
+      }
+
+      console.log(`🗑️ [MeetingAutomationService] ミーティング ${meetingId} の関連カード削除完了: ${relatedCardIds.size}件`);
+
+    } catch (error) {
+      console.error(`🗑️ [MeetingAutomationService] 関連カード削除エラー:`, error);
+      throw error;
+    }
+  }
+
+  /**
    * 予約ミーティングを削除（関連ファイルも削除）
    */
   static async deleteScheduledMeeting(id: string): Promise<boolean> {
@@ -278,6 +401,15 @@ export class MeetingAutomationService {
 
       // 関連する実際のミーティングがある場合は、そのファイルも削除
       if (scheduledMeeting?.created_meeting_id) {
+        try {
+          // 関連するカードを一括削除
+          await this.deleteRelatedCards(scheduledMeeting.created_meeting_id);
+          console.log('[MeetingAutomationService] Related meeting cards deleted:', scheduledMeeting.created_meeting_id);
+        } catch (cardError) {
+          console.error('[MeetingAutomationService] Related card deletion error (continuing):', cardError);
+          // カード削除に失敗しても、予約ミーティング削除は続行
+        }
+
         try {
           await StorageService.deleteMeetingAudioFiles(scheduledMeeting.created_meeting_id);
           console.log('[MeetingAutomationService] Related meeting files deleted:', scheduledMeeting.created_meeting_id);

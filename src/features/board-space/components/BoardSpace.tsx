@@ -727,6 +727,66 @@ const BoardSpace: React.FC<BoardSpaceProps> = ({ nestId }) => {
   const [previewCard, setPreviewCard] = useState<BoardItem | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteTargetCardId, setDeleteTargetCardId] = useState<string | null>(null);
+  const [activeControl, setActiveControl] = useState<string | null>(null);
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [showAllTags, setShowAllTags] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState<'from' | 'to' | null>(null);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  
+  // フィルター状態
+  const [filters, setFilters] = useState({
+    search: '',
+    tags: [] as string[],
+    dateFrom: '',
+    dateTo: '',
+    columnTypes: [] as BoardColumnType[],
+    sources: [] as string[],
+  });
+
+  const clearFilters = () => {
+    setFilters({
+      search: '',
+      tags: [],
+      dateFrom: '',
+      dateTo: '',
+      columnTypes: [],
+      sources: [],
+    });
+  };
+
+  // 利用可能なタグとソースを取得
+  const availableTags = useMemo(() => {
+    const tags = new Set<string>();
+    state.cards.forEach(card => {
+      if (card.tags) {
+        card.tags.forEach(tag => tags.add(tag));
+      }
+    });
+    return Array.from(tags);
+  }, [state.cards]);
+
+  const availableSources = useMemo(() => {
+    const sources = new Set<string>();
+    state.cards.forEach(card => {
+      if (card.metadata?.source) {
+        sources.add(card.metadata.source);
+      }
+      if (card.metadata?.ai?.generated_by) {
+        sources.add(card.metadata.ai.generated_by);
+      }
+      if (card.sources && card.sources.length > 0) {
+        card.sources.forEach(source => {
+          // 個別のミーティング名（label）を優先的に使用
+          if (source.label) {
+            sources.add(source.label);
+          } else if (source.type) {
+            sources.add(source.type);
+          }
+        });
+      }
+    });
+    return Array.from(sources).sort();
+  }, [state.cards]);
 
   // タブ定義
   const TABS = [
@@ -892,10 +952,57 @@ const BoardSpace: React.FC<BoardSpaceProps> = ({ nestId }) => {
     updateCard({ ...card, column_type: 'THEMES', id: card.id });
   };
 
-  // タブごとのカードフィルタリング
+  // タブと詳細フィルターを組み合わせたカードフィルタリング
   const filteredCards = (() => {
-    if (activeTab === 'all') return state.cards;
-    return state.cards.filter(card => card.column_type === activeTab);
+    let cards = state.cards;
+    
+    // タブフィルター
+    if (activeTab !== 'all') {
+      cards = cards.filter(card => card.column_type === activeTab);
+    }
+    
+    // 検索フィルター
+    if (filters.search) {
+      cards = cards.filter(card => 
+        card.title.toLowerCase().includes(filters.search.toLowerCase()) ||
+        card.content.toLowerCase().includes(filters.search.toLowerCase())
+      );
+    }
+    
+    // タグフィルター
+    if (filters.tags.length > 0) {
+      cards = cards.filter(card => 
+        card.tags && filters.tags.some(tag => card.tags!.includes(tag))
+      );
+    }
+    
+    // カラムタイプフィルター
+    if (filters.columnTypes.length > 0) {
+      cards = cards.filter(card => 
+        filters.columnTypes.includes(card.column_type)
+      );
+    }
+    
+    // ソースフィルター
+    if (filters.sources.length > 0) {
+      cards = cards.filter(card => 
+        card.sources && card.sources.some(source => 
+          filters.sources.includes(source.label || source.type || '')
+        )
+      );
+    }
+    
+    // 日付範囲フィルター
+    if (filters.dateFrom || filters.dateTo) {
+      cards = cards.filter(card => {
+        const cardDate = new Date(card.created_at);
+        if (filters.dateFrom && cardDate < new Date(filters.dateFrom)) return false;
+        if (filters.dateTo && cardDate > new Date(filters.dateTo)) return false;
+        return true;
+      });
+    }
+    
+    return cards;
   })();
 
   // --- カードグリッド描画直前でデバッグ出力 ---
@@ -1063,6 +1170,48 @@ const BoardSpace: React.FC<BoardSpaceProps> = ({ nestId }) => {
     </>
   );
 
+  const renderRightSideMenu = () => {
+    return (
+      <div className="right-side-menu">
+        <div className="icon-menu">
+          <div 
+            className={`control-icon-button ${showFilterPanel ? 'active' : ''}`}
+            onClick={() => setShowFilterPanel(!showFilterPanel)}
+            title="フィルター"
+          >
+            <svg className="icon" viewBox="0 0 24 24">
+              <polygon points="22,3 2,3 10,12.46 10,19 14,21 14,12.46"/>
+            </svg>
+          </div>
+
+          <div 
+            className={`control-icon-button ${activeControl === 'settings' ? 'active' : ''}`}
+            onClick={() => setActiveControl(activeControl === 'settings' ? null : 'settings')}
+            title="設定"
+          >
+            <svg className="icon" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+          </div>
+        </div>
+
+        {activeControl === 'settings' && (
+          <div className="control-detail-panel">
+            <div className="control-content">
+              <h4>設定</h4>
+              <div className="setting-options">
+                <div className="setting-option">表示設定</div>
+                <div className="setting-option">通知設定</div>
+                <div className="setting-option">ショートカット</div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const handleDeleteClick = (cardId: string) => {
     setDeleteTargetCardId(cardId);
     setIsDeleteModalOpen(true);
@@ -1082,6 +1231,343 @@ const BoardSpace: React.FC<BoardSpaceProps> = ({ nestId }) => {
   const handleCancelDelete = () => {
     setIsDeleteModalOpen(false);
     setDeleteTargetCardId(null);
+  };
+
+  const renderFilterPanel = () => {
+    if (!showFilterPanel) return null;
+    
+    return (
+      <div className={`filter-panel ${showFilterPanel ? 'open' : ''}`}>
+        <div className="filter-panel-header">
+          <h3>フィルター</h3>
+          <button
+            className="filter-panel-toggle"
+            onClick={() => setShowFilterPanel(false)}
+            title="フィルターパネルを閉じる"
+          >
+            <svg className="icon" viewBox="0 0 24 24">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        
+        <div className="filter-panel-content">
+          {/* 検索フィルター */}
+          <div className="filter-section">
+            <h4>
+              <svg className="section-icon" viewBox="0 0 24 24">
+                <circle cx="11" cy="11" r="8"/>
+                <path d="M21 21l-4.35-4.35"/>
+              </svg>
+              Search
+            </h4>
+            <div className="search-input-container">
+                              <input
+                  type="text"
+                  placeholder="キーワードで検索"
+                  className="search-input"
+                  value={filters.search}
+                  onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+                />
+            </div>
+          </div>
+
+          {/* タグフィルター */}
+          <div className="filter-section">
+            <h4>
+              <svg className="section-icon" viewBox="0 0 24 24">
+                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 14V2h12l5.59 5.59a2 2 0 0 1 0 2.82z"/>
+                <line x1="7" y1="7" x2="7.01" y2="7"/>
+              </svg>
+              Tags
+            </h4>
+            <div className="tag-badge-list">
+              {availableTags.slice(0, showAllTags ? undefined : 8).map((tag: string) => (
+                <button
+                  key={tag}
+                  className={`tag-badge ${filters.tags.includes(tag) ? 'active' : ''}`}
+                  onClick={() => {
+                    const newTags = filters.tags.includes(tag)
+                      ? filters.tags.filter((t: string) => t !== tag)
+                      : [...filters.tags, tag];
+                    setFilters({ ...filters, tags: newTags });
+                  }}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+            {availableTags.length > 8 && (
+              <button
+                className="tag-toggle-btn"
+                onClick={() => setShowAllTags(!showAllTags)}
+              >
+                {showAllTags ? 'Show Less' : `Show More (+${availableTags.length - 8})`}
+              </button>
+            )}
+          </div>
+
+          {/* 日付範囲フィルター */}
+          <div className="filter-section">
+            <h4>
+              <svg className="section-icon" viewBox="0 0 24 24">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/>
+                <line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+              Date Range
+            </h4>
+            <div className="date-inputs">
+              <div className="date-input-row">
+                              <div className="date-input-group">
+                <label>From:</label>
+                <div className="date-input-with-calendar">
+                  <input
+                    type="text"
+                    value={filters.dateFrom || ''}
+                    placeholder="YYYY-MM-DD"
+                    onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
+                    className="date-input"
+                  />
+                  <button
+                    type="button"
+                    className="calendar-btn"
+                    onClick={() => setShowDatePicker('from')}
+                    title="カレンダーを開く"
+                  >
+                    <svg className="calendar-icon" viewBox="0 0 24 24">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                      <line x1="16" y1="2" x2="16" y2="6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                      <line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                      <line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+                                  <div className="date-input-group">
+                    <label>To:</label>
+                    <div className="date-input-with-calendar">
+                      <input
+                        type="text"
+                        value={filters.dateTo || ''}
+                        placeholder="YYYY-MM-DD"
+                        onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
+                        className="date-input"
+                      />
+                      <button
+                        type="button"
+                        className="calendar-btn"
+                        onClick={() => setShowDatePicker('to')}
+                        title="カレンダーを開く"
+                      >
+                        <svg className="calendar-icon" viewBox="0 0 24 24">
+                          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                          <line x1="16" y1="2" x2="16" y2="6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                          <line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                          <line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+              </div>
+            </div>
+            
+                    {/* カレンダー選択UI */}
+        {showDatePicker && (
+          <div className="date-picker-overlay">
+            <div className="date-picker-panel">
+              <div className="date-picker-header">
+                <button 
+                  className="date-picker-nav-btn"
+                  onClick={() => {
+                    const prevMonth = new Date(currentMonth);
+                    prevMonth.setMonth(prevMonth.getMonth() - 1);
+                    setCurrentMonth(prevMonth);
+                  }}
+                >
+                  ‹
+                </button>
+                <span className="date-picker-month">
+                  {currentMonth.getFullYear()}.{String(currentMonth.getMonth() + 1).padStart(2, '0')}
+                </span>
+                <button 
+                  className="date-picker-nav-btn"
+                  onClick={() => {
+                    const nextMonth = new Date(currentMonth);
+                    nextMonth.setMonth(nextMonth.getMonth() + 1);
+                    setCurrentMonth(nextMonth);
+                  }}
+                >
+                  ›
+                </button>
+              </div>
+              <div className="date-picker-grid">
+                {/* 曜日ヘッダー */}
+                <div className="date-picker-weekdays">
+                  {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
+                    <div key={day} className="date-picker-weekday">{day}</div>
+                  ))}
+                </div>
+                {/* 日付グリッド */}
+                <div className="date-picker-days">
+                  {(() => {
+                    const year = currentMonth.getFullYear();
+                    const month = currentMonth.getMonth();
+                    const firstDay = new Date(year, month, 1);
+                    const lastDay = new Date(year, month + 1, 0);
+                    const matrix: (Date | null)[][] = [];
+                    let week: (Date | null)[] = [];
+                    let dayOfWeek = (firstDay.getDay() + 6) % 7; // Monday=0
+                    
+                    // 前月の日付を追加
+                    for (let i = 0; i < dayOfWeek; i++) {
+                      week.push(null);
+                    }
+                    
+                    // 当月の日付を追加
+                    for (let d = 1; d <= lastDay.getDate(); d++) {
+                      week.push(new Date(year, month, d));
+                      if (week.length === 7) {
+                        matrix.push(week);
+                        week = [];
+                      }
+                    }
+                    
+                    // 最後の週を埋める
+                    if (week.length > 0) {
+                      while (week.length < 7) week.push(null);
+                      matrix.push(week);
+                    }
+                    
+                    return matrix.flat().map((date, i) => {
+                      if (!date) {
+                        return <div key={i} className="date-picker-day other-month" />;
+                      }
+                      
+                      const isToday = date.toDateString() === new Date().toDateString();
+                      const isSelected = false; // 選択状態は後で実装
+                      const isOtherMonth = date.getMonth() !== month;
+                      
+                      return (
+                        <button
+                          key={i}
+                          className={`date-picker-day ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''} ${isOtherMonth ? 'other-month' : ''}`}
+                          onClick={() => {
+                            const dateString = date.toISOString().split('T')[0];
+                            if (showDatePicker === 'from') {
+                              setFilters({ ...filters, dateFrom: dateString });
+                            } else {
+                              setFilters({ ...filters, dateTo: dateString });
+                            }
+                            setShowDatePicker(null);
+                          }}
+                        >
+                          {date.getDate()}
+                        </button>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
+              <button 
+                className="date-picker-close"
+                onClick={() => setShowDatePicker(null)}
+              >
+                閉じる
+              </button>
+            </div>
+          </div>
+        )}
+          </div>
+
+          {/* カラムタイプフィルター */}
+          <div className="filter-section">
+            <h4>
+              <svg className="section-icon" viewBox="0 0 24 24">
+                <rect x="3" y="3" width="7" height="7"/>
+                <rect x="14" y="3" width="7" height="7"/>
+                <rect x="14" y="14" width="7" height="7"/>
+                <rect x="3" y="14" width="7" height="7"/>
+              </svg>
+              Column Type
+            </h4>
+            <div className="column-type-badge-list">
+              {['INBOX', 'QUESTIONS', 'INSIGHTS', 'THEMES', 'ACTIONS'].map(type => {
+                const typeKey = type.toLowerCase() as string;
+                const isActive = filters.columnTypes.includes(type as BoardColumnType);
+                const typeBadgeInfo: Record<string, { icon: string; label: string }> = {
+                  INBOX:      { icon: '📥', label: 'Inbox' },
+                  INSIGHTS:   { icon: '💡', label: 'Insight' },
+                  THEMES:     { icon: '🎯', label: 'Theme' },
+                  QUESTIONS:  { icon: '❓', label: 'Question' },
+                  ACTIONS:    { icon: '⚡', label: 'Action' },
+                };
+                const badgeInfo = typeBadgeInfo[type] || typeBadgeInfo['INBOX'];
+                console.log(`Type: ${type}, TypeKey: ${typeKey}, IsActive: ${isActive}, Filters:`, filters.columnTypes);
+                return (
+                  <button
+                    key={type}
+                    className={`column-type-badge type-${typeKey} ${isActive ? 'active' : ''}`}
+                    onClick={() => {
+                      const newTypes = isActive
+                        ? filters.columnTypes.filter(t => t !== type)
+                        : [...filters.columnTypes, type as BoardColumnType];
+                      console.log('Setting new types:', newTypes);
+                      setFilters({ ...filters, columnTypes: newTypes });
+                    }}
+                  >
+                    <span className="column-type-icon">{badgeInfo.icon}</span>
+                    {badgeInfo.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ソースフィルター */}
+          <div className="filter-section">
+            <h4>
+              <svg className="section-icon" viewBox="0 0 24 24">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14,2 14,8 20,8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+                <polyline points="10,9 9,9 8,9"/>
+              </svg>
+              Source
+            </h4>
+            <div className="source-badge-list">
+              {availableSources.map((source: string) => (
+                <button
+                  key={source}
+                  className={`source-badge ${filters.sources.includes(source) ? 'active' : ''}`}
+                  onClick={() => {
+                    const newSources = filters.sources.includes(source)
+                      ? filters.sources.filter(s => s !== source)
+                      : [...filters.sources, source];
+                    setFilters({ ...filters, sources: newSources });
+                  }}
+                >
+                  {source}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* フィルター操作ボタン */}
+          <div className="filter-actions">
+            <button
+              className="filter-btn filter-clear"
+              onClick={clearFilters}
+            >
+              Clear All
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -1162,6 +1648,13 @@ const BoardSpace: React.FC<BoardSpaceProps> = ({ nestId }) => {
           border-color: #00ff88;
           box-shadow: 0 4px 12px rgba(0,255,136,0.3);
         }
+        
+        .tag-badge.active {
+          background: #00ff88;
+          color: #0f0f23;
+          border-color: #00ff88;
+          font-weight: 700;
+        }
         .tag-badge.category-ux {
           background: rgba(100,181,246,0.08);
           color: rgba(100,181,246,0.8);
@@ -1187,12 +1680,774 @@ const BoardSpace: React.FC<BoardSpaceProps> = ({ nestId }) => {
           color: rgba(0,255,136,0.8);
           border-color: rgba(0,255,136,0.3);
         }
+
+        /* ===== 右側コントロールメニュー ===== */
+        .board-space {
+          display: flex;
+          height: 100vh;
+          background: #0f0f23;
+          color: #e2e8f0;
+          padding: 0;
+          margin: 0;
+        }
+
+        .main-content {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+          padding: 0;
+          margin: 0;
+        }
+
+        .right-side-menu {
+          width: 60px;
+          background: #1a1a2e;
+          border-left: 1px solid #333366;
+          display: flex;
+          flex-direction: column;
+          padding: 12px 0;
+          position: relative;
+        }
+
+        .icon-menu {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          align-items: center;
+        }
+
+        .control-icon-button {
+          background: none;
+          border: none;
+          color: #e2e8f0;
+          padding: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 48px;
+          height: 48px;
+          border-radius: 8px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .control-icon-button:hover {
+          background: rgba(51, 51, 102, 0.3);
+          transform: translateX(4px);
+        }
+
+        .control-icon-button.active {
+          background: rgba(0, 255, 136, 0.1);
+          color: #00ff88;
+        }
+
+        .control-icon-button .icon {
+          width: 20px;
+          height: 20px;
+          fill: none;
+          stroke: currentColor;
+          stroke-width: 2;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+        }
+
+        .control-detail-panel {
+          position: absolute;
+          left: 100%;
+          top: 0;
+          width: 280px;
+          background: #23243a;
+          border: 1px solid #333366;
+          border-radius: 8px;
+          padding: 20px;
+          margin-left: 12px;
+          box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+          z-index: 1000;
+        }
+
+        .control-content h4 {
+          font-size: 14px;
+          font-weight: 600;
+          color: #00ff88;
+          margin-bottom: 16px;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+        }
+
+        .control-content .search-input-container {
+          display: flex;
+          align-items: center;
+          background: #1a1a2e;
+          border: 1px solid #333366;
+          border-radius: 8px;
+          padding: 12px;
+          gap: 8px;
+        }
+
+        .control-content .search-input {
+          flex: 1;
+          background: none;
+          border: none;
+          color: #e2e8f0;
+          font-size: 13px;
+          outline: none;
+        }
+
+        .control-content .search-input::placeholder {
+          color: #718096;
+        }
+
+        .control-content .search-icon {
+          width: 18px;
+          height: 18px;
+          fill: none;
+          stroke: #718096;
+          stroke-width: 2;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+        }
+
+        .control-content .filter-options,
+        .control-content .view-options,
+        .control-content .setting-options {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+
+        .control-content .filter-option label {
+          display: block;
+          font-size: 12px;
+          color: #a0aec0;
+          margin-bottom: 8px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .control-content .tag-chips,
+        .control-content .priority-options,
+        .control-content .view-options {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+
+        .control-content .tag-chip,
+        .control-content .priority-option,
+        .control-content .view-option {
+          background: #333366;
+          color: #e2e8f0;
+          padding: 8px 12px;
+          border-radius: 6px;
+          font-size: 12px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          border: 1px solid #45475a;
+        }
+
+        .control-content .tag-chip:hover,
+        .control-content .priority-option:hover,
+        .control-content .view-option:hover {
+          background: #45475a;
+          border-color: #00ff88;
+          transform: translateY(-1px);
+        }
+
+        .control-content .setting-option {
+          background: #333366;
+          color: #e2e8f0;
+          padding: 12px;
+          border-radius: 6px;
+          font-size: 13px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          border: 1px solid #45475a;
+        }
+
+        .control-content .setting-option:hover {
+          background: #45475a;
+          border-color: #00ff88;
+          transform: translateX(4px);
+        }
+
+        /* フィルターパネル */
+        .filter-panel {
+          position: fixed;
+          right: 60px;
+          top: 0;
+          width: 320px;
+          height: 100vh;
+          background: #1a1a2e;
+          border-left: 1px solid #333366;
+          z-index: 999;
+          overflow-y: auto;
+          transform: translateX(100%);
+          transition: transform 0.3s ease;
+        }
+
+        .filter-panel.open {
+          transform: translateX(0);
+        }
+
+        .filter-panel-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 20px;
+          border-bottom: 1px solid #333366;
+          background: #23243a;
+        }
+
+        .filter-panel-header h3 {
+          color: #e2e8f0;
+          margin: 0;
+          font-size: 18px;
+          font-weight: 600;
+        }
+
+        .filter-panel-toggle {
+          background: none;
+          border: none;
+          color: #e2e8f0;
+          cursor: pointer;
+          padding: 8px;
+          border-radius: 4px;
+          transition: all 0.2s ease;
+        }
+
+        .filter-panel-toggle:hover {
+          background: #333366;
+        }
+
+        .filter-panel-toggle .icon {
+          width: 16px;
+          height: 16px;
+          fill: none;
+          stroke: currentColor;
+          stroke-width: 2;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+        }
+
+        .filter-panel-content {
+          padding: 20px;
+        }
+
+        .filter-section {
+          margin-bottom: 24px;
+        }
+
+        .filter-section h4 {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          color: #e2e8f0;
+          margin: 0 0 12px 0;
+          font-size: 14px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          font-family: var(--font-family-text);
+        }
+
+        .section-icon {
+          width: 16px;
+          height: 16px;
+          fill: none;
+          stroke: #00ff88;
+          stroke-width: 2;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+        }
+
+        .search-input-container {
+          margin-bottom: 16px;
+        }
+
+        .search-input {
+          width: 100%;
+          padding: 8px 12px;
+          background: #23243a;
+          border: 1px solid #333366;
+          border-radius: 6px;
+          color: #e2e8f0;
+          font-size: 14px;
+          transition: border-color 0.2s ease;
+          height: 36px;
+          box-sizing: border-box;
+        }
+
+        .search-input:focus {
+          outline: none;
+          border-color: #00ff88;
+        }
+
+        .search-input::placeholder {
+          color: #6b7280;
+        }
+
+        .date-inputs {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        .date-input-row {
+          display: flex;
+          gap: 8px;
+          align-items: flex-end;
+        }
+
+        .date-input-group {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          flex: 1;
+          min-width: 0;
+        }
+
+        .date-input-group label {
+          font-size: 12px;
+          color: #a0aec0;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .date-input {
+          padding: 8px;
+          background: #23243a;
+          border: 1px solid #333366;
+          border-radius: 4px;
+          color: #e2e8f0;
+          font-size: 13px;
+          width: 100%;
+          min-width: 0;
+          box-sizing: border-box;
+          height: 36px;
+        }
+
+        .date-input:focus {
+          outline: none;
+          border-color: #00ff88;
+        }
+
+        .date-input-with-calendar {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .calendar-btn {
+          background: #333366;
+          border: 1px solid #45475a;
+          color: #a6adc8;
+          padding: 8px;
+          border-radius: 4px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          font-size: 14px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          height: 36px;
+          width: 36px;
+          flex-shrink: 0;
+        }
+
+        .calendar-icon {
+          width: 18px;
+          height: 18px;
+          fill: none;
+          stroke: currentColor;
+          stroke-width: 1.5;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+        }
+
+        /* カレンダー選択UI */
+        .date-picker-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.5);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+        }
+
+        .date-picker-panel {
+          background: #0f0f23;
+          border: 1px solid #333366;
+          border-radius: 6px;
+          padding: 16px;
+          width: 280px;
+          min-width: 280px;
+          max-width: 280px;
+          font-family: 'JetBrains Mono', monospace;
+          color: #e2e8f0;
+        }
+
+        .date-picker-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 16px;
+          padding-bottom: 8px;
+          border-bottom: 1px solid #333366;
+        }
+
+        .date-picker-nav-btn {
+          background: #333366;
+          border: 1px solid #45475a;
+          border-radius: 3px;
+          color: #a6adc8;
+          width: 24px;
+          height: 24px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          font-size: 10px;
+        }
+
+        .date-picker-nav-btn:hover {
+          background: #45475a;
+        }
+
+        .date-picker-month {
+          color: #00ff88;
+          font-size: 14px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+        }
+
+        .date-picker-grid {
+          width: 100%;
+        }
+
+        .date-picker-weekdays {
+          display: grid;
+          grid-template-columns: repeat(7, 1fr);
+          gap: 2px;
+          width: 100%;
+          margin-bottom: 0;
+        }
+
+        .date-picker-weekday {
+          text-align: center;
+          font-size: 10px;
+          color: #6c7086;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          padding: 2px;
+          font-weight: 600;
+          background: #1a1a2e;
+          border-radius: 2px;
+        }
+
+        .date-picker-days {
+          display: grid;
+          grid-template-columns: repeat(7, 1fr);
+          gap: 2px;
+          width: 100%;
+        }
+
+        .date-picker-day {
+          aspect-ratio: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 11px;
+          font-weight: 500;
+          border-radius: 2px;
+          cursor: pointer;
+          background: #1a1a2e;
+          color: #e2e8f0;
+          transition: all 0.15s;
+          min-height: 32px;
+          border: none;
+        }
+
+        .date-picker-day:hover {
+          background: #333366;
+        }
+
+        .date-picker-day.selected {
+          background: #64b5f6;
+          color: #0f0f23;
+          border: 2px solid #00ff88;
+        }
+
+        .date-picker-day.today {
+          background: #00ff88;
+          color: #0f0f23;
+        }
+
+        .date-picker-day.other-month {
+          color: #6c7086;
+          opacity: 0.5;
+        }
+
+        .date-picker-close {
+          background: #00ff88;
+          border: none;
+          color: #0f0f23;
+          padding: 8px 16px;
+          border-radius: 4px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          font-size: 12px;
+          font-weight: 600;
+          font-family: 'JetBrains Mono', monospace;
+          width: 100%;
+          margin-top: 16px;
+        }
+
+        .date-picker-close:hover {
+          background: #00dd77;
+        }
+          align-items: center;
+          justify-content: center;
+          min-width: 36px;
+          height: 36px;
+        }
+
+        .calendar-btn:hover {
+          background: #45475a;
+          border-color: #00ff88;
+          color: #00ff88;
+        }
+
+        .filter-options {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .filter-option {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          color: #e2e8f0;
+          font-size: 14px;
+          cursor: pointer;
+          padding: 4px 0;
+        }
+
+        .filter-option input[type="checkbox"] {
+          accent-color: #00ff88;
+        }
+
+        /* タグバッジリスト */
+        .tag-badge-list {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          line-height: 1.6;
+        }
+
+        /* カラムタイプバッジリスト */
+        .column-type-badge-list {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          line-height: 1.6;
+        }
+
+        /* ソースバッジリスト */
+        .source-badge-list {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          line-height: 1.6;
+        }
+
+        /* ソースバッジ - カードのタイプバッジと同じデザイン */
+        .source-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          background: #333366;
+          padding: 2px 6px;
+          border-radius: 2px;
+          font-size: 10px;
+          font-weight: 500;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          font-family: 'JetBrains Mono', monospace;
+          border: 1px solid #45475a;
+          color: #a6adc8;
+          flex-shrink: 0;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .source-badge:hover {
+          transform: translateY(-1px);
+          background: #00ff88;
+          color: #fff;
+          border-color: #00ff88;
+          box-shadow: 0 4px 12px rgba(0,255,136,0.3);
+        }
+
+        .source-badge.active {
+          background: rgba(0, 255, 136, 0.2);
+          color: #00ff88;
+          border-color: #00ff88;
+        }
+
+        /* カラムタイプバッジ - カードのタイプバッジと同じデザイン */
+        .column-type-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          background: #333366;
+          padding: 2px 6px;
+          border-radius: 2px;
+          font-size: 10px;
+          font-weight: 500;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          font-family: 'JetBrains Mono', monospace;
+          border: 1px solid #45475a;
+          color: #a6adc8;
+          flex-shrink: 0;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .column-type-badge:hover {
+          transform: translateY(-1px);
+          background: #00ff88;
+          color: #fff;
+          border-color: #00ff88;
+          box-shadow: 0 4px 12px rgba(0,255,136,0.3);
+        }
+
+        .column-type-icon {
+          font-size: 10px;
+        }
+
+        /* カラムタイプ別の色分け - カードのタイプバッジと完全に同じ */
+        .column-type-badge.type-inbox.active {
+          background: rgba(117,117,117,0.2);
+          color: #6c7086;
+          border-color: #6c7086;
+        }
+        .column-type-badge.type-insights.active {
+          background: rgba(156,39,176,0.2);
+          color: #9c27b0;
+          border-color: #9c27b0;
+        }
+        .column-type-badge.type-themes.active {
+          background: rgba(100,181,246,0.2);
+          color: #64b5f6;
+          border-color: #64b5f6;
+        }
+        .column-type-badge.type-questions.active {
+          background: rgba(255,211,61,0.2);
+          color: #ffd93d;
+          border-color: #ffd93d;
+        }
+        .column-type-badge.type-actions.active {
+          background: rgba(255,165,0,0.2);
+          color: #ffa500;
+          border-color: #ffa500;
+        }
+
+        .filter-actions {
+          display: flex;
+          gap: 12px;
+          margin-top: 24px;
+          padding-top: 20px;
+          border-top: 1px solid #333366;
+        }
+
+        .filter-btn {
+          flex: 1;
+          padding: 8px 16px;
+          border: none;
+          border-radius: 2px;
+          font-size: 12px;
+          font-weight: 700;
+          font-family: inherit;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .filter-clear {
+          background: #333366;
+          color: #e2e8f0;
+        }
+
+        .filter-clear:hover {
+          background: #45475a;
+        }
+
+        .filter-apply {
+          background: #00ff88;
+          color: #0f0f23;
+        }
+
+        .filter-apply:hover {
+          background: #00e676;
+        }
+
+        /* タグ表示切り替えボタン */
+        .tag-toggle-btn {
+          display: block;
+          width: 100%;
+          padding: 8px 16px;
+          margin-top: 12px;
+          background: rgba(51, 51, 102, 0.3);
+          color: #a0aec0;
+          border: 1px solid #333366;
+          border-radius: 2px;
+          font-size: 12px;
+          font-weight: 700;
+          font-family: inherit;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          text-align: center;
+        }
+
+        .tag-toggle-btn:hover {
+          background: rgba(51, 51, 102, 0.5);
+          border-color: #00ff88;
+          color: #00ff88;
+        }
       `}</style>
-      {renderTabs()}
-      <div className="card-list-grid">
-        {filteredCards.map(card => (
-          <React.Fragment key={card.id}>{renderCardWeb(card)}</React.Fragment>
-        ))}
+      <div className="board-space">
+        <div className="main-content">
+          {renderTabs()}
+          {/* フィルター情報表示 */}
+          {(filters.search || filters.tags.length > 0 || filters.columnTypes.length > 0 || filters.sources.length > 0 || filters.dateFrom || filters.dateTo) && (
+            <div style={{ 
+              padding: '12px 20px', 
+              background: 'rgba(51, 51, 102, 0.1)', 
+              borderBottom: '1px solid #333366',
+              fontSize: '14px',
+              color: '#a0aec0'
+            }}>
+              フィルター適用中: {filteredCards.length}件のカードが表示されています
+            </div>
+          )}
+          <div className="card-list-grid">
+            {filteredCards.map(card => (
+              <React.Fragment key={card.id}>{renderCardWeb(card)}</React.Fragment>
+            ))}
+          </div>
+        </div>
+        {renderRightSideMenu()}
       </div>
       <button
         className="floating-add-btn"
@@ -1247,6 +2502,7 @@ const BoardSpace: React.FC<BoardSpaceProps> = ({ nestId }) => {
           >削除</button>
         </div>
       </Modal>
+      {renderFilterPanel()}
     </>
   );
 };

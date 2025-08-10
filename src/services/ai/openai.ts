@@ -114,7 +114,7 @@ export async function generateMeetingSummary(content: string, context?: AIReques
 }
 
 // OpenAI API経由でミーティングからカードを抽出
-export async function extractCardsFromMeeting(meetingId: string, context?: AIRequestContext): Promise<any[]> {
+export async function extractCardsFromMeeting(meetingId: string, context?: AIRequestContext): Promise<{ cards: any[], provider: string }> {
   console.log('extractCardsFromMeetingに渡すmeetingId:', meetingId);
   
   const startTime = Date.now();
@@ -166,7 +166,10 @@ export async function extractCardsFromMeeting(meetingId: string, context?: AIReq
       });
     }
 
-    return data.cards;
+    return {
+      cards: data.cards,
+      provider: data.provider
+    };
   } catch (error) {
     // エラーでもログを記録
     if (context) {

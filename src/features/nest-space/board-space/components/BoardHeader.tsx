@@ -30,10 +30,12 @@ const COLUMN_LABELS: Record<string, string> = {
 
 interface BoardHeaderProps {
   onToggleSettings?: () => void;
+  onToggleFilters?: () => void;
 }
 
 const BoardHeader: React.FC<BoardHeaderProps> = ({ 
-  onToggleSettings 
+  onToggleSettings,
+  onToggleFilters
 }) => {
   const { 
     boardSpaceState, 
@@ -68,7 +70,7 @@ const BoardHeader: React.FC<BoardHeaderProps> = ({
   // Handle tag selection
   const handleTagSelect = (tag: string | null) => {
     filterByTag(tag);
-    updateFilters({ tags: tag ? [tag] : undefined });
+    updateFilters({ tags: tag ? [tag] : [] });
     setShowTagFilter(false);
   };
   
@@ -131,12 +133,25 @@ const BoardHeader: React.FC<BoardHeaderProps> = ({
               <Icon name="search" />
             </TouchableOpacity>
             
+            {/* Debug: Filter button */}
             <TouchableOpacity 
-              style={styles.controlButton}
-              onPress={() => setShowTagFilter(!showTagFilter)}
+              style={[
+                styles.controlButton, 
+                { 
+                  borderWidth: 3, 
+                  borderColor: 'red', 
+                  backgroundColor: 'yellow',
+                  width: 50,
+                  height: 50,
+                  marginLeft: 10,
+                  marginRight: 10
+                }
+              ]}
+              onPress={onToggleFilters}
             >
-              <Icon name="filter" />
+              <Text style={{ fontSize: 20, color: '#000', fontWeight: 'bold' }}>🔖</Text>
             </TouchableOpacity>
+            {/* Filter button rendered */}
             
             <TouchableOpacity 
               style={styles.controlButton}
@@ -164,7 +179,7 @@ const BoardHeader: React.FC<BoardHeaderProps> = ({
             >
               <Icon 
                 name="network" 
-                color={boardSpaceState.viewMode === 'network' ? '#4a6da7' : '#000'}
+                color={boardSpaceState.viewMode === 'network' ? '#000' : '#000'}
               />
             </TouchableOpacity>
             
@@ -185,7 +200,7 @@ const BoardHeader: React.FC<BoardHeaderProps> = ({
         )}
       </View>
       
-      {/* Tag filter panel */}
+      {/* Tag filter panel - simplified version for quick access */}
       {showTagFilter && (
         <View style={styles.tagFilterPanel}>
           <TouchableOpacity 

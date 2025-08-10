@@ -70,7 +70,7 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
   // 新しいファイル処理管理
   const fileProcessing = useFileProcessing();
   
-  // 詳細状態管理でのファイル処理関数
+  // 新しいアーキテクチャでのファイル処理関数
   const processFileWithDetailedStatus = useCallback(async (
     meetingId: string, 
     file: File, 
@@ -92,35 +92,30 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
         message: 'ファイル検証完了'
       });
       
-      // Step 2: ファイルアップロード
+      // Step 2: 新しいアーキテクチャでの文字起こし処理
       fileProcessing.updateStep('UPLOAD', {
         status: 'running',
         progress: 0,
-        message: 'Supabase Storageにアップロード中...'
+        message: 'GCSにアップロード中...'
       });
       
-      // ファイル名をサニタイズ
-      const sanitizedFileName = file.name
-        .replace(/[^a-zA-Z0-9.-]/g, '_')
-        .replace(/_{2,}/g, '_')
-        .toLowerCase();
+      console.log('🔧 [processFileWithDetailedStatus] 新しいアーキテクチャで処理開始');
       
-      const fileName = `${meetingId}_${Date.now()}_${sanitizedFileName}`;
+      const { TranscriptionServiceV2 } = await import('../../../../services/TranscriptionServiceV2');
       
       fileProcessing.updateStep('UPLOAD', {
-        progress: 25,
-        message: 'ファイル名を準備中...'
+        progress: 50,
+        message: '署名付きURL取得中...'
       });
       
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('meeting-files')
-        .upload(fileName, file, {
-          contentType: file.type,
-          upsert: false
-        });
+      const result = await TranscriptionServiceV2.transcribeAudio(
+        file,
+        meetingId,
+        nestId
+      );
       
-      if (uploadError) {
-        throw new Error(`ファイルアップロードエラー: ${uploadError.message}`);
+      if (!result.success) {
+        throw new Error(result.error || '文字起こし処理に失敗しました');
       }
       
       fileProcessing.updateStep('UPLOAD', {
@@ -129,77 +124,38 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
         message: 'アップロード完了'
       });
       
-      // Step 3: 文字起こし開始
-      fileProcessing.updateStep('TRANSCRIPTION_START', {
-        status: 'running',
-        progress: 50,
-        message: '文字起こしジョブを作成中...'
-      });
-      
-      const job = await createJob('transcription', meetingId, {
-        source: 'file_upload',
-        nestId: nestId,
-        userId: user?.id,
-        meetingTitle: 'ファイルアップロード',
-        storagePath: uploadData.path,
-        fileName: file.name,
-        fileSize: file.size,
-        fileType: file.type
-      });
-      
-      if (!job) {
-        throw new Error('文字起こしジョブの作成に失敗しました');
-      }
-      
+      // Step 3: 文字起こしジョブ開始
       fileProcessing.updateStep('TRANSCRIPTION_START', {
         status: 'completed',
         progress: 100,
-        message: 'ジョブ作成完了'
+        message: '文字起こしジョブ開始完了'
       });
       
-      // Step 4: 文字起こし処理（バックグラウンドジョブで実行）
+      // Step 4: 処理完了待機
       fileProcessing.updateStep('TRANSCRIPTION_PROCESS', {
         status: 'running',
         progress: 10,
-        message: '音声解析を開始しています...'
+        message: '文字起こし処理中...'
       });
       
-      // バックグラウンドジョブの完了を待つための監視（実際の実装ではポーリングまたはWebSocket）
-      // 今はモック的に進捗を更新
-      const progressSteps = [20, 40, 60, 80, 95];
-      for (let i = 0; i < progressSteps.length; i++) {
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        fileProcessing.updateStep('TRANSCRIPTION_PROCESS', {
-          progress: progressSteps[i],
-          message: `音声解析中... ${progressSteps[i]}%`
-        });
-      }
-      
+      // 実際の処理は非同期で実行されるため、ここでは完了メッセージを表示
       fileProcessing.updateStep('TRANSCRIPTION_PROCESS', {
         status: 'completed',
         progress: 100,
-        message: '音声解析完了'
+        message: '文字起こしジョブが開始されました'
       });
       
       // Step 5: 結果保存
       fileProcessing.updateStep('TRANSCRIPTION_SAVE', {
-        status: 'running',
-        progress: 50,
-        message: 'データベースに保存中...'
-      });
-      
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      fileProcessing.updateStep('TRANSCRIPTION_SAVE', {
         status: 'completed',
         progress: 100,
-        message: '保存完了'
+        message: 'ジョブ情報を保存しました'
       });
       
       // セッション完了
       fileProcessing.completeSession(true, {
-        storagePath: uploadData.path,
-        transcriptText: '文字起こし処理が完了しました（モック）',
+        storagePath: `gcs://poconest-audio-files/${result.jobId}`,
+        transcriptText: '文字起こしジョブが開始されました。処理完了までお待ちください。',
         processingTime: Date.now() - new Date(fileProcessing.currentSession?.startTime || 0).getTime()
       });
       
@@ -207,7 +163,7 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
       console.error('詳細ファイル処理エラー:', error);
       fileProcessing.completeSession(false, undefined, error instanceof Error ? error.message : 'Unknown error');
     }
-  }, [fileProcessing, createJob, nestId, user?.id]);
+  }, [fileProcessing, nestId]);
   
   // 統合ミーティング機能
   const {
@@ -441,12 +397,12 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
     if (files && files.length > 0) {
       const file = files[0];
       
-      // ファイルサイズをチェック（100MB制限）
-      const maxSizeBytes = 100 * 1024 * 1024; // 100MB
+      // ファイルサイズをチェック（200MB制限）
+      const maxSizeBytes = 200 * 1024 * 1024; // 200MB
       if (file.size > maxSizeBytes) {
         showToast({ 
           title: 'エラー', 
-          message: `ファイルサイズが大きすぎます。100MB以下のファイルをご利用ください。（現在: ${Math.round(file.size / (1024 * 1024))}MB）`, 
+          message: `ファイルサイズが大きすぎます。200MB以下のファイルをご利用ください。（現在: ${Math.round(file.size / (1024 * 1024))}MB）`, 
           type: 'error' 
         });
         return;
@@ -465,6 +421,7 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
       ];
       
       if (supportedTypes.some(type => file.type.startsWith(type.split('/')[0]) || file.type === type)) {
+        // 常に設定画面（サイドピーク）を表示してからミーティング作成+文字起こし開始
         setDroppedFile(file);
         setShowForm(true);
       } else {
@@ -511,11 +468,53 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
     }
   }, [selectedMeeting]);
 
-  // ミーティング削除（ソフトデリート + ストレージファイル削除）
+  // ミーティング削除（UnifiedMeetingServiceを使用）
   const handleDeleteMeeting = useCallback(async (meetingId: string) => {
-    if (!window.confirm('本当にこのミーティングを削除しますか？\n\n※ アップロードされたオーディオファイルも一緒に削除されます。')) return;
-    
     try {
+      // 選択されたミーティングを取得
+      const meetingToDelete = selectedUnifiedMeeting || selectedMeeting;
+      if (!meetingToDelete) {
+        console.error('削除対象のミーティングが見つかりません');
+        return;
+      }
+
+      // UnifiedMeetingServiceを使用してミーティングを削除
+      const { UnifiedMeetingService } = await import('../../../meeting-space/services/UnifiedMeetingService');
+      const meetingService = new UnifiedMeetingService();
+      
+      // MeetingUIをUnifiedMeetingに変換
+      if (meetingToDelete && 'type' in meetingToDelete) {
+        // 既にUnifiedMeetingの場合
+        await meetingService.deleteMeeting(meetingToDelete);
+      } else if (meetingToDelete) {
+        // MeetingUIの場合、UnifiedMeetingに変換
+        const unifiedMeeting = {
+          id: `actual_${meetingToDelete.id}`,
+          title: meetingToDelete.title,
+          description: meetingToDelete.description,
+          startTime: new Date(meetingToDelete.startTime),
+          endTime: new Date(meetingToDelete.endTime),
+          participants: meetingToDelete.participants,
+          tags: meetingToDelete.tags,
+          type: 'actual' as const,
+          status: meetingToDelete.status,
+          scheduledMeetingId: undefined,
+          actualMeetingId: meetingToDelete.id,
+          nestId: meetingToDelete.nestId,
+          automation: undefined,
+          actualData: {
+            uploadedFiles: meetingToDelete.uploadedFiles,
+            recordingUrl: meetingToDelete.recordingUrl,
+            transcript: meetingToDelete.transcript,
+            aiSummary: meetingToDelete.aiSummary,
+          },
+          createdBy: meetingToDelete.createdBy,
+          createdAt: new Date(meetingToDelete.createdAt),
+          updatedAt: new Date(meetingToDelete.updatedAt),
+        };
+        await meetingService.deleteMeeting(unifiedMeeting);
+      }
+      
       // ストレージからオーディオファイルを削除
       try {
         await StorageService.deleteMeetingAudioFiles(meetingId);
@@ -524,24 +523,13 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
         console.error('🔧 ストレージファイル削除エラー（処理は続行）:', storageError);
         // ストレージ削除に失敗しても、ミーティング削除は続行
       }
-
-      // ミーティングの論理削除
-      const { error } = await supabase
-        .from('meetings')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('id', meetingId);
-        
-      if (error) {
-        alert('ミーティングの削除に失敗しました: ' + error.message);
-        return;
-      }
       
       setSelectedMeeting(null);
       await refreshUnifiedMeetings();
       
       showToast({ 
         title: '削除完了', 
-        message: 'ミーティングとオーディオファイルを削除しました。', 
+        message: 'ミーティング、オーディオファイル、関連するカードを削除しました。', 
         type: 'success' 
       });
       
@@ -549,7 +537,7 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
       console.error('🔧 ミーティング削除エラー:', error);
       alert('ミーティングの削除に失敗しました: ' + (error instanceof Error ? error.message : '不明なエラー'));
     }
-  }, [refreshUnifiedMeetings, showToast]);
+  }, [selectedUnifiedMeeting, selectedMeeting, refreshUnifiedMeetings, showToast]);
 
   // カード抽出
   const handleCardExtraction = useCallback(async () => {
@@ -621,27 +609,23 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
     }
   }, [selectedMeeting, user?.id, nestId, createJob, showToast]);
   
-  // ファイルアップロード
+  // ファイルアップロード処理
   const handleFileUpload = useCallback(async (file: File) => {
-    console.log('🔧 handleFileUpload開始:', { file: file.name, size: file.size, type: file.type });
-    console.log('🔧 selectedMeeting:', selectedMeeting?.id);
-    console.log('🔧 user:', user?.id);
-    
     if (!selectedMeeting || !user?.id) {
       console.error('🔧 selectedMeetingまたはuserが不正:', { selectedMeeting: !!selectedMeeting, user: !!user?.id });
       return;
     }
     
     try {
-      // ファイルサイズをチェック（100MB制限）
-      const maxSizeBytes = 100 * 1024 * 1024; // 100MB
+      // ファイルサイズをチェック（200MB制限）
+      const maxSizeBytes = 200 * 1024 * 1024; // 200MB
       console.log('🔧 ファイルサイズチェック:', { size: file.size, maxSize: maxSizeBytes });
       
       if (file.size > maxSizeBytes) {
         console.error('🔧 ファイルサイズ超過');
         showToast({ 
           title: 'エラー', 
-          message: `ファイルサイズが大きすぎます。100MB以下のファイルをご利用ください。（現在: ${Math.round(file.size / (1024 * 1024))}MB）`, 
+          message: `ファイルサイズが大きすぎます。200MB以下のファイルをご利用ください。（現在: ${Math.round(file.size / (1024 * 1024))}MB）`, 
           type: 'error' 
         });
         return;
@@ -677,72 +661,64 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
         setSelectedMeeting(prev => prev ? { ...prev, transcript: text } : null);
         showToast({ title: '成功', message: 'テキストファイルをアップロードしました。', type: 'success' });
         
-              } else if (isAudio || isVideo) {
-        // 音声・動画ファイルの場合：まずStorageにアップロード、その後文字起こしジョブを作成
-        console.log('🔧 音声・動画ファイル処理開始');
+      } else       if (isAudio || isVideo) {
+        // 音声・動画ファイルの場合：新しいアーキテクチャで処理
+        console.log('🔧 音声・動画ファイル処理開始（新しいアーキテクチャ）');
         
         try {
-          // Step 1: Supabase Storageにファイルをアップロード
-          console.log('🔧 Storageアップロード開始');
+          console.log('🔧 [DEBUG] TranscriptionServiceV2処理開始');
+          console.log('🔧 [DEBUG] ファイル情報:', {
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            sizeMB: (file.size / 1024 / 1024).toFixed(2)
+          });
           
-          // ファイル名をサニタイズ（日本語・特殊文字を除去）
-          const sanitizedFileName = file.name
-            .replace(/[^a-zA-Z0-9.-]/g, '_') // 英数字、ドット、ハイフン以外をアンダースコアに
-            .replace(/_{2,}/g, '_') // 連続するアンダースコアを1つに
-            .toLowerCase(); // 小文字に統一
+          console.log('🔧 [DEBUG] TranscriptionServiceV2インポート開始');
+          const { TranscriptionServiceV2 } = await import('../../../../services/TranscriptionServiceV2');
+          console.log('🔧 [DEBUG] TranscriptionServiceV2インポート完了');
           
-          const fileName = `${selectedMeeting.id}_${Date.now()}_${sanitizedFileName}`;
-          console.log('🔧 サニタイズ後ファイル名:', fileName);
+          console.log('🔧 [DEBUG] TranscriptionServiceV2呼び出し準備:', {
+            fileName: file.name,
+            fileType: file.type,
+            fileSize: file.size,
+            meetingId: selectedMeeting.id,
+            nestId: nestId
+          });
           
-          const { data: uploadData, error: uploadError } = await supabase.storage
-            .from('meeting-files')
-            .upload(fileName, file, {
-              contentType: file.type,
-              upsert: false
-            });
-          
-          if (uploadError) {
-            console.error('🔧 Storageアップロードエラー:', uploadError);
-            throw new Error(`ファイルアップロードエラー: ${uploadError.message}`);
-          }
-          
-          console.log('🔧 Storageアップロード成功:', uploadData);
-          
-          // Step 2: アップロード完了後に文字起こしジョブを作成
-          console.log('🔧 文字起こしジョブ作成開始');
-          const job = await createJob(
-            'transcription',
+          console.log('🔧 [DEBUG] TranscriptionServiceV2.transcribeAudio呼び出し開始');
+          const result = await TranscriptionServiceV2.transcribeAudio(
+            file,
             selectedMeeting.id,
-            {
-              nestId: nestId,
-              userId: user.id,
-              meetingTitle: selectedMeeting.title,
-              storagePath: uploadData.path, // Blob URLではなくStorage Path
-              fileName: file.name,
-              fileSize: file.size,
-              fileType: file.type
-            }
+            nestId
           );
           
-          console.log('🔧 createJob結果:', job);
+          console.log('🔧 [DEBUG] TranscriptionServiceV2結果:', result);
           
-          if (job) {
-            console.log('🔧 ジョブ作成成功');
+          if (result.success) {
+            console.log('🔧 [DEBUG] 文字起こしジョブ開始成功:', result.jobId);
             showToast({ 
               title: '成功', 
-              message: `${isAudio ? '音声' : '動画'}ファイルのアップロードと文字起こしを開始しました。処理完了まで少々お待ちください。`, 
+              message: '文字起こしジョブを開始しました。処理完了までお待ちください。', 
               type: 'success' 
             });
+            
+            // ミーティング一覧を更新
+            await refreshUnifiedMeetings();
           } else {
-            console.error('🔧 ジョブ作成失敗');
-            showToast({ title: 'エラー', message: '文字起こしジョブの作成に失敗しました。', type: 'error' });
+            console.error('🔧 [DEBUG] 文字起こしジョブ開始エラー:', result.error);
+            showToast({ 
+              title: 'エラー', 
+              message: `文字起こし処理に失敗しました: ${result.error}`, 
+              type: 'error' 
+            });
           }
           
-        } catch (storageError) {
-          console.error('🔧 ファイル処理エラー:', storageError);
+        } catch (error) {
+          console.error('🔧 [DEBUG] TranscriptionServiceV2処理エラー:', error);
           showToast({ 
             title: 'エラー', 
-            message: `ファイル処理に失敗しました: ${storageError instanceof Error ? storageError.message : 'Unknown error'}`, 
+            message: `文字起こし処理に失敗しました: ${error instanceof Error ? error.message : 'Unknown error'}`, 
             type: 'error' 
           });
         }
@@ -892,8 +868,14 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
                     input.onchange = (e) => {
                       const file = (e.target as HTMLInputElement).files?.[0];
                       if (file) {
-                        setDroppedFile(file);
-                        setShowForm(true);
+                        // 選択されたミーティングがある場合は直接アップロード処理を実行
+                        if (selectedMeeting) {
+                          handleFileUpload(file);
+                        } else {
+                          // ミーティングが選択されていない場合はフォームを表示
+                          setDroppedFile(file);
+                          setShowForm(true);
+                        }
                       }
                     };
                     input.click();
@@ -1190,8 +1172,14 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
                     input.onchange = (e) => {
                       const file = (e.target as HTMLInputElement).files?.[0];
                       if (file) {
-                        setDroppedFile(file);
-                        setShowForm(true);
+                        // 選択されたミーティングがある場合は直接アップロード処理を実行
+                        if (selectedMeeting) {
+                          handleFileUpload(file);
+                        } else {
+                          // ミーティングが選択されていない場合はフォームを表示
+                          setDroppedFile(file);
+                          setShowForm(true);
+                        }
                       }
                     };
                     input.click();
@@ -1484,8 +1472,14 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
                   input.onchange = (e) => {
                     const file = (e.target as HTMLInputElement).files?.[0];
                     if (file) {
-                      setDroppedFile(file);
-                      setShowForm(true);
+                      // 選択されたミーティングがある場合は直接アップロード処理を実行
+                      if (selectedMeeting) {
+                        handleFileUpload(file);
+                      } else {
+                        // ミーティングが選択されていない場合はフォームを表示
+                        setDroppedFile(file);
+                        setShowForm(true);
+                      }
                     }
                   };
                   input.click();

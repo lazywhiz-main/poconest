@@ -10,13 +10,17 @@ import type { BoardItem } from '../../../board-space/contexts/BoardContext';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface BoardFilter {
-  tags?: string[];
-  search?: string;
-  dateRange?: {
-    start: Date;
-    end: Date;
+  search: string;
+  tags: string[];
+  dateRange: {
+    start: Date | null;
+    end: Date | null;
   };
-  source?: 'chat' | 'zoom' | 'manual' | 'all';
+  columnTypes: BoardColumnType[];
+  sources: string[];
+  priority: ('high' | 'medium' | 'low')[];
+  assignee: string[];
+  createdBy: string[];
 }
 
 export interface BoardSpaceState {
@@ -72,7 +76,16 @@ export const useBoardSpace = () => {
   // Board space specific state
   const [boardSpaceState, setBoardSpaceState] = useState<BoardSpaceState>({
     activeColumn: 'INBOX',
-    filters: {},
+    filters: {
+      search: '',
+      tags: [],
+      dateRange: { start: null, end: null },
+      columnTypes: [],
+      sources: [],
+      priority: [],
+      assignee: [],
+      createdBy: [],
+    },
     selectedCardIds: [],
     isSelectionMode: false,
     viewMode: 'column',
@@ -142,8 +155,8 @@ export const useBoardSpace = () => {
     // Apply filters
     return columnCards.filter((card: BoardItem) => {
       // Tag filter
-      if (boardSpaceState.filters.tags && boardSpaceState.filters.tags.length > 0) {
-        if (!card.tags || !card.tags.some((tag: string) => boardSpaceState.filters.tags?.includes(tag))) {
+      if (boardSpaceState.filters.tags.length > 0) {
+        if (!card.tags || !card.tags.some((tag: string) => boardSpaceState.filters.tags.includes(tag))) {
           return false;
         }
       }
@@ -159,17 +172,51 @@ export const useBoardSpace = () => {
       }
       
       // Date range filter
-      if (boardSpaceState.filters.dateRange) {
+      if (boardSpaceState.filters.dateRange.start || boardSpaceState.filters.dateRange.end) {
         const cardDate = new Date(card.updated_at);
-        if (cardDate < boardSpaceState.filters.dateRange.start ||
-            cardDate > boardSpaceState.filters.dateRange.end) {
+        if (boardSpaceState.filters.dateRange.start && cardDate < boardSpaceState.filters.dateRange.start) {
+          return false;
+        }
+        if (boardSpaceState.filters.dateRange.end && cardDate > boardSpaceState.filters.dateRange.end) {
+          return false;
+        }
+      }
+      
+      // Column type filter
+      if (boardSpaceState.filters.columnTypes.length > 0) {
+        if (!boardSpaceState.filters.columnTypes.includes(card.column_type)) {
           return false;
         }
       }
       
       // Source filter
-      if (boardSpaceState.filters.source && boardSpaceState.filters.source !== 'all') {
-        if (card.metadata?.source !== boardSpaceState.filters.source) {
+      if (boardSpaceState.filters.sources.length > 0) {
+        const cardSource = card.metadata?.source || card.metadata?.ai?.generated_by || card.sources?.[0]?.type;
+        if (!cardSource || !boardSpaceState.filters.sources.includes(cardSource)) {
+          return false;
+        }
+      }
+      
+      // Priority filter
+      if (boardSpaceState.filters.priority.length > 0) {
+        const cardPriority = card.metadata?.priority;
+        if (!cardPriority || !boardSpaceState.filters.priority.includes(cardPriority)) {
+          return false;
+        }
+      }
+      
+      // Assignee filter
+      if (boardSpaceState.filters.assignee.length > 0) {
+        const cardAssignee = card.metadata?.assignee;
+        if (!cardAssignee || !boardSpaceState.filters.assignee.includes(cardAssignee)) {
+          return false;
+        }
+      }
+      
+      // Created by filter
+      if (boardSpaceState.filters.createdBy.length > 0) {
+        const cardCreator = card.metadata?.created_by || card.created_by;
+        if (!cardCreator || !boardSpaceState.filters.createdBy.includes(cardCreator)) {
           return false;
         }
       }
@@ -259,7 +306,16 @@ export const useBoardSpace = () => {
   const clearFilters = useCallback(() => {
     setBoardSpaceState(prev => ({
       ...prev,
-      filters: {}
+      filters: {
+        search: '',
+        tags: [],
+        dateRange: { start: null, end: null },
+        columnTypes: [],
+        sources: [],
+        priority: [],
+        assignee: [],
+        createdBy: [],
+      }
     }));
   }, []);
   
@@ -558,6 +614,27 @@ export const useBoardSpace = () => {
   // BoardCardで使うカードリスト
   const boardCards = filteredCards.map(convertToCard);
 
+  // 利用可能なユーザーリストを取得（フィルター用）
+  const availableUsers = useMemo(() => {
+    const users = new Set<string>();
+    
+    // カードから担当者と作成者を収集
+    state.cards.forEach(card => {
+      if (card.metadata?.assignee) {
+        users.add(card.metadata.assignee);
+      }
+      if (card.metadata?.created_by || card.created_by) {
+        users.add(card.metadata?.created_by || card.created_by);
+      }
+    });
+    
+    // ユーザーIDを名前付きオブジェクトに変換
+    return Array.from(users).map(userId => ({
+      id: userId,
+      name: userId // TODO: 実際のユーザー名を取得する実装が必要
+    }));
+  }, [state.cards]);
+
   return {
     // External board context
     allCards: state.cards,
@@ -565,6 +642,9 @@ export const useBoardSpace = () => {
     // Board space specific state and filtered data
     boardSpaceState,
     filteredCards: boardCards,
+    
+    // Available users for filtering
+    availableUsers,
     
     // Column and filtering functions
     setActiveColumn,

@@ -20,6 +20,34 @@ export class NotificationService {
    */
   static async createNotification(request: CreateNotificationRequest): Promise<Notification | null> {
     try {
+      // 🔧 重複チェック: jobIdがある場合は既存通知をチェック
+      if (request.data?.jobId) {
+        // 🔧 より厳密な重複チェック: jobId, meetingId, jobTypeで判定
+        let query = supabase
+          .from(this.TABLE_NAME)
+          .select('*')
+          .eq('user_id', request.userId)
+          .eq('data->jobId', request.data.jobId)
+          .eq('type', request.type);
+          
+        // meetingIdがある場合は追加チェック
+        if (request.data?.meetingId) {
+          query = query.eq('data->meetingId', request.data.meetingId);
+        }
+        
+        // jobTypeがある場合は追加チェック
+        if (request.data?.jobType) {
+          query = query.eq('data->jobType', request.data.jobType);
+        }
+        
+        const { data: existingNotification, error: checkError } = await query.single();
+          
+        if (!checkError && existingNotification) {
+          console.log(`[NotificationService] 重複通知をスキップ: jobId=${request.data.jobId}, meetingId=${request.data.meetingId}, jobType=${request.data.jobType}`);
+          return this.mapDbToNotification(existingNotification);
+        }
+      }
+      
       const data = {
         user_id: request.userId,
         type: request.type,

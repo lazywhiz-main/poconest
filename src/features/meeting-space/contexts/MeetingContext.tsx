@@ -49,7 +49,30 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setIsLoading(true);
       setError(null);
 
-      // 1. Upload file to storage
+      // 音声・動画ファイルの場合は新しいアーキテクチャで文字起こし処理
+      if (file.type.startsWith('audio/') || file.type.startsWith('video/')) {
+        console.log('🔧 [MeetingContext] 音声・動画ファイルのため、TranscriptionServiceV2を使用します');
+        
+        const { TranscriptionServiceV2 } = await import('../../../services/TranscriptionServiceV2');
+        
+        const result = await TranscriptionServiceV2.transcribeAudio(
+          file,
+          meetingId,
+          undefined // nestIdは後で設定
+        );
+        
+        if (result.success) {
+          console.log('🔧 [MeetingContext] 文字起こし開始:', result.jobId);
+          await loadMeetings();
+        } else {
+          console.error('🔧 [MeetingContext] 文字起こしエラー:', result.error);
+          throw new Error(result.error);
+        }
+        
+        return;
+      }
+
+      // テキストファイルの場合のみ従来の処理（Supabase Storage使用）
       const fileExt = file.name.split('.').pop();
       const fileName = `${meetingId}/${Date.now()}.${fileExt}`;
       const { data: uploadData, error: uploadError } = await supabase.storage
@@ -98,14 +121,13 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       // 5. Refresh meetings
       await loadMeetings();
-    } catch (err) {
-      console.error('File upload error:', err);
-      setError(err instanceof Error ? err.message : 'ファイルのアップロード中にエラーが発生しました');
-      throw err; // エラーを上位に伝播させる
+    } catch (error) {
+      console.error('Upload file error:', error);
+      setError(error instanceof Error ? error.message : 'アップロードに失敗しました');
     } finally {
       setIsLoading(false);
     }
-  }, [selectedMeeting, loadMeetings]);
+  }, [selectedMeeting?.uploaded_files, loadMeetings]);
 
   return (
     <MeetingContext.Provider

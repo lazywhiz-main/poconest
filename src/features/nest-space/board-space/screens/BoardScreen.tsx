@@ -13,6 +13,8 @@ import { useCardNavigation } from '../hooks/useCardNavigation';
 import BoardHeader from '../components/BoardHeader';
 import BoardCard from '../components/BoardCard';
 import CardEditor from '../components/CardEditor';
+import BoardFilterPanel from '../components/BoardFilterPanel';
+import FilterChips from '../components/FilterChips';
 import { BoardColumnType, Card } from '../../../../types/board';
 
 interface ColumnViewProps {
@@ -173,16 +175,24 @@ const AISuggestions: React.FC = () => {
 const BoardScreen: React.FC = () => {
   const { 
     boardSpaceState, 
-    filteredCards
+    filteredCards,
+    updateFilters,
+    clearFilters,
+    availableUsers
   } = useBoardSpace();
   
   const { 
     navigateToCard
   } = useCardNavigation();
+
+  const { 
+    allTags 
+  } = useCardNavigation();
   
   const [showSettings, setShowSettings] = useState(false);
   const [showCardEditor, setShowCardEditor] = useState(false);
   const [editingCardId, setEditingCardId] = useState<string | null>(null);
+  const [showFilters, setShowFilters] = useState(false);
   
   // Handle card press
   const handleCardPress = (cardId: string) => {
@@ -207,10 +217,65 @@ const BoardScreen: React.FC = () => {
   const toggleSettings = () => {
     setShowSettings(!showSettings);
   };
+
+  // Toggle filters panel
+  const toggleFilters = () => {
+    setShowFilters(!showFilters);
+  };
+
+  // Handle filter changes
+  const handleFiltersChange = (newFilters: any) => {
+    updateFilters(newFilters);
+  };
+
+  // Handle removing individual filters
+  const handleRemoveFilter = (key: string, value?: any) => {
+    const currentFilters = { ...boardSpaceState.filters };
+    
+    if (key === 'search') {
+      currentFilters.search = '';
+    } else if (key === 'dateRange') {
+      currentFilters.dateRange = { start: null, end: null };
+    } else if (Array.isArray(currentFilters[key as keyof typeof currentFilters])) {
+      if (value) {
+        // Remove specific value from array
+        (currentFilters[key as keyof typeof currentFilters] as any[]) = 
+          (currentFilters[key as keyof typeof currentFilters] as any[]).filter(v => v !== value);
+      } else {
+        // Clear entire array
+        (currentFilters[key as keyof typeof currentFilters] as any[]) = [];
+      }
+    }
+    
+    updateFilters(currentFilters);
+  };
+
+  // Calculate active filters count
+  const getActiveFiltersCount = () => {
+    let count = 0;
+    const filters = boardSpaceState.filters;
+    
+    if (filters.search) count++;
+    if (filters.tags.length > 0) count++;
+    if (filters.dateRange.start || filters.dateRange.end) count++;
+    if (filters.columnTypes.length > 0) count++;
+    if (filters.sources.length > 0) count++;
+    if (filters.priority.length > 0) count++;
+    if (filters.assignee.length > 0) count++;
+    if (filters.createdBy.length > 0) count++;
+    
+    return count;
+  };
   
   return (
     <View style={styles.container}>
-      <BoardHeader onToggleSettings={toggleSettings} />
+      <BoardHeader onToggleSettings={toggleSettings} onToggleFilters={toggleFilters} />
+      
+      {/* Filter Chips */}
+      <FilterChips 
+        filters={boardSpaceState.filters}
+        onRemoveFilter={handleRemoveFilter}
+      />
       
       <View style={styles.contentContainer}>
         <AISuggestions />
@@ -250,7 +315,7 @@ const BoardScreen: React.FC = () => {
         initialColumn={boardSpaceState.activeColumn}
       />
       
-      {/* Settings panel (would be more detailed in a real implementation) */}
+      {/* Settings panel */}
       {showSettings && (
         <View style={styles.settingsPanel}>
           <Text style={styles.settingsPanelTitle}>Board Settings</Text>
@@ -262,6 +327,20 @@ const BoardScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
       )}
+
+      {/* Filters panel */}
+      {showFilters && (
+        <BoardFilterPanel
+          isOpen={showFilters}
+          onToggle={() => setShowFilters(!showFilters)}
+          filters={boardSpaceState.filters}
+          onFiltersChange={handleFiltersChange}
+          onClearFilters={clearFilters}
+          cards={filteredCards}
+          allTags={allTags}
+          allUsers={availableUsers}
+        />
+      )}
     </View>
   );
 };
@@ -270,6 +349,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F5F5F5',
+    position: 'relative',
   },
   contentContainer: {
     flex: 1,
@@ -366,6 +446,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 4,
+    zIndex: 100,
   },
   addButtonText: {
     fontSize: 24,
@@ -385,6 +466,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 4,
+    zIndex: 200,
   },
   settingsPanelTitle: {
     fontSize: 16,

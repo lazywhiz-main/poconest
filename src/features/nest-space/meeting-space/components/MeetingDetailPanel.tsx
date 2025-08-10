@@ -6,12 +6,14 @@ import Button from '../../../../components/ui/Button';
 import Input from '../../../../components/ui/Input';
 import Icon from '../../../../components/ui/Icon';
 import Markdown from 'react-markdown';
-import { getCardsByMeeting, deleteCard, getOrCreateMeetingSource, addCardSource } from '../../../../services/BoardService';
+import { getCardsByMeeting, deleteCard, getOrCreateMeetingSource, addCardSource, addBoardCards, getOrCreateDefaultBoard } from '../../../../services/BoardService';
+import { supabase } from '../../../../services/supabase/client';
 import { BoardCardUI } from '../../../../types/board';
 import BoardCardWeb from '../../../board-space/components/BoardCardWeb';
 import { useNavigate } from 'react-router-dom';
 import Modal from '../../../../components/ui/Modal';
 import { useBoardSpace } from '../../board-space/hooks/useBoardSpace';
+import { useNest } from '../../../nest/contexts/NestContext';
 import { toBoardCardUI } from '../../../../types/board';
 import { CardModal } from '../../../board-space/components/BoardSpace';
 import MiniCalendar from '../../../../components/ui/MiniCalendar';
@@ -21,6 +23,7 @@ import { useToast } from '../../../../components/ui/Toast';
 import ConfirmModal from '../../../../components/ui/ConfirmModal';
 import { JobType } from '../../../meeting-space/types/backgroundJob';
 import { useBackgroundJobs } from '../../../meeting-space/hooks/useBackgroundJobs';
+import SpeakerDiarizationView from './SpeakerDiarizationView';
 
 interface MeetingDetailPanelProps {
   meeting: MeetingUI;
@@ -144,7 +147,7 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
   const navigate = useNavigate();
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteTargetCardId, setDeleteTargetCardId] = useState<string | null>(null);
-  const { deleteCard, updateCard, allCards, addCards } = useBoardSpace();
+  const { currentNest } = useNest();
   const [editingCard, setEditingCard] = useState<BoardCardUI | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showNewCardModal, setShowNewCardModal] = useState(false);
@@ -299,12 +302,47 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
     fetchCreatorInfo();
   }, [fetchCreatorInfo]);
 
-  const handleSaveTitle = useCallback(() => {
+  const handleSaveTitle = useCallback(async () => {
     if (onSaveMeeting) {
       onSaveMeeting({ title: editedTitle });
+      
+      // ミーティングタイトル変更後、関連するカードの出典バッジを更新
+      try {
+        // ミーティングソースを更新
+        const { getOrCreateMeetingSource } = await import('../../../../services/BoardService');
+        await getOrCreateMeetingSource(meeting.id, editedTitle);
+        
+        // 関連カードの出典情報を直接更新
+        if (relatedCards.length > 0) {
+          const { supabase } = await import('../../../../services/supabase/client');
+          
+          // 関連カードのmetadata.meeting_titleも更新
+          for (const card of relatedCards) {
+            if (card.metadata?.meeting_id === meeting.id) {
+              await supabase
+                .from('board_cards')
+                .update({
+                  metadata: {
+                    ...card.metadata,
+                    meeting_title: editedTitle
+                  },
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', card.id);
+            }
+          }
+        }
+        
+        // 関連カードを再読み込みして出典バッジを更新
+        await loadRelatedCards();
+        
+        console.log('ミーティングタイトル更新完了:', editedTitle);
+      } catch (error) {
+        console.error('出典バッジ更新エラー:', error);
+      }
     }
     setIsEditingTitle(false);
-  }, [onSaveMeeting, editedTitle]);
+  }, [onSaveMeeting, editedTitle, meeting.id, loadRelatedCards, relatedCards]);
 
   const handleSaveDateTime = useCallback(() => {
     if (onSaveMeeting) {
@@ -378,7 +416,7 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
 
   const handleCloseEditModal = () => setEditingCard(null);
 
-  const handleSaveEditCard = (card: BoardCardUI) => {
+  const handleSaveEditCard = async (card: BoardCardUI) => {
     // BoardCardUIからBoardItemへの変換
     const boardItem = {
       ...card,
@@ -388,7 +426,22 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
         updated_at: new Date().toISOString(),
       })) || [],
     };
-    updateCard(boardItem);
+    // カードを更新
+    try {
+      await supabase
+        .from('board_cards')
+        .update({
+          title: boardItem.title,
+          content: boardItem.content,
+          column_type: boardItem.columnType,
+          updated_at: new Date().toISOString(),
+          metadata: boardItem.metadata
+        })
+        .eq('id', boardItem.id);
+      console.log('カード更新完了:', boardItem.id);
+    } catch (error) {
+      console.error('カード更新エラー:', error);
+    }
     setEditingCard(null);
   };
 
@@ -595,11 +648,7 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
         flexDirection: 'column', 
         gap: 6
       }}>
-        {/* タイトル（ラベル省略、直接表示） */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 16, fontWeight: 500, color: '#e2e8f0', padding: '2px 0', cursor: 'pointer' }} onClick={() => setIsEditingTitle(true)}>
-          <span>{meeting.title || '無題ミーティング'}</span>
-          <EditIcon size={14} color="#a6adc8" />
-        </div>
+        {/* タイトルは上部のヘッダーで表示・編集するため、ここでは表示しない */}
         {/* 作成者 | 日時 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, color: '#a6adc8' }}>
           {/* 作成者情報を表示 */}
@@ -747,9 +796,87 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
   // --- HEADER with DELETE BUTTON ---
   const renderHeader = () => (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-      <div style={{ fontSize: 22, fontWeight: 700, color: '#e2e8f0', letterSpacing: 0.5, padding: '0 0 0 2px' }}>
-        {meeting.title || '無題ミーティング'}
-      </div>
+      {isEditingTitle ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <input
+            type="text"
+            value={editedTitle}
+            onChange={(e) => setEditedTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                handleSaveTitle();
+              } else if (e.key === 'Escape') {
+                setIsEditingTitle(false);
+                setEditedTitle(meeting.title || '');
+              }
+            }}
+            style={{
+              background: 'transparent',
+              border: '1px solid #64b5f6',
+              borderRadius: 4,
+              padding: '4px 8px',
+              fontSize: 22,
+              fontWeight: 700,
+              color: '#e2e8f0',
+              outline: 'none',
+              minWidth: 300,
+              letterSpacing: 0.5
+            }}
+            autoFocus
+          />
+          <button
+            onClick={handleSaveTitle}
+            style={{
+              background: '#00ff88',
+              color: '#0f0f23',
+              border: 'none',
+              borderRadius: 2,
+              padding: '4px 8px',
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer'
+            }}
+          >
+            保存
+          </button>
+          <button
+            onClick={() => {
+              setIsEditingTitle(false);
+              setEditedTitle(meeting.title || '');
+            }}
+            style={{
+              background: 'none',
+              color: '#a6adc8',
+              border: '1px solid #333366',
+              borderRadius: 2,
+              padding: '4px 8px',
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer'
+            }}
+          >
+            キャンセル
+          </button>
+        </div>
+      ) : (
+        <div 
+          style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 8, 
+            fontSize: 22, 
+            fontWeight: 700, 
+            color: '#e2e8f0', 
+            letterSpacing: 0.5, 
+            padding: '0 0 0 2px',
+            cursor: 'pointer'
+          }} 
+          onClick={() => setIsEditingTitle(true)}
+        >
+          <span>{meeting.title || '無題ミーティング'}</span>
+          <EditIcon size={16} color="#a6adc8" />
+        </div>
+      )}
       {onDeleteMeeting && (
         <button
           style={{
@@ -779,6 +906,10 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
         <Modal open={showDeleteConfirm} onClose={() => setShowDeleteConfirm(false)} style={{ minWidth: 360, textAlign: 'center' }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: '#fff', marginBottom: 32, textAlign: 'center', letterSpacing: 0.5 }}>
             本当にこのミーティングを削除しますか？
+            <br />
+            <span style={{ fontSize: 12, color: '#a6adc8', fontWeight: 400, marginTop: 8, display: 'block' }}>
+              ※ 関連するカードも一緒に削除されます
+            </span>
           </div>
           <div style={{ display: 'flex', gap: 20, justifyContent: 'center' }}>
             <Button
@@ -809,22 +940,10 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
             display: 'flex', 
             flexDirection: 'column'
           }}>
-            <div style={{ 
-              background: '#0f0f23', 
-              border: '1px solid #333366', 
-              borderRadius: 4, 
-              padding: 16, 
-              color: '#a6adc8', 
-              fontSize: 13, 
-              lineHeight: 1.6,
-              fontFamily: 'inherit',
-              height: '100%',
-              overflowY: 'auto',
-              whiteSpace: 'pre-wrap',
-              boxSizing: 'border-box'
-            }}>
-              {meeting.transcript || '文字起こしファイルがアップロードされていません。'}
-            </div>
+            <SpeakerDiarizationView 
+              meetingId={meeting.id}
+              transcript={meeting.transcript || ''}
+            />
           </div>
         );
 
@@ -1183,32 +1302,50 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
           onClose={() => setShowNewCardModal(false)}
           onSave={async (card) => {
             try {
+              // ボードIDを取得または作成
+              let boardId = meeting.nestId;
+              if (currentNest?.id) {
+                boardId = await getOrCreateDefaultBoard(currentNest.id, meeting.createdBy || 'unknown');
+              }
+
               // 新しいカードを作成
               const newCard = {
-                id: crypto.randomUUID(),
-                board_id: meeting.nestId,
+                board_id: boardId,
                 title: card.title || '',
-                description: card.content || '',
                 content: card.content || '',
                 column_type: 'INBOX' as const,
                 order_index: 0,
                 is_archived: false,
                 created_by: meeting.createdBy || 'unknown',
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
                 metadata: {
                   meeting_id: meeting.id,
                   meeting_title: meeting.title,
                   source: 'meeting',
                 },
-                tags: ['ミーティング', meeting.title],
               };
               
               // カードを保存
-              await addCards([newCard]);
+              const { data: savedCards, error } = await addBoardCards([newCard]);
               
-              setShowNewCardModal(false);
-              await loadRelatedCards();
+              if (savedCards && savedCards.length > 0) {
+                console.log('カード作成完了:', savedCards);
+                
+                // ミーティングソースを作成または取得
+                const meetingSource = await getOrCreateMeetingSource(meeting.id, meeting.title);
+                
+                // カードとミーティングソースをリンク
+                for (const savedCard of savedCards) {
+                  await addCardSource({
+                    card_id: savedCard.id,
+                    source_id: meetingSource.id
+                  });
+                }
+                
+                setShowNewCardModal(false);
+                await loadRelatedCards();
+              } else if (error) {
+                console.error('カード作成エラー:', error);
+              }
             } catch (error) {
               console.error('カード作成エラー:', error);
             }

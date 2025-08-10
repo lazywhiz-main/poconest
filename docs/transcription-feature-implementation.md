@@ -131,7 +131,7 @@ const sanitizedFileName = file.name
 - **バケット名**: `meeting-files`
 - **Public bucket**: 有効
 - **MIME types**: `audio/*, video/*, text/*`
-- **ファイルサイズ制限**: 100MB
+- **ファイルサイズ制限**: 200MB
 
 ### RLSポリシー
 ```sql
@@ -156,7 +156,7 @@ FOR UPDATE/DELETE USING (bucket_id = 'meeting-files' AND auth.role() = 'authenti
 - **●赤**: 処理失敗
 
 ### エラーハンドリング
-- ファイルサイズ超過: 100MB制限の明示
+- ファイルサイズ超過: 200MB制限の明示
 - 非対応形式: サポート形式の案内
 - アップロード失敗: 具体的なエラーメッセージ
 

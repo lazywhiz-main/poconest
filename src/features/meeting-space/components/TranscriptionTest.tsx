@@ -9,6 +9,7 @@ const TranscriptionTest: React.FC = () => {
   const [result, setResult] = useState<string>('');
   const [error, setError] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [useGoogleCloud, setUseGoogleCloud] = useState(false);
   const { createJob } = useBackgroundJobs();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -55,7 +56,8 @@ const TranscriptionTest: React.FC = () => {
         file.name,
         file.type,
         'test-meeting-id',
-        'test-nest-id'
+        'test-nest-id',
+        useGoogleCloud
       );
 
       setProgress(100);
@@ -589,6 +591,23 @@ const TranscriptionTest: React.FC = () => {
           推奨サイズ: 25MB以下（大きなファイルは自動分割）
           <br />
           処理時間: 1時間の音声で約5-10分程度
+        </div>
+      </div>
+
+      <div style={{ marginBottom: '20px' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <input
+            type="checkbox"
+            checked={useGoogleCloud}
+            onChange={(e) => setUseGoogleCloud(e.target.checked)}
+          />
+          <span>Google Cloud Speech-to-Textを使用（話者分割機能付き）</span>
+        </label>
+        <div style={{ fontSize: '12px', color: '#666', marginTop: '5px' }}>
+          {useGoogleCloud ? 
+            '✅ 話者分割機能が有効になります。高品質な文字起こしと話者識別が可能です。' : 
+            'ℹ️ OpenAI Whisperを使用します。標準的な文字起こし機能です。'
+          }
         </div>
       </div>
 

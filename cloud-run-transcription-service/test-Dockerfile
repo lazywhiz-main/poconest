@@ -1,0 +1,18 @@
+FROM node:18-slim
+
+WORKDIR /app
+
+# テスト用package.jsonをコピー
+COPY test-package.json package.json
+
+# 依存関係をインストール
+RUN npm install
+
+# テスト用アプリケーションコードをコピー
+COPY test-deploy.js .
+
+# ポートを公開
+EXPOSE 8080
+
+# アプリケーションを起動
+CMD ["npm", "start"]

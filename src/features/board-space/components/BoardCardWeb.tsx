@@ -35,11 +35,19 @@ const BoardCardWeb: React.FC<BoardCardWebProps> = ({ card, onDelete, onClick, sh
   const tagBadges = (card.metadata?.tags || []).map((tag: string) => (
     <span className="tag-badge" key={tag}>{tag}</span>
   ));
-  const sourceLinks = (card.sources || []).map((source: any) => (
-    <a className="card-link" key={source.id} href={source.url || undefined} target="_blank" rel="noopener noreferrer">
-      {source.label}
-    </a>
-  ));
+  const sourceLinks = (card.sources || []).map((source: any) => {
+    // ミーティングソースの場合、metadata.meeting_titleを優先
+    let displayLabel = source.label;
+    if (source.type === 'meeting' && card.metadata?.meeting_title) {
+      displayLabel = card.metadata.meeting_title;
+    }
+    
+    return (
+      <a className="card-link" key={source.id} href={source.url || undefined} target="_blank" rel="noopener noreferrer">
+        {displayLabel}
+      </a>
+    );
+  });
   // 関連カードリンクも表示
   const relatedCardLinks = (card.relatedCards || []).map((relatedCard: any) => (
     <span className="related-card-link" key={relatedCard.id}>

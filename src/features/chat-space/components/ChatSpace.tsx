@@ -11,8 +11,8 @@ import ChatInput from '../../../components/ChatInput';
 import Modal from '../../../components/ui/Modal';
 import Button from '../../../components/ui/Button';
 import Spinner from '../../../components/ui/Spinner';
-import { useChatToBoard } from '../../../hooks/useChatToBoard';
 import Icon from '../../../components/ui/Icon';
+import { useBackgroundJobs } from '../../meeting-space/hooks/useBackgroundJobs';
 // import { Channel, Message } from '../../../types/chat';
 // import { createPortal } from 'react-dom';
 // import { SUPABASE_FUNCTION_URL } from '../../../constants/config';
@@ -494,38 +494,47 @@ const ChatSpace: React.FC<ChatSpaceProps> = ({ nestId }) => {
   console.log('currentChannel:', currentChannel);
 
   // チャット→ボード連携の設定
-  const [analyzeResult, setAnalyzeResult] = useState<any[] | null>(null);
-  const [showAnalyzeResultModal, setShowAnalyzeResultModal] = useState(false);
   const [analyzeWarning, setAnalyzeWarning] = useState<string | null>(null);
   const [showAnalyzeTooltip, setShowAnalyzeTooltip] = useState(false);
+  const [showAnalyzeResultModal, setShowAnalyzeResultModal] = useState(false);
 
-  const { status, startAnalysis, insights } = useChatToBoard({
-    channelId: currentChannel?.id || '',
-    messages: aiMessages,
-    enabled: true,
-    onNewInsightsGenerated: (newInsights) => {
-      setAnalyzeResult(newInsights);
-      setShowAnalyzeResultModal(true);
-    },
-  });
+  // バックグラウンドジョブフックを追加
+  const { createJob, jobs } = useBackgroundJobs();
 
-  // 分析ボタン押下時のハンドラ
+  // 分析ボタン押下時のハンドラ（バックグラウンドジョブ経由に変更）
   const handleAnalyzeClick = async () => {
     console.log('[ChatSpace] handleAnalyzeClick called');
-    const warn = await startAnalysis();
-    if (warn) {
-      setAnalyzeWarning(warn);
+    
+    if (!currentChannel?.id) {
+      setAnalyzeWarning('チャネルが選択されていません');
       setShowAnalyzeResultModal(true);
-    } else if (status.lastError) {
-      setAnalyzeWarning(status.lastError.message || 'AI分析でエラーが発生しました');
+      return;
+    }
+
+    try {
+      // バックグラウンドジョブとしてカード抽出を実行
+      const job = await createJob('card_extraction', currentChannel.id, {
+        type: 'chat_analysis',
+        channelId: currentChannel.id,
+        messageCount: currentMessages.length,
+        nestId: currentNest?.id
+      });
+
+      if (job) {
+        console.log('[ChatSpace] Card extraction job created:', job);
+        // ジョブが作成された場合は成功メッセージを表示
+        setAnalyzeWarning(null);
+        setShowAnalyzeResultModal(true);
+      } else {
+        setAnalyzeWarning('カード抽出ジョブの作成に失敗しました');
+        setShowAnalyzeResultModal(true);
+      }
+    } catch (error) {
+      console.error('[ChatSpace] Error creating card extraction job:', error);
+      setAnalyzeWarning('カード抽出ジョブの作成でエラーが発生しました');
       setShowAnalyzeResultModal(true);
     }
   };
-
-  // status.isAnalyzingの変化を監視
-  useEffect(() => {
-    console.log('[ChatSpace] status.isAnalyzing:', status.isAnalyzing);
-  }, [status.isAnalyzing]);
 
   // --- 削除確認モーダル用 state ---
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -580,30 +589,27 @@ const ChatSpace: React.FC<ChatSpaceProps> = ({ nestId }) => {
     return (
       <>
         {/* 分析進行中モーダル */}
-        <Modal open={status.isAnalyzing} onClose={() => {}} title="AI分析中...">
+        <Modal open={jobs.some(job => job.type === 'card_extraction' && job.status === 'running')} onClose={() => {}} title="カード抽出中...">
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20, minWidth: 240 }}>
             <Spinner size={48} strokeWidth={6} />
             <div style={{ fontSize: 15, color: '#a6adc8', textAlign: 'center', fontWeight: 400 }}>しばらくお待ちください</div>
           </div>
         </Modal>
         {/* 分析完了モーダル */}
-        <Modal open={showAnalyzeResultModal} onClose={() => { setShowAnalyzeResultModal(false); setAnalyzeWarning(null); }} title="分析完了">
+        <Modal open={showAnalyzeResultModal} onClose={() => { setShowAnalyzeResultModal(false); setAnalyzeWarning(null); }} title="カード抽出ジョブ作成完了">
           {analyzeWarning ? (
             <div style={{ color: '#ff6b6b', fontSize: 14, textAlign: 'center', fontWeight: 500, marginBottom: 18 }}>{analyzeWarning}</div>
-          ) : analyzeResult && analyzeResult.length > 0 ? (
-            <>
-              <div style={{ marginBottom: 10, color: '#a6adc8', fontSize: 14, fontWeight: 400 }}>追加されたカード数: <b style={{ color: '#00ff88', fontSize: 15 }}>{analyzeResult.length}</b></div>
-              <ul style={{ marginBottom: 14, padding: 0, listStyle: 'none', maxHeight: 140, overflow: 'auto', width: '100%' }}>
-                {analyzeResult.map(card => (
-                  <li key={card.id} style={{ fontSize: 14, color: '#e2e8f0', background: '#23243a', borderRadius: 4, padding: '8px 10px', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8, fontWeight: 400 }}>
-                    <svg width={16} height={16} viewBox="0 0 24 24" style={{ marginRight: 4 }}><rect x="4" y="4" width="16" height="16" rx="3" fill="#00ff88" opacity="0.18" /><rect x="7" y="7" width="10" height="10" rx="2" fill="#00ff88" opacity="0.38" /></svg>
-                    <span style={{ flex: 1 }}>{card.title}</span>
-                  </li>
-                ))}
-              </ul>
-            </>
           ) : (
-            <div style={{ marginBottom: 14, color: '#a6adc8', fontSize: 14, fontWeight: 400 }}>カードは抽出されませんでした。</div>
+            <>
+              <div style={{ marginBottom: 10, color: '#a6adc8', fontSize: 14, fontWeight: 400, textAlign: 'center' }}>
+                カード抽出ジョブが作成されました
+              </div>
+              <div style={{ marginBottom: 14, color: '#a6adc8', fontSize: 12, fontWeight: 400, textAlign: 'center', lineHeight: 1.5 }}>
+                カード抽出ジョブが作成されました。<br />
+                バックグラウンドで処理が実行されています。<br />
+                完了までしばらくお待ちください。
+              </div>
+            </>
           )}
           <div style={{ width: '100%', display: 'flex', justifyContent: 'center', marginTop: 4 }}>
             <Button
@@ -947,15 +953,15 @@ const ChatSpace: React.FC<ChatSpaceProps> = ({ nestId }) => {
                             padding: '8px 16px',
                             fontSize: 12,
                             fontWeight: 600,
-                            cursor: status?.isAnalyzing ? 'not-allowed' : 'pointer',
+                            cursor: isExtractingInsights ? 'not-allowed' : 'pointer',
                             display: 'flex',
                             alignItems: 'center',
                             gap: 6,
-                            opacity: status?.isAnalyzing ? 0.5 : 1,
+                            opacity: isExtractingInsights ? 0.5 : 1,
                             height: 36,
                           }}
-                          onClick={handleAnalyzeClick}
-                          disabled={status?.isAnalyzing}
+                          onClick={handleExtractInsights}
+                          disabled={isExtractingInsights}
                         >
                           <Icon name="card-extract" size={14} color="#e2e8f0" />
                           カード抽出
@@ -1184,15 +1190,15 @@ const ChatSpace: React.FC<ChatSpaceProps> = ({ nestId }) => {
                         padding: '8px 16px',
                         fontSize: 12,
                         fontWeight: 600,
-                        cursor: status?.isAnalyzing ? 'not-allowed' : 'pointer',
+                        cursor: isExtractingInsights ? 'not-allowed' : 'pointer',
                         display: 'flex',
                         alignItems: 'center',
                         gap: 6,
-                        opacity: status?.isAnalyzing ? 0.5 : 1,
+                        opacity: isExtractingInsights ? 0.5 : 1,
                         height: 36,
                       }}
-                      onClick={handleAnalyzeClick}
-                      disabled={status?.isAnalyzing}
+                      onClick={handleExtractInsights}
+                      disabled={isExtractingInsights}
                     >
                       <Icon name="card-extract" size={14} color="#e2e8f0" />
                       カード抽出

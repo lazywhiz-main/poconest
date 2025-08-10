@@ -125,10 +125,10 @@ const MeetingForm: React.FC<MeetingFormProps> = ({ onSubmit, onCancel, droppedFi
     const file = e.target.files?.[0];
     if (!file) return;
     
-    // ファイルサイズをチェック（100MB制限）
-    const maxSizeBytes = 100 * 1024 * 1024; // 100MB
+    // ファイルサイズをチェック（200MB制限）
+    const maxSizeBytes = 200 * 1024 * 1024; // 200MB
     if (file.size > maxSizeBytes) {
-      alert(`ファイルサイズが大きすぎます。100MB以下のファイルをご利用ください。（現在: ${Math.round(file.size / (1024 * 1024))}MB）`);
+      alert(`ファイルサイズが大きすぎます。200MB以下のファイルをご利用ください。（現在: ${Math.round(file.size / (1024 * 1024))}MB）`);
       return;
     }
     

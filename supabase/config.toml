@@ -88,7 +88,7 @@ port = 54324
 [storage]
 enabled = true
 # The maximum file size allowed (e.g. "5MB", "500KB").
-file_size_limit = "100MB"
+file_size_limit = "200MB"
 
 # Image transformation API is available to Supabase Pro plan.
 # [storage.image_transformation]
@@ -97,7 +97,7 @@ file_size_limit = "100MB"
 # Configure local storage buckets
 [storage.buckets.meeting-files]
 public = true
-file_size_limit = "100MB"
+file_size_limit = "200MB"
 allowed_mime_types = ["text/plain", "video/mp4", "video/webm", "video/quicktime", "audio/mp3", "audio/wav", "audio/m4a", "audio/mpeg"]
 
 # Uncomment to configure local storage buckets
@@ -323,3 +323,10 @@ entrypoint = "./functions/create-card-with-relations/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/create-card-with-relations/*.html" ]
+
+[functions.transcribe-audio]
+enabled = true
+verify_jwt = false
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/transcribe-audio/index.ts"

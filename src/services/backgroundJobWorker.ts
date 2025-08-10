@@ -122,6 +122,7 @@ class CardExtractionProcessor implements JobProcessor {
     await this.updateProgress(job.id, 50, 'カードを抽出中...');
     
     let extractedCards: any[];
+    let provider: string | undefined;
     
     // ユーザーコンテキストを設定
     const context = {
@@ -133,13 +134,26 @@ class CardExtractionProcessor implements JobProcessor {
     // 実際のtranscriptがある場合は本格的な抽出、そうでなければモック
     if (meeting.transcript && meeting.transcript.trim().length > 100) {
       try {
-        extractedCards = await extractCardsFromMeeting(job.meetingId, context);
+        const result = await extractCardsFromMeeting(job.meetingId, context);
+        // 戻り値の型を確認して適切に処理
+        if (Array.isArray(result)) {
+          extractedCards = result;
+          provider = 'openai'; // 配列の場合はデフォルト
+        } else if (result && typeof result === 'object' && 'cards' in result) {
+          extractedCards = result.cards;
+          provider = result.provider;
+        } else {
+          extractedCards = [];
+          provider = 'openai';
+        }
       } catch (error) {
         console.error('[CardExtractionProcessor] Card extraction failed, using mock:', error);
         extractedCards = generateMockCards();
+        provider = 'openai'; // モックの場合はデフォルト
       }
     } else {
       extractedCards = generateMockCards();
+      provider = 'openai'; // モックの場合はデフォルト
     }
 
     // Step 3: ボードへの保存 (75%)
@@ -152,12 +166,13 @@ class CardExtractionProcessor implements JobProcessor {
         // デフォルトボードを取得または作成
         const boardId = await getOrCreateDefaultBoard(meeting.nest_id, job.userId || 'system');
         
-        // カードをボードに追加
+        // カードをボードに追加（プロバイダー情報を渡す）
         savedCards = await addCardsToBoard(
           boardId,
           extractedCards,
           job.userId || 'system',
-          job.meetingId
+          job.meetingId,
+          provider
         );
         
         // 出典紐付け
@@ -304,7 +319,8 @@ class TranscriptionProcessor implements JobProcessor {
         fileName,
         fileType,
         job.meetingId,
-        meeting.nest_id
+        meeting.nest_id,
+        true // useGoogleCloud = true (Google Cloud Speech-to-Text使用、話者分割対応)
       );
       
       console.log('🔧 [TranscriptionProcessor] TranscriptionService呼び出し完了:', {
@@ -466,6 +482,35 @@ export class BackgroundJobWorker {
       });
     }
     
+    // 🔧 古いrunning状態ジョブのクリーンアップ（30分以上running状態のジョブをリセット）
+    await this.cleanupStaleRunningJobs();
+    
+    // 🔧 重複実行防止: 既にrunning状態のジョブがあるかチェック
+    const { data: runningJobs, error: runningError } = await supabase
+      .from('background_jobs')
+      .select('*')
+      .eq('status', 'running');
+      
+    if (runningError) {
+      console.error('🔧 [BackgroundJobWorker] running状態ジョブ取得エラー:', runningError);
+    } else if (runningJobs && runningJobs.length > 0) {
+      console.log('🔧 [BackgroundJobWorker] 既にrunning状態のジョブがあります:', runningJobs.length, '件');
+      console.log('🔧 [BackgroundJobWorker] 重複実行を防ぐため処理をスキップします');
+      
+      // 🔧 重複実行の詳細ログ
+      runningJobs.forEach((runningJob, index) => {
+        console.log(`🔧 [BackgroundJobWorker] 重複実行防止 - ジョブ${index}:`, {
+          id: runningJob.id,
+          type: runningJob.type || runningJob.job_type,
+          meeting_id: runningJob.meeting_id,
+          updated_at: runningJob.updated_at,
+          progress: runningJob.progress
+        });
+      });
+      
+      return; // 既に処理中のジョブがある場合はスキップ
+    }
+    
     // pending状態のジョブを取得
     console.log('🔧 [BackgroundJobWorker] pending状態のジョブを検索中...');
     const { data: jobs, error } = await supabase
@@ -507,9 +552,82 @@ export class BackgroundJobWorker {
       return; // 処理するジョブなし
     }
 
-    console.log('🔧 [BackgroundJobWorker] ジョブ処理開始:', jobs[0]);
-    const job = this.dbToApp(jobs[0]);
+    // 🔧 重複実行防止: ジョブをロックしてから処理開始
+    const jobToProcess = jobs[0];
+    console.log('🔧 [BackgroundJobWorker] ジョブロック試行:', jobToProcess.id);
+    
+    // ジョブをpendingからrunningに更新（ロック）
+    const { error: lockError } = await supabase
+      .from('background_jobs')
+      .update({ 
+        status: 'running',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', jobToProcess.id)
+      .eq('status', 'pending'); // まだpending状態の場合のみ更新
+    
+    if (lockError) {
+      console.error('🔧 [BackgroundJobWorker] ジョブロック失敗:', lockError);
+      return;
+    }
+    
+    // ロックが成功したか確認
+    const { data: lockedJob, error: checkError } = await supabase
+      .from('background_jobs')
+      .select('*')
+      .eq('id', jobToProcess.id)
+      .single();
+      
+    if (checkError || !lockedJob || lockedJob.status !== 'running') {
+      console.log('🔧 [BackgroundJobWorker] ジョブロック失敗 - 他のワーカーが処理中:', jobToProcess.id);
+      return; // ロックに失敗した場合（他のワーカーが既に処理中）
+    }
+    
+    console.log('🔧 [BackgroundJobWorker] ジョブロック成功:', jobToProcess.id);
+    console.log('🔧 [BackgroundJobWorker] ジョブ処理開始:', jobToProcess);
+    const job = this.dbToApp(jobToProcess);
     await this.processJob(job);
+  }
+
+  // 🔧 古いrunning状態ジョブのクリーンアップ
+  private async cleanupStaleRunningJobs() {
+    try {
+      const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+      
+      const { data: staleJobs, error } = await supabase
+        .from('background_jobs')
+        .select('*')
+        .eq('status', 'running')
+        .lt('updated_at', thirtyMinutesAgo);
+        
+      if (error) {
+        console.error('🔧 [BackgroundJobWorker] 古いジョブ取得エラー:', error);
+        return;
+      }
+      
+      if (staleJobs && staleJobs.length > 0) {
+        console.log('🔧 [BackgroundJobWorker] 古いrunning状態ジョブをリセット:', staleJobs.length, '件');
+        
+        for (const staleJob of staleJobs) {
+          console.log('🔧 [BackgroundJobWorker] 古いジョブをリセット:', staleJob.id);
+          
+          const { error: resetError } = await supabase
+            .from('background_jobs')
+            .update({ 
+              status: 'failed',
+              error_message: '長時間running状態のため自動リセット',
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', staleJob.id);
+            
+          if (resetError) {
+            console.error('🔧 [BackgroundJobWorker] ジョブリセットエラー:', resetError);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('🔧 [BackgroundJobWorker] クリーンアップ処理エラー:', error);
+    }
   }
 
   // シンプルなジョブ処理
@@ -530,10 +648,8 @@ export class BackgroundJobWorker {
     console.log('🔧 [BackgroundJobWorker] 登録済みプロセッサー:', Array.from(this.processors.keys()));
     console.log('🔧 [BackgroundJobWorker] 要求されたジョブタイプ:', job.type);
 
-    // ジョブをrunning状態に更新
-    console.log('🔧 [BackgroundJobWorker] ジョブをrunning状態に更新中...');
-    await this.updateJobStatus(job.id, 'running', 0);
-    console.log('🔧 [BackgroundJobWorker] ジョブをrunning状態に更新完了');
+    // 🔧 ジョブは既にロック時にrunning状態に更新済み
+    console.log('🔧 [BackgroundJobWorker] ジョブは既にrunning状態です:', job.id);
 
     try {
       console.log('🔧 [BackgroundJobWorker] プロセッサー取得開始...');

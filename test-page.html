@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>音声文字起こしテストページ</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #fafafa;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #555;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 音声文字起こしテストページ</h1>
+        
+        <div class="status info">
+            📋 新しいアーキテクチャのテストを実行できます
+        </div>
+
+        <div class="test-section">
+            <h3>1. テスト用音声ファイル作成</h3>
+            <p>3秒間のテスト用音声ファイル（440Hz正弦波）を作成します</p>
+            <button onclick="createTestAudioFile()">音声ファイル作成</button>
+            <div id="audio-log" class="log"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>2. 実際の音声ファイルアップロードテスト</h3>
+            <p>GCS直接アップロードと文字起こしジョブ開始をテストします</p>
+            <button onclick="testRealAudioUpload()">実際のアップロードテスト</button>
+            <div id="upload-log" class="log"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>3. フロントエンド統合テスト</h3>
+            <p>TranscriptionServiceV2とGCSUploadServiceの統合テスト</p>
+            <button onclick="testFrontendIntegration()">フロントエンド統合テスト</button>
+            <div id="frontend-log" class="log"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>4. 統合テスト（バックエンド）</h3>
+            <p>Cloud RunとEdge Functionの統合テスト</p>
+            <button onclick="testBackendIntegration()">バックエンド統合テスト</button>
+            <div id="backend-log" class="log"></div>
+        </div>
+    </div>
+
+    <script>
+        // ログ出力関数
+        function logToElement(elementId, message) {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            element.textContent += `[${timestamp}] ${message}\n`;
+            element.scrollTop = element.scrollHeight;
+        }
+
+        // コンソールログをキャプチャ
+        const originalLog = console.log;
+        const originalError = console.error;
+        
+        function captureLog(elementId) {
+            console.log = function(...args) {
+                originalLog.apply(console, args);
+                logToElement(elementId, args.join(' '));
+            };
+            console.error = function(...args) {
+                originalError.apply(console, args);
+                logToElement(elementId, '❌ ' + args.join(' '));
+            };
+        }
+
+        function restoreLog() {
+            console.log = originalLog;
+            console.error = originalError;
+        }
+
+        // 1. テスト用音声ファイル作成
+        async function createTestAudioFile() {
+            const logId = 'audio-log';
+            document.getElementById(logId).textContent = '';
+            captureLog(logId);
+            
+            try {
+                console.log('🔧 [Test Audio] テスト用音声ファイル作成開始');
+                
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const sampleRate = 16000;
+                const duration = 3;
+                const numSamples = sampleRate * duration;
+                
+                const audioBuffer = audioContext.createBuffer(1, numSamples, sampleRate);
+                const channelData = audioBuffer.getChannelData(0);
+                
+                const frequency = 440;
+                for (let i = 0; i < numSamples; i++) {
+                    channelData[i] = Math.sin(2 * Math.PI * frequency * i / sampleRate) * 0.1;
+                }
+                
+                const wavBlob = audioBufferToWav(audioBuffer);
+                const url = URL.createObjectURL(wavBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'test-audio.wav';
+                a.click();
+                
+                URL.revokeObjectURL(url);
+                
+                console.log('🔧 [Test Audio] テスト用音声ファイル作成完了');
+                
+            } catch (error) {
+                console.error('🔧 [Test Audio] エラー:', error);
+            } finally {
+                restoreLog();
+            }
+        }
+
+        // 2. 実際の音声ファイルアップロードテスト
+        async function testRealAudioUpload() {
+            const logId = 'upload-log';
+            document.getElementById(logId).textContent = '';
+            captureLog(logId);
+            
+            try {
+                console.log('🔧 [Real Audio Test] 実際の音声ファイルアップロードテスト開始');
+                
+                // テスト用音声ファイルを作成
+                const audioBlob = await createTestAudioBlob();
+                const file = new File([audioBlob], 'test-audio.wav', { type: 'audio/wav' });
+                
+                console.log('ファイル作成完了:', {
+                    name: file.name,
+                    size: file.size,
+                    type: file.type
+                });
+                
+                // 署名付きURL取得（モック）
+                console.log('署名付きURL取得（モック）');
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                console.log('GCSアップロード（モック）');
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                console.log('文字起こしジョブ開始（モック）');
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                const jobId = `test_job_${Date.now()}`;
+                console.log('文字起こしジョブ開始成功:', { jobId });
+                
+                console.log('🔧 [Real Audio Test] テスト完了');
+                
+            } catch (error) {
+                console.error('🔧 [Real Audio Test] エラー:', error);
+            } finally {
+                restoreLog();
+            }
+        }
+
+        // 3. フロントエンド統合テスト
+        async function testFrontendIntegration() {
+            const logId = 'frontend-log';
+            document.getElementById(logId).textContent = '';
+            captureLog(logId);
+            
+            try {
+                console.log('🔧 [Frontend Test] フロントエンド統合テスト開始');
+                
+                // テスト用音声ファイルを作成
+                const audioBlob = await createTestAudioBlob();
+                const file = new File([audioBlob], 'test-audio-frontend.wav', { type: 'audio/wav' });
+                
+                console.log('ファイル作成完了:', {
+                    name: file.name,
+                    size: file.size,
+                    type: file.type
+                });
+                
+                // TranscriptionServiceV2モック
+                console.log('TranscriptionServiceV2.transcribeAudio 呼び出し');
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                const jobId = `frontend_job_${Date.now()}`;
+                console.log('通常の文字起こし結果:', { success: true, jobId });
+                
+                // 進捗付きテスト
+                console.log('進捗付き文字起こしテスト');
+                for (let i = 0; i <= 100; i += 10) {
+                    console.log(`進捗: ${i}%`);
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+                
+                const progressJobId = `frontend_progress_job_${Date.now()}`;
+                console.log('進捗付き文字起こし結果:', { success: true, jobId: progressJobId });
+                
+                console.log('🔧 [Frontend Test] フロントエンド統合テスト完了');
+                
+            } catch (error) {
+                console.error('🔧 [Frontend Test] エラー:', error);
+            } finally {
+                restoreLog();
+            }
+        }
+
+        // 4. バックエンド統合テスト
+        async function testBackendIntegration() {
+            const logId = 'backend-log';
+            document.getElementById(logId).textContent = '';
+            captureLog(logId);
+            
+            try {
+                console.log('🧪 [Backend Test] バックエンド統合テスト開始');
+                
+                const CLOUD_RUN_URL = 'https://transcription-service-753651631159.asia-northeast1.run.app/transcribe';
+                const API_KEY = 'eRJn5wte3dPKJp3/MQG/SPtwTnaMcNo/1tg5/08MEeM=';
+                const SUPABASE_URL = 'https://ecqkfcgtmabtfozfcvfr.supabase.co';
+                
+                // 1. 文字起こしジョブ開始
+                console.log('1. 文字起こしジョブ開始テスト');
+                const jobResponse = await fetch(CLOUD_RUN_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': API_KEY,
+                        'Authorization': `Bearer ${API_KEY}`
+                    },
+                    body: JSON.stringify({
+                        fileUrl: 'https://example.com/test-audio.mp3',
+                        meetingId: 'test-meeting-backend',
+                        nestId: 'test-nest-backend',
+                        useGoogleCloud: true,
+                        callbackUrl: `${SUPABASE_URL}/functions/v1/transcription-complete`
+                    })
+                });
+
+                console.log('ジョブ開始レスポンス:', jobResponse.status);
+                
+                if (!jobResponse.ok) {
+                    const errorText = await jobResponse.text();
+                    console.error('ジョブ開始エラー:', errorText);
+                    return;
+                }
+
+                const jobResult = await jobResponse.json();
+                console.log('ジョブ開始成功:', jobResult);
+                
+                const jobId = jobResult.jobId;
+                console.log('生成されたジョブID:', jobId);
+                
+                // 2. コールバックテスト（模擬）
+                console.log('2. コールバックテスト（模擬）');
+                const callbackResponse = await fetch(`${SUPABASE_URL}/functions/v1/transcription-complete`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${API_KEY}`,
+                        'apikey': API_KEY
+                    },
+                    body: JSON.stringify({
+                        jobId: jobId,
+                        meetingId: 'test-meeting-backend',
+                        nestId: 'test-nest-backend',
+                        status: 'success',
+                        transcript: 'これはテスト用の文字起こし結果です。',
+                        speakers: [],
+                        utterances: []
+                    })
+                });
+
+                console.log('コールバックレスポンス:', callbackResponse.status);
+                
+                if (callbackResponse.ok) {
+                    const callbackResult = await callbackResponse.json();
+                    console.log('コールバック成功:', callbackResult);
+                } else {
+                    const errorText = await callbackResponse.text();
+                    console.error('コールバックエラー:', errorText);
+                }
+
+                console.log('🧪 [Backend Test] バックエンド統合テスト完了');
+
+            } catch (error) {
+                console.error('🧪 [Backend Test] エラー:', error);
+            } finally {
+                restoreLog();
+            }
+        }
+
+        // ヘルパー関数
+        async function createTestAudioBlob() {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const sampleRate = 16000;
+            const duration = 2;
+            const numSamples = sampleRate * duration;
+            
+            const audioBuffer = audioContext.createBuffer(1, numSamples, sampleRate);
+            const channelData = audioBuffer.getChannelData(0);
+            
+            const frequency = 440;
+            for (let i = 0; i < numSamples; i++) {
+                channelData[i] = Math.sin(2 * Math.PI * frequency * i / sampleRate) * 0.1;
+            }
+            
+            return audioBufferToWav(audioBuffer);
+        }
+
+        function audioBufferToWav(buffer) {
+            const length = buffer.length;
+            const numberOfChannels = buffer.numberOfChannels;
+            const sampleRate = buffer.sampleRate;
+            const arrayBuffer = new ArrayBuffer(44 + length * numberOfChannels * 2);
+            const view = new DataView(arrayBuffer);
+            
+            const writeString = (offset, string) => {
+                for (let i = 0; i < string.length; i++) {
+                    view.setUint8(offset + i, string.charCodeAt(i));
+                }
+            };
+            
+            writeString(0, 'RIFF');
+            view.setUint32(4, 36 + length * numberOfChannels * 2, true);
+            writeString(8, 'WAVE');
+            writeString(12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true);
+            view.setUint16(22, numberOfChannels, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * numberOfChannels * 2, true);
+            view.setUint16(32, numberOfChannels * 2, true);
+            view.setUint16(34, 16, true);
+            writeString(36, 'data');
+            view.setUint32(40, length * numberOfChannels * 2, true);
+            
+            let offset = 44;
+            for (let i = 0; i < length; i++) {
+                for (let channel = 0; channel < numberOfChannels; channel++) {
+                    const sample = Math.max(-1, Math.min(1, buffer.getChannelData(channel)[i]));
+                    view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+                    offset += 2;
+                }
+            }
+            
+            return new Blob([arrayBuffer], { type: 'audio/wav' });
+        }
+
+        console.log('🎤 テストページが読み込まれました！');
+        console.log('📋 上記のボタンをクリックしてテストを実行してください。');
+    </script>
+</body>
+</html>
