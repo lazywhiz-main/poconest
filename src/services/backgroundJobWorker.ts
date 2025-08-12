@@ -1,7 +1,7 @@
 import { supabase } from './supabase/client';
 import { BackgroundJob, JobType, JobStatus, RetryConfiguration } from '../features/meeting-space/types/backgroundJob';
 import { NotificationService } from '../features/notifications/services/NotificationService';
-import { generateMeetingSummary, extractCardsFromMeeting, generateMockSummary, generateMockCards } from './ai/openai';
+import { generateMeetingSummary, extractCardsFromMeeting } from './ai/openai';
 import { getOrCreateDefaultBoard, addCardsToBoard } from './BoardService';
 import { getOrCreateMeetingSource, addCardSource } from './BoardService';
 import { TranscriptionService } from './TranscriptionService';
@@ -47,19 +47,20 @@ class AISummaryProcessor implements JobProcessor {
       meetingId: job.meetingId
     };
     
-    // 実際のtranscriptがある場合は本格的な要約、そうでなければモック
+    // 実際のtranscriptがある場合のみ本格的な要約を実行
     if (meeting.transcript && meeting.transcript.trim().length > 100) {
       try {
-        summary = await generateMeetingSummary(meeting.transcript, context);
+        summary = await generateMeetingSummary(meeting.transcript, context, job.id);
       } catch (error) {
-        console.error('[AISummaryProcessor] AI summary failed, using mock:', error);
-        summary = generateMockSummary();
+        console.error('[AISummaryProcessor] AI summary failed:', error);
+        throw new Error(`AI summary generation failed: ${error.message}`);
       }
     } else {
-      summary = generateMockSummary();
+      throw new Error('Transcript too short for meaningful summary generation. Minimum required: 100 characters.');
     }
 
     // Step 3: データベース保存 (100%)
+    // 🔧 Edge Function側でステータス更新を行うため、ここでは進捗のみ更新
     await this.updateProgress(job.id, 100, '要約をデータベースに保存中...');
     
     const { error: updateError } = await supabase
@@ -79,6 +80,23 @@ class AISummaryProcessor implements JobProcessor {
     };
 
     console.log(`[AISummaryProcessor] Job ${job.id} completed with result:`, result);
+    
+    // 🔧 Edge Function側でステータス更新済みかチェック
+    const { data: currentJob, error: jobCheckError } = await supabase
+      .from('background_jobs')
+      .select('status')
+      .eq('id', job.id)
+      .single();
+    
+    if (jobCheckError) {
+      console.warn(`🔧 [AISummaryProcessor] ジョブ状態確認エラー:`, jobCheckError);
+    } else if (currentJob?.status === 'completed') {
+      console.log(`🔧 [AISummaryProcessor] Edge Function側で既にステータス更新済み - BackgroundJobWorker側での更新をスキップ: ${job.id}`);
+      return result;
+    } else {
+      console.log(`🔧 [AISummaryProcessor] Edge Function側でステータス更新されていない（現在: ${currentJob?.status}） - 通常通り処理完了`);
+    }
+    
     return result;
   }
 
@@ -99,8 +117,8 @@ class AISummaryProcessor implements JobProcessor {
 // カード抽出処理
 class CardExtractionProcessor implements JobProcessor {
   async process(job: BackgroundJob): Promise<any> {
-    console.log(`[CardExtractionProcessor] Processing job ${job.id}`);
-
+    console.log(`🚀 [CardExtractionProcessor] ジョブ処理開始: ${job.id}`);
+    
     // Step 1: ミーティングデータ取得 (25%)
     await this.updateProgress(job.id, 25, 'ミーティングデータを取得中...');
     
@@ -118,99 +136,52 @@ class CardExtractionProcessor implements JobProcessor {
       throw new Error('Meeting not found');
     }
 
-    // Step 2: カード抽出処理 (50%)
-    await this.updateProgress(job.id, 50, 'カードを抽出中...');
-    
-    let extractedCards: any[];
-    let provider: string | undefined;
-    
-    // ユーザーコンテキストを設定
-    const context = {
-      userId: job.userId || 'system',
-      nestId: meeting.nest_id,
-      meetingId: job.meetingId
-    };
-    
-    // 実際のtranscriptがある場合は本格的な抽出、そうでなければモック
-    if (meeting.transcript && meeting.transcript.trim().length > 100) {
-      try {
-        const result = await extractCardsFromMeeting(job.meetingId, context);
-        // 戻り値の型を確認して適切に処理
-        if (Array.isArray(result)) {
-          extractedCards = result;
-          provider = 'openai'; // 配列の場合はデフォルト
-        } else if (result && typeof result === 'object' && 'cards' in result) {
-          extractedCards = result.cards;
-          provider = result.provider;
-        } else {
-          extractedCards = [];
-          provider = 'openai';
-        }
-      } catch (error) {
-        console.error('[CardExtractionProcessor] Card extraction failed, using mock:', error);
-        extractedCards = generateMockCards();
-        provider = 'openai'; // モックの場合はデフォルト
-      }
-    } else {
-      extractedCards = generateMockCards();
-      provider = 'openai'; // モックの場合はデフォルト
+    if (!meeting.transcript || meeting.transcript.trim().length === 0) {
+      throw new Error('Meeting transcript not found or empty');
     }
 
-    // Step 3: ボードへの保存 (75%)
-    await this.updateProgress(job.id, 75, 'カードをボードに保存中...');
+    // Step 2: EdgeFunction呼び出し (75%)
+    await this.updateProgress(job.id, 75, 'AIカード抽出を実行中...');
     
-    let savedCards: any[] = [];
+    console.log(`🔍 [CardExtractionProcessor] EdgeFunction呼び出し開始: extract-cards-from-meeting`);
     
-    if (extractedCards.length > 0) {
-      try {
-        // デフォルトボードを取得または作成
-        const boardId = await getOrCreateDefaultBoard(meeting.nest_id, job.userId || 'system');
-        
-        // カードをボードに追加（プロバイダー情報を渡す）
-        savedCards = await addCardsToBoard(
-          boardId,
-          extractedCards,
-          job.userId || 'system',
-          job.meetingId,
-          provider
-        );
-        
-        // 出典紐付け
-        const meetingSource = await getOrCreateMeetingSource(job.meetingId, meeting.title);
-        await Promise.all(savedCards.map(card => addCardSource({ card_id: card.id, source_id: meetingSource.id })));
-        
-      } catch (error) {
-        console.error('[CardExtractionProcessor] Failed to save cards to board:', error);
-        // ボード保存に失敗してもジョブは成功とする
+    const { data, error: functionError } = await supabase.functions.invoke('extract-cards-from-meeting', {
+      body: {
+        meeting_id: job.meetingId,
+        job_id: job.id,
+        nestId: job.metadata?.nestId,
+        extractionSettings: job.metadata?.extractionSettings
       }
+    });
+
+    if (functionError) {
+      console.error('[CardExtractionProcessor] EdgeFunction error:', functionError);
+      throw new Error(`EdgeFunction error: ${functionError.message}`);
     }
 
-    // Step 4: 完了 (100%)
+    console.log(`✅ [CardExtractionProcessor] EdgeFunction実行完了:`, data);
+
+    // Step 3: 結果の検証 (100%)
     await this.updateProgress(job.id, 100, 'カード抽出完了');
-
-    const result = {
-      cards: savedCards,
-      cardCount: savedCards.length,
-      extractedCount: extractedCards.length,
+    
+    const result = { 
+      success: data?.success || false,
+      cardsCount: data?.cards?.length || 0,
       meetingId: job.meetingId,
       timestamp: new Date().toISOString()
     };
 
-    console.log(`[CardExtractionProcessor] Job ${job.id} completed with ${savedCards.length} saved cards`);
+    console.log(`✅ [CardExtractionProcessor] ジョブ完了:`, result);
     return result;
   }
 
   private async updateProgress(jobId: string | null, progress: number, message: string) {
     if (!jobId) return;
     
-    await supabase
-      .from('background_jobs')
-      .update({ 
-        progress,
-        metadata: { current_step: message },
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', jobId);
+    await supabase.from('background_jobs').update({
+      progress,
+      updated_at: new Date().toISOString()
+    }).eq('id', jobId);
   }
 }
 
@@ -404,10 +375,12 @@ class TranscriptionProcessor implements JobProcessor {
 export class BackgroundJobWorker {
   private processors: Map<JobType, JobProcessor> = new Map();
   private isRunning = false;
-  private pollingInterval = 5000; // 5秒間隔（通常運用）
+  private pollingInterval = 2000; // 2秒間隔（より迅速な処理のため）
+  private instanceId: number; // インスタンス識別用
 
-  constructor() {
-    console.log('🔧 [BackgroundJobWorker] コンストラクタ開始');
+  constructor(instanceId: number) {
+    this.instanceId = instanceId;
+    console.log(`🔧 [BackgroundJobWorker] コンストラクタ開始 #${this.instanceId}`);
     
     this.processors.set('ai_summary', new AISummaryProcessor());
     this.processors.set('card_extraction', new CardExtractionProcessor());
@@ -418,46 +391,68 @@ export class BackgroundJobWorker {
 
   // ワーカー開始
   async start() {
-    console.log('🔧 [BackgroundJobWorker] start() メソッド呼び出し');
+    console.log(`🚨🚨🚨 [BackgroundJobWorker] #${this.instanceId} start() メソッド呼び出し 🚨🚨🚨`);
     
     if (this.isRunning) {
-      console.log('🔧 [BackgroundJobWorker] 既に実行中です');
+      console.log(`🚨 [BackgroundJobWorker] #${this.instanceId} 既に実行中です - isRunning: ${this.isRunning}`);
       return;
     }
 
     this.isRunning = true;
-    console.log('🔧 [BackgroundJobWorker] ワーカー開始');
+    console.log(`🚨🚨🚨 [BackgroundJobWorker] #${this.instanceId} ワーカー開始、poll()呼び出し 🚨🚨🚨`);
     
-    this.poll();
-    console.log('🔧 [BackgroundJobWorker] poll() メソッド呼び出し完了');
+    // 🔧 poll()は非同期なので、awaitなしで実行（バックグラウンドで継続実行させる）
+    this.poll().catch(error => {
+      console.error(`🚨🚨🚨 [BackgroundJobWorker] #${this.instanceId} poll()でエラー:`, error);
+    });
+    console.log(`🚨 [BackgroundJobWorker] #${this.instanceId} poll() メソッド呼び出し完了`);
   }
 
   // ワーカー停止
   stop() {
-    console.log('[BackgroundJobWorker] Stopping worker...');
+    console.log(`🔧 [BackgroundJobWorker] #${this.instanceId} Stopping worker...`);
     this.isRunning = false;
   }
 
   // ポーリング処理
   private async poll() {
-    console.log('🔧 [BackgroundJobWorker] ポーリング開始');
+    console.log(`🚨🚨🚨 [BackgroundJobWorker] #${this.instanceId} ポーリング開始 🚨🚨🚨`);
+    console.log(`🚨 [BackgroundJobWorker] #${this.instanceId} while文チェック - isRunning: ${this.isRunning}`);
+    
     while (this.isRunning) {
+      const pollStartTime = Date.now();
+      console.log(`🚨🚨🚨 [BackgroundJobWorker] #${this.instanceId} while文に入りました！ 🚨🚨🚨`);
       try {
-        console.log('🔧 [BackgroundJobWorker] 次のジョブを探しています...');
+        console.log(`🚨 [BackgroundJobWorker] #${this.instanceId} 次のジョブを探しています...`);
         await this.processNextJob();
       } catch (error) {
-        console.error('[BackgroundJobWorker] Polling error:', error);
+        console.error(`🔧 [BackgroundJobWorker] #${this.instanceId} Polling error:`, error);
       }
       
-      await new Promise(resolve => setTimeout(resolve, this.pollingInterval));
+      // 🔧 実行時間に関係なく、一定間隔でポーリングする
+      const pollDuration = Date.now() - pollStartTime;
+      const remainingTime = Math.max(0, this.pollingInterval - pollDuration);
+      
+      console.log(`🔧 [BackgroundJobWorker] #${this.instanceId} ポーリング待機:`, {
+        pollDuration,
+        remainingTime,
+        nextPollIn: remainingTime
+      });
+      
+      await new Promise(resolve => setTimeout(resolve, remainingTime));
     }
-    console.log('🔧 [BackgroundJobWorker] ポーリング終了');
+    console.log(`🔧 [BackgroundJobWorker] #${this.instanceId} ポーリング終了`);
   }
 
   // 次のジョブを処理
   private async processNextJob() {
+    const pollStartTime = Date.now();
+    console.log(`🚨🚨🚨 [BackgroundJobWorker] #${this.instanceId} processNextJob 開始 🚨🚨🚨`, {
+      timestamp: new Date().toISOString(),
+      pollStartTime
+    });
     // 🔧 デバッグ: 全ジョブを確認
-    console.log('🔧 [BackgroundJobWorker] 全ジョブを確認中...');
+    console.log(`🔧 [BackgroundJobWorker] #${this.instanceId} 全ジョブを確認中...`);
     const { data: allJobs, error: allError } = await supabase
       .from('background_jobs')
       .select('*')
@@ -465,12 +460,12 @@ export class BackgroundJobWorker {
       .limit(5);
       
     if (allError) {
-      console.error('🔧 [BackgroundJobWorker] 全ジョブ取得エラー:', allError);
+      console.error(`🔧 [BackgroundJobWorker] #${this.instanceId} 全ジョブ取得エラー:`, allError);
     } else {
-      console.log('🔧 [BackgroundJobWorker] 最近のジョブ一覧:', allJobs);
+      console.log(`🔧 [BackgroundJobWorker] #${this.instanceId} 最近のジョブ一覧:`, allJobs);
       // 🔧 各ジョブのステータスを詳細表示
       allJobs?.forEach((job, index) => {
-        console.log(`🔧 [BackgroundJobWorker] ジョブ${index}: `, {
+        console.log(`🔧 [BackgroundJobWorker] #${this.instanceId} ジョブ${index}: `, {
           id: job.id,
           type: job.type || job.job_type,
           status: job.status,
@@ -492,14 +487,13 @@ export class BackgroundJobWorker {
       .eq('status', 'running');
       
     if (runningError) {
-      console.error('🔧 [BackgroundJobWorker] running状態ジョブ取得エラー:', runningError);
-    } else if (runningJobs && runningJobs.length > 0) {
-      console.log('🔧 [BackgroundJobWorker] 既にrunning状態のジョブがあります:', runningJobs.length, '件');
-      console.log('🔧 [BackgroundJobWorker] 重複実行を防ぐため処理をスキップします');
+      console.error(`🔧 [BackgroundJobWorker] #${this.instanceId} running状態ジョブ取得エラー:`, runningError);
+    } else if (runningJobs && runningJobs.length >= 3) {
+      console.log(`🔧 [BackgroundJobWorker] #${this.instanceId} running状態ジョブが処理上限に達しています:`, runningJobs.length, '件 - ポーリングをスキップ');
       
-      // 🔧 重複実行の詳細ログ
+      // 🔧 実行中ジョブの詳細ログ
       runningJobs.forEach((runningJob, index) => {
-        console.log(`🔧 [BackgroundJobWorker] 重複実行防止 - ジョブ${index}:`, {
+        console.log(`🔧 [BackgroundJobWorker] #${this.instanceId} 実行中ジョブ${index + 1}:`, {
           id: runningJob.id,
           type: runningJob.type || runningJob.job_type,
           meeting_id: runningJob.meeting_id,
@@ -508,11 +502,13 @@ export class BackgroundJobWorker {
         });
       });
       
-      return; // 既に処理中のジョブがある場合はスキップ
+      return; // 処理上限に達している場合のみスキップ
+    } else if (runningJobs && runningJobs.length > 0) {
+      console.log(`🚨🚨🚨 [BackgroundJobWorker] #${this.instanceId} 現在実行中のジョブ数: ${runningJobs.length}/3 - 処理続行 🚨🚨🚨`);
     }
     
     // pending状態のジョブを取得
-    console.log('🔧 [BackgroundJobWorker] pending状態のジョブを検索中...');
+    console.log(`🚨🚨🚨 [BackgroundJobWorker] #${this.instanceId} pending状態のジョブを検索中... 🚨🚨🚨`);
     const { data: jobs, error } = await supabase
       .from('background_jobs')
       .select('*')
@@ -521,17 +517,63 @@ export class BackgroundJobWorker {
       .limit(1);
 
     if (error) {
-      console.error('🔧 [BackgroundJobWorker] Failed to fetch jobs:', error);
+      console.error(`🚨🚨🚨 [BackgroundJobWorker] #${this.instanceId} Failed to fetch jobs:`, error);
       return;
     }
 
-    console.log('🔧 [BackgroundJobWorker] 取得したジョブ数:', jobs?.length || 0);
+    console.log(`🚨🚨🚨 [BackgroundJobWorker] #${this.instanceId} 取得したジョブ数: ${jobs?.length || 0} 🚨🚨🚨`);
+    
+    if (jobs && jobs.length > 0) {
+      const pendingJob = jobs[0];
+      console.log(`🚨 [BackgroundJobWorker] #${this.instanceId} 発見したpendingジョブ:`, {
+        id: pendingJob.id,
+        type: pendingJob.type,
+        status: pendingJob.status,
+        meeting_id: pendingJob.meeting_id,
+        created_at: pendingJob.created_at
+      });
+      
+
+      
+      // ジョブ処理を開始
+      await this.processJob(pendingJob);
+    } else {
+      console.log(`🚨🚨🚨 [BackgroundJobWorker] #${this.instanceId} pendingジョブが見つかりませんでした - 詳細調査開始 🚨🚨🚨`);
+      
+      // 🔧 全ジョブの状態を確認（statusに関係なく）
+      try {
+        const { data: allRecentJobs, error: allJobsError } = await supabase
+          .from('background_jobs')
+          .select('id, type, status, created_at, meeting_id')
+          .order('created_at', { ascending: false })
+          .limit(5);
+          
+        if (allJobsError) {
+          console.error(`🚨 [BackgroundJobWorker] #${this.instanceId} 全ジョブ取得エラー:`, allJobsError);
+        } else {
+          console.log(`🚨🚨🚨 [BackgroundJobWorker] #${this.instanceId} 最新5件のジョブ（全status）: 🚨🚨🚨`, allRecentJobs);
+          
+          // 🔧 各ジョブの詳細を個別に表示
+          allRecentJobs?.forEach((job, index) => {
+            console.log(`🚨 [BackgroundJobWorker] #${this.instanceId} ジョブ${index + 1}:`, {
+              id: job.id,
+              type: job.type,
+              status: job.status,
+              created_at: job.created_at,
+              meeting_id: job.meeting_id
+            });
+          });
+        }
+      } catch (detailError) {
+        console.error(`🚨 [BackgroundJobWorker] #${this.instanceId} ジョブ詳細確認エラー:`, detailError);
+      }
+    }
     
     // 🔧 デバッグ: pending状態のジョブの詳細を表示
     if (jobs && jobs.length > 0) {
-      console.log('🔧 [BackgroundJobWorker] pending状態のジョブ詳細:', jobs[0]);
+      console.log(`🔧 [BackgroundJobWorker] #${this.instanceId} pending状態のジョブ詳細:`, jobs[0]);
     } else {
-      console.log('🔧 [BackgroundJobWorker] pending状態のジョブが見つかりません');
+      console.log(`🔧 [BackgroundJobWorker] #${this.instanceId} pending状態のジョブが見つかりません`);
       // 🔧 全ステータスのジョブ数を確認
       const { data: statusCounts, error: countError } = await supabase
         .from('background_jobs')
@@ -543,50 +585,117 @@ export class BackgroundJobWorker {
           acc[job.status] = (acc[job.status] || 0) + 1;
           return acc;
         }, {} as Record<string, number>);
-        console.log('🔧 [BackgroundJobWorker] ステータス別ジョブ数:', counts);
+        console.log(`🔧 [BackgroundJobWorker] #${this.instanceId} ステータス別ジョブ数:`, counts);
       }
     }
     
     if (!jobs || jobs.length === 0) {
-      console.log('🔧 [BackgroundJobWorker] 処理するジョブがありません');
+      console.log(`🔧 [BackgroundJobWorker] #${this.instanceId} 処理するジョブがありません`);
       return; // 処理するジョブなし
     }
 
-    // 🔧 重複実行防止: ジョブをロックしてから処理開始
+    // 🔧 新しい専用処理ロック機構でジョブを獲得
     const jobToProcess = jobs[0];
-    console.log('🔧 [BackgroundJobWorker] ジョブロック試行:', jobToProcess.id);
     
-    // ジョブをpendingからrunningに更新（ロック）
-    const { error: lockError } = await supabase
+
+    console.log(`🔧 [BackgroundJobWorker] #${this.instanceId} 処理ロック獲得試行:`, jobToProcess.id);
+    
+    // 🔐 安全な処理ロック獲得（30分間有効）
+    const { data: lockResult, error: lockError } = await supabase.rpc('acquire_processing_lock', {
+      p_job_id: jobToProcess.id,
+      p_lock_owner: 'background_worker',
+      p_lock_duration_minutes: 30
+    });
+    
+    if (lockError) {
+      console.error(`❌ [BackgroundJobWorker] #${this.instanceId} ロック獲得エラー:`, lockError);
+      return;
+    }
+    
+    const lockInfo = lockResult[0];
+    
+    if (!lockInfo.success) {
+      console.log(`🚫 [BackgroundJobWorker] #${this.instanceId} ロック獲得失敗: ${lockInfo.message}`);
+      return; // ロック失敗時は何もせずに次のポーリングサイクルへ
+    }
+    
+    // ✅ ロック獲得成功
+    const lockId = lockInfo.lock_id;
+    console.log(`✅ [BackgroundJobWorker] #${this.instanceId} 処理ロック獲得成功: ${lockId} for job ${jobToProcess.id}`);
+    
+    // ジョブステータスをrunningに更新
+    const { error: statusError } = await supabase
       .from('background_jobs')
       .update({ 
         status: 'running',
         updated_at: new Date().toISOString()
       })
-      .eq('id', jobToProcess.id)
-      .eq('status', 'pending'); // まだpending状態の場合のみ更新
-    
-    if (lockError) {
-      console.error('🔧 [BackgroundJobWorker] ジョブロック失敗:', lockError);
-      return;
-    }
-    
-    // ロックが成功したか確認
-    const { data: lockedJob, error: checkError } = await supabase
-      .from('background_jobs')
-      .select('*')
-      .eq('id', jobToProcess.id)
-      .single();
+      .eq('id', jobToProcess.id);
       
-    if (checkError || !lockedJob || lockedJob.status !== 'running') {
-      console.log('🔧 [BackgroundJobWorker] ジョブロック失敗 - 他のワーカーが処理中:', jobToProcess.id);
-      return; // ロックに失敗した場合（他のワーカーが既に処理中）
+    if (statusError) {
+      console.warn(`⚠️ [BackgroundJobWorker] #${this.instanceId} ステータス更新警告:`, statusError);
+      // ステータス更新に失敗してもロック解放は不要（別の場所で処理される）
     }
     
-    console.log('🔧 [BackgroundJobWorker] ジョブロック成功:', jobToProcess.id);
-    console.log('🔧 [BackgroundJobWorker] ジョブ処理開始:', jobToProcess);
-    const job = this.dbToApp(jobToProcess);
-    await this.processJob(job);
+    console.log(`🔍 [BackgroundJobWorker] #${this.instanceId} ジョブ処理開始:`, {
+      jobId: jobToProcess.id,
+      jobType: jobToProcess.type || jobToProcess.job_type,
+      meetingId: jobToProcess.meeting_id,
+      lockId: lockId,
+      timestamp: new Date().toISOString()
+    });
+    
+    // 📦 ジョブ処理を実行（ロック獲得済み）
+    try {
+      console.log(`🔧 [BackgroundJobWorker] #${this.instanceId} ジョブ処理開始:`, jobToProcess.id);
+      const job = this.dbToApp(jobToProcess);
+      await this.processJob(job);
+      
+      // 🔓 処理完了後にロック解放（Edge Functionで完了していない場合のフェイルセーフ）
+      try {
+        const { data: releaseResult, error: releaseError } = await supabase.rpc('release_processing_lock', {
+          p_job_id: jobToProcess.id,
+          p_lock_id: lockId
+        });
+        
+        if (releaseError) {
+          console.warn(`🔓 [BackgroundJobWorker] #${this.instanceId} ロック解放エラー（無視して継続）:`, releaseError);
+        } else {
+          const releaseInfo = releaseResult[0];
+          if (releaseInfo.success) {
+            console.log(`✅ [BackgroundJobWorker] #${this.instanceId} ロック解放成功: ${lockId}`);
+          } else {
+            console.log(`🔓 [BackgroundJobWorker] #${this.instanceId} ロック解放スキップ: ${releaseInfo.message}`);
+          }
+        }
+      } catch (releaseError) {
+        console.warn(`🧹 [BackgroundJobWorker] #${this.instanceId} ロック解放で例外（無視して継続）:`, releaseError);
+      }
+      
+    } catch (processError) {
+      console.error(`❌ [BackgroundJobWorker] #${this.instanceId} ジョブ処理エラー:`, processError);
+      
+      // 🔓 エラー時もロック解放
+      try {
+        const { data: releaseResult, error: releaseError } = await supabase.rpc('release_processing_lock', {
+          p_job_id: jobToProcess.id,
+          p_lock_id: lockId
+        });
+        
+        if (releaseError) {
+          console.warn(`🔓 [BackgroundJobWorker] #${this.instanceId} エラー時ロック解放エラー:`, releaseError);
+        } else {
+          const releaseInfo = releaseResult[0];
+          if (releaseInfo.success) {
+            console.log(`✅ [BackgroundJobWorker] #${this.instanceId} エラー時ロック解放成功: ${lockId}`);
+          }
+        }
+      } catch (releaseError) {
+        console.warn(`🧹 [BackgroundJobWorker] #${this.instanceId} エラー時ロック解放で例外:`, releaseError);
+      }
+      
+      // エラーを再投げはしない（ポーリングを継続）
+    }
   }
 
   // 🔧 古いrunning状態ジョブのクリーンアップ
@@ -601,15 +710,15 @@ export class BackgroundJobWorker {
         .lt('updated_at', thirtyMinutesAgo);
         
       if (error) {
-        console.error('🔧 [BackgroundJobWorker] 古いジョブ取得エラー:', error);
+        console.error(`🔧 [BackgroundJobWorker] #${this.instanceId} 古いジョブ取得エラー:`, error);
         return;
       }
       
       if (staleJobs && staleJobs.length > 0) {
-        console.log('🔧 [BackgroundJobWorker] 古いrunning状態ジョブをリセット:', staleJobs.length, '件');
+        console.log(`🔧 [BackgroundJobWorker] #${this.instanceId} 古いrunning状態ジョブをリセット:`, staleJobs.length, '件');
         
         for (const staleJob of staleJobs) {
-          console.log('🔧 [BackgroundJobWorker] 古いジョブをリセット:', staleJob.id);
+          console.log(`🔧 [BackgroundJobWorker] #${this.instanceId} 古いジョブをリセット:`, staleJob.id);
           
           const { error: resetError } = await supabase
             .from('background_jobs')
@@ -621,19 +730,19 @@ export class BackgroundJobWorker {
             .eq('id', staleJob.id);
             
           if (resetError) {
-            console.error('🔧 [BackgroundJobWorker] ジョブリセットエラー:', resetError);
+            console.error(`🔧 [BackgroundJobWorker] #${this.instanceId} ジョブリセットエラー:`, resetError);
           }
         }
       }
     } catch (error) {
-      console.error('🔧 [BackgroundJobWorker] クリーンアップ処理エラー:', error);
+      console.error(`🔧 [BackgroundJobWorker] #${this.instanceId} クリーンアップ処理エラー:`, error);
     }
   }
 
   // シンプルなジョブ処理
   private async processJob(job: BackgroundJob) {
-    console.log(`🔧 [BackgroundJobWorker] ジョブ処理開始: ${job.id} (${job.type})`);
-    console.log(`🔧 [BackgroundJobWorker] ジョブ詳細:`, {
+    console.log(`🔧 [BackgroundJobWorker] #${this.instanceId} ジョブ処理開始: ${job.id} (${job.type})`);
+    console.log(`🔧 [BackgroundJobWorker] #${this.instanceId} ジョブ詳細:`, {
       id: job.id,
       type: job.type,
       status: job.status,
@@ -645,24 +754,28 @@ export class BackgroundJobWorker {
     });
     
     // 🔧 デバッグ: 登録されているプロセッサーを確認
-    console.log('🔧 [BackgroundJobWorker] 登録済みプロセッサー:', Array.from(this.processors.keys()));
-    console.log('🔧 [BackgroundJobWorker] 要求されたジョブタイプ:', job.type);
+    console.log(`🔧 [BackgroundJobWorker] #${this.instanceId} 登録済みプロセッサー:`, Array.from(this.processors.keys()));
+    console.log(`🔧 [BackgroundJobWorker] #${this.instanceId} 要求されたジョブタイプ:`, job.type);
 
     // 🔧 ジョブは既にロック時にrunning状態に更新済み
-    console.log('🔧 [BackgroundJobWorker] ジョブは既にrunning状態です:', job.id);
+    console.log(`🔧 [BackgroundJobWorker] #${this.instanceId} ジョブは既にrunning状態です:`, job.id);
 
     try {
-      console.log('🔧 [BackgroundJobWorker] プロセッサー取得開始...');
+      console.log(`🔧 [BackgroundJobWorker] #${this.instanceId} プロセッサー取得開始...`);
+      
+
+
+      
       const processor = this.processors.get(job.type);
       
       if (!processor) {
-        console.error('🔧 [BackgroundJobWorker] プロセッサーが見つかりません:', job.type);
+        console.error(`🔧 [BackgroundJobWorker] #${this.instanceId} プロセッサーが見つかりません:`, job.type);
         throw new Error(`Unknown job type: ${job.type}`);
       }
       
-      console.log('🔧 [BackgroundJobWorker] プロセッサー取得成功:', job.type);
-      console.log('🔧 [BackgroundJobWorker] プロセッサー呼び出し開始:', job.type);
-      console.log('🔧 [BackgroundJobWorker] ジョブ詳細:', {
+      console.log(`🔧 [BackgroundJobWorker] #${this.instanceId} プロセッサー取得成功:`, job.type);
+      console.log(`🔧 [BackgroundJobWorker] #${this.instanceId} プロセッサー呼び出し開始:`, job.type);
+      console.log(`🔧 [BackgroundJobWorker] #${this.instanceId} ジョブ詳細:`, {
         id: job.id,
         type: job.type,
         meetingId: job.meetingId,
@@ -672,14 +785,17 @@ export class BackgroundJobWorker {
       
       const result = await processor.process(job);
       
-      console.log('🔧 [BackgroundJobWorker] プロセッサー処理完了:', job.type);
+      console.log(`🔧 [BackgroundJobWorker] #${this.instanceId} プロセッサー処理完了:`, job.type);
       
-      await this.updateJobStatus(job.id, 'completed', 100, result);
+      // 🔧 Edge Function側でステータス更新を行うため、BackgroundJobWorker側でのステータス更新は省略
+      console.log(`🔧 [BackgroundJobWorker] #${this.instanceId} Edge Function側でステータス更新が行われるため、ステータス更新をスキップ:`, job.id);
+      
+      // 通知は送信（ユーザー体験のため）
       await this.sendCompletionNotification(job, true, result);
       
     } catch (error) {
-      console.error('🔧 [BackgroundJobWorker] ジョブ処理エラー:', error);
-      console.error('🔧 [BackgroundJobWorker] エラー詳細:', {
+      console.error(`🔧 [BackgroundJobWorker] #${this.instanceId} ジョブ処理エラー:`, error);
+      console.error(`🔧 [BackgroundJobWorker] #${this.instanceId} エラー詳細:`, {
         name: error instanceof Error ? error.name : 'Unknown',
         message: error instanceof Error ? error.message : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined,
@@ -689,7 +805,11 @@ export class BackgroundJobWorker {
       });
       
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      await this.updateJobStatus(job.id, 'failed', 0, undefined, errorMessage);
+      
+      // 🔧 Edge Function側でステータス更新を行うため、BackgroundJobWorker側でのステータス更新は省略
+      console.log(`🔧 [BackgroundJobWorker] #${this.instanceId} Edge Function側でステータス更新が行われるため、エラー時ステータス更新をスキップ:`, job.id);
+      
+      // 通知は送信（ユーザー体験のため）
       await this.sendCompletionNotification(job, false, undefined, errorMessage);
     }
   }
@@ -712,9 +832,9 @@ export class BackgroundJobWorker {
         errorMessage
       );
       
-      console.log(`[BackgroundJobWorker] Notification sent for job ${job.id}`);
+      console.log(`🔧 [BackgroundJobWorker] #${this.instanceId} Notification sent for job ${job.id}`);
     } catch (error) {
-      console.error(`[BackgroundJobWorker] Failed to send notification for job ${job.id}:`, error);
+      console.error(`🔧 [BackgroundJobWorker] #${this.instanceId} Failed to send notification for job ${job.id}:`, error);
     }
   }
 
@@ -746,7 +866,7 @@ export class BackgroundJobWorker {
       .eq('id', jobId);
 
     if (error) {
-      console.error('[BackgroundJobWorker] Failed to update job status:', error);
+      console.error(`🔧 [BackgroundJobWorker] #${this.instanceId} Failed to update job status:`, error);
     }
   }
 
@@ -773,26 +893,40 @@ export class BackgroundJobWorker {
 
 // グローバルワーカーインスタンス
 let globalWorker: BackgroundJobWorker | null = null;
+let instanceCounter = 0; // インスタンス識別用カウンター
 
 // ワーカー開始関数
 export const startBackgroundJobWorker = () => {
-  console.log('🔧 [BackgroundJobWorker] startBackgroundJobWorker 呼び出し');
+  console.log(`🚨🚨🚨 [BackgroundJobWorker] startBackgroundJobWorker 呼び出し 🚨🚨🚨`);
   
-  // 🔧 強制的に既存ワーカーを停止して新しいインスタンスを作成
+  // 🔧 既にワーカーが起動中の場合は何もしない
   if (globalWorker) {
-    console.log('🔧 [BackgroundJobWorker] 既存ワーカーを停止します');
-    globalWorker.stop();
-    globalWorker = null;
+    console.log(`🚨 [BackgroundJobWorker] 既にワーカーが起動中のため、重複起動をスキップ - globalWorker exists:`, !!globalWorker);
+    console.log(`🚨 [BackgroundJobWorker] 既存ワーカー状態:`, {
+      isRunning: globalWorker.isRunning,
+      instanceId: globalWorker.instanceId
+    });
+    return;
   }
   
-  console.log('🔧 [BackgroundJobWorker] 新しいワーカーインスタンス作成');
-  globalWorker = new BackgroundJobWorker();
-  globalWorker.start();
+  const instanceId = ++instanceCounter;
+  console.log(`🚨🚨🚨 [BackgroundJobWorker] #${instanceId}: 新しいワーカーインスタンス作成開始 🚨🚨🚨`);
+  
+  try {
+    globalWorker = new BackgroundJobWorker(instanceId);
+    console.log(`🚨 [BackgroundJobWorker] #${instanceId}: インスタンス作成成功、start()呼び出し開始`);
+    globalWorker.start();
+    console.log(`🚨🚨🚨 [BackgroundJobWorker] #${instanceId}: start()呼び出し完了 🚨🚨🚨`);
+  } catch (error) {
+    console.error(`🚨🚨🚨 [BackgroundJobWorker] #${instanceId}: ワーカー起動エラー:`, error);
+  }
 };
 
 // ワーカー停止関数
 export const stopBackgroundJobWorker = () => {
   if (globalWorker) {
+    console.log(`🔧 [BackgroundJobWorker] グローバルワーカー停止`);
     globalWorker.stop();
+    globalWorker = null;
   }
 }; 

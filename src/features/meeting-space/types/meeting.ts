@@ -74,6 +74,61 @@ export type MeetingTopic = {
   sentiment: string;
 };
 
+// カード抽出設定
+export type CardExtractionSettings = {
+  // 抽出の粒度設定
+  extractionGranularity: 'coarse' | 'medium' | 'fine';
+  
+  // 各カラムタイプごとの最大カード数
+  maxCardsPerColumn: {
+    INBOX: number;
+    QUESTIONS: number;
+    INSIGHTS: number;
+    THEMES: number;
+    ACTIONS: number;
+  };
+  
+  // 全体の最大カード数
+  maxTotalCards: number;
+};
+
+// カード抽出設定のプリセット
+export const CARD_EXTRACTION_PRESETS = {
+  coarse: {
+    extractionGranularity: 'coarse' as const,
+    maxCardsPerColumn: {
+      INBOX: 3,
+      QUESTIONS: 3,
+      INSIGHTS: 3,
+      THEMES: 3,
+      ACTIONS: 3
+    },
+    maxTotalCards: 15
+  },
+  medium: {
+    extractionGranularity: 'medium' as const,
+    maxCardsPerColumn: {
+      INBOX: 6,
+      QUESTIONS: 6,
+      INSIGHTS: 6,
+      THEMES: 6,
+      ACTIONS: 6
+    },
+    maxTotalCards: 30
+  },
+  fine: {
+    extractionGranularity: 'fine' as const,
+    maxCardsPerColumn: {
+      INBOX: 10,
+      QUESTIONS: 10,
+      INSIGHTS: 10,
+      THEMES: 10,
+      ACTIONS: 10
+    },
+    maxTotalCards: 50
+  }
+} as const;
+
 // DB型→UI型への変換
 export function toMeetingUI(meeting: Meeting): MeetingUI {
   return {

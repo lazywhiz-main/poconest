@@ -56,6 +56,28 @@ function parseInsightsFromMarkdown(markdown: string): AIInsight[] {
   });
 }
 
+// モックインサイト生成関数
+function generateMockInsights(): AIInsight[] {
+  return [
+    {
+      id: `mock-${Date.now()}-1`,
+      title: 'テスト用インサイト1',
+      content: 'これはテスト用のモックインサイトです。',
+      tags: ['テスト', 'モック'],
+      column_type: 'INBOX',
+      metadata: { source: 'mock' }
+    },
+    {
+      id: `mock-${Date.now()}-2`,
+      title: 'テスト用インサイト2',
+      content: 'Edge Function呼び出しを無効化したテスト用インサイトです。',
+      tags: ['テスト', 'Edge Function'],
+      column_type: 'INBOX',
+      metadata: { source: 'mock' }
+    }
+  ];
+}
+
 /**
  * チャットメッセージからの自動洞察抽出フック
  * 
@@ -125,6 +147,14 @@ export const useAutoInsightExtraction = ({
       });
 
       // Edge Function呼び出し
+      console.log('🚨🚨🚨 [useAutoInsightExtraction] analyze-chat Edge Function呼び出し開始 🚨🚨🚨', {
+        functionName: 'analyze-chat',
+        timestamp: new Date().toISOString(),
+        channelId,
+        messagesCount: messagesToAnalyze.length,
+        stackTrace: new Error().stack
+      });
+      
       const { data, error } = await supabase.functions.invoke('analyze-chat', {
         body: {
           messages: messagesToAnalyze.map(m => ({
@@ -167,6 +197,10 @@ export const useAutoInsightExtraction = ({
           details: { markdown: data.markdown }
         };
       }
+
+      // 🔍 テスト用にモックを使用
+      // const newInsights = generateMockInsights();
+      // console.log('[useAutoInsightExtraction] テスト用モックインサイト生成:', newInsights);
 
       if (newInsights.length > 0) {
         setInsights(prevInsights => {

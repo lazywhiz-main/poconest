@@ -1086,8 +1086,8 @@ const BoardSpace: React.FC<BoardSpaceProps> = ({ nestId }) => {
         )}
         {/* メタ情報 */}
         <div className="card-meta" style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 0 }}>
-          <span>{`Created: ${new Date(card.created_at).toLocaleDateString()} | ${card.created_by_display_name || '不明'}`}</span>
-          <span>{`Updated: ${new Date(card.updated_at).toLocaleDateString()} | ${card.updated_by_display_name || card.created_by_display_name || '不明'}`}</span>
+          <span>{`Created: ${formatJapanDateTime(card.created_at)} | ${card.created_by_display_name || '不明'}`}</span>
+          <span>{`Updated: ${formatJapanDateTime(card.updated_at)} | ${card.updated_by_display_name || card.created_by_display_name || '不明'}`}</span>
         </div>
       </div>
     );
@@ -2429,6 +2429,56 @@ const BoardSpace: React.FC<BoardSpaceProps> = ({ nestId }) => {
       <div className="board-space">
         <div className="main-content">
           {renderTabs()}
+          {/* カード数表示 */}
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            padding: '12px 20px',
+            marginBottom: 12,
+            flexShrink: 0
+          }}>
+            <div style={{ color: '#a6adc8', fontSize: 12, fontWeight: 500 }}>
+              {activeTab === 'all' 
+                ? (filteredCards.length > 0 ? `全${filteredCards.length}個のカード` : 'カードなし')
+                : (filteredCards.length > 0 ? `${activeTab} ${filteredCards.length}個のカード` : `${activeTab} カードなし`)
+              }
+            </div>
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              {/* 総カード数情報（フィルターされていない場合のみ） */}
+              {activeTab === 'all' && !filters.search && filters.tags.length === 0 && filters.columnTypes.length === 0 && filters.sources.length === 0 && !filters.dateFrom && !filters.dateTo && (
+                <div style={{ 
+                  fontSize: 10, 
+                  color: '#6c7086',
+                  padding: '4px 8px',
+                  background: '#1a1a2e',
+                  borderRadius: 2,
+                  border: '1px solid #333366'
+                }}>
+                  {state.cards.filter(c => c.column_type === 'INBOX').length} INBOX | {' '}
+                  {state.cards.filter(c => c.column_type === 'QUESTIONS').length} QUESTIONS | {' '}
+                  {state.cards.filter(c => c.column_type === 'INSIGHTS').length} INSIGHTS | {' '}
+                  {state.cards.filter(c => c.column_type === 'THEMES').length} THEMES | {' '}
+                  {state.cards.filter(c => c.column_type === 'ACTIONS').length} ACTIONS
+                </div>
+              )}
+              
+              {/* フィルター適用中の表示 */}
+              {(filters.search || filters.tags.length > 0 || filters.columnTypes.length > 0 || filters.sources.length > 0 || filters.dateFrom || filters.dateTo) && (
+                <div style={{ 
+                  fontSize: 10, 
+                  color: '#00ff88',
+                  padding: '4px 8px',
+                  background: 'rgba(0, 255, 136, 0.1)',
+                  borderRadius: 2,
+                  border: '1px solid rgba(0, 255, 136, 0.3)'
+                }}>
+                  フィルター適用中
+                </div>
+              )}
+            </div>
+          </div>
           {/* フィルター情報表示 */}
           {(filters.search || filters.tags.length > 0 || filters.columnTypes.length > 0 || filters.sources.length > 0 || filters.dateFrom || filters.dateTo) && (
             <div style={{ 
@@ -2515,7 +2565,7 @@ const RelatedCardPreviewModal: React.FC<{ card: BoardItem | null; onClose: () =>
       <div style={{ marginBottom: 12 }}>
         <Markdown components={markdownComponents}>{card.content}</Markdown>
       </div>
-      <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>作成日: {new Date(card.created_at).toLocaleString()}</div>
+      <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>作成日: {formatJapanDateTime(card.created_at)}</div>
       <button
         className="btn"
         style={{ float: 'right', marginTop: 8, background: '#1a1a2e', color: '#e2e8f0', border: '1px solid #333366', borderRadius: 2, padding: '8px 16px', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}

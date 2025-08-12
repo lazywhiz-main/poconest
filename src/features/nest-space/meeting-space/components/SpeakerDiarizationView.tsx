@@ -5,6 +5,7 @@ import { Speaker, Word } from '../../../../services/GoogleSpeechToTextService';
 interface SpeakerDiarizationViewProps {
   meetingId: string;
   transcript: string;
+  onTranscriptUpdate?: (newTranscript: string) => void;
 }
 
 interface SpeakerWithUtterances extends Speaker {
@@ -13,15 +14,40 @@ interface SpeakerWithUtterances extends Speaker {
 
 const SpeakerDiarizationView: React.FC<SpeakerDiarizationViewProps> = ({
   meetingId,
-  transcript
+  transcript,
+  onTranscriptUpdate
 }) => {
+  // SVGアイコン用のCSSスタイルを動的に挿入
+  React.useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      .svg-icon {
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+    `;
+    document.head.appendChild(style);
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
   const [speakers, setSpeakers] = useState<SpeakerWithUtterances[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSpeaker, setSelectedSpeaker] = useState<number | null>(null);
+  const [isEditingTranscript, setIsEditingTranscript] = useState(false);
+  const [editedTranscript, setEditedTranscript] = useState(transcript);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     loadSpeakerData();
   }, [meetingId]);
+
+  useEffect(() => {
+    setEditedTranscript(transcript);
+  }, [transcript]);
 
   const loadSpeakerData = async () => {
     try {
@@ -86,6 +112,46 @@ const SpeakerDiarizationView: React.FC<SpeakerDiarizationViewProps> = ({
       '#54a0ff', // 青
     ];
     return colors[(speakerTag - 1) % colors.length];
+  };
+
+  const handleSaveTranscript = async () => {
+    if (!editedTranscript.trim()) {
+      alert('文字起こしが空です');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('meetings')
+        .update({ 
+          transcript: editedTranscript,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', meetingId);
+
+      if (error) {
+        throw error;
+      }
+
+      // 親コンポーネントに更新を通知
+      if (onTranscriptUpdate) {
+        onTranscriptUpdate(editedTranscript);
+      }
+
+      setIsEditingTranscript(false);
+      console.log('文字起こしが正常に更新されました');
+    } catch (error) {
+      console.error('文字起こしの保存に失敗しました:', error);
+      alert('文字起こしの保存に失敗しました');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditedTranscript(transcript);
+    setIsEditingTranscript(false);
   };
 
   const renderSpeakerSummary = () => (
@@ -210,10 +276,71 @@ const SpeakerDiarizationView: React.FC<SpeakerDiarizationViewProps> = ({
     return (
       <div style={styles.emptyContainer}>
         <div style={styles.fallbackTranscript}>
-          <div style={styles.fallbackTitle}>📝 文字起こし</div>
-          <div style={styles.fallbackContent}>
-            {transcript || '文字起こしデータがありません'}
+          <div style={styles.fallbackHeader}>
+            <div style={styles.fallbackTitle}>📝 文字起こし</div>
+            <div style={styles.fallbackActions}>
+              {!isEditingTranscript ? (
+                <button
+                  onClick={() => setIsEditingTranscript(true)}
+                  style={styles.editButton}
+                >
+                  <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: 14, height: 14, marginRight: 6 }}>
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                  </svg>
+                  編集
+                </button>
+              ) : (
+                <div style={styles.editActions}>
+                  <button
+                    onClick={handleSaveTranscript}
+                    disabled={saving}
+                    style={{
+                      ...styles.saveButton,
+                      opacity: saving ? 0.6 : 1,
+                      cursor: saving ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    {saving ? (
+                      '保存中...'
+                    ) : (
+                      <>
+                        <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: 14, height: 14, marginRight: 6 }}>
+                          <polyline points="20,6 9,17 4,12"/>
+                        </svg>
+                        保存
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={handleCancelEdit}
+                    disabled={saving}
+                    style={styles.cancelButton}
+                  >
+                    <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: 14, height: 14, marginRight: 6 }}>
+                      <circle cx="12" cy="12" r="10"/>
+                      <line x1="15" y1="9" x2="9" y2="15"/>
+                      <line x1="9" y1="9" x2="15" y2="15"/>
+                    </svg>
+                    キャンセル
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
+          
+          {isEditingTranscript ? (
+            <textarea
+              value={editedTranscript}
+              onChange={(e) => setEditedTranscript(e.target.value)}
+              style={styles.transcriptTextArea}
+              placeholder="文字起こしを入力してください..."
+            />
+          ) : (
+            <div style={styles.fallbackContent}>
+              {transcript || '文字起こしデータがありません'}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -267,14 +394,82 @@ const styles = {
     height: '100%',
     overflow: 'auto',
     boxSizing: 'border-box' as const,
+    display: 'flex',
+    flexDirection: 'column' as const,
+  },
+  fallbackHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+    borderBottom: '1px solid #333366',
+    paddingBottom: 8,
   },
   fallbackTitle: {
     color: '#e2e8f0',
     fontSize: 14,
     fontWeight: 'bold',
-    marginBottom: 12,
-    borderBottom: '1px solid #333366',
-    paddingBottom: 8,
+  },
+  fallbackActions: {
+    display: 'flex',
+    gap: 8,
+  },
+  editButton: {
+    background: '#333366',
+    color: '#e2e8f0',
+    border: 'none',
+    borderRadius: 4,
+    padding: '6px 12px',
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    display: 'flex',
+    alignItems: 'center',
+  },
+  editActions: {
+    display: 'flex',
+    gap: 8,
+  },
+  saveButton: {
+    background: '#00ff88',
+    color: '#0f0f23',
+    border: 'none',
+    borderRadius: 4,
+    padding: '6px 12px',
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    display: 'flex',
+    alignItems: 'center',
+  },
+  cancelButton: {
+    background: 'none',
+    color: '#a6adc8',
+    border: '1px solid #333366',
+    borderRadius: 4,
+    padding: '6px 12px',
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    display: 'flex',
+    alignItems: 'center',
+  },
+  transcriptTextArea: {
+    flex: 1,
+    background: '#1a1a2e',
+    color: '#a6adc8',
+    border: '1px solid #333366',
+    borderRadius: 4,
+    padding: 12,
+    fontSize: 13,
+    lineHeight: 1.6,
+    fontFamily: 'inherit',
+    resize: 'none' as const,
+    outline: 'none',
+    minHeight: 200,
   },
   fallbackContent: {
     color: '#a6adc8',
@@ -284,6 +479,8 @@ const styles = {
     textAlign: 'left' as const,
     whiteSpace: 'pre-wrap',
     wordBreak: 'break-word' as const,
+    flex: 1,
+    overflow: 'auto',
   },
 
   summaryContainer: {

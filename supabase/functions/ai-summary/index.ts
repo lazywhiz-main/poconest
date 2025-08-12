@@ -12,6 +12,7 @@ interface RequestBody {
   meetingId?: string;
   nestId?: string;
   provider?: 'openai' | 'gemini';
+  job_id?: string; // ジョブIDを追加
 }
 
 interface NestAISettings {
@@ -98,7 +99,7 @@ async function callOpenAI(prompt: string, action: string, apiKey: string, model:
           content: prompt
         }
       ],
-      max_tokens: action === 'summary' ? 1500 : 2000,
+      max_tokens: action === 'summary' ? 4000 : 2000,
       temperature: 0.7,
     }),
   })
@@ -130,7 +131,7 @@ async function callGemini(prompt: string, action: string, apiKey: string, model:
         }
       ],
       generationConfig: {
-        maxOutputTokens: action === 'summary' ? 1500 : 2000,
+        maxOutputTokens: action === 'summary' ? 4000 : 2000,
         temperature: 0.7,
       }
     }),
@@ -210,7 +211,28 @@ serve(async (req) => {
   }
 
   try {
-    const { action, content, meetingId, nestId, provider }: RequestBody = await req.json()
+    // 🔍 呼び出し元を特定するための詳細ログ
+    console.log('🔍 [ai-summary] Edge Function呼び出し開始', {
+      timestamp: new Date().toISOString(),
+      method: req.method,
+      url: req.url,
+      headers: Object.fromEntries(req.headers.entries()),
+      userAgent: req.headers.get('user-agent'),
+      referer: req.headers.get('referer'),
+      origin: req.headers.get('origin')
+    });
+
+    const { action, content, meetingId, nestId, provider, job_id }: RequestBody = await req.json()
+    
+    console.log(`🔍 [ai-summary] リクエストボディ解析完了:`, {
+      action,
+      contentLength: content?.length,
+      meetingId,
+      nestId,
+      provider,
+      job_id,
+      hasContent: !!content
+    });
     
     console.log(`[ai-summary] Processing ${action} request with nestId: ${nestId}, provider: ${provider}`)
 
@@ -218,6 +240,30 @@ serve(async (req) => {
     let aiSettings: NestAISettings;
     let finalProvider = provider || 'openai';
     let usedProvider: string;
+
+    // 🔧 ジョブステータスをrunningに更新
+    if (job_id) {
+      console.log(`🔧 [ai-summary] ジョブステータスをrunningに更新: ${job_id}`);
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')
+      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+      
+      if (supabaseUrl && supabaseKey) {
+        const supabase = createClient(supabaseUrl, supabaseKey)
+        const { error: updateError } = await supabase
+          .from('background_jobs')
+          .update({
+            status: 'running',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', job_id);
+
+        if (updateError) {
+          console.warn(`🔧 [ai-summary] ジョブステータス更新エラー:`, updateError);
+        } else {
+          console.log(`🔧 [ai-summary] ジョブステータス更新完了: ${job_id} -> running`);
+        }
+      }
+    }
 
     if (nestId) {
       // nest_idが指定された場合は、nest設定を取得してプロバイダーを決定
@@ -359,6 +405,38 @@ ${content}`;
       }
     }
 
+    // 🔧 ジョブステータスをcompletedに更新し、結果を保存
+    if (job_id) {
+      console.log(`🔧 [ai-summary] ジョブ完了 - ステータスをcompletedに更新: ${job_id}`);
+      
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')
+      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+      
+      if (supabaseUrl && supabaseKey) {
+        const supabase = createClient(supabaseUrl, supabaseKey)
+        const { error: updateError } = await supabase
+          .from('background_jobs')
+          .update({
+            status: 'completed',
+            result: {
+              summary: action === 'summary' ? result : undefined,
+              cards: action === 'extract_cards' ? JSON.parse(result) : undefined,
+              provider: usedProvider,
+              completedAt: new Date().toISOString()
+            },
+            progress: 100,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', job_id);
+
+        if (updateError) {
+          console.warn(`🔧 [ai-summary] ジョブ完了時ステータス更新エラー:`, updateError);
+        } else {
+          console.log(`🔧 [ai-summary] ジョブ完了時ステータス更新完了: ${job_id} -> completed`);
+        }
+      }
+    }
+
     // カード抽出の場合はJSONパースを試行
     if (action === 'extract_cards') {
       try {
@@ -399,6 +477,37 @@ ${content}`;
     )
   } catch (error) {
     console.error('[ai-summary] Error:', error)
+    
+    // 🔧 エラー時もジョブステータスをfailedに更新
+    if (job_id) {
+      console.log(`🔧 [ai-summary] エラー発生 - ジョブステータスをfailedに更新: ${job_id}`);
+      
+      try {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')
+        const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+        
+        if (supabaseUrl && supabaseKey) {
+          const supabase = createClient(supabaseUrl, supabaseKey)
+          const { error: updateError } = await supabase
+            .from('background_jobs')
+            .update({
+              status: 'failed',
+              error_message: error.message,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', job_id);
+
+          if (updateError) {
+            console.warn(`🔧 [ai-summary] エラー時ジョブステータス更新エラー:`, updateError);
+          } else {
+            console.log(`🔧 [ai-summary] エラー時ジョブステータス更新完了: ${job_id} -> failed`);
+          }
+        }
+      } catch (updateErr) {
+        console.error(`🔧 [ai-summary] エラー時ジョブステータス更新で例外発生:`, updateErr);
+      }
+    }
+    
     return new Response(
       JSON.stringify({ 
         success: false, 

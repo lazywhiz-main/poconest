@@ -6,7 +6,7 @@ export interface AIProvider {
   generateEmbeddings(texts: string[]): Promise<number[][] | null>;
   generateSummary(content: string): Promise<string>;
   analyzeChat(messages: any[], systemPrompt: string): Promise<string>;
-  extractCards(meetingContent: string): Promise<any[]>;
+  extractCards(meetingContent: string, meetingId?: string, jobId?: string): Promise<any[]>;
 }
 
 // AI Provider の設定型

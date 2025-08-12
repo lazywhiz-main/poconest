@@ -761,8 +761,14 @@ const AppRoutes: React.FC = () => {
 const App: React.FC = () => {
   // バックグラウンドジョブワーカーを起動
   useEffect(() => {
-    console.log('[App] Starting background job worker...');
-    startBackgroundJobWorker();
+    console.log('🚨🚨🚨 [App] Starting background job worker... 🚨🚨🚨');
+    
+    try {
+      startBackgroundJobWorker();
+      console.log('🚨 [App] startBackgroundJobWorker() 呼び出し完了');
+    } catch (error) {
+      console.error('🚨🚨🚨 [App] BackgroundJobWorker起動エラー:', error);
+    }
     
     // クリーンアップは通常不要（アプリ全体のライフサイクルなので）
     // return () => stopBackgroundJobWorker();

@@ -7,6 +7,7 @@ import { useNest } from '../features/nest/contexts/NestContext';
 import { ChatMessage, UIMessage, ChatUser } from 'src/types/nestSpace.types';
 import { ChatRoom } from 'src/features/nest-space/chat-space/types/chat.types';
 import { useAuth } from './AuthContext';
+import { CardExtractionSettings } from '../features/meeting-space/types/meeting';
 
 
 // コンテキストの型定義
@@ -21,7 +22,7 @@ interface ChatContextProps {
   generateSummary: () => Promise<void>;
   showSummary: boolean;
   conversationSummary: string;
-  extractAndSaveInsights: (chatId: string) => Promise<void>;
+  extractAndSaveInsights: (chatId: string, extractionSettings?: CardExtractionSettings) => Promise<void>;
   isExtractingInsights: boolean;
   createChatRoom: (spaceId: string, name: string, description?: string) => Promise<void>;
   getChatRoomsBySpaceId: (spaceId: string) => Promise<ChatRoom[]>;
@@ -374,9 +375,9 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setLoadingMessages(false);
   };
 
-  // インサイト抽出（analyze-chat Edge Functionを直接使用）
-  const extractAndSaveInsights = async (chatId: string): Promise<void> => {
-    console.log('🔥🔥🔥 [ChatContext] EXTRACT AND SAVE INSIGHTS CALLED 🔥🔥🔥');
+  // インサイト抽出（extract-cards-from-meeting Edge Functionを使用）
+  const extractAndSaveInsights = async (chatId: string, extractionSettings?: CardExtractionSettings): Promise<void> => {
+    console.log('🚨🚨🚨 [ChatContext] EXTRACT AND SAVE INSIGHTS CALLED 🚨🚨🚨');
     console.log('[ChatContext] Starting extractAndSaveInsights with chatId:', chatId);
     console.log('[ChatContext] Initial auth state check:', {
       user: user,
@@ -432,45 +433,60 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         timestamp: msg.created_at || new Date().toISOString()
       }));
 
-      // analyze-chat Edge Functionを直接呼び出し
+      // extract-cards-from-meeting Edge Functionを呼び出し
       const { supabase } = await import('../services/supabase/client');
       
-      console.log('[ChatContext] Calling analyze-chat with params:', {
+      console.log('[ChatContext] Calling extract-cards-from-meeting with params:', {
         messageCount: aiMessages.length,
         nestId: currentNest?.id,
         userId: finalUserId,
         spaceId: targetRoom.spaceId,
         hasCurrentNest: !!currentNest,
-        currentNestData: currentNest
+        currentNestData: currentNest,
+        extractionSettings
       });
       
       // nestIdの決定：currentNest?.id -> targetRoom.spaceId -> null の順で優先
       const nestIdToUse = currentNest?.id || targetRoom.spaceId || null;
       
-      const { data, error } = await supabase.functions.invoke('analyze-chat', {
-        body: {
-          messages: aiMessages.slice(-30), // 最新30件のメッセージを分析
-          board_id: chatId,
-          created_by: finalUserId, // 確認済みのユーザーID
-          nestId: nestIdToUse, // 決定されたnestIdを使用
-        },
-      });
+      // チャットメッセージを会議形式に変換（カード抽出用）
+      const transcript = aiMessages.map(msg => 
+        `${msg.userName}: ${msg.text}`
+      ).join('\n\n');
+      
+      // 🔧 一時的にChatContextからの呼び出しを無効化（createJobテスト用）
+      console.log('🚨 [ChatContext] 一時的に無効化 - createJobテスト中');
+      return;
+      
+      // 🔧 チャットカード抽出用にジョブIDを生成
+      // const chatJobId = `chat_${chatId}_${Date.now()}`;
+      // console.log('🚨 [ChatContext] チャットカード抽出 - job_id付きでEdge Function呼び出し:', chatJobId);
+      
+      // 20250811_無駄なカード生成の件で原因把握のためにコメントアウト
+      // const { data, error } = await supabase.functions.invoke('extract-cards-from-meeting', {
+      //   body: {
+      //     meeting_id: chatId,
+      //     job_id: chatJobId, // 🔧 チャット用のjob_idを追加
+      //     nestId: nestIdToUse, // 🔧 nestIdも追加
+      //     extraction_settings: extractionSettings
+      //   },
+      // });
 
-      if (error) {
-        console.error('[ChatContext] AI分析エラー:', error);
-        alert('AI分析でエラーが発生しました: ' + error.message);
-        return;
-      }
+      // if (error) {
+      //   console.error('[ChatContext] AI分析エラー:', error);
+      //   alert('AI分析でエラーが発生しました: ' + error.message);
+      //   return;
+      // }
 
-      if (!data || !data.success) {
-        console.warn('[ChatContext] AI分析失敗:', data);
-        alert('AI分析に失敗しました');
-        return;
-      }
+      // if (!data || !data.success) {
+      //   console.warn('[ChatContext] AI分析失敗:', data);
+      //   alert('AI分析に失敗しました');
+      //   return;
+      // }
 
       // 成功時の通知
-      console.log('[ChatContext] インサイト抽出完了:', data);
-      alert('インサイト抽出が完了しました！\n\n結果: ' + (data.markdown ? '分析レポートが生成されました' : 'データが返されました'));
+      // console.log('[ChatContext] インサイト抽出完了');
+      // alert('インサイト抽出が完了しました！');
       
     } catch (error) {
       console.error('[ChatContext] インサイト抽出エラー:', error);

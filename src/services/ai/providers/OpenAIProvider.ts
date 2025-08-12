@@ -27,7 +27,12 @@ export class OpenAIProvider implements AIProvider {
 
   async isAvailable(): Promise<boolean> {
     try {
-      // OpenAI APIキーの存在確認（実際のAPI呼び出しではなく設定確認）
+      console.log('🔍 [OpenAIProvider] ai-health-check Edge Function呼び出し開始:', {
+        functionName: 'ai-health-check',
+        timestamp: new Date().toISOString(),
+        stackTrace: new Error().stack
+      });
+      
       const response = await supabase.functions.invoke('ai-health-check', {
         body: { provider: 'openai' }
       });
@@ -111,6 +116,13 @@ export class OpenAIProvider implements AIProvider {
     try {
       console.log('[OpenAIProvider] Generating embeddings for', texts.length, 'texts');
       
+      console.log('🔍 [OpenAIProvider] ai-embeddings Edge Function呼び出し開始:', {
+        functionName: 'ai-embeddings',
+        timestamp: new Date().toISOString(),
+        textsCount: texts.length,
+        stackTrace: new Error().stack
+      });
+      
       const response = await supabase.functions.invoke('ai-embeddings', {
         body: { 
           texts,
@@ -133,7 +145,18 @@ export class OpenAIProvider implements AIProvider {
   async generateSummary(content: string, context?: AIRequestContext): Promise<string> {
     const startTime = Date.now();
     try {
-      console.log('[OpenAIProvider] Generating summary for content length:', content.length);
+      console.log('🔍 [OpenAIProvider] generateSummary呼び出し開始', {
+        timestamp: new Date().toISOString(),
+        contentLength: content.length,
+        stackTrace: new Error().stack
+      });
+      
+      console.log('🔍 [OpenAIProvider] ai-summary Edge Function呼び出し開始:', {
+        functionName: 'ai-summary',
+        timestamp: new Date().toISOString(),
+        contentLength: content.length,
+        stackTrace: new Error().stack
+      });
       
       const response = await supabase.functions.invoke('ai-summary', {
         body: {
@@ -144,6 +167,8 @@ export class OpenAIProvider implements AIProvider {
           maxTokens: this.config.maxTokens
         }
       });
+
+      console.log('🔍 [OpenAIProvider] generateSummary Edge Function呼び出し完了');
 
       if (!response.data?.success) {
         throw new Error(response.data?.error || 'Summary generation failed');
@@ -178,28 +203,6 @@ export class OpenAIProvider implements AIProvider {
       return response.data.result;
     } catch (error) {
       console.error('[OpenAIProvider] Failed to generate summary:', error);
-      
-      // エラーでもログを記録
-      if (context) {
-        await AIUsageLogger.logUsage({
-          userId: context.userId,
-          nestId: context.nestId,
-          featureType: 'meeting_summary',
-          provider: 'openai',
-          model: this.config.model || 'gpt-4o',
-          inputTokens: 0,
-          outputTokens: 0,
-          estimatedCostUsd: 0,
-          requestMetadata: { contentLength: content.length },
-          responseMetadata: { 
-            success: false, 
-            error: error instanceof Error ? error.message : String(error),
-            processingTime: Date.now() - startTime 
-          },
-          meetingId: context.meetingId
-        });
-      }
-      
       throw error;
     }
   }
@@ -207,7 +210,12 @@ export class OpenAIProvider implements AIProvider {
   async analyzeChat(messages: any[], systemPrompt: string, context?: AIRequestContext): Promise<string> {
     const startTime = Date.now();
     try {
-      console.log('[OpenAIProvider] Analyzing chat with', messages.length, 'messages');
+      console.log('🔍 [OpenAIProvider] analyze-chat Edge Function呼び出し開始:', {
+        functionName: 'analyze-chat',
+        timestamp: new Date().toISOString(),
+        messagesCount: messages.length,
+        stackTrace: new Error().stack
+      });
       
       const response = await supabase.functions.invoke('analyze-chat', {
         body: {
@@ -284,17 +292,38 @@ export class OpenAIProvider implements AIProvider {
     }
   }
 
-  async extractCards(meetingContent: string): Promise<any[]> {
+  async extractCards(meetingContent: string, meetingId?: string, jobId?: string): Promise<any[]> {
     try {
-      console.log('[OpenAIProvider] Extracting cards from meeting content');
-      
-      const response = await supabase.functions.invoke('extract-cards-from-meeting', {
-        body: {
-          content: meetingContent,
-          provider: 'openai',
-          model: this.config.model
-        }
+      // 🔒 job_idが無い場合はEdge Functionを呼び出さない
+      if (!jobId) {
+        console.log('🚫 [OpenAIProvider] job_idが無いためEdge Function呼び出しをスキップ');
+        throw new Error('job_idが必須です。Edge Functionを呼び出すことができません。');
+      }
+
+      console.log('🚨🚨🚨 [OpenAIProvider] extractCards呼び出し開始 - job_id付きEdge Function呼び出し 🚨🚨🚨', {
+        timestamp: new Date().toISOString(),
+        contentLength: meetingContent.length,
+        meetingId: meetingId,
+        jobId: jobId,
+        directCall: jobId ? false : true,
+        stackTrace: new Error().stack
       });
+      
+      // 🚨 一時的にEdge Function呼び出しを無効化してデバッグ
+      console.log('🚨🚨🚨 [OpenAIProvider] Edge Function呼び出しを一時的に無効化 🚨🚨🚨');
+      throw new Error('OpenAIProvider Edge Function呼び出しが一時的に無効化されています');
+      
+      // const response = await supabase.functions.invoke('extract-cards-from-meeting', {
+      //   body: {
+      //     meeting_id: meetingId, // meeting_idを明示的に追加
+      //     job_id: jobId, // job_idを追加
+      //     action: 'extract_cards',
+      //     content: meetingContent,
+      //     provider: 'openai',
+      //     model: this.config.model,
+      //     maxTokens: this.config.maxTokens
+      //   }
+      // });
 
       if (!response.data?.success) {
         throw new Error(response.data?.error || 'Card extraction failed');
@@ -303,7 +332,7 @@ export class OpenAIProvider implements AIProvider {
       return response.data.cards || [];
     } catch (error) {
       console.error('[OpenAIProvider] Failed to extract cards:', error);
-      throw error;
+      return [];
     }
   }
 } 

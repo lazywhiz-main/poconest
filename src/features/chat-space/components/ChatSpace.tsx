@@ -13,6 +13,8 @@ import Button from '../../../components/ui/Button';
 import Spinner from '../../../components/ui/Spinner';
 import Icon from '../../../components/ui/Icon';
 import { useBackgroundJobs } from '../../meeting-space/hooks/useBackgroundJobs';
+import { CardExtractionSettings, CARD_EXTRACTION_PRESETS } from '../../meeting-space/types/meeting';
+import CustomDropdown from '../../../components/ui/CustomDropdown';
 // import { Channel, Message } from '../../../types/chat';
 // import { createPortal } from 'react-dom';
 // import { SUPABASE_FUNCTION_URL } from '../../../constants/config';
@@ -238,6 +240,14 @@ const ChatSpace: React.FC<ChatSpaceProps> = ({ nestId }) => {
   const scrollViewRef = useRef<ScrollView>(null);
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [showChannelList, setShowChannelList] = useState(false);
+  const [extractionGranularity, setExtractionGranularity] = useState<'coarse' | 'medium' | 'fine'>(() => {
+    // ローカルストレージから保存された設定を読み込み
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('chatSpace_extractionGranularity');
+      return (saved as 'coarse' | 'medium' | 'fine') || 'medium';
+    }
+    return 'medium';
+  });
   const { width } = useWindowDimensions();
   const isMobile = width < 600;
   // アニメーション用
@@ -313,7 +323,11 @@ const ChatSpace: React.FC<ChatSpaceProps> = ({ nestId }) => {
   // インサイト抽出ハンドラー
   const handleExtractInsights = async () => {
     if (!activeChatRoomId) return;
-    await extractAndSaveInsights(activeChatRoomId);
+    
+    // 選択された抽出粒度の設定を取得
+    const extractionSettings = CARD_EXTRACTION_PRESETS[extractionGranularity];
+    
+    await extractAndSaveInsights(activeChatRoomId, extractionSettings);
   };
 
   // チャネル追加ハンドラー
@@ -944,6 +958,34 @@ const ChatSpace: React.FC<ChatSpaceProps> = ({ nestId }) => {
                         <span style={{ fontSize: 12, color: '#6c7086', marginTop: 2 }}>{currentChannel.description}</span>
                       </div>
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        {/* 抽出粒度選択UI */}
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                          fontSize: 12,
+                          color: '#e2e8f0'
+                        }}>
+                          <span>抽出粒度:</span>
+                          <CustomDropdown
+                            value={extractionGranularity}
+                            onChange={(value) => {
+                              const granularity = value as 'coarse' | 'medium' | 'fine';
+                              setExtractionGranularity(granularity);
+                              // ローカルストレージに保存
+                              if (typeof window !== 'undefined') {
+                                localStorage.setItem('chatSpace_extractionGranularity', granularity);
+                              }
+                            }}
+                            options={[
+                              { value: 'coarse', label: 'ざっくり' },
+                              { value: 'medium', label: '標準' },
+                              { value: 'fine', label: '細かめ' }
+                            ]}
+                            style={{ minWidth: 100 }}
+                          />
+                        </div>
+                        
                         <button
                           style={{
                             background: '#333366',

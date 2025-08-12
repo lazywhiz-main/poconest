@@ -1,6 +1,6 @@
 import React from 'react';
 import { BoardCardUI } from '../../../types/board';
-import { formatJapanDate } from '../../../utils/dateFormatter';
+import { formatJapanDateTime } from '../../../utils/dateFormatter';
 
 interface BoardCardWebProps {
   card: BoardCardUI;
@@ -205,8 +205,8 @@ const BoardCardWeb: React.FC<BoardCardWebProps> = ({ card, onDelete, onClick, sh
       )}
       {/* メタ情報 */}
       <div className="card-meta" style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 0, fontSize: 11, color: '#6c7086' }}>
-        <span>{`Created: ${formatJapanDate(card.createdAt)} | ${card.createdByDisplayName || card.createdBy}`}</span>
-        <span>{`Updated: ${formatJapanDate(card.updatedAt)} | ${card.updatedByDisplayName || card.updatedBy || card.createdByDisplayName || card.createdBy}`}</span>
+        <span>{`Created: ${formatJapanDateTime(card.createdAt)} | ${card.createdByDisplayName || card.createdBy}`}</span>
+        <span>{`Updated: ${formatJapanDateTime(card.updatedAt)} | ${card.updatedByDisplayName || card.updatedBy || card.createdByDisplayName || card.createdBy}`}</span>
       </div>
     </div>
   );

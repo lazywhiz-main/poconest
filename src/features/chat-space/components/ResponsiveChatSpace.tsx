@@ -79,6 +79,13 @@ const ResponsiveChatSpace: React.FC<ResponsiveChatSpaceProps> = ({ nestId }) => 
     sender: msg.sender
   }));
 
+  console.log('🚨🚨🚨 [ResponsiveChatSpace] useChatToBoard呼び出し開始 🚨🚨🚨', {
+    timestamp: new Date().toISOString(),
+    currentChannelId: currentChannel?.id,
+    messagesCount: aiMessages.length,
+    stackTrace: new Error().stack
+  });
+  
   const { status, startAnalysis, insights } = useChatToBoard({
     channelId: currentChannel?.id || '',
     messages: aiMessages,
@@ -121,6 +128,7 @@ const ResponsiveChatSpace: React.FC<ResponsiveChatSpaceProps> = ({ nestId }) => 
 
   // カード抽出ハンドラー
   const handleAnalyzeClick = async () => {
+    console.log('🚨🚨🚨 [ResponsiveChatSpace] handleAnalyzeClick called - 分析開始 🚨🚨🚨');
     console.log('[ResponsiveChatSpace] handleAnalyzeClick called');
     const warn = await startAnalysis();
     if (warn) {

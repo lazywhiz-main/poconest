@@ -1,5 +1,6 @@
 import { supabase } from '../supabase/client';
 import { AIUsageLogger } from './AIUsageLogger';
+import { OpenAI } from 'openai';
 
 // Edge FunctionのベースURLを環境変数から取得
 //const SUPABASE_FUNCTIONS_URL = process.env.NEXT_PUBLIC_SUPABASE_FUNCTIONS_URL || 'https://<your-project-id>.supabase.co/functions/v1';
@@ -14,8 +15,25 @@ export interface AIRequestContext {
 }
 
 // OpenAI API経由でミーティング要約を生成
-export async function generateMeetingSummary(content: string, context?: AIRequestContext): Promise<string> {
-  console.log('🚀 generateMeetingSummary called with content length:', content?.length);
+export async function generateMeetingSummary(content: string, context?: AIRequestContext, jobId?: string): Promise<string> {
+  const callId = Math.random().toString(36).substr(2, 9); // 呼び出しIDを生成
+  console.log(`🔍 [generateMeetingSummary] 関数呼び出し開始 #${callId}`, {
+    timestamp: new Date().toISOString(),
+    meetingId: context?.meetingId,
+    jobId,
+    nestId: context?.nestId,
+    userId: context?.userId,
+    stackTrace: new Error().stack
+  });
+
+  console.log('🔍 [openai.ts] ai-summary Edge Function呼び出し開始:', {
+    functionName: 'ai-summary',
+    timestamp: new Date().toISOString(),
+    meetingId: context?.meetingId,
+    jobId,
+    callId,
+    stackTrace: new Error().stack
+  });
   
   const startTime = Date.now();
   
@@ -27,6 +45,7 @@ export async function generateMeetingSummary(content: string, context?: AIReques
       body: {
         action: 'summary',
         content: content,
+        job_id: jobId, // 🔧 ジョブIDを渡してステータス更新を可能にする
         nestId: context?.nestId // Nest設定を取得するためにnestIdを渡す
       }
     });
@@ -107,30 +126,74 @@ export async function generateMeetingSummary(content: string, context?: AIReques
       });
     }
     
-    console.log('🔄 Falling back to mock summary');
-    // フォールバックとしてモック関数を使用
-    return generateMockSummary();
+    console.log('🔄 AI summary generation failed, throwing error');
+    // モックデータは返さず、エラーを投げる
+    throw new Error('AI summary generation failed. Please check your API configuration and try again.');
   }
 }
 
+// グローバル重複防止フラグ
+const inProgressMap = new Map<string, boolean>();
+
 // OpenAI API経由でミーティングからカードを抽出
-export async function extractCardsFromMeeting(meetingId: string, context?: AIRequestContext): Promise<{ cards: any[], provider: string }> {
-  console.log('extractCardsFromMeetingに渡すmeetingId:', meetingId);
+export async function extractCardsFromMeeting(meetingId: string, context?: AIRequestContext, jobId?: string): Promise<{ cards: any[], provider: string }> {
+  const callId = Math.random().toString(36).substr(2, 9); // 呼び出しIDを生成
   
-  const startTime = Date.now();
-  
-  try {
-    const { data, error } = await supabase.functions.invoke('extract-cards-from-meeting', {
-      body: { 
-        meeting_id: meetingId,
-        nestId: context?.nestId // Nest設定を取得するためにnestIdを渡す
-      }
+  // 🔧 重複防止チェック
+  const duplicateKey = `${meetingId}_${context?.nestId}`;
+  if (inProgressMap.get(duplicateKey)) {
+    console.log(`🔧 [extractCardsFromMeeting] #${callId}: 重複呼び出しを防止`, {
+      timestamp: new Date().toISOString(),
+      meetingId,
+      duplicateKey,
+      inProgress: true
     });
+    throw new Error('カード抽出は既に処理中です');
+  }
+  
+  // 🔧 処理開始フラグを設定
+  inProgressMap.set(duplicateKey, true);
+  
+  console.log(`🚨🚨🚨 [extractCardsFromMeeting] 関数呼び出し開始 #${callId} 🚨🚨🚨`, {
+    timestamp: new Date().toISOString(),
+    meetingId,
+    jobId,
+    nestId: context?.nestId,
+    userId: context?.userId,
+    duplicateKey,
+    stackTrace: new Error().stack
+  });
+
+  try {
+    // 🔒 job_idが無い場合はEdge Functionを呼び出さない
+    if (!jobId) {
+      console.log(`🚫 [extractCardsFromMeeting] #${callId}: job_idが無いためEdge Function呼び出しをスキップ`);
+      throw new Error('job_idが必須です。Edge Functionを呼び出すことができません。');
+    }
+
+    console.log(`🔍 [extractCardsFromMeeting] #${callId}: Edge Function呼び出し開始`);
     
+    // 🚨 一時的にEdge Function呼び出しを無効化してデバッグ
+    console.log(`🚨🚨🚨 [extractCardsFromMeeting] #${callId}: Edge Function呼び出しを一時的に無効化 🚨🚨🚨`);
+    throw new Error('Edge Function呼び出しが一時的に無効化されています');
+    
+    // const { data, error } = await supabase.functions.invoke('extract-cards-from-meeting', {
+    //   body: { 
+    //     meeting_id: meetingId,
+    //     job_id: jobId, // 🔧 ジョブIDを渡してステータス更新を可能にする
+    //     nestId: context?.nestId // Nest設定を取得するためにnestIdを渡す
+    //   }
+    // });
+    
+    console.log(`🔍 [extractCardsFromMeeting] #${callId}: Edge Function呼び出し完了`);
+      
     if (error) throw error;
     if (!data.success) throw new Error(data.error || '抽出に失敗しました');
 
-    console.log('🤖 Used provider for card extraction:', data.provider);
+    console.log(`🔍 [extractCardsFromMeeting] #${callId}: 処理完了`, {
+      provider: data.provider,
+      cardsCount: data.cards?.length || 0
+    });
 
     // AI使用量をログ（Edge Functionから返された実際のプロバイダー情報を使用）
     if (context) {
@@ -158,7 +221,7 @@ export async function extractCardsFromMeeting(meetingId: string, context?: AIReq
         responseMetadata: { 
           success: true, 
           cardsCount: data.cards.length,
-          processingTime: Date.now() - startTime,
+          processingTime: Date.now() - Date.now(),
           usage: data.usage,
           actualProvider: data.provider
         },
@@ -186,13 +249,20 @@ export async function extractCardsFromMeeting(meetingId: string, context?: AIReq
         responseMetadata: { 
           success: false, 
           error: error instanceof Error ? error.message : String(error),
-          processingTime: Date.now() - startTime 
+          processingTime: Date.now() - Date.now()
         },
-        meetingId: context.meetingId
+        meetingId
       });
     }
     
     throw error;
+  } finally {
+    // 🔧 処理完了後にフラグをリセット
+    inProgressMap.delete(duplicateKey);
+    console.log(`🔧 [extractCardsFromMeeting] #${callId}: 重複防止フラグをリセット`, {
+      timestamp: new Date().toISOString(),
+      duplicateKey
+    });
   }
 }
 
@@ -207,58 +277,6 @@ function getModelFromProvider(provider: string): string {
   }
 }
 
-// モック関数: 要約生成
-export function generateMockSummary(): string {
-  return `# ミーティング要約
 
-## 会議概要
-- 日時: ${new Date().toLocaleDateString('ja-JP')}
-- 参加者: [APIキー未設定のため自動抽出不可]
-- 目的: [APIキー未設定のため自動抽出不可]
 
-## 主要な議題と決定事項
-- **注意**: OpenAI APIが利用できないため、モック要約を表示しています
-- 実際のAI要約を利用するには、SupabaseのEdge FunctionでOPENAI_API_KEYを設定してください
-
-## アクションアイテム
-- OpenAI APIキーの設定確認
-- AI機能のテスト実行
-
-## 次回までの課題
-- AI機能の本格運用開始
-
-> このはモック要約です。実際のミーティング内容を解析するには、OpenAI APIキーの設定が必要です。`;
-}
-
-// モック関数: カード抽出
-export function generateMockCards(): any[] {
-  return [
-    {
-      title: "OpenAI API設定確認",
-      content: "Supabase Edge FunctionでOPENAI_API_KEYが正しく設定されているか確認する",
-      type: "task",
-      priority: "high",
-      tags: ["設定", "API"],
-      assignee: null,
-      deadline: null
-    },
-    {
-      title: "AI機能テスト",
-      content: "ミーティング要約とカード抽出機能の動作確認を行う",
-      type: "task", 
-      priority: "medium",
-      tags: ["テスト", "AI"],
-      assignee: null,
-      deadline: null
-    },
-    {
-      title: "本格運用開始",
-      content: "AI機能が正常に動作することを確認後、チーム全体で利用開始",
-      type: "idea",
-      priority: "low", 
-      tags: ["運用", "チーム"],
-      assignee: null,
-      deadline: null
-    }
-  ];
-} 
+ 

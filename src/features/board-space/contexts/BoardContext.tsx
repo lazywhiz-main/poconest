@@ -85,8 +85,27 @@ const boardReducer = (state: BoardState, action: BoardAction): BoardState => {
       };
     }
     case 'ADD_CARDS': {
+      // 🔍 呼び出し元トレースのためのスタックトレース取得
+      const stack = new Error().stack;
+      const callerInfo = stack?.split('\n')[3]?.trim() || 'unknown'; // dispatchの呼び出し元
+      
       const existingIds = new Set(state.cards.map(i => i.id));
       const newCards = action.payload.filter(i => !existingIds.has(i.id));
+      
+      console.log('🔍 [BoardContext] ADD_CARDS === 呼び出し詳細 ===', {
+        timestamp: new Date().toISOString(),
+        callerInfo: callerInfo,
+        payloadCount: action.payload?.length || 0,
+        newCardsCount: newCards.length,
+        existingCardsCount: state.cards.length,
+        payloadPreview: action.payload?.slice(0, 2).map(card => ({
+          id: card?.id,
+          title: card?.title,
+          column_type: card?.column_type || card?.columnType
+        })),
+        fullStackTrace: stack
+      });
+      
       console.log('[BoardContext] ADD_CARDS payload:', action.payload);
       console.log('[BoardContext] ADD_CARDS newCards:', newCards);
       const updatedCards = [...state.cards, ...newCards];
@@ -185,6 +204,23 @@ export const BoardProvider: React.FC<BoardProviderProps> = ({ children, currentN
 
   // アクションをラップしたヘルパー関数
   const addCards = useCallback((cards: BoardItem[]) => {
+    // 🔍 呼び出し元トレースのためのスタックトレース取得
+    const stack = new Error().stack;
+    const callerInfo = stack?.split('\n')[2]?.trim() || 'unknown';
+    
+    console.log('🔍 [BoardContext.addCards] === 関数呼び出し ===', {
+      timestamp: new Date().toISOString(),
+      callerInfo: callerInfo,
+      cardsCount: cards?.length || 0,
+      cardsPreview: cards?.slice(0, 2).map(card => ({
+        id: card?.id,
+        title: card?.title,
+        column_type: card?.column_type || card?.columnType,
+        created_at: card?.created_at || card?.createdAt
+      })),
+      fullStackTrace: stack
+    });
+    
     dispatch({ type: 'ADD_CARDS', payload: cards });
   }, []);
   
@@ -286,6 +322,22 @@ export const BoardProvider: React.FC<BoardProviderProps> = ({ children, currentN
       // 2. 取得したboard_idを使ってカードを取得（tags含む）
       const { data: cardData, error: cardError } = await getBoardCardsWithTags(boardData.id);
       if (cardError) throw cardError;
+      
+      console.log('🔍 [loadNestData] === データベースから既存カード読み込み ===', {
+        timestamp: new Date().toISOString(),
+        boardId: boardData.id,
+        nestId: nestId,
+        cardsCount: cardData?.length || 0,
+        cardsPreview: cardData?.slice(0, 3).map(card => ({
+          id: card.id,
+          title: card.title,
+          content: card.content?.substring(0, 50) + '...',
+          column_type: card.column_type,
+          created_at: card.created_at,
+          metadata: card.metadata
+        }))
+      });
+      
       console.log('[loadNestData] 取得したcardData:', JSON.stringify(cardData, null, 2));
       // 追加: relationsを一括取得
       const { data: relationsData } = await supabase

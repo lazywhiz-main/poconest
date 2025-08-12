@@ -10,7 +10,7 @@ const supabaseOptions = {
     flowType: 'pkce' as const,
     storage: localStorage,
     storageKey: 'supabase.auth.token',
-    debug: import.meta.env.DEV ? true : false,
+    debug: false, // 🔇 GoTrueログを無効化（デバッグ時も含めて）
   },
   global: {
     headers: {

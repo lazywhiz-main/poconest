@@ -86,10 +86,37 @@ export async function addBoardCard(card: BoardCardInsert) {
 
 // 複数カード作成
 export async function addBoardCards(cards: BoardCardInsert[]) {
-  return supabase
+  // 🔍 呼び出し元トレースのためのスタックトレース取得
+  const stack = new Error().stack;
+  const callerInfo = stack?.split('\n')[2]?.trim() || 'unknown';
+  
+  console.log('🔍 [addBoardCards] === 単純なカード挿入関数呼び出し ===', {
+    timestamp: new Date().toISOString(),
+    callerInfo: callerInfo,
+    cardsCount: cards?.length || 0,
+    cardsPreview: cards?.slice(0, 2).map(card => ({
+      title: card.title,
+      content: card.content?.substring(0, 50) + '...',
+      column_type: card.column_type,
+      board_id: card.board_id,
+      created_by: card.created_by
+    })),
+    fullStackTrace: stack
+  });
+  
+  const result = await supabase
     .from('board_cards')
     .insert(cards)
     .select();
+    
+  console.log('🔍 [addBoardCards] === 単純なカード挿入完了 ===', {
+    timestamp: new Date().toISOString(),
+    insertedCount: result.data?.length || 0,
+    success: !result.error,
+    error: result.error?.message
+  });
+  
+  return result;
 }
 
 // カード更新
@@ -104,10 +131,120 @@ export async function updateBoardCard(id: string, update: Partial<BoardCardInser
 
 // カード削除
 export async function deleteCard(id: string) {
-  return supabase
-    .from('board_cards')
-    .delete()
-    .eq('id', id);
+  try {
+    console.log('[BoardService] deleteCard開始:', { cardId: id });
+    
+    // 現在のユーザー情報を取得
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError) {
+      console.error('[BoardService] ユーザー認証エラー:', userError);
+      return { data: null, error: { message: 'ユーザー認証に失敗しました' } };
+    }
+    
+    if (!user) {
+      console.error('[BoardService] ユーザーが認証されていません');
+      return { data: null, error: { message: 'ログインが必要です' } };
+    }
+    
+    console.log('[BoardService] 現在のユーザー:', { userId: user.id, email: user.email });
+    
+    // カードの存在確認
+    const { data: existingCard, error: checkError } = await supabase
+      .from('board_cards')
+      .select('id, title, created_by, board_id')
+      .eq('id', id)
+      .single();
+    
+    if (checkError) {
+      console.error('[BoardService] カード存在確認エラー:', checkError);
+      return { data: null, error: checkError };
+    }
+    
+    if (!existingCard) {
+      console.error('[BoardService] カードが見つかりません:', id);
+      return { data: null, error: { message: 'カードが見つかりません' } };
+    }
+    
+    console.log('[BoardService] 削除対象カード:', existingCard);
+    
+    // 権限チェック（カードの作成者またはボードのオーナーかチェック）
+    if (existingCard.created_by !== user.id) {
+      console.warn('[BoardService] 削除権限警告:', {
+        cardCreator: existingCard.created_by,
+        currentUser: user.id,
+        isSameUser: existingCard.created_by === user.id
+      });
+      // 警告として記録するが、削除は継続（RLSでブロックされる場合は後でエラーになる）
+    }
+    
+    // 関連する board_card_relations を先に削除
+    console.log('[BoardService] board_card_relations削除開始');
+    const { error: relationsError } = await supabase
+      .from('board_card_relations')
+      .delete()
+      .or(`card_id.eq.${id},related_card_id.eq.${id}`);
+    
+    if (relationsError) {
+      console.warn('[BoardService] 関連データ削除警告:', relationsError);
+      // 関連データ削除エラーは警告として扱い、カード削除は続行
+    } else {
+      console.log('[BoardService] board_card_relations削除完了');
+    }
+    
+    // 関連する board_card_sources を削除
+    console.log('[BoardService] board_card_sources削除開始');
+    const { error: sourcesError } = await supabase
+      .from('board_card_sources')
+      .delete()
+      .eq('card_id', id);
+    
+    if (sourcesError) {
+      console.warn('[BoardService] ソース関連削除警告:', sourcesError);
+      // ソース関連削除エラーは警告として扱い、カード削除は続行
+    } else {
+      console.log('[BoardService] board_card_sources削除完了');
+    }
+    
+    // 関連する board_card_tags を削除
+    console.log('[BoardService] board_card_tags削除開始');
+    const { error: tagsError } = await supabase
+      .from('board_card_tags')
+      .delete()
+      .eq('card_id', id);
+    
+    if (tagsError) {
+      console.warn('[BoardService] タグ関連削除警告:', tagsError);
+      // タグ関連削除エラーは警告として扱い、カード削除は続行
+    } else {
+      console.log('[BoardService] board_card_tags削除完了');
+    }
+    
+    // カード本体を削除
+    console.log('[BoardService] board_cardsメイン削除開始');
+    const result = await supabase
+      .from('board_cards')
+      .delete()
+      .eq('id', id);
+    
+    console.log('[BoardService] カード削除結果:', result);
+    
+    if (result.error) {
+      console.error('[BoardService] カード削除失敗:', result.error);
+      return result;
+    }
+    
+    console.log('[BoardService] カード削除成功:', id);
+    return result;
+    
+  } catch (error) {
+    console.error('[BoardService] deleteCard例外:', error);
+    return { 
+      data: null, 
+      error: { 
+        message: error instanceof Error ? error.message : 'カード削除中に予期しないエラーが発生しました'
+      } 
+    };
+  }
 }
 
 // 元ソースサジェスト
@@ -359,6 +496,26 @@ export async function addCardsToBoard(
   meetingId?: string,
   provider?: string
 ): Promise<BoardCardUI[]> {
+  // 🔍 呼び出し元トレースのためのスタックトレース取得
+  const stack = new Error().stack;
+  const callerInfo = stack?.split('\n')[2]?.trim() || 'unknown';
+  
+  console.log('🔍 [addCardsToBoard] === 関数呼び出し開始 ===', {
+    timestamp: new Date().toISOString(),
+    callerInfo: callerInfo,
+    boardId,
+    cardsCount: cards?.length || 0,
+    userId,
+    meetingId,
+    provider,
+    cardsPreview: cards?.slice(0, 2).map(card => ({
+      title: card?.title,
+      content: card?.content?.substring(0, 50) + '...',
+      column_type: card?.column_type
+    })),
+    fullStackTrace: stack
+  });
+  
   try {
     // デフォルトボードを取得または作成
     if (!boardId) {
@@ -412,14 +569,41 @@ export async function addCardsToBoard(
       };
     });
 
+    console.log('🔍 [addCardsToBoard] データベース挿入開始', {
+      cardsToInsertCount: cardsToInsert.length,
+      cardsToInsertPreview: cardsToInsert.slice(0, 2).map(card => ({
+        title: card.title,
+        content: card.content?.substring(0, 50) + '...',
+        column_type: card.column_type,
+        board_id: card.board_id
+      })),
+      timestamp: new Date().toISOString()
+    });
+
     const { data, error } = await supabase
       .from('board_cards')
       .insert(cardsToInsert)
       .select('*');
 
     if (error) {
+      console.error('🔍 [addCardsToBoard] データベース挿入エラー', {
+        error,
+        cardsToInsertCount: cardsToInsert.length,
+        timestamp: new Date().toISOString()
+      });
       throw error;
     }
+    
+    console.log('🔍 [addCardsToBoard] データベース挿入成功', {
+      insertedCount: data?.length || 0,
+      insertedCardsPreview: data?.slice(0, 2).map(card => ({
+        id: card.id,
+        title: card.title,
+        column_type: card.column_type,
+        created_at: card.created_at
+      })),
+      timestamp: new Date().toISOString()
+    });
 
     // タグを保存
     for (let i = 0; i < data.length; i++) {
@@ -431,9 +615,26 @@ export async function addCardsToBoard(
       }
     }
 
-    return data.map(toBoardCardUI);
+    const result = data.map(toBoardCardUI);
+    
+    console.log('🔍 [addCardsToBoard] === 関数呼び出し完了 ===', {
+      timestamp: new Date().toISOString(),
+      returnedCount: result.length,
+      returnedCardsPreview: result.slice(0, 2).map(card => ({
+        id: card.id,
+        title: card.title,
+        columnType: card.columnType
+      })),
+      totalProcessingTime: Date.now() - new Date().getTime()
+    });
+    
+    return result;
   } catch (error) {
-    console.error('カード追加エラー:', error);
+    console.error('🔍 [addCardsToBoard] === エラーで終了 ===', {
+      error,
+      timestamp: new Date().toISOString(),
+      callerInfo: callerInfo
+    });
     throw error;
   }
 }

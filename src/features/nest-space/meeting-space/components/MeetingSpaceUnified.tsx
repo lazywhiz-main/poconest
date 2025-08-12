@@ -23,7 +23,7 @@ import Tag from '../../../../components/ui/Tag';
 import StatusBadge from '../../../../components/ui/StatusBadge';
 import Button from '../../../../components/common/Button';
 import { Icon } from '../../../../components/Icon';
-import { generateMeetingSummary, extractCardsFromMeeting, generateMockSummary, generateMockCards } from '../../../../services/ai/openai';
+import { generateMeetingSummary, extractCardsFromMeeting } from '../../../../services/ai/openai';
 import { BoardCardUI } from '../../../../types/board';
 import { getOrCreateDefaultBoard, addCardsToBoard } from '../../../../services/BoardService';
 import { getOrCreateMeetingSource, addCardSource } from '@/services/BoardService';
@@ -280,7 +280,7 @@ const MeetingSpaceUnified: React.FC<MeetingSpaceUnifiedProps> = ({ nestId }) => 
     showToast({ title: '情報', message: 'ファイルアップロード機能は実装中です', type: 'info' });
   };
 
-  // AI要約処理
+  // カード抽出処理
   const handleExtractInsight = async () => {
     if (selectedUnifiedMeeting?.type !== 'actual' || !selectedUnifiedMeeting?.actualMeetingId) {
       showToast({ title: '警告', message: '実際のミーティングを選択してください', type: 'warning' });
@@ -288,14 +288,23 @@ const MeetingSpaceUnified: React.FC<MeetingSpaceUnifiedProps> = ({ nestId }) => 
     }
 
     try {
+      console.log('🔍 [handleExtractInsight] カード抽出ジョブ作成開始', {
+        timestamp: new Date().toISOString(),
+        meetingId: selectedUnifiedMeeting.actualMeetingId
+      });
+      
       await createJob(
-        'ai_summary' as JobType,
-        selectedUnifiedMeeting.actualMeetingId
+        'card_extraction' as JobType,  // 🔧 AI要約からカード抽出に修正
+        selectedUnifiedMeeting.actualMeetingId,
+        {
+          nestId: nestId,
+          // ユーザー情報とミーティング詳細は createJob 内で設定される
+        }
       );
-      showToast({ title: '成功', message: 'AI要約処理を開始しました', type: 'success' });
+      showToast({ title: '成功', message: 'カード抽出処理を開始しました', type: 'success' });
     } catch (error) {
-      showToast({ title: 'エラー', message: 'AI要約処理の開始に失敗しました', type: 'error' });
-      console.error('Failed to start AI summary job:', error);
+      showToast({ title: 'エラー', message: 'カード抽出処理の開始に失敗しました', type: 'error' });
+      console.error('Failed to start card extraction job:', error);
     }
   };
 

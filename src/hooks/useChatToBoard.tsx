@@ -35,6 +35,14 @@ export const useChatToBoard = ({
   const [lastError, setLastError] = useState<{ type: string; message: string; details?: any } | null>(null);
   
   // チャットからの洞察抽出
+  console.log('🚨🚨🚨 [useChatToBoard] useAutoInsightExtraction フック呼び出し開始 🚨🚨🚨', {
+    timestamp: new Date().toISOString(),
+    channelId,
+    messagesCount: messages.length,
+    enabled,
+    stackTrace: new Error().stack
+  });
+  
   const { insights, triggerAnalysis, isAnalyzing, lastError: extractionError } = useAutoInsightExtraction({
     channelId,
     messages,

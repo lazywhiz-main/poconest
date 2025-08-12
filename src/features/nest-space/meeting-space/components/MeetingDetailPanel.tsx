@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { MeetingUI } from '../../../meeting-space/types/meeting';
+import { MeetingUI, CardExtractionSettings, CARD_EXTRACTION_PRESETS } from '../../../meeting-space/types/meeting';
 import Tag from '../../../../components/ui/Tag';
 import StatusBadge from '../../../../components/ui/StatusBadge';
+import CustomDropdown from '../../../../components/ui/CustomDropdown';
 import Button from '../../../../components/ui/Button';
 import Input from '../../../../components/ui/Input';
 import Icon from '../../../../components/ui/Icon';
@@ -22,7 +23,7 @@ import { getUserById, UserInfo } from '../../../../services/UserService';
 import { useToast } from '../../../../components/ui/Toast';
 import ConfirmModal from '../../../../components/ui/ConfirmModal';
 import { JobType } from '../../../meeting-space/types/backgroundJob';
-import { useBackgroundJobs } from '../../../meeting-space/hooks/useBackgroundJobs';
+// import { useBackgroundJobs } from '../../../meeting-space/hooks/useBackgroundJobs'; // 削除
 import SpeakerDiarizationView from './SpeakerDiarizationView';
 
 interface MeetingDetailPanelProps {
@@ -30,8 +31,9 @@ interface MeetingDetailPanelProps {
   activeTab: 'transcript' | 'summary' | 'cards';
   onTabChange: (tab: 'transcript' | 'summary' | 'cards') => void;
   onSaveMeeting?: (meeting: Partial<MeetingUI>) => void;
+  onMeetingUpdate?: (meeting: MeetingUI) => void;
   onAISummary?: () => void;
-  onCardExtraction?: () => void;
+  onCardExtraction?: (extractionSettings?: CardExtractionSettings) => void;
   onFileUpload?: (file: File) => void;
   isCardExtractionDisabled?: boolean;
   isAISummaryDisabled?: boolean;
@@ -120,6 +122,7 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
   activeTab,
   onTabChange,
   onSaveMeeting,
+  onMeetingUpdate,
   onAISummary,
   onCardExtraction,
   onFileUpload,
@@ -129,9 +132,9 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
   isJobRunning,
   onDeleteMeeting,
 }) => {
-  // 🔧 独自の背景ジョブ状態管理
-  const { getJobsByMeeting } = useBackgroundJobs();
-  const meetingJobs = getJobsByMeeting(meeting.id);
+  // 🔧 背景ジョブ状態は親からpropsで受け取る
+  // const { getJobsByMeeting } = useBackgroundJobs(); // 削除
+  // const meetingJobs = getJobsByMeeting(meeting.id); // 削除
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isEditingDateTime, setIsEditingDateTime] = useState(false);
   const [editedTitle, setEditedTitle] = useState(meeting.title || '');
@@ -159,38 +162,39 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
   const [aiSummaryCompleted, setAiSummaryCompleted] = useState(false);
   const [cardExtractionCompleted, setCardExtractionCompleted] = useState(false);
   const [extractedCards, setExtractedCards] = useState<BoardCardUI[]>([]);
+  const [extractionGranularity, setExtractionGranularity] = useState<'coarse' | 'medium' | 'fine'>(() => {
+    // ローカルストレージから保存された設定を読み込み
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('meetingDetailPanel_extractionGranularity');
+      return (saved as 'coarse' | 'medium' | 'fine') || 'medium';
+    }
+    return 'medium';
+  });
 
   // トーストシステム
   const { showToast } = useToast();
 
   // ボタン状態の管理
-  const getButtonState = (jobType: 'ai_summary' | 'card_extraction') => {
+  const getButtonState = useCallback((jobType: 'ai_summary' | 'card_extraction') => {
     // 新しいisJobRunning関数を優先して使用
     const isRunning = isJobRunning ? isJobRunning(jobType) : (isCreatingJob === jobType);
     
-    // デバッグ用ログを追加
-    console.log(`[MeetingDetailPanel] getButtonState: jobType=${jobType}, isJobRunning=${isJobRunning ? isJobRunning(jobType) : 'undefined'}, isCreatingJob=${isCreatingJob}, isRunning=${isRunning}`);
+    // デバッグ用ログをコメントアウト（大量ログ防止）
+    // console.log(`[MeetingDetailPanel] getButtonState: jobType=${jobType}, isJobRunning=${isJobRunning ? isJobRunning(jobType) : 'undefined'}, isCreatingJob=${isCreatingJob}, isRunning=${isRunning}`);
     
     // プロパティから受け取った無効化状態を確認
     const isBaseDisabled = jobType === 'ai_summary' ? isAISummaryDisabled : isCardExtractionDisabled;
     
-    if (jobType === 'ai_summary') {
-      if (isRunning) {
+    // 🔧 重複実行防止 - 既に処理中の場合は必ず無効化
+    if (isRunning) {
+      if (jobType === 'ai_summary') {
         return {
           text: 'AI要約実行中...',
           icon: 'loader' as const,
           disabled: true,
           spinning: true
         };
-      }
-      return {
-        text: 'AI要約',
-        icon: 'ai-summary' as const,
-        disabled: isBaseDisabled,
-        spinning: false
-      };
-    } else {
-      if (isRunning) {
+      } else {
         return {
           text: 'カード抽出実行中...',
           icon: 'loader' as const,
@@ -198,14 +202,27 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
           spinning: true
         };
       }
+    }
+    
+    // 🔧 基本無効化状態と処理中状態の両方をチェック
+    const isDisabled = isBaseDisabled || isRunning;
+    
+    if (jobType === 'ai_summary') {
+      return {
+        text: 'AI要約',
+        icon: 'ai-summary' as const,
+        disabled: isDisabled,
+        spinning: false
+      };
+    } else {
       return {
         text: 'カード抽出',
         icon: 'card-extract' as const,
-        disabled: isBaseDisabled,
+        disabled: isDisabled,
         spinning: false
       };
     }
-  };
+  }, [isJobRunning, isCreatingJob, isAISummaryDisabled, isCardExtractionDisabled]);
 
   // スピンアニメーション用のスタイルを動的に追加
   useEffect(() => {
@@ -225,14 +242,17 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
   const loadRelatedCards = useCallback(async () => {
     setLoadingCards(true);
     try {
+      console.log('[MeetingDetailPanel] loadRelatedCards開始:', meeting.id);
       const cards = await getCardsByMeeting(meeting.id);
-      console.log('[MeetingDetailPanel] loadRelatedCards result:', cards);
-      console.log('[MeetingDetailPanel] Cards with related cards:', cards.map(c => ({ 
-        id: c.id, 
-        title: c.title, 
-        relatedCount: c.relatedCards?.length || 0,
-        relatedCards: c.relatedCards 
-      })));
+      console.log('[MeetingDetailPanel] loadRelatedCards結果:', {
+        cardCount: cards.length,
+        cardIds: cards.map(c => c.id),
+        cards: cards.map(c => ({ 
+          id: c.id, 
+          title: c.title, 
+          relatedCount: c.relatedCards?.length || 0,
+        }))
+      });
       setRelatedCards(cards);
     } catch (error) {
       console.error('関連カード読み込みエラー:', error);
@@ -392,6 +412,12 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
   };
 
   const handleCardDelete = async (cardId: string) => {
+    console.log('[MeetingDetailPanel] 削除ボタンクリック:', {
+      cardId,
+      meetingId: meeting.id,
+      relatedCardsCount: relatedCards.length,
+      targetCard: relatedCards.find(c => c.id === cardId)
+    });
     setDeleteTargetCardId(cardId);
     setIsDeleteModalOpen(true);
   };
@@ -399,10 +425,41 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
   const handleConfirmDelete = async () => {
     if (deleteTargetCardId) {
       try {
-        await deleteCard(deleteTargetCardId);
+        console.log('[MeetingDetailPanel] カード削除処理開始:', {
+          cardId: deleteTargetCardId,
+          meetingId: meeting.id,
+          timestamp: new Date().toISOString()
+        });
+        
+        const result = await deleteCard(deleteTargetCardId);
+        console.log('[MeetingDetailPanel] deleteCard API結果:', result);
+        
+        if (result.error) {
+          const errorMessage = result.error.message || '不明なエラー';
+          console.error('[MeetingDetailPanel] API削除エラー:', result.error);
+          throw new Error(`削除に失敗しました: ${errorMessage}`);
+        }
+        
+        console.log('[MeetingDetailPanel] カード削除API成功');
+        
+        // 関連カードを再読み込み
+        console.log('[MeetingDetailPanel] 関連カード再読み込み開始');
         await loadRelatedCards();
+        console.log('[MeetingDetailPanel] 関連カード再読み込み完了');
+        
+        // 成功メッセージ
+        console.log('[MeetingDetailPanel] カード削除処理完了');
+        
       } catch (error) {
-        console.error('カード削除エラー:', error);
+        console.error('[MeetingDetailPanel] カード削除エラー:', {
+          error,
+          cardId: deleteTargetCardId,
+          errorMessage: error instanceof Error ? error.message : String(error)
+        });
+        
+        // より詳細なエラーメッセージを表示
+        const errorMessage = error instanceof Error ? error.message : 'カードの削除に失敗しました';
+        alert(`${errorMessage}\n\nコンソールログを確認してください。`);
       }
     }
     setIsDeleteModalOpen(false);
@@ -450,11 +507,23 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
   const [confirmAction, setConfirmAction] = useState<'ai-summary' | 'card-extraction' | null>(null);
 
   const handleAISummaryWithModal = () => {
+    // 🔧 重複実行防止
+    if (isJobRunning && isJobRunning('ai_summary')) {
+      console.log('🔧 [MeetingDetailPanel] AI要約は既に実行中のため、モーダルを表示しません');
+      return;
+    }
+    
     setConfirmAction('ai-summary');
     setShowConfirmModal(true);
   };
 
   const handleCardExtractionWithModal = () => {
+    // 🔧 重複実行防止
+    if (isJobRunning && isJobRunning('card_extraction')) {
+      console.log('🔧 [MeetingDetailPanel] カード抽出は既に実行中のため、モーダルを表示しません');
+      return;
+    }
+    
     setConfirmAction('card-extraction');
     setShowConfirmModal(true);
   };
@@ -475,7 +544,10 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
 
   const handleCardExtraction = useCallback(() => {
     if (onCardExtraction) {
-      onCardExtraction();
+      // 選択された抽出粒度の設定を取得
+      const extractionSettings = CARD_EXTRACTION_PRESETS[extractionGranularity];
+      
+      onCardExtraction(extractionSettings);
       
       // 開始トーストを表示
       showToast({
@@ -485,7 +557,7 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
         duration: 3000
       });
     }
-  }, [onCardExtraction, showToast]);
+  }, [onCardExtraction, showToast, extractionGranularity]);
 
   const handleConfirmAction = () => {
     if (confirmAction === 'ai-summary') {
@@ -693,63 +765,7 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
           ) : (
             <StatusBadge status="inactive">文字起こしなし</StatusBadge>
           )}
-          {/* Background Job Progress - UPLOADEDバッジの右側に配置 */}
-          {(() => {
-            // 🔧 リアルタイムの背景ジョブ状態を取得
-            const activeJobs = meetingJobs.filter(job => 
-              job.status === 'pending' || job.status === 'running'
-            );
-            
-            // 最近完了したジョブも表示（10秒以内）
-            const recentJobs = meetingJobs.filter(job => 
-              (job.status === 'completed' || job.status === 'failed') &&
-              Date.now() - job.updatedAt.getTime() < 10000
-            );
-            
-            const displayJobs = [...activeJobs, ...recentJobs];
-            
-            if (meeting.transcript && displayJobs.length > 0) {
-              return displayJobs.map(job => (
-                <div key={job.id} style={{ 
-                  fontSize: 11, 
-                  color: '#64b5f6', 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: 6,
-                  padding: '2px 6px',
-                  background: 'rgba(100, 181, 246, 0.1)',
-                  borderRadius: 2,
-                  border: '1px solid rgba(100, 181, 246, 0.3)',
-                  marginTop: 2
-                }}>
-                  {job.status === 'running' && (
-                    <div style={{
-                      width: 10,
-                      height: 10,
-                      border: '1.5px solid #64b5f6',
-                      borderTopColor: 'transparent',
-                      borderRadius: '50%',
-                      animation: 'spin 1s linear infinite'
-                    }} />
-                  )}
-                  {job.status === 'completed' && (
-                    <div style={{ color: '#00ff88', fontSize: 10 }}>✓</div>
-                  )}
-                  {job.status === 'failed' && (
-                    <div style={{ color: '#ff6b6b', fontSize: 10 }}>✗</div>
-                  )}
-                  <span>
-                    {job.type === 'ai_summary' ? 'AI要約' : 'カード抽出'}
-                    {job.status === 'running' && ` ${job.progress}%`}
-                    {job.status === 'pending' && ' 待機中'}
-                    {job.status === 'completed' && ' 完了'}
-                    {job.status === 'failed' && ' 失敗'}
-                  </span>
-                </div>
-              ));
-            }
-            return null;
-          })()}
+
         </div>
         {/* ファイルアップロードボタン（左寄せ） */}
         <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
@@ -943,6 +959,15 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
             <SpeakerDiarizationView 
               meetingId={meeting.id}
               transcript={meeting.transcript || ''}
+              onTranscriptUpdate={(newTranscript) => {
+                // ミーティングデータをローカルで更新
+                if (onMeetingUpdate) {
+                  onMeetingUpdate({
+                    ...meeting,
+                    transcript: newTranscript
+                  });
+                }
+              }}
             />
           </div>
         );
@@ -1101,30 +1126,61 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
               <div style={{ color: '#a6adc8', fontSize: 12, fontWeight: 500 }}>
                 {relatedCards.length > 0 ? `${relatedCards.length}個のカード` : 'カードなし'}
               </div>
-              <button
-                style={{
-                  ...styles.actionButton,
-                  ...(getButtonState('card_extraction').disabled ? styles.actionButtonDisabled : {}),
-                  backgroundColor: getButtonBackgroundColor('card-extraction'),
-                  color: getButtonTextColor('card-extraction'),
-                  opacity: getButtonState('card_extraction').disabled ? 0.6 : 1,
-                  cursor: getButtonState('card_extraction').disabled ? 'not-allowed' : 'pointer',
-                }}
-                onClick={handleCardExtractionWithModal}
-                disabled={getButtonState('card_extraction').disabled}
-              >
-                <div style={styles.buttonContent}>
-                  <Icon 
-                    name={getButtonState('card_extraction').icon} 
-                    size={16} 
-                    color={getButtonTextColor('card-extraction')}
-                    style={{
-                      ...(getButtonState('card_extraction').spinning ? { animation: 'spin 1s linear infinite' } : {})
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                {/* 抽出粒度選択UI */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontSize: 12,
+                  color: '#e2e8f0'
+                }}>
+                  <span>抽出粒度:</span>
+                  <CustomDropdown
+                    value={extractionGranularity}
+                    onChange={(value) => {
+                      const granularity = value as 'coarse' | 'medium' | 'fine';
+                      setExtractionGranularity(granularity);
+                      // ローカルストレージに保存
+                      if (typeof window !== 'undefined') {
+                        localStorage.setItem('meetingDetailPanel_extractionGranularity', granularity);
+                      }
                     }}
+                    options={[
+                      { value: 'coarse', label: 'ざっくり' },
+                      { value: 'medium', label: '標準' },
+                      { value: 'fine', label: '細かめ' }
+                    ]}
+                    style={{ minWidth: 100 }}
                   />
-                  <span style={styles.buttonText}>{getButtonState('card_extraction').text}</span>
                 </div>
-              </button>
+                
+                <button
+                  style={{
+                    ...styles.actionButton,
+                    ...(getButtonState('card_extraction').disabled ? styles.actionButtonDisabled : {}),
+                    backgroundColor: getButtonBackgroundColor('card-extraction'),
+                    color: getButtonTextColor('card-extraction'),
+                    opacity: getButtonState('card_extraction').disabled ? 0.6 : 1,
+                    cursor: getButtonState('card_extraction').disabled ? 'not-allowed' : 'pointer',
+                  }}
+                  onClick={handleCardExtractionWithModal}
+                  disabled={getButtonState('card_extraction').disabled}
+                >
+                  <div style={styles.buttonContent}>
+                    <Icon 
+                      name={getButtonState('card_extraction').icon} 
+                      size={16} 
+                      color={getButtonTextColor('card-extraction')}
+                      style={{
+                        ...(getButtonState('card_extraction').spinning ? { animation: 'spin 1s linear infinite' } : {})
+                      }}
+                    />
+                    <span style={styles.buttonText}>{getButtonState('card_extraction').text}</span>
+                  </div>
+                </button>
+              </div>
             </div>
 
             {/* カード一覧エリア */}
@@ -1275,10 +1331,28 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
       </div>
       
       {/* 削除確認モーダル */}
-      <Modal open={isDeleteModalOpen} onClose={handleCancelDelete} style={{ minWidth: 360, textAlign: 'center' }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: '#fff', marginBottom: 32, textAlign: 'center', letterSpacing: 0.5 }}>
+      <Modal open={isDeleteModalOpen} onClose={handleCancelDelete} style={{ minWidth: 400, textAlign: 'center' }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: '#fff', marginBottom: 16, textAlign: 'center', letterSpacing: 0.5 }}>
           本当にこのカードを削除しますか？
         </div>
+        {deleteTargetCardId && (
+          <div style={{ 
+            fontSize: 12, 
+            color: '#a6adc8', 
+            marginBottom: 24, 
+            padding: 12, 
+            background: '#1a1a2e', 
+            borderRadius: 4,
+            border: '1px solid #333366'
+          }}>
+            <div style={{ fontWeight: 600, marginBottom: 4 }}>
+              {relatedCards.find(c => c.id === deleteTargetCardId)?.title || 'カードタイトル'}
+            </div>
+            <div style={{ fontSize: 10, color: '#6c7086' }}>
+              ID: {deleteTargetCardId}
+            </div>
+          </div>
+        )}
         <div style={{ display: 'flex', gap: 20, justifyContent: 'center' }}>
           <Button
             title="キャンセル"
@@ -1288,7 +1362,7 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
           />
           <Button
             title="削除"
-            variant="primary"
+            variant="danger"
             style={{ minWidth: 120 }}
             onPress={handleConfirmDelete}
           />

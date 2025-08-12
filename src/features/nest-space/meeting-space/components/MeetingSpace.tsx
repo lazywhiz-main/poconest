@@ -23,14 +23,14 @@ import { supabase } from '../../../../services/supabase/client';
 import { useNest } from '../../../nest/contexts/NestContext';
 import { useAuth } from '../../../../contexts/AuthContext';
 import MeetingDetail from './MeetingDetail';
-import { Meeting, MeetingUI, toMeetingUI, toMeetingDB } from '../../../meeting-space/types/meeting';
+import { Meeting, MeetingUI, toMeetingUI, toMeetingDB, CardExtractionSettings } from '../../../meeting-space/types/meeting';
 import EmptyState from '../../../../components/ui/EmptyState';
 import Input from '../../../../components/ui/Input';
 import Tag from '../../../../components/ui/Tag';
 import StatusBadge from '../../../../components/ui/StatusBadge';
 import Button from '../../../../components/common/Button';
 import { Icon } from '../../../../components/Icon';
-import { generateMeetingSummary, extractCardsFromMeeting, generateMockSummary, generateMockCards } from '../../../../services/ai/openai';
+import { generateMeetingSummary, extractCardsFromMeeting } from '../../../../services/ai/openai';
 import { BoardCardUI } from '../../../../types/board';
 import { getOrCreateDefaultBoard, addCardsToBoard } from '../../../../services/BoardService';
 import { getOrCreateMeetingSource, addCardSource } from '@/services/BoardService';
@@ -539,8 +539,35 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
     }
   }, [selectedUnifiedMeeting, selectedMeeting, refreshUnifiedMeetings, showToast]);
 
+  // 🔧 重複呼び出し防止フラグ
+  const [isCardExtractionInProgress, setIsCardExtractionInProgress] = useState(false);
+  const [isAISummaryInProgress, setIsAISummaryInProgress] = useState(false);
+
   // カード抽出
-  const handleCardExtraction = useCallback(async () => {
+  const handleCardExtraction = useCallback(async (extractionSettings?: CardExtractionSettings) => {
+    console.log('🔍 [handleCardExtraction] 関数呼び出し開始', {
+      timestamp: new Date().toISOString(),
+      meetingId: selectedMeeting?.id,
+      meetingTitle: selectedMeeting?.title,
+      stackTrace: new Error().stack
+    });
+
+    // 🔧 重複呼び出し防止 - 複数レベルのチェック
+    if (isCardExtractionInProgress) {
+      console.log('🔧 [handleCardExtraction] 既に処理中のため、重複呼び出しをスキップ（フラグレベル）');
+      showToast({ title: '情報', message: 'カード抽出は既に処理中です。', type: 'info' });
+      return;
+    }
+
+    if (isJobRunning && isJobRunning('card_extraction')) {
+      console.log('🔧 [handleCardExtraction] 既に処理中のため、重複呼び出しをスキップ（ジョブレベル）');
+      showToast({ title: '情報', message: 'カード抽出は既に処理中です。', type: 'info' });
+      return;
+    }
+
+    // 🔧 処理開始フラグを設定
+    setIsCardExtractionInProgress(true);
+
     if (!selectedMeeting || !selectedMeeting.transcript || selectedMeeting.transcript.trim() === '') {
       showToast({ title: 'エラー', message: '文字起こしファイルがアップロードされていません。', type: 'error' });
       return;
@@ -552,6 +579,7 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
     }
 
     try {
+      console.log('🔍 [handleCardExtraction] createJob呼び出し前');
       // 🔧 Background jobでカード抽出を実行（即座にローカル状態更新される）
       const job = await createJob(
         'card_extraction',
@@ -560,9 +588,12 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
           nestId: nestId,
           userId: user.id,
           meetingTitle: selectedMeeting.title,
-          transcript: selectedMeeting.transcript
+          transcript: selectedMeeting.transcript,
+          extractionSettings: extractionSettings
         }
       );
+      
+      console.log('🔍 [handleCardExtraction] createJob完了', { jobId: job?.id });
       
       if (job) {
         showToast({ title: '成功', message: 'カード抽出を開始しました。処理完了まで少々お待ちください。', type: 'success' });
@@ -571,11 +602,30 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
     } catch (error) {
       console.error('カード抽出ジョブ作成エラー:', error);
       showToast({ title: 'エラー', message: 'カード抽出の開始に失敗しました。', type: 'error' });
+    } finally {
+      // 🔧 処理完了後にフラグをリセット
+      setIsCardExtractionInProgress(false);
     }
-  }, [selectedMeeting, user?.id, nestId, createJob, showToast]);
+  }, [selectedMeeting, user?.id, nestId, createJob, showToast, isJobRunning]);
   
   // AI要約
   const handleAISummary = useCallback(async () => {
+    // 🔧 重複呼び出し防止 - 複数レベルのチェック
+    if (isAISummaryInProgress) {
+      console.log('🔧 [handleAISummary] 既に処理中のため、重複呼び出しをスキップ（フラグレベル）');
+      showToast({ title: '情報', message: 'AI要約は既に処理中です。', type: 'info' });
+      return;
+    }
+
+    if (isJobRunning && isJobRunning('ai_summary')) {
+      console.log('🔧 [handleAISummary] 既に処理中のため、重複呼び出しをスキップ（ジョブレベル）');
+      showToast({ title: '情報', message: 'AI要約は既に処理中です。', type: 'info' });
+      return;
+    }
+
+    // 🔧 処理開始フラグを設定
+    setIsAISummaryInProgress(true);
+
     if (!selectedMeeting || !selectedMeeting.transcript || selectedMeeting.transcript.trim() === '') {
       showToast({ title: 'エラー', message: '文字起こしファイルがアップロードされていません。', type: 'error' });
       return;
@@ -606,8 +656,11 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
     } catch (error) {
       console.error('AI要約ジョブ作成エラー:', error);
       showToast({ title: 'エラー', message: 'AI要約の開始に失敗しました。', type: 'error' });
+    } finally {
+      // 🔧 処理完了後にフラグをリセット
+      setIsAISummaryInProgress(false);
     }
-  }, [selectedMeeting, user?.id, nestId, createJob, showToast]);
+  }, [selectedMeeting, user?.id, nestId, createJob, showToast, isJobRunning]);
   
   // ファイルアップロード処理
   const handleFileUpload = useCallback(async (file: File) => {
@@ -933,316 +986,21 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
             </div>
             {/* 右カラム：ミーティング詳細 */}
             <div style={{ flex: 1, minWidth: 0, background: '#0f0f23', display: 'flex', flexDirection: 'column' }}>
-              {
-                // 統合ビューの詳細表示
-                selectedUnifiedMeeting?.type === 'actual' && selectedMeeting ? (
-                  <MeetingDetailPanel
-                    meeting={selectedMeeting}
-                    activeTab={activeTab}
-                    onTabChange={setActiveTab}
-                    onSaveMeeting={handleUpdateMeeting}
-                    onAISummary={handleAISummary}
-                    onCardExtraction={handleCardExtraction}
-                    onFileUpload={handleFileUpload}
-                    isCardExtractionDisabled={!selectedMeeting?.transcript || selectedMeeting.transcript.trim() === ''}
-                    isAISummaryDisabled={!selectedMeeting?.transcript || selectedMeeting.transcript.trim() === ''}
-                    isCreatingJob={currentRunningJob as JobType | null}
-                    isJobRunning={isJobRunning}
-                    onDeleteMeeting={handleDeleteMeeting}
-                  />
-                ) : selectedUnifiedMeeting?.type === 'scheduled' ? (
-                  // 予約ミーティングの詳細表示
-                  <div style={{ 
-                    padding: 24, 
-                    color: '#e2e8f0',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    height: '100%',
-                  }}>
-                    <div style={{ textAlign: 'center', maxWidth: 400 }}>
-                      <h3 style={{ marginBottom: 16, color: '#2196f3' }}>📅 予約ミーティング</h3>
-                      <p style={{ color: '#a6adc8', marginBottom: 8, fontSize: 18, fontWeight: 600 }}>
-                        {selectedUnifiedMeeting.title}
-                      </p>
-                      <p style={{ color: '#64b5f6', marginBottom: 24, fontSize: 14 }}>
-                        開始予定: {selectedUnifiedMeeting.startTime.toLocaleString('ja-JP')}
-                      </p>
-                      
-                      {selectedUnifiedMeeting.automation && (
-                        <div style={{ marginBottom: 24 }}>
-                          <h4 style={{ marginBottom: 12, color: '#f9e2af' }}>🤖 自動化設定</h4>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
-                            {selectedUnifiedMeeting.automation.autoJoin && (
-                              <span style={{ 
-                                fontSize: 12, 
-                                backgroundColor: '#8b5cf6', 
-                                color: '#ffffff',
-                                padding: '4px 8px',
-                                borderRadius: 4,
-                              }}>
-                                自動参加
-                              </span>
-                            )}
-                            {selectedUnifiedMeeting.automation.autoTranscribe && (
-                              <span style={{ 
-                                fontSize: 12, 
-                                backgroundColor: '#8b5cf6', 
-                                color: '#ffffff',
-                                padding: '4px 8px',
-                                borderRadius: 4,
-                              }}>
-                                自動転写
-                              </span>
-                            )}
-                            {selectedUnifiedMeeting.automation.autoSummarize && (
-                              <span style={{ 
-                                fontSize: 12, 
-                                backgroundColor: '#8b5cf6', 
-                                color: '#ffffff',
-                                padding: '4px 8px',
-                                borderRadius: 4,
-                              }}>
-                                自動要約
-                              </span>
-                            )}
-                            {selectedUnifiedMeeting.automation.autoExtractCards && (
-                              <span style={{ 
-                                fontSize: 12, 
-                                backgroundColor: '#8b5cf6', 
-                                color: '#ffffff',
-                                padding: '4px 8px',
-                                borderRadius: 4,
-                              }}>
-                                自動抽出
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      {selectedUnifiedMeeting.status === 'scheduled' && 
-                       !selectedUnifiedMeeting.actualMeetingId && (
-                        <button
-                          onClick={() => handleMigrateToActual(selectedUnifiedMeeting.scheduledMeetingId!)}
-                          style={{
-                            padding: '12px 24px',
-                            backgroundColor: '#00ff88',
-                            color: '#000000',
-                            border: 'none',
-                            borderRadius: 8,
-                            fontSize: 14,
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                          }}
-                        >
-                          ▶ ミーティングを開始
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <div style={{ 
-                    flex: 1, 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center',
-                    background: '#0f0f23'
-                  }}>
-                    <div style={{ textAlign: 'center', maxWidth: 400 }}>
-                      <div style={{ 
-                        fontSize: 16, 
-                        fontWeight: 600, 
-                        color: '#e2e8f0', 
-                        marginBottom: 8,
-                        fontFamily: "'Space Grotesk', sans-serif"
-                      }}>
-                        ミーティングを選択してください
-                      </div>
-                      <div style={{ 
-                        fontSize: 13, 
-                        color: '#6c7086',
-                        fontFamily: "'Space Grotesk', sans-serif"
-                      }}>
-                        左のリストからミーティングを選択してください
-                      </div>
-                    </div>
-                  </div>
-                )
-              }
-            </div>
-          </div>
-        </div>
-      );
-    }
-    
-    // タブレット/デスクトップの全画面レイアウト
-    if ((isTablet || isDesktop)) {
-      return (
-        <div style={{ height: '100vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'row', overflow: 'hidden' }}>
-            {/* 左カラム：ミーティングリストに新規追加 */}
-            <div style={{ 
-              width: 260, 
-              padding: 16, 
-              background: '#1a1a2e', 
-              borderRight: '1px solid #45475a', 
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              position: 'relative'
-            }}>
-              <style>{`
-                .meeting-list-scroll {
-                  scrollbar-width: thin;
-                  scrollbar-color: #333366 #1a1a2e;
-                }
-                .meeting-list-scroll::-webkit-scrollbar {
-                  width: 6px;
-                }
-                .meeting-list-scroll::-webkit-scrollbar-track {
-                  background: #1a1a2e;
-                }
-                .meeting-list-scroll::-webkit-scrollbar-thumb {
-                  background: #333366;
-                  border-radius: 3px;
-                }
-                .meeting-list-scroll::-webkit-scrollbar-thumb:hover {
-                  background: #45475a;
-                }
-              `}</style>
-              {/* 固定ヘッダー部分 */}
-              <div style={{ flexShrink: 0 }}>
-                <button
-                  style={{
-                    marginTop: 8,
-                    marginBottom: 16,
-                    width: '100%',
-                    height: 36,
-                    background: '#00ff88',
-                    borderRadius: 2,
-                    border: 'none',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    display: 'flex',
-                    flexDirection: 'row',
-                    gap: 6,
-                    fontWeight: 600,
-                    fontSize: 13,
-                    color: '#0f0f23',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                  }}
-                  onClick={() => {
-                    setDroppedFile(null);
-                    setShowForm(true);
-                  }}
-                  disabled={false}
-                >
-                  <span style={{ marginRight: 6 }}><Icon name="plus" size={16} color="#0f0f23" /></span>
-                  新規ミーティング
-                </button>
-                
-                {/* ファイルドロップゾーン */}
-                <div
-                  style={{
-                    marginBottom: 16,
-                    width: '100%',
-                    height: 64,
-                    background: isDragOver ? '#2a2a4a' : '#232345',
-                    border: isDragOver ? '2px dashed #00ff88' : '1px dashed #45475a',
-                    borderRadius: 4,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    position: 'relative',
-                  }}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleFileDrop}
-                  onClick={() => {
-                    // ファイル選択ダイアログを開く
-                    const input = document.createElement('input');
-                    input.type = 'file';
-                    input.accept = '.txt,.mp4,.webm,.mov,.mp3,.wav,.m4a,.pdf';
-                    input.onchange = (e) => {
-                      const file = (e.target as HTMLInputElement).files?.[0];
-                      if (file) {
-                        // 選択されたミーティングがある場合は直接アップロード処理を実行
-                        if (selectedMeeting) {
-                          handleFileUpload(file);
-                        } else {
-                          // ミーティングが選択されていない場合はフォームを表示
-                          setDroppedFile(file);
-                          setShowForm(true);
-                        }
-                      }
-                    };
-                    input.click();
-                  }}
-                >
-                  <div style={{
-                    fontSize: isDragOver ? 20 : 16,
-                    marginBottom: 2,
-                    transition: 'font-size 0.2s'
-                  }}>
-                    📎
-                  </div>
-                  <div style={{
-                    fontSize: 11,
-                    fontWeight: 600,
-                    color: isDragOver ? '#00ff88' : '#a6adc8',
-                    textAlign: 'center',
-                    lineHeight: 1.2,
-                    letterSpacing: 0.5,
-                  }}>
-                    {isDragOver ? 'ファイルをドロップ' : 'ファイルをドロップまたはクリック'}
-                  </div>
-                  <div style={{
-                    fontSize: 9,
-                    color: '#6c7086',
-                    textAlign: 'center',
-                    marginTop: 2,
-                  }}>
-                    テキスト・動画・音声・PDF
-                  </div>
-                </div>
-                
-                <div style={{ marginBottom: 16 }}>
-                  <Input
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    placeholder="ミーティングを検索..."
-                  />
-                </div>
-              </div>
-              
-              {/* スクロール可能なリスト部分 */}
-              <div style={{ flex: 1, minHeight: 0 }}>
-                <UnifiedMeetingList
-                  meetings={unifiedMeetings}
-                  selectedMeeting={selectedUnifiedMeeting}
-                  onSelectMeeting={handleSelectUnifiedMeeting}
-                  onMigrateToActual={handleMigrateToActual}
-                  isLoading={loadingUnifiedMeetings}
-                  searchQuery={searchQuery}
-                  onSearchChange={setSearchQuery}
-                  users={users}
-                />
-              </div>
-            </div>
-            {/* 右カラム：ミーティング詳細 */}
-            <div style={{ flex: 1, minWidth: 0, background: '#0f0f23', display: 'flex', flexDirection: 'column' }}>
               {selectedUnifiedMeeting?.type === 'actual' && selectedMeeting ? (
                 <MeetingDetailPanel
+                  key={`meeting-detail-${selectedMeeting.id}`}
                   meeting={selectedMeeting}
                   activeTab={activeTab}
                   onTabChange={setActiveTab}
                   onSaveMeeting={handleUpdateMeeting}
+                  onMeetingUpdate={(updatedMeeting) => {
+                    // 選択中のミーティングも更新
+                    if (selectedMeeting?.id === updatedMeeting.id) {
+                      setSelectedMeeting(updatedMeeting);
+                    }
+                    // unifiedMeetingsの更新は useUnifiedMeetings hook内で自動的に行われる
+                    refreshUnifiedMeetings();
+                  }}
                   onAISummary={handleAISummary}
                   onCardExtraction={handleCardExtraction}
                   onFileUpload={handleFileUpload}
@@ -1361,12 +1119,12 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
                   height: '100%',
                 }}>
                   <div style={{ textAlign: 'center', maxWidth: 400 }}>
-                    <h3 style={{ marginBottom: 16, color: '#2196f3' }}>📅 統合表示</h3>
+                    <h3 style={{ marginBottom: 16, color: '#2196f3' }}>ミーティングを選択してください</h3>
                     <p style={{ color: '#a6adc8', marginBottom: 8, fontSize: 16 }}>
                       左側のリストからミーティングを選択してください
                     </p>
                     <p style={{ color: '#6c7086', fontSize: 12, textAlign: 'center' }}>
-                      💡 現在は「統合表示」で予約ミーティングと実際のミーティングを<br/>
+                      予約ミーティングと実際のミーティングを<br/>
                       一つのリストで管理しています。
                     </p>
                   </div>
@@ -1378,56 +1136,27 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
       );
     }
     
-    // モバイルレイアウト
+    // タブレット/モバイルレイアウト（全画面表示）
     return (
       <div style={{ height: '100vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'row', overflow: 'hidden' }}>
-          {/* 左カラム：ミーティングリストに新規追加 */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          {/* ヘッダー部分 */}
           <div style={{ 
-            width: 260, 
             padding: 16, 
             background: '#1a1a2e', 
-            borderRight: '1px solid #45475a', 
-            height: '100%',
+            borderBottom: '1px solid #45475a',
             display: 'flex',
             flexDirection: 'column',
-            position: 'relative'
+            gap: 12
           }}>
-            <style>{`
-              .meeting-list-scroll {
-                scrollbar-width: thin;
-                scrollbar-color: #333366 #1a1a2e;
-              }
-              .meeting-list-scroll::-webkit-scrollbar {
-                width: 6px;
-              }
-              .meeting-list-scroll::-webkit-scrollbar-track {
-                background: #1a1a2e;
-              }
-              .meeting-list-scroll::-webkit-scrollbar-thumb {
-                background: #333366;
-                border-radius: 3px;
-              }
-              .meeting-list-scroll::-webkit-scrollbar-thumb:hover {
-                background: #45475a;
-              }
-            `}</style>
-            {/* 固定ヘッダー部分 */}
-            <div style={{ flexShrink: 0 }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <button
                 style={{
-                  marginTop: 8,
-                  marginBottom: 16,
-                  width: '100%',
                   height: 36,
                   background: '#00ff88',
                   borderRadius: 2,
                   border: 'none',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  display: 'flex',
-                  flexDirection: 'row',
-                  gap: 6,
+                  padding: '0 16px',
                   fontWeight: 600,
                   fontSize: 13,
                   color: '#0f0f23',
@@ -1438,90 +1167,112 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
                   setDroppedFile(null);
                   setShowForm(true);
                 }}
-                disabled={false}
               >
                 <span style={{ marginRight: 6 }}><Icon name="plus" size={16} color="#0f0f23" /></span>
                 新規ミーティング
               </button>
               
-              {/* ファイルドロップゾーン */}
-              <div
+              <button
+                onClick={() => setShowScheduledForm(true)}
                 style={{
-                  marginBottom: 16,
-                  width: '100%',
-                  height: 64,
-                  background: isDragOver ? '#2a2a4a' : '#232345',
-                  border: isDragOver ? '2px dashed #00ff88' : '1px dashed #45475a',
+                  fontSize: 10,
+                  padding: '6px 8px',
+                  backgroundColor: '#8b5cf6',
+                  color: '#ffffff',
+                  border: 'none',
                   borderRadius: 4,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
                   cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  position: 'relative',
-                }}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleFileDrop}
-                onClick={() => {
-                  // ファイル選択ダイアログを開く
-                  const input = document.createElement('input');
-                  input.type = 'file';
-                  input.accept = '.txt,.mp4,.webm,.mov,.mp3,.wav,.m4a,.pdf';
-                  input.onchange = (e) => {
-                    const file = (e.target as HTMLInputElement).files?.[0];
-                    if (file) {
-                      // 選択されたミーティングがある場合は直接アップロード処理を実行
-                      if (selectedMeeting) {
-                        handleFileUpload(file);
-                      } else {
-                        // ミーティングが選択されていない場合はフォームを表示
-                        setDroppedFile(file);
-                        setShowForm(true);
-                      }
-                    }
-                  };
-                  input.click();
+                  fontWeight: 500,
                 }}
               >
-                <div style={{
-                  fontSize: isDragOver ? 20 : 16,
-                  marginBottom: 2,
-                  transition: 'font-size 0.2s'
-                }}>
-                  📎
-                </div>
-                <div style={{
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: isDragOver ? '#00ff88' : '#a6adc8',
-                  textAlign: 'center',
-                  lineHeight: 1.2,
-                  letterSpacing: 0.5,
-                }}>
-                  {isDragOver ? 'ファイルをドロップ' : 'ファイルをドロップまたはクリック'}
-                </div>
-                <div style={{
-                  fontSize: 9,
-                  color: '#6c7086',
-                  textAlign: 'center',
-                  marginTop: 2,
-                }}>
-                  テキスト・動画・音声・PDF
-                </div>
+                🤖 予約作成
+              </button>
+            </div>
+            
+            {/* ファイルドロップゾーン */}
+            <div
+              style={{
+                width: '100%',
+                height: 64,
+                background: isDragOver ? '#2a2a4a' : '#232345',
+                border: isDragOver ? '2px dashed #00ff88' : '1px dashed #45475a',
+                borderRadius: 4,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                position: 'relative',
+              }}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleFileDrop}
+              onClick={() => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.txt,.mp4,.webm,.mov,.mp3,.wav,.m4a,.pdf';
+                input.onchange = (e) => {
+                  const file = (e.target as HTMLInputElement).files?.[0];
+                  if (file) {
+                    if (selectedMeeting) {
+                      handleFileUpload(file);
+                    } else {
+                      setDroppedFile(file);
+                      setShowForm(true);
+                    }
+                  }
+                };
+                input.click();
+              }}
+            >
+              <div style={{
+                fontSize: isDragOver ? 20 : 16,
+                marginBottom: 2,
+                transition: 'font-size 0.2s'
+              }}>
+                📎
               </div>
-              
-              <div style={{ marginBottom: 16 }}>
-                <Input
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  placeholder="ミーティングを検索..."
-                />
+              <div style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: isDragOver ? '#00ff88' : '#a6adc8',
+                textAlign: 'center',
+                lineHeight: 1.2,
+                letterSpacing: 0.5,
+              }}>
+                {isDragOver ? 'ファイルをドロップ' : 'ファイルをドロップまたはクリック'}
+              </div>
+              <div style={{
+                fontSize: 9,
+                color: '#6c7086',
+                textAlign: 'center',
+                marginTop: 2,
+              }}>
+                テキスト・動画・音声・PDF
               </div>
             </div>
             
-                          {/* スクロール可能なリスト部分 */}
+            <div>
+              <Input
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="ミーティングを検索..."
+              />
+            </div>
+          </div>
+          
+          {/* メインコンテンツ */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'row', overflow: 'hidden' }}>
+            {/* 左カラム：ミーティングリスト */}
+            <div style={{ 
+              width: 260, 
+              background: '#1a1a2e', 
+              borderRight: '1px solid #45475a', 
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+            }}>
               <div style={{ flex: 1, minHeight: 0 }}>
                 <UnifiedMeetingList
                   meetings={unifiedMeetings}
@@ -1535,144 +1286,28 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
                 />
               </div>
             </div>
-            {/* 右カラム：ミーティング詳細 */}
+            
+            {/* 右カラム：ミーティング詳細 - 重複を避けるため削除 */}
             <div style={{ flex: 1, minWidth: 0, background: '#0f0f23', display: 'flex', flexDirection: 'column' }}>
-              {selectedUnifiedMeeting?.type === 'actual' && selectedMeeting ? (
-                <MeetingDetailPanel
-                  meeting={selectedMeeting}
-                  activeTab={activeTab}
-                  onTabChange={setActiveTab}
-                  onSaveMeeting={handleUpdateMeeting}
-                  onAISummary={handleAISummary}
-                  onCardExtraction={handleCardExtraction}
-                  onFileUpload={handleFileUpload}
-                  isCardExtractionDisabled={!selectedMeeting?.transcript || selectedMeeting.transcript.trim() === ''}
-                  isAISummaryDisabled={!selectedMeeting?.transcript || selectedMeeting.transcript.trim() === ''}
-                  isCreatingJob={currentRunningJob as JobType | null}
-                  isJobRunning={isJobRunning}
-                  onDeleteMeeting={handleDeleteMeeting}
-                />
-              ) : selectedUnifiedMeeting?.type === 'scheduled' ? (
-                // 予約ミーティングの詳細表示
-                <div style={{ 
-                  padding: 24, 
-                  color: '#e2e8f0',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  height: '100%',
-                }}>
-                  <div style={{ textAlign: 'center', maxWidth: 400 }}>
-                    <h3 style={{ marginBottom: 16, color: '#2196f3' }}>📅 予約ミーティング</h3>
-                    <p style={{ color: '#a6adc8', marginBottom: 8, fontSize: 18, fontWeight: 600 }}>
-                      {selectedUnifiedMeeting.title}
-                    </p>
-                    <p style={{ color: '#64b5f6', marginBottom: 24, fontSize: 14 }}>
-                      開始予定: {selectedUnifiedMeeting.startTime.toLocaleString('ja-JP')}
-                    </p>
-                    
-                    {selectedUnifiedMeeting.automation && (
-                      <div style={{ marginBottom: 24 }}>
-                        <h4 style={{ marginBottom: 12, color: '#f9e2af' }}>🤖 自動化設定</h4>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
-                          {selectedUnifiedMeeting.automation.autoJoin && (
-                            <span style={{ 
-                              fontSize: 12, 
-                              backgroundColor: '#8b5cf6', 
-                              color: '#ffffff',
-                              padding: '4px 8px',
-                              borderRadius: 4,
-                            }}>
-                              自動参加
-                            </span>
-                          )}
-                          {selectedUnifiedMeeting.automation.autoTranscribe && (
-                            <span style={{ 
-                              fontSize: 12, 
-                              backgroundColor: '#8b5cf6', 
-                              color: '#ffffff',
-                              padding: '4px 8px',
-                              borderRadius: 4,
-                            }}>
-                              自動転写
-                            </span>
-                          )}
-                          {selectedUnifiedMeeting.automation.autoSummarize && (
-                            <span style={{ 
-                              fontSize: 12, 
-                              backgroundColor: '#8b5cf6', 
-                              color: '#ffffff',
-                              padding: '4px 8px',
-                              borderRadius: 4,
-                            }}>
-                              自動要約
-                            </span>
-                          )}
-                          {selectedUnifiedMeeting.automation.autoExtractCards && (
-                            <span style={{ 
-                              fontSize: 12, 
-                              backgroundColor: '#8b5cf6', 
-                              color: '#ffffff',
-                              padding: '4px 8px',
-                              borderRadius: 4,
-                            }}>
-                              自動抽出
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {selectedUnifiedMeeting.status === 'scheduled' && 
-                     !selectedUnifiedMeeting.actualMeetingId && (
-                      <button
-                        onClick={() => handleMigrateToActual(selectedUnifiedMeeting.scheduledMeetingId!)}
-                        style={{
-                          padding: '12px 24px',
-                          backgroundColor: '#00ff88',
-                          color: '#0f0f23',
-                          border: 'none',
-                          borderRadius: 4,
-                          fontSize: 14,
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          marginBottom: 16,
-                        }}
-                      >
-                        ▶ ミーティングを開始
-                      </button>
-                    )}
-                    
-                    <p style={{ color: '#6c7086', fontSize: 12, textAlign: 'center' }}>
-                      このボタンをクリックすると、予約ミーティングが実際のミーティングに変換されます。
-                    </p>
-                  </div>
+              {/* 🔧 重複レンダリングを避けるため、この部分は削除 */}
+              <div style={{ 
+                padding: 24, 
+                color: '#e2e8f0',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: '100%',
+              }}>
+                <div style={{ textAlign: 'center', maxWidth: 400 }}>
+                  <h3 style={{ marginBottom: 16, color: '#a6adc8' }}>📋 ミーティング詳細</h3>
+                  <p style={{ color: '#8b5cf6', fontSize: 16 }}>
+                    左側のリストからミーティングを選択してください
+                  </p>
                 </div>
-              ) : (
-                // 何も選択されていない場合
-                <div style={{ 
-                  padding: 24, 
-                  color: '#e2e8f0',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  height: '100%',
-                }}>
-                  <div style={{ textAlign: 'center', maxWidth: 400 }}>
-                    <h3 style={{ marginBottom: 16, color: '#2196f3' }}>📅 統合表示</h3>
-                    <p style={{ color: '#a6adc8', marginBottom: 8, fontSize: 16 }}>
-                      左側のリストからミーティングを選択してください
-                    </p>
-                    <p style={{ color: '#6c7086', fontSize: 12, textAlign: 'center' }}>
-                      💡 現在は「統合表示」で予約ミーティングと実際のミーティングを<br/>
-                      一つのリストで管理しています。
-                    </p>
-                  </div>
-                </div>
-              )}
+              </div>
             </div>
+          </div>
         </div>
       </div>
     );
