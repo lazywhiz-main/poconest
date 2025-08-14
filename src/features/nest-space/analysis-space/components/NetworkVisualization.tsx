@@ -21,6 +21,7 @@ import { SidePeakPanel } from './SidePeakPanel';
 import { RelationsSidePeak } from './RelationsSidePeak';
 import { ClusteringSidePeak } from './ClusteringSidePeak';
 import { TheoryBuildingSidePeak } from './TheoryBuildingSidePeak';
+import { ViewNavigationSidePeak } from './ViewNavigationSidePeak';
 import AILabelSuggestionModal from '../../../../components/ui/AILabelSuggestionModal';
 import { THEME_COLORS } from '../../../../constants/theme';
 import { RelationsAnalysisService, type RelationsDuplicationReport, type RelationsQualityReport } from '../../../../services/RelationsAnalysisService';
@@ -9394,6 +9395,22 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
           currentClusteringResult={smartClusteringResult}
           boardId={boardState.boardId || ''}
           nestId={boardState.currentNestId || ''}
+        />
+      </SidePeakPanel>
+
+      {/* View & Navigation サイドピークパネル */}
+      <SidePeakPanel
+        isOpen={showViewNavigationPanel}
+        onClose={() => setShowViewNavigationPanel(false)}
+        title="View & Navigation"
+        icon="🎯"
+        width={500}
+      >
+        <ViewNavigationSidePeak
+          onResetView={resetView}
+          onAutoLayout={applyForceLayout}
+          showMinimap={showMinimap}
+          onToggleMinimap={setShowMinimap}
         />
       </SidePeakPanel>
     </div>
