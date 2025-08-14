@@ -17,6 +17,7 @@ import { useNest } from '../../../../features/nest/contexts/NestContext'; // Use
 import { SaveClusterDialog } from './SaveClusterDialog';
 import { ClusterViewManager } from './ClusterViewManager';
 import { GroundedTheoryManager } from './GroundedTheoryManager';
+import { SidePeakPanel } from './SidePeakPanel';
 import AILabelSuggestionModal from '../../../../components/ui/AILabelSuggestionModal';
 import { THEME_COLORS } from '../../../../constants/theme';
 import { RelationsAnalysisService, type RelationsDuplicationReport, type RelationsQualityReport } from '../../../../services/RelationsAnalysisService';
@@ -362,6 +363,11 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
 
   // グラウンデッド・セオリー管理関連のstate
   const [showGroundedTheoryManager, setShowGroundedTheoryManager] = useState(false);
+
+  // 新しいメインメニューカテゴリーのstate
+  const [showRelationsPanel, setShowRelationsPanel] = useState(false);
+  const [showViewNavigationPanel, setShowViewNavigationPanel] = useState(false);
+  const [showSearchFilterPanel, setShowSearchFilterPanel] = useState(false);
 
   // Relations重複削除関連のstate (一時的にコメントアウト)
   // const [isDeduplicating, setIsDeduplicating] = useState(false);
@@ -3599,6 +3605,33 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)',
       zIndex: 10,
     },
+    // 新しいメインメニューコンテナ
+    mainMenuContainer: {
+      position: 'absolute' as const,
+      top: '20px',
+      left: '20px',
+      display: 'flex',
+      flexDirection: 'column' as const,
+      gap: '10px',
+      zIndex: 10,
+    },
+    // カテゴリーボタンスタイル
+    categoryBtn: {
+      background: THEME_COLORS.bgSecondary,
+      border: `1px solid ${THEME_COLORS.borderPrimary}`,
+      borderRadius: THEME_COLORS.borderRadius.medium,
+      color: THEME_COLORS.textSecondary,
+      padding: '14px 18px',
+      fontSize: '13px',
+      fontWeight: '600',
+      cursor: 'pointer',
+      transition: 'all 0.2s ease',
+      fontFamily: 'JetBrains Mono, monospace',
+      minWidth: '160px',
+      textAlign: 'center' as const,
+      backdropFilter: 'blur(8px)',
+      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+    },
     controls: {
       position: 'absolute' as const,
       top: '20px',
@@ -4614,8 +4647,81 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
           })}
       </div>
 
-      {/* Controls */}
-      <div style={styles.controls}>
+      {/* New Main Menu Categories */}
+      <div style={styles.mainMenuContainer}>
+        {/* Relations Category */}
+        <button
+          style={{
+            ...styles.categoryBtn,
+            background: showRelationsPanel ? THEME_COLORS.primaryOrange : THEME_COLORS.bgSecondary,
+            color: showRelationsPanel ? THEME_COLORS.textInverse : THEME_COLORS.textSecondary,
+            borderColor: showRelationsPanel ? THEME_COLORS.primaryOrange : THEME_COLORS.borderPrimary,
+          }}
+          onClick={() => setShowRelationsPanel(!showRelationsPanel)}
+          title="関係性の生成・管理・分析"
+        >
+          🔗 Relations
+        </button>
+
+        {/* Clustering Category */}
+        <button
+          style={{
+            ...styles.categoryBtn,
+            background: showClusteringControls ? THEME_COLORS.primaryGreen : THEME_COLORS.bgSecondary,
+            color: showClusteringControls ? THEME_COLORS.textInverse : THEME_COLORS.textSecondary,
+            borderColor: showClusteringControls ? THEME_COLORS.primaryGreen : THEME_COLORS.borderPrimary,
+          }}
+          onClick={() => setShowClusteringControls(!showClusteringControls)}
+          title="ノードのグループ化と可視化"
+        >
+          🎛️ Clustering
+        </button>
+
+        {/* Theory Building Category */}
+        <button
+          style={{
+            ...styles.categoryBtn,
+            background: showGroundedTheoryManager ? THEME_COLORS.primaryPurple : THEME_COLORS.bgSecondary,
+            color: showGroundedTheoryManager ? THEME_COLORS.textInverse : THEME_COLORS.textSecondary,
+            borderColor: showGroundedTheoryManager ? THEME_COLORS.primaryPurple : THEME_COLORS.borderPrimary,
+          }}
+          onClick={() => setShowGroundedTheoryManager(!showGroundedTheoryManager)}
+          title="仮説抽出と理論構築"
+        >
+          🧠 Theory Building
+        </button>
+
+        {/* View & Navigation Category */}
+        <button
+          style={{
+            ...styles.categoryBtn,
+            background: showViewNavigationPanel ? THEME_COLORS.primaryBlue : THEME_COLORS.bgSecondary,
+            color: showViewNavigationPanel ? THEME_COLORS.textInverse : THEME_COLORS.textSecondary,
+            borderColor: showViewNavigationPanel ? THEME_COLORS.primaryBlue : THEME_COLORS.borderPrimary,
+          }}
+          onClick={() => setShowViewNavigationPanel(!showViewNavigationPanel)}
+          title="ビューポート操作・レイアウト制御"
+        >
+          🗺️ View & Navigation
+        </button>
+
+        {/* Search & Filter Category */}
+        <button
+          style={{
+            ...styles.categoryBtn,
+            background: showSearchFilterPanel ? THEME_COLORS.primaryCyan : THEME_COLORS.bgSecondary,
+            color: showSearchFilterPanel ? THEME_COLORS.textInverse : THEME_COLORS.textSecondary,
+            borderColor: showSearchFilterPanel ? THEME_COLORS.primaryCyan : THEME_COLORS.borderPrimary,
+          }}
+          onClick={() => setShowSearchFilterPanel(!showSearchFilterPanel)}
+          title="ノード検索・フィルタリング"
+        >
+          🔍 Search & Filter
+        </button>
+      </div>
+
+      {/* Legacy Controls (temporarily hidden) */}
+      <div style={{...styles.controls, display: 'none'}}>
         {/* 統合関係性分析ボタン */}
         <button
           style={{
@@ -8894,6 +9000,129 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         onSave={handleSaveCurrentCluster}
         isLoading={isSavingCluster}
       />
+
+      {/* Relations サイドピークパネル */}
+      <SidePeakPanel
+        isOpen={showRelationsPanel}
+        onClose={() => setShowRelationsPanel(false)}
+        title="Relations"
+        icon="🔗"
+        width={500}
+      >
+        <div style={{ padding: '20px' }}>
+          <h4 style={{ color: THEME_COLORS.textPrimary, marginBottom: '16px' }}>
+            関係性の生成・管理・分析
+          </h4>
+          <p style={{ color: THEME_COLORS.textSecondary, marginBottom: '16px' }}>
+            このパネルでは関係性の作成、一覧表示、管理機能を提供します。
+          </p>
+          <div style={{ 
+            background: THEME_COLORS.bgTertiary, 
+            padding: '12px',
+            borderRadius: THEME_COLORS.borderRadius.medium,
+            color: THEME_COLORS.textSecondary,
+            fontSize: '12px'
+          }}>
+            📋 実装予定: タブ1「作成・設定」/ タブ2「関係性一覧・管理」
+          </div>
+        </div>
+      </SidePeakPanel>
+
+      {/* View & Navigation サイドピークパネル */}
+      <SidePeakPanel
+        isOpen={showViewNavigationPanel}
+        onClose={() => setShowViewNavigationPanel(false)}
+        title="View & Navigation"
+        icon="🗺️"
+        width={400}
+      >
+        <div style={{ padding: '20px' }}>
+          <h4 style={{ color: THEME_COLORS.textPrimary, marginBottom: '16px' }}>
+            ビューポート操作・レイアウト制御
+          </h4>
+          
+          {/* 直接実行ボタン */}
+          <div style={{ marginBottom: '24px' }}>
+            <h5 style={{ color: THEME_COLORS.textSecondary, marginBottom: '12px', fontSize: '13px' }}>
+              🎮 ビューポート操作
+            </h5>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <button
+                style={{
+                  ...styles.controlBtn,
+                  width: '100%',
+                }}
+                onClick={resetView}
+              >
+                🔄 Reset View
+              </button>
+              <button
+                style={{
+                  ...styles.controlBtn,
+                  width: '100%',
+                }}
+                onClick={applyForceLayout}
+              >
+                🎯 Auto Layout
+              </button>
+              <button
+                style={{
+                  ...styles.controlBtn,
+                  width: '100%',
+                  background: showMinimap ? THEME_COLORS.primaryCyan : THEME_COLORS.bgSecondary,
+                  color: showMinimap ? THEME_COLORS.textInverse : THEME_COLORS.textSecondary,
+                }}
+                onClick={() => setShowMinimap(!showMinimap)}
+              >
+                🗺️ Minimap {showMinimap ? 'ON' : 'OFF'}
+              </button>
+            </div>
+          </div>
+
+          {/* ビュー保存・管理 */}
+          <div>
+            <h5 style={{ color: THEME_COLORS.textSecondary, marginBottom: '12px', fontSize: '13px' }}>
+              💾 ビュー保存・管理
+            </h5>
+            <div style={{ 
+              background: THEME_COLORS.bgTertiary, 
+              padding: '12px',
+              borderRadius: THEME_COLORS.borderRadius.medium,
+              color: THEME_COLORS.textSecondary,
+              fontSize: '12px'
+            }}>
+              📋 実装予定: 既存Views機能の統合
+            </div>
+          </div>
+        </div>
+      </SidePeakPanel>
+
+      {/* Search & Filter サイドピークパネル */}
+      <SidePeakPanel
+        isOpen={showSearchFilterPanel}
+        onClose={() => setShowSearchFilterPanel(false)}
+        title="Search & Filter"
+        icon="🔍"
+        width={450}
+      >
+        <div style={{ padding: '20px' }}>
+          <h4 style={{ color: THEME_COLORS.textPrimary, marginBottom: '16px' }}>
+            ノード検索・フィルタリング
+          </h4>
+          <p style={{ color: THEME_COLORS.textSecondary, marginBottom: '16px' }}>
+            カード内容、タイトル、関係性による検索・フィルタリング機能。
+          </p>
+          <div style={{ 
+            background: THEME_COLORS.bgTertiary, 
+            padding: '12px',
+            borderRadius: THEME_COLORS.borderRadius.medium,
+            color: THEME_COLORS.textSecondary,
+            fontSize: '12px'
+          }}>
+            📋 実装予定: 左下フィルター領域からの機能移行
+          </div>
+        </div>
+      </SidePeakPanel>
 
       {/* グラウンデッド・セオリー分析管理 */}
       {showGroundedTheoryManager && (
