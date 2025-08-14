@@ -44,7 +44,7 @@ export const RelationsSidePeak: React.FC<RelationsSidePeakProps> = ({
       flex: 1,
       padding: '12px 16px',
       border: 'none',
-      background: 'transparent',
+      backgroundColor: THEME_COLORS.bgTertiary, // 非アクティブタブも適切な背景色
       color: THEME_COLORS.textSecondary,
       cursor: 'pointer',
       fontSize: '13px',
@@ -54,7 +54,7 @@ export const RelationsSidePeak: React.FC<RelationsSidePeakProps> = ({
     },
     activeTab: {
       color: THEME_COLORS.textPrimary,
-      backgroundColor: THEME_COLORS.bgPrimary,
+      backgroundColor: THEME_COLORS.bgPrimary, // アクティブタブは明るい背景
       borderBottom: `2px solid ${THEME_COLORS.primaryOrange}`,
     },
     content: {
