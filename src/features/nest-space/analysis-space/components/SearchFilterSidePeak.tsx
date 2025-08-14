@@ -32,7 +32,6 @@ export const SearchFilterSidePeak: React.FC<SearchFilterSidePeakProps> = ({
   searchQuery = '',
   onSearchQueryChange,
 }) => {
-  const [activeTab, setActiveTab] = useState<'search' | 'nodes' | 'relationships'>('search');
 
   // アクティブフィルターの総数を計算
   const totalActiveFilters = activeFilters.tags.length + activeFilters.types.length + activeFilters.relationships.length;
@@ -49,39 +48,141 @@ export const SearchFilterSidePeak: React.FC<SearchFilterSidePeakProps> = ({
     if (onSearchQueryChange) onSearchQueryChange('');
   }, [activeFilters, onToggleTagFilter, onToggleTypeFilter, onToggleRelationshipFilter, onSearchQueryChange]);
 
-  // タイプ設定
-  const getTypeConfig = useCallback((type: string) => {
+  // タイプ設定（NetworkVisualizationの実装と完全に統一）
+  const getTypeConfig = useCallback((type: string, isSelected: boolean) => {
     switch(type) {
       case 'INSIGHTS':
-        return { icon: '💡', color: THEME_COLORS.primaryYellow, label: 'インサイト' };
-      case 'QUESTIONS':
-        return { icon: '❓', color: THEME_COLORS.primaryBlue, label: '質問' };
-      case 'ACTIONS':
-        return { icon: '⚡', color: THEME_COLORS.primaryGreen, label: 'アクション' };
+        return {
+          icon: '💡',
+          background: isSelected ? 'rgba(156,39,176,0.2)' : THEME_COLORS.bgTertiary,
+          color: isSelected ? '#9c27b0' : THEME_COLORS.textSecondary,
+          borderColor: isSelected ? '#9c27b0' : THEME_COLORS.borderSecondary,
+          hoverBg: 'rgba(156,39,176,0.2)',
+          hoverColor: '#9c27b0',
+          hoverBorder: '#9c27b0',
+        };
       case 'THEMES':
-        return { icon: '🎭', color: THEME_COLORS.primaryPurple, label: 'テーマ' };
+        return {
+          icon: '🎯',
+          background: isSelected ? 'rgba(100,181,246,0.2)' : THEME_COLORS.bgTertiary,
+          color: isSelected ? '#64b5f6' : THEME_COLORS.textSecondary,
+          borderColor: isSelected ? '#64b5f6' : THEME_COLORS.borderSecondary,
+          hoverBg: 'rgba(100,181,246,0.2)',
+          hoverColor: '#64b5f6',
+          hoverBorder: '#64b5f6',
+        };
+      case 'QUESTIONS':
+        return {
+          icon: '❓',
+          background: isSelected ? 'rgba(255,211,61,0.2)' : THEME_COLORS.bgTertiary,
+          color: isSelected ? '#ffd93d' : THEME_COLORS.textSecondary,
+          borderColor: isSelected ? '#ffd93d' : THEME_COLORS.borderSecondary,
+          hoverBg: 'rgba(255,211,61,0.2)',
+          hoverColor: '#ffd93d',
+          hoverBorder: '#ffd93d',
+        };
+      case 'ACTIONS':
+        return {
+          icon: '⚡',
+          background: isSelected ? 'rgba(255,165,0,0.2)' : THEME_COLORS.bgTertiary,
+          color: isSelected ? '#ffa500' : THEME_COLORS.textSecondary,
+          borderColor: isSelected ? '#ffa500' : THEME_COLORS.borderSecondary,
+          hoverBg: 'rgba(255,165,0,0.2)',
+          hoverColor: '#ffa500',
+          hoverBorder: '#ffa500',
+        };
       case 'INBOX':
-        return { icon: '📥', color: THEME_COLORS.primaryGray, label: 'インボックス' };
+        return {
+          icon: '📥',
+          background: isSelected ? 'rgba(117,117,117,0.2)' : THEME_COLORS.bgTertiary,
+          color: isSelected ? '#6c7086' : THEME_COLORS.textSecondary,
+          borderColor: isSelected ? '#6c7086' : THEME_COLORS.borderSecondary,
+          hoverBg: 'rgba(117,117,117,0.2)',
+          hoverColor: '#6c7086',
+          hoverBorder: '#6c7086',
+        };
       default:
-        return { icon: '📝', color: THEME_COLORS.primaryGray, label: type };
+        return {
+          icon: '📝',
+          background: THEME_COLORS.bgTertiary,
+          color: THEME_COLORS.textSecondary,
+          borderColor: THEME_COLORS.borderSecondary,
+          hoverBg: THEME_COLORS.bgTertiary,
+          hoverColor: THEME_COLORS.textSecondary,
+          hoverBorder: THEME_COLORS.borderSecondary,
+        };
     }
   }, []);
 
-  // 関係性タイプ設定
-  const getRelationshipConfig = useCallback((type: string) => {
+  // 関係性タイプ設定（NetworkVisualizationの実装と完全に統一）
+  const getRelationshipConfig = useCallback((type: string, isSelected: boolean) => {
     switch(type) {
       case 'manual':
-        return { icon: '👤', color: THEME_COLORS.primaryBlue, label: '手動' };
+        return {
+          icon: '👥',
+          label: 'Manual',
+          background: isSelected ? 'rgba(0,255,136,0.2)' : THEME_COLORS.bgTertiary,
+          color: isSelected ? THEME_COLORS.primaryGreen : THEME_COLORS.textSecondary,
+          borderColor: isSelected ? THEME_COLORS.primaryGreen : THEME_COLORS.borderSecondary,
+          hoverBg: 'rgba(0,255,136,0.2)',
+          hoverColor: THEME_COLORS.primaryGreen,
+          hoverBorder: THEME_COLORS.primaryGreen,
+        };
       case 'semantic':
-        return { icon: '🧠', color: THEME_COLORS.primaryPurple, label: 'セマンティック' };
+        return {
+          icon: '🧠',
+          label: 'Semantic',
+          background: isSelected ? 'rgba(255,165,0,0.2)' : THEME_COLORS.bgTertiary,
+          color: isSelected ? THEME_COLORS.primaryOrange : THEME_COLORS.textSecondary,
+          borderColor: isSelected ? THEME_COLORS.primaryOrange : THEME_COLORS.borderSecondary,
+          hoverBg: 'rgba(255,165,0,0.2)',
+          hoverColor: THEME_COLORS.primaryOrange,
+          hoverBorder: THEME_COLORS.primaryOrange,
+        };
       case 'derived':
-        return { icon: '🔗', color: THEME_COLORS.primaryGreen, label: '派生' };
+        return {
+          icon: '🔗',
+          label: 'Derived',
+          background: isSelected ? 'rgba(100,181,246,0.2)' : THEME_COLORS.bgTertiary,
+          color: isSelected ? THEME_COLORS.primaryBlue : THEME_COLORS.textSecondary,
+          borderColor: isSelected ? THEME_COLORS.primaryBlue : THEME_COLORS.borderSecondary,
+          hoverBg: 'rgba(100,181,246,0.2)',
+          hoverColor: THEME_COLORS.primaryBlue,
+          hoverBorder: THEME_COLORS.primaryBlue,
+        };
       case 'tag_similarity':
-        return { icon: '🏷️', color: THEME_COLORS.primaryOrange, label: 'タグ類似' };
+        return {
+          icon: '🏷️',
+          label: 'Tags',
+          background: isSelected ? 'rgba(139,195,74,0.2)' : THEME_COLORS.bgTertiary,
+          color: isSelected ? THEME_COLORS.primaryCyan : THEME_COLORS.textSecondary,
+          borderColor: isSelected ? THEME_COLORS.primaryCyan : THEME_COLORS.borderSecondary,
+          hoverBg: 'rgba(139,195,74,0.2)',
+          hoverColor: THEME_COLORS.primaryCyan,
+          hoverBorder: THEME_COLORS.primaryCyan,
+        };
       case 'ai':
-        return { icon: '🤖', color: THEME_COLORS.primaryCyan, label: 'AI提案' };
+        return {
+          icon: '🤖',
+          label: 'AI',
+          background: isSelected ? 'rgba(255,235,59,0.2)' : THEME_COLORS.bgTertiary,
+          color: isSelected ? THEME_COLORS.primaryYellow : THEME_COLORS.textSecondary,
+          borderColor: isSelected ? THEME_COLORS.primaryYellow : THEME_COLORS.borderSecondary,
+          hoverBg: 'rgba(255,235,59,0.2)',
+          hoverColor: THEME_COLORS.primaryYellow,
+          hoverBorder: THEME_COLORS.primaryYellow,
+        };
       default:
-        return { icon: '🔗', color: THEME_COLORS.primaryGray, label: type };
+        return {
+          icon: '🔗',
+          label: type,
+          background: THEME_COLORS.bgTertiary,
+          color: THEME_COLORS.textSecondary,
+          borderColor: THEME_COLORS.borderSecondary,
+          hoverBg: THEME_COLORS.bgTertiary,
+          hoverColor: THEME_COLORS.textSecondary,
+          hoverBorder: THEME_COLORS.borderSecondary,
+        };
     }
   }, []);
 
@@ -123,28 +224,7 @@ export const SearchFilterSidePeak: React.FC<SearchFilterSidePeakProps> = ({
       transition: 'all 0.2s ease',
       opacity: totalActiveFilters > 0 ? 1 : 0.5,
     } as React.CSSProperties,
-    tabContainer: {
-      display: 'flex',
-      borderBottom: `1px solid ${THEME_COLORS.borderSecondary}`,
-      backgroundColor: THEME_COLORS.bgSecondary,
-    } as React.CSSProperties,
-    tab: {
-      flex: 1,
-      padding: '12px 16px',
-      border: 'none',
-      backgroundColor: 'transparent',
-      color: THEME_COLORS.textSecondary,
-      fontSize: '11px',
-      fontWeight: '600',
-      cursor: 'pointer',
-      transition: 'all 0.2s ease',
-      borderBottom: '2px solid transparent',
-    } as React.CSSProperties,
-    activeTab: {
-      backgroundColor: THEME_COLORS.bgTertiary,
-      color: THEME_COLORS.textPrimary,
-      borderBottomColor: THEME_COLORS.primaryCyan,
-    } as React.CSSProperties,
+
     content: {
       flex: 1,
       overflow: 'auto',
@@ -181,23 +261,19 @@ export const SearchFilterSidePeak: React.FC<SearchFilterSidePeakProps> = ({
       gap: '6px',
     } as React.CSSProperties,
     filterChip: {
-      padding: '4px 8px',
-      border: `1px solid ${THEME_COLORS.borderSecondary}`,
-      borderRadius: THEME_COLORS.borderRadius.small,
-      backgroundColor: THEME_COLORS.bgTertiary,
-      color: THEME_COLORS.textSecondary,
-      fontSize: '10px',
-      fontWeight: '500',
-      cursor: 'pointer',
-      transition: 'all 0.2s ease',
-      display: 'flex',
+      display: 'inline-flex',
       alignItems: 'center',
       gap: '4px',
-    } as React.CSSProperties,
-    activeFilterChip: {
-      backgroundColor: THEME_COLORS.primaryCyan,
-      color: THEME_COLORS.textInverse,
-      borderColor: THEME_COLORS.primaryCyan,
+      padding: '2px 6px',
+      borderRadius: THEME_COLORS.borderRadius.small,
+      fontSize: '10px',
+      fontWeight: '500',
+      textTransform: 'uppercase',
+      letterSpacing: '0.5px',
+      fontFamily: 'JetBrains Mono, monospace',
+      cursor: 'pointer',
+      transition: 'all 0.2s ease',
+      border: '1px solid',
     } as React.CSSProperties,
     badge: {
       display: 'inline-block',
@@ -216,8 +292,12 @@ export const SearchFilterSidePeak: React.FC<SearchFilterSidePeakProps> = ({
   // 検索セクション
   const renderSearchSection = () => (
     <div style={styles.searchSection}>
-      <div style={styles.sectionTitle}>
-        🔍 ノード検索
+      <div style={{
+        ...styles.sectionTitle,
+        fontSize: '12px',
+        marginBottom: '8px',
+      }}>
+        🔍 検索
       </div>
       <input
         type="text"
@@ -244,8 +324,12 @@ export const SearchFilterSidePeak: React.FC<SearchFilterSidePeakProps> = ({
   // ノードタイプフィルター
   const renderNodeTypeFilters = () => (
     <div style={styles.filterSection}>
-      <div style={styles.sectionTitle}>
-        📝 ノードタイプ
+      <div style={{
+        ...styles.sectionTitle,
+        fontSize: '12px',
+        marginBottom: '8px',
+      }}>
+        📦 タイプ
         {activeFilters.types.length > 0 && (
           <span style={styles.badge}>{activeFilters.types.length}</span>
         )}
@@ -253,20 +337,41 @@ export const SearchFilterSidePeak: React.FC<SearchFilterSidePeakProps> = ({
       <div style={styles.filterGrid}>
         {['QUESTIONS', 'INSIGHTS', 'ACTIONS', 'THEMES', 'INBOX'].map(type => {
           const isSelected = activeFilters.types.includes(type);
-          const config = getTypeConfig(type);
+          const typeConfig = getTypeConfig(type, isSelected);
           
           return (
             <button
               key={type}
               style={{
                 ...styles.filterChip,
-                ...(isSelected ? styles.activeFilterChip : {}),
-                borderColor: isSelected ? config.color : styles.filterChip.borderColor,
+                background: typeConfig.background,
+                color: typeConfig.color,
+                borderColor: typeConfig.borderColor,
+                transform: isSelected ? 'translateY(-1px)' : 'translateY(0)',
+                boxShadow: isSelected ? '0 4px 12px rgba(0,255,136,0.2)' : 'none',
               }}
               onClick={() => onToggleTypeFilter(type)}
+              onMouseEnter={(e) => {
+                if (!isSelected) {
+                  e.currentTarget.style.background = typeConfig.hoverBg;
+                  e.currentTarget.style.color = typeConfig.hoverColor;
+                  e.currentTarget.style.borderColor = typeConfig.hoverBorder;
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,255,136,0.2)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isSelected) {
+                  e.currentTarget.style.background = THEME_COLORS.bgTertiary;
+                  e.currentTarget.style.color = THEME_COLORS.textSecondary;
+                  e.currentTarget.style.borderColor = THEME_COLORS.borderSecondary;
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }
+              }}
             >
-              <span>{config.icon}</span>
-              <span>{config.label}</span>
+              <span style={{ fontSize: '10px' }}>{typeConfig.icon}</span>
+              {type}
             </button>
           );
         })}
@@ -277,8 +382,12 @@ export const SearchFilterSidePeak: React.FC<SearchFilterSidePeakProps> = ({
   // タグフィルター
   const renderTagFilters = () => (
     <div style={styles.filterSection}>
-      <div style={styles.sectionTitle}>
-        🏷️ タグフィルター
+      <div style={{
+        ...styles.sectionTitle,
+        fontSize: '12px',
+        marginBottom: '8px',
+      }}>
+        🏷️ タグ
         {activeFilters.tags.length > 0 && (
           <span style={styles.badge}>{activeFilters.tags.length}</span>
         )}
@@ -307,7 +416,11 @@ export const SearchFilterSidePeak: React.FC<SearchFilterSidePeakProps> = ({
   // 関係性フィルター
   const renderRelationshipFilters = () => (
     <div style={styles.filterSection}>
-      <div style={styles.sectionTitle}>
+      <div style={{
+        ...styles.sectionTitle,
+        fontSize: '12px',
+        marginBottom: '8px',
+      }}>
         🔗 関係性タイプ
         {activeFilters.relationships.length > 0 && (
           <span style={styles.badge}>{activeFilters.relationships.length}</span>
@@ -316,20 +429,41 @@ export const SearchFilterSidePeak: React.FC<SearchFilterSidePeakProps> = ({
       <div style={styles.filterGrid}>
         {['manual', 'semantic', 'derived', 'tag_similarity', 'ai'].map(relationshipType => {
           const isSelected = activeFilters.relationships.includes(relationshipType);
-          const config = getRelationshipConfig(relationshipType);
+          const relationshipConfig = getRelationshipConfig(relationshipType, isSelected);
           
           return (
             <button
               key={relationshipType}
               style={{
                 ...styles.filterChip,
-                ...(isSelected ? styles.activeFilterChip : {}),
-                borderColor: isSelected ? config.color : styles.filterChip.borderColor,
+                background: relationshipConfig.background,
+                color: relationshipConfig.color,
+                borderColor: relationshipConfig.borderColor,
+                transform: isSelected ? 'translateY(-1px)' : 'translateY(0)',
+                boxShadow: isSelected ? '0 4px 12px rgba(0,255,136,0.2)' : 'none',
               }}
               onClick={() => onToggleRelationshipFilter(relationshipType)}
+              onMouseEnter={(e) => {
+                if (!isSelected) {
+                  e.currentTarget.style.background = relationshipConfig.hoverBg;
+                  e.currentTarget.style.color = relationshipConfig.hoverColor;
+                  e.currentTarget.style.borderColor = relationshipConfig.hoverBorder;
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,255,136,0.2)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isSelected) {
+                  e.currentTarget.style.background = THEME_COLORS.bgTertiary;
+                  e.currentTarget.style.color = THEME_COLORS.textSecondary;
+                  e.currentTarget.style.borderColor = THEME_COLORS.borderSecondary;
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }
+              }}
             >
-              <span>{config.icon}</span>
-              <span>{config.label}</span>
+              <span style={{ fontSize: '10px' }}>{relationshipConfig.icon}</span>
+              {relationshipConfig.label}
             </button>
           );
         })}
@@ -358,57 +492,46 @@ export const SearchFilterSidePeak: React.FC<SearchFilterSidePeakProps> = ({
         )}
       </div>
 
-      {/* タブ */}
-      <div style={styles.tabContainer}>
-        <button
-          style={{
-            ...styles.tab,
-            ...(activeTab === 'search' ? styles.activeTab : {}),
-          }}
-          onClick={() => setActiveTab('search')}
-        >
-          🔍 検索
-        </button>
-        <button
-          style={{
-            ...styles.tab,
-            ...(activeTab === 'nodes' ? styles.activeTab : {}),
-          }}
-          onClick={() => setActiveTab('nodes')}
-        >
-          📝 ノード{activeFilters.types.length > 0 && ` (${activeFilters.types.length})`}
-        </button>
-        <button
-          style={{
-            ...styles.tab,
-            ...(activeTab === 'relationships' ? styles.activeTab : {}),
-          }}
-          onClick={() => setActiveTab('relationships')}
-        >
-          🔗 関係性{activeFilters.relationships.length > 0 && ` (${activeFilters.relationships.length})`}
-        </button>
-      </div>
-
       {/* コンテンツ */}
       <div style={styles.content}>
-        {activeTab === 'search' && (
-          <div>
-            {renderSearchSection()}
-            {renderTagFilters()}
+        {/* ノードフィルター */}
+        <div style={{
+          ...styles.filterSection,
+          borderBottom: `1px solid ${THEME_COLORS.borderSecondary}`,
+          paddingBottom: '20px',
+          marginBottom: '20px',
+        }}>
+          <div style={{
+            ...styles.sectionTitle,
+            fontSize: '14px',
+            marginBottom: '16px',
+            color: THEME_COLORS.textPrimary,
+          }}>
+            📝 ノードフィルター
+            {(activeFilters.tags.length + activeFilters.types.length) > 0 && (
+              <span style={styles.badge}>{activeFilters.tags.length + activeFilters.types.length}</span>
+            )}
           </div>
-        )}
-        
-        {activeTab === 'nodes' && (
-          <div>
-            {renderNodeTypeFilters()}
+          {renderSearchSection()}
+          {renderTagFilters()}
+          {renderNodeTypeFilters()}
+        </div>
+
+        {/* 関係性フィルター */}
+        <div style={styles.filterSection}>
+          <div style={{
+            ...styles.sectionTitle,
+            fontSize: '14px',
+            marginBottom: '16px',
+            color: THEME_COLORS.textPrimary,
+          }}>
+            🔗 関係性フィルター
+            {activeFilters.relationships.length > 0 && (
+              <span style={styles.badge}>{activeFilters.relationships.length}</span>
+            )}
           </div>
-        )}
-        
-        {activeTab === 'relationships' && (
-          <div>
-            {renderRelationshipFilters()}
-          </div>
-        )}
+          {renderRelationshipFilters()}
+        </div>
       </div>
     </div>
   );
