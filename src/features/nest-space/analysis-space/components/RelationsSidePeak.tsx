@@ -1,5 +1,21 @@
 import React, { useState, useCallback } from 'react';
 import { THEME_COLORS } from '../../../../constants/theme';
+import { RelationsResultPanel } from './RelationsResultPanel';
+import type { BoardItem } from '../../../board-space/contexts/BoardContext';
+
+// 統合分析結果のインターフェース
+interface UnifiedRelationshipSuggestion {
+  sourceCardId: string;
+  targetCardId: string;
+  relationshipType: string;
+  suggestedStrength: number;
+  confidence: number;
+  similarity?: number;
+  explanation: string;
+  analysisMethod: 'ai' | 'tag_similarity' | 'derived' | 'unified';
+  methodLabel: string;
+  methodIcon: string;
+}
 
 interface RelationsSidePeakProps {
   /** 関係性分析中かどうか */
@@ -16,6 +32,24 @@ interface RelationsSidePeakProps {
   onRunRelationsAnalysis: () => void;
   /** Relations数 */
   relationsCount: number;
+  
+  // 分析結果関連（新規追加）
+  /** 分析結果の提案リスト */
+  analysisSuggestions?: UnifiedRelationshipSuggestion[];
+  /** カード情報リスト */
+  cards: BoardItem[];
+  /** 個別提案の承認 */
+  onApproveSuggestion?: (suggestion: UnifiedRelationshipSuggestion) => void;
+  /** 個別提案の拒否 */
+  onRejectSuggestion?: (suggestion: UnifiedRelationshipSuggestion) => void;
+  /** 手法別一括承認 */
+  onApproveMethodSuggestions?: (method: 'ai' | 'tag_similarity' | 'derived') => void;
+  /** 手法別一括拒否 */
+  onRejectMethodSuggestions?: (method: 'ai' | 'tag_similarity' | 'derived') => void;
+  /** 全体一括承認 */
+  onApproveAllSuggestions?: () => void;
+  /** 全体拒否（結果パネルを閉じる） */
+  onRejectAllSuggestions?: () => void;
 }
 
 /**
@@ -30,6 +64,14 @@ export const RelationsSidePeak: React.FC<RelationsSidePeakProps> = ({
   onOpenParameterSettings,
   onRunRelationsAnalysis,
   relationsCount,
+  analysisSuggestions = [],
+  cards,
+  onApproveSuggestion,
+  onRejectSuggestion,
+  onApproveMethodSuggestions,
+  onRejectMethodSuggestions,
+  onApproveAllSuggestions,
+  onRejectAllSuggestions,
 }) => {
   const [activeTab, setActiveTab] = useState<'create' | 'manage'>('create');
 
@@ -230,24 +272,40 @@ export const RelationsSidePeak: React.FC<RelationsSidePeakProps> = ({
         </div>
       </div>
 
-      {/* 分析結果表示エリア（プレースホルダー） */}
-      <div style={styles.section}>
-        <div style={styles.sectionTitle}>
-          📊 分析結果表示・承認
+      {/* 分析結果表示エリア */}
+      {analysisSuggestions.length > 0 && onApproveSuggestion && onRejectSuggestion && 
+       onApproveMethodSuggestions && onRejectMethodSuggestions && 
+       onApproveAllSuggestions && onRejectAllSuggestions ? (
+        <RelationsResultPanel
+          suggestions={analysisSuggestions}
+          cards={cards}
+          onApproveSuggestion={onApproveSuggestion}
+          onRejectSuggestion={onRejectSuggestion}
+          onApproveMethodSuggestions={onApproveMethodSuggestions}
+          onRejectMethodSuggestions={onRejectMethodSuggestions}
+          onApproveAllSuggestions={onApproveAllSuggestions}
+          onRejectAll={onRejectAllSuggestions}
+        />
+      ) : (
+        <div style={styles.section}>
+          <div style={styles.sectionTitle}>
+            📊 分析結果表示・承認
+          </div>
+          <div style={styles.sectionDesc}>
+            分析実行後、ここに統合関係性提案が表示されます。各提案を確認して承認・拒否を決定してください。
+          </div>
+          <div style={{ 
+            background: THEME_COLORS.bgTertiary, 
+            padding: '12px',
+            borderRadius: THEME_COLORS.borderRadius.medium,
+            color: THEME_COLORS.textSecondary,
+            fontSize: '12px',
+            textAlign: 'center',
+          }}>
+            💡 分析を実行すると、ここに関係性提案が表示されます
+          </div>
         </div>
-        <div style={styles.sectionDesc}>
-          分析実行後、ここに統合関係性提案が表示されます。各提案を確認して承認・拒否を決定してください。
-        </div>
-        <div style={{ 
-          background: THEME_COLORS.bgTertiary, 
-          padding: '12px',
-          borderRadius: THEME_COLORS.borderRadius.medium,
-          color: THEME_COLORS.textSecondary,
-          fontSize: '12px'
-        }}>
-          📋 実装予定: 統合関係性提案パネルの統合（P2.6.1-P2.6.4）
-        </div>
-      </div>
+      )}
     </div>
   );
 

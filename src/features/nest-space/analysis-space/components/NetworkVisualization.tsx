@@ -801,7 +801,8 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         console.log('🔍 [DEBUG] 結合後suggestions:', combinedSuggestions.length);
         
         setAiSuggestions(combinedSuggestions);
-        setShowSuggestionsPanel(true);
+        // 結果をサイドピークに表示するため、Relations パネルを開く
+        setShowRelationsPanel(true);
         
         console.log('🔍 [DEBUG] setAiSuggestions完了, suggestions数:', suggestions.length);
         
@@ -3054,7 +3055,8 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       
       setAiSuggestions(filteredSuggestions as UnifiedRelationshipSuggestion[]);
       setShowAnalysisModal(false);
-      setShowSuggestionsPanel(true);
+      // 結果をサイドピークに表示するため、Relations パネルを開く
+      setShowRelationsPanel(true);
       
       const analysisTypeLabel = analysisType === 'incremental' ? '増分' : '完全';
       
@@ -3324,7 +3326,8 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       
       setAiSuggestions(unifiedAiSuggestions);
       setShowAnalysisModal(false);
-      setShowSuggestionsPanel(true);
+      // 結果をサイドピークに表示するため、Relations パネルを開く
+      setShowRelationsPanel(true);
       
       if (filteredSuggestions.length === 0) {
         showCustomDialog(
@@ -9098,7 +9101,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         onClose={() => setShowRelationsPanel(false)}
         title="Relations"
         icon="🔗"
-        width={500}
+        width={600}
       >
         <RelationsSidePeak
           isAnalyzing={isAnalyzing}
@@ -9108,6 +9111,17 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
           onOpenParameterSettings={() => setShowParameterSettings(true)}
           onRunRelationsAnalysis={handleRelationsAnalysis}
           relationsCount={relationships.length}
+          analysisSuggestions={aiSuggestions as any[]}
+          cards={cards}
+          onApproveSuggestion={approveSuggestion}
+          onRejectSuggestion={rejectSuggestion}
+          onApproveMethodSuggestions={approveMethodSuggestions}
+          onRejectMethodSuggestions={rejectMethodSuggestions}
+          onApproveAllSuggestions={approveAllSuggestions}
+          onRejectAllSuggestions={() => {
+            setAiSuggestions([]);
+            // サイドピーク内の結果は自動的に消える
+          }}
         />
       </SidePeakPanel>
 
