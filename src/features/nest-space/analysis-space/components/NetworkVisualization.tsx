@@ -308,7 +308,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   const [newRelationTarget, setNewRelationTarget] = useState<string>('');
   const [newRelationType, setNewRelationType] = useState<'semantic' | 'manual' | 'derived'>('manual');
   const [newRelationStrength, setNewRelationStrength] = useState<number>(0.7);
-  const [searchQuery, setSearchQuery] = useState<string>('');
+
   
   // 関連性ソートの状態管理
   const [relationsSortBy, setRelationsSortBy] = useState<'strength' | 'type' | 'target_title' | 'default'>('default');
@@ -329,11 +329,11 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   const [showClusteringControls, setShowClusteringControls] = useState(false);
   const [showFilteredClusters, setShowFilteredClusters] = useState(false);
   const [filteredClusters, setFilteredClusters] = useState<string[][]>([]);
-  const [isFilterPanelCollapsed, setIsFilterPanelCollapsed] = useState(false);
+  // const [isFilterPanelCollapsed, setIsFilterPanelCollapsed] = useState(false); // 左下パネル廃止により不要
   const [showMinimap, setShowMinimap] = useState(true);
   
-  // フィルターパネルのタブ管理
-  const [activeFilterTab, setActiveFilterTab] = useState<'nodes' | 'relationships' | 'clusters'>('nodes');
+  // フィルターパネルのタブ管理（左下パネル廃止により不要）
+  // const [activeFilterTab, setActiveFilterTab] = useState<'nodes' | 'relationships' | 'clusters'>('nodes');
   
   // ビュー保存・管理の状態
   const [savedViews, setSavedViews] = useState<SavedView[]>([]);
@@ -373,6 +373,9 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   const [showRelationsPanel, setShowRelationsPanel] = useState(false);
   const [showViewNavigationPanel, setShowViewNavigationPanel] = useState(false);
   const [showSearchFilterPanel, setShowSearchFilterPanel] = useState(false);
+  
+  // 検索機能のstate
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Relations重複削除関連のstate (一時的にコメントアウト)
   // const [isDeduplicating, setIsDeduplicating] = useState(false);
@@ -960,7 +963,14 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
                      activeFilters.tags.some(tag => card.tags?.includes(tag));
       const typeMatch = activeFilters.types.length === 0 || 
                        activeFilters.types.includes(card.column_type);
-      return tagMatch && typeMatch;
+      
+      // 検索クエリによるフィルタリング
+      const searchMatch = !searchQuery || 
+                         card.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         card.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         (card.tags && card.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase())));
+      
+      return tagMatch && typeMatch && searchMatch;
     });
 
     // ノードの生成 - 改良された配置アルゴリズム
@@ -1215,7 +1225,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         networkDensity: edges.length / ((nodes.length * (nodes.length - 1)) / 2),
       },
     };
-  }, [cards, relationships, config.edgeFilter, activeFilters, nodePositions, containerDimensions]);
+  }, [cards, relationships, config.edgeFilter, activeFilters, nodePositions, containerDimensions, searchQuery]);
 
   // UIの設定をSmartClusteringServiceの形式に変換
   const convertToClusteringConfig = useCallback((uiConfig: typeof advancedConfig): ClusteringConfig => {
@@ -6344,8 +6354,8 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         </div>
       </div>
 
-      {/* Collapsible Filter Panel */}
-      <div style={{
+      {/* Collapsible Filter Panel - サイドピークに移行済みのため無効化 */}
+      {false && <div style={{
         ...styles.panel,
         bottom: '20px',
         left: '20px',
@@ -6964,7 +6974,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
             )}
           </div>
         )}
-      </div>
+      </div>}
 
 
 
@@ -7950,7 +7960,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       <div style={{
         position: 'absolute',
         bottom: '20px',
-        right: '20px',
+        right: '80px', // サイドピークとの干渉を避けるため右にマージン追加
         display: 'flex',
         alignItems: 'flex-end',
         gap: '20px',
@@ -9428,8 +9438,8 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
           onToggleTagFilter={toggleTagFilter}
           onToggleTypeFilter={toggleTypeFilter}
           onToggleRelationshipFilter={toggleRelationshipFilter}
-          searchQuery=""
-          onSearchQueryChange={() => {}}
+          searchQuery={searchQuery}
+          onSearchQueryChange={setSearchQuery}
         />
       </SidePeakPanel>
     </div>
