@@ -22,6 +22,7 @@ import { RelationsSidePeak } from './RelationsSidePeak';
 import { ClusteringSidePeak } from './ClusteringSidePeak';
 import { TheoryBuildingSidePeak } from './TheoryBuildingSidePeak';
 import { ViewNavigationSidePeak } from './ViewNavigationSidePeak';
+import { SearchFilterSidePeak } from './SearchFilterSidePeak';
 import AILabelSuggestionModal from '../../../../components/ui/AILabelSuggestionModal';
 import { THEME_COLORS } from '../../../../constants/theme';
 import { RelationsAnalysisService, type RelationsDuplicationReport, type RelationsQualityReport } from '../../../../services/RelationsAnalysisService';
@@ -9411,6 +9412,24 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
           onAutoLayout={applyForceLayout}
           showMinimap={showMinimap}
           onToggleMinimap={setShowMinimap}
+        />
+      </SidePeakPanel>
+
+      {/* Search & Filter サイドピークパネル */}
+      <SidePeakPanel
+        isOpen={showSearchFilterPanel}
+        onClose={() => setShowSearchFilterPanel(false)}
+        title="Search & Filter"
+        icon="🔍"
+        width={450}
+      >
+        <SearchFilterSidePeak
+          activeFilters={activeFilters}
+          onToggleTagFilter={toggleTagFilter}
+          onToggleTypeFilter={toggleTypeFilter}
+          onToggleRelationshipFilter={toggleRelationshipFilter}
+          searchQuery=""
+          onSearchQueryChange={() => {}}
         />
       </SidePeakPanel>
     </div>

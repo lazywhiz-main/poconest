@@ -122,11 +122,12 @@
 - ✅ **Phase 2 完了** - Relations サイドピーク完全実装・統合テスト済み
 - ✅ **Phase 3 完了** - Clustering サイドピーク完全実装・左下フィルター移行済み
 - ✅ **Phase 4 完了** - Theory Building サイドピーク実装・GroundedTheoryManager最適化済み
-- 🚧 **現在**: Phase 5開始準備
+- ✅ **Phase 5 完了** - View & Navigation サイドピーク実装・直接実行ボタン完備
+- 🚧 **現在**: Phase 6開始準備
 
 ### 次のアクション
-1. **Phase 5開始** - View & Navigation サイドピーク実装（P5.1から開始）
-2. 直接実行ボタンエリア（Reset View, Auto Layout）の実装
+1. **Phase 6開始** - Search & Filter サイドピーク実装（P6.1から開始）
+2. 左下フィルター領域からの機能移行完了
 3. 各フェーズ完了後に動作確認
 
 ---
