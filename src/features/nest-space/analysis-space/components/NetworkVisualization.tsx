@@ -18,6 +18,7 @@ import { SaveClusterDialog } from './SaveClusterDialog';
 import { ClusterViewManager } from './ClusterViewManager';
 import { GroundedTheoryManager } from './GroundedTheoryManager';
 import { SidePeakPanel } from './SidePeakPanel';
+import { RelationsSidePeak } from './RelationsSidePeak';
 import AILabelSuggestionModal from '../../../../components/ui/AILabelSuggestionModal';
 import { THEME_COLORS } from '../../../../constants/theme';
 import { RelationsAnalysisService, type RelationsDuplicationReport, type RelationsQualityReport } from '../../../../services/RelationsAnalysisService';
@@ -654,6 +655,96 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       alert('Relations分析エラーが発生しました');
     } finally {
       setIsAnalyzingRelations(false);
+    }
+  };
+
+  // Relations一括削除
+  const handleBulkDeleteRelations = async () => {
+    // 削除オプション選択
+    const deleteType = window.prompt(
+      `Relations削除オプションを選択してください:\n\n` +
+      `1: 全Relations削除\n` +
+      `2: AI分析Relations削除\n` +
+      `3: タグ類似性Relations削除\n` +
+      `4: 推論Relations削除\n` +
+      `5: 低強度Relations削除 (0.0-0.4)\n` +
+      `6: 中強度Relations削除 (0.4-0.7)\n` +
+      `7: 高強度Relations削除 (0.7-1.0)\n\n` +
+      `番号を入力してください (1-7):`,
+      '1'
+    );
+    
+    if (!deleteType || !['1', '2', '3', '4', '5', '6', '7'].includes(deleteType)) {
+      return; // キャンセルまたは無効な入力
+    }
+    
+    // 削除設定を構築
+    let deleteOptions: any = { boardId: boardState.boardId || undefined };
+    let confirmMessage = '';
+    
+    switch (deleteType) {
+      case '1':
+        confirmMessage = `現在のボードの全てのRelationsを削除しますか？`;
+        break;
+      case '2':
+        deleteOptions.relationshipType = 'ai';
+        confirmMessage = `AI分析で生成されたRelationsを削除しますか？`;
+        break;
+      case '3':
+        deleteOptions.relationshipType = 'tag_similarity';
+        confirmMessage = `タグ類似性で生成されたRelationsを削除しますか？`;
+        break;
+      case '4':
+        deleteOptions.relationshipType = 'derived';
+        confirmMessage = `推論で生成されたRelationsを削除しますか？`;
+        break;
+      case '5':
+        deleteOptions.strengthRange = { min: 0.0, max: 0.4 };
+        confirmMessage = `低強度Relations (0.0-0.4) を削除しますか？`;
+        break;
+      case '6':
+        deleteOptions.strengthRange = { min: 0.4, max: 0.7 };
+        confirmMessage = `中強度Relations (0.4-0.7) を削除しますか？`;
+        break;
+      case '7':
+        deleteOptions.strengthRange = { min: 0.7, max: 1.0 };
+        confirmMessage = `高強度Relations (0.7-1.0) を削除しますか？`;
+        break;
+    }
+    
+    confirmMessage += `\n\nこの操作は元に戻せません。`;
+    
+    if (window.confirm(confirmMessage)) {
+      try {
+        console.log('🗑️ [NetworkVisualization] Relations一括削除開始:', deleteOptions);
+        
+        const result = await AnalysisService.bulkDeleteRelationships(deleteOptions);
+        
+        if (result.success) {
+          showCustomDialog(
+            '削除完了',
+            result.details,
+            () => {
+              hideCustomDialog();
+              // ネットワークデータを再読み込み
+              window.location.reload();
+            }
+          );
+        } else {
+          showCustomDialog(
+            '削除エラー',
+            result.details || '削除に失敗しました',
+            () => hideCustomDialog()
+          );
+        }
+      } catch (error) {
+        console.error('❌ [NetworkVisualization] 一括削除エラー:', error);
+        showCustomDialog(
+          'エラー',
+          '一括削除中にエラーが発生しました',
+          () => hideCustomDialog()
+        );
+      }
     }
   };
 
@@ -9009,23 +9100,15 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         icon="🔗"
         width={500}
       >
-        <div style={{ padding: '20px' }}>
-          <h4 style={{ color: THEME_COLORS.textPrimary, marginBottom: '16px' }}>
-            関係性の生成・管理・分析
-          </h4>
-          <p style={{ color: THEME_COLORS.textSecondary, marginBottom: '16px' }}>
-            このパネルでは関係性の作成、一覧表示、管理機能を提供します。
-          </p>
-          <div style={{ 
-            background: THEME_COLORS.bgTertiary, 
-            padding: '12px',
-            borderRadius: THEME_COLORS.borderRadius.medium,
-            color: THEME_COLORS.textSecondary,
-            fontSize: '12px'
-          }}>
-            📋 実装予定: タブ1「作成・設定」/ タブ2「関係性一覧・管理」
-          </div>
-        </div>
+        <RelationsSidePeak
+          isAnalyzing={isAnalyzing}
+          isAnalyzingRelations={isAnalyzingRelations}
+          onRunUnifiedAnalysis={runUnifiedRelationshipAnalysis}
+          onBulkDeleteRelations={handleBulkDeleteRelations}
+          onOpenParameterSettings={() => setShowParameterSettings(true)}
+          onRunRelationsAnalysis={handleRelationsAnalysis}
+          relationsCount={networkEdges.length}
+        />
       </SidePeakPanel>
 
       {/* View & Navigation サイドピークパネル */}
