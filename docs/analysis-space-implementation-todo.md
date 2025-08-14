@@ -16,7 +16,7 @@
 - [x] **P1.3** サイドピーク共通コンポーネントの設計・実装
 - [x] **P1.4** メインメニューとサイドピークの基本動作確認
 
-### Phase 2: Relations サイドピーク実装 ⭐ 優先度：HIGH 🚧 **IN PROGRESS**
+### Phase 2: Relations サイドピーク実装 ⭐ 優先度：HIGH ✅ **COMPLETED**
 - [x] **P2.1** Relations関連機能の現状調査
   - 🔗 統合関係性分析（増分）
   - 🗑️ Relations一括削除
@@ -35,11 +35,11 @@
   - 統計情報表示
 - [x] **P2.4** 既存機能との互換性確認
 - [x] **P2.5** 動作テスト・デバッグ
-- [ ] **P2.6** 分析結果表示のサイドピーク統合 ⭐ 優先度：MEDIUM-HIGH
-  - **P2.6.1** RelationsResultPanel.tsx コンポーネント作成
-  - **P2.6.2** RelationsSidePeak.tsx に統合
-  - **P2.6.3** NetworkVisualization.tsx の修正
-  - **P2.6.4** 統合テスト・動作確認
+- [x] **P2.6** 分析結果表示のサイドピーク統合 ⭐ 優先度：MEDIUM-HIGH
+  - [x] **P2.6.1** RelationsResultPanel.tsx コンポーネント作成
+  - [x] **P2.6.2** RelationsSidePeak.tsx に統合
+  - [x] **P2.6.3** NetworkVisualization.tsx の修正
+  - [x] **P2.6.4** 統合テスト・動作確認
 
 ### Phase 3: Clustering サイドピーク実装 ⭐ 優先度：HIGH
 - [ ] **P3.1** 既存クラスタリングパネルの移行準備
@@ -119,12 +119,12 @@
 ### 現在の状況
 - ✅ **設計フェーズ完了** - `docs/analysis-space-menu-redesign.md`
 - ✅ **Phase 1 完了** - メインメニュー構造変更・サイドピーク基盤
-- ✅ **Phase 2 実装中** - Relations サイドピーク（P2.1-P2.3完了）
-- 🚧 **現在**: P2.4-P2.5（動作確認・デバッグ）
+- ✅ **Phase 2 完了** - Relations サイドピーク完全実装・統合テスト済み
+- 🚧 **現在**: Phase 3開始準備
 
 ### 次のアクション
-1. **Phase 2完了** - Relations サイドピーク動作確認・デバッグ
-2. **Phase 3開始** - Clustering サイドピーク実装
+1. **Phase 3開始** - Clustering サイドピーク実装（P3.1から開始）
+2. 既存クラスタリングパネルの移行準備
 3. 各フェーズ完了後に動作確認
 
 ---

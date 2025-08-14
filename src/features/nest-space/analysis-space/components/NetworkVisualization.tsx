@@ -19,6 +19,7 @@ import { ClusterViewManager } from './ClusterViewManager';
 import { GroundedTheoryManager } from './GroundedTheoryManager';
 import { SidePeakPanel } from './SidePeakPanel';
 import { RelationsSidePeak } from './RelationsSidePeak';
+import { ClusteringSidePeak } from './ClusteringSidePeak';
 import AILabelSuggestionModal from '../../../../components/ui/AILabelSuggestionModal';
 import { THEME_COLORS } from '../../../../constants/theme';
 import { RelationsAnalysisService, type RelationsDuplicationReport, type RelationsQualityReport } from '../../../../services/RelationsAnalysisService';
@@ -5324,8 +5325,8 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         </button>
       </div>
       
-      {/* クラスタリング制御パネル */}
-      {showClusteringControls && (
+      {/* 旧クラスタリング制御パネル削除 - サイドピークに統合済み */}
+      {false && showClusteringControls && (
         <div style={styles.clusteringControlsPanel}>
           <div style={styles.panelHeader}>
             <div style={styles.tabContainer}>
@@ -9117,6 +9118,163 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
             setAiSuggestions([]);
             // サイドピーク内の結果は自動的に消える
           }}
+        />
+      </SidePeakPanel>
+
+      {/* Clustering サイドピークパネル */}
+      <SidePeakPanel
+        isOpen={showClusteringControls}
+        onClose={() => setShowClusteringControls(false)}
+        title="Clustering"
+        icon="🎛️"
+        width={500}
+      >
+        <ClusteringSidePeak
+          analysisMode={analysisMode}
+          onAnalysisModeChange={setAnalysisMode}
+          useWeightFiltering={useWeightFiltering}
+          onUseWeightFilteringChange={setUseWeightFiltering}
+          strengthThreshold={strengthThreshold}
+          onStrengthThresholdChange={setStrengthThreshold}
+          showFilteredClusters={showFilteredClusters}
+          onShowFilteredClustersChange={setShowFilteredClusters}
+          advancedConfig={advancedConfig}
+          onAdvancedConfigChange={setAdvancedConfig}
+          onExecuteSimpleClustering={async () => {
+            // 既存のラベルをクリア（新しいクラスターに対応するため）
+            if (showLabels) {
+              clearLabels();
+            }
+            
+            // フィルタリングクラスターを実行
+            const newClusters = detectClusters(strengthThreshold, useWeightFiltering);
+            setFilteredClusters(newClusters);
+            
+            // レイアウトを再適用
+            applyForceLayout();
+            
+            // フィルタリング結果を自動的に表示
+            if (newClusters.length > 0) {
+              setShowFilteredClusters(true);
+              
+              // 自動ラベル生成・表示（高度解析と同じ仕様）
+              try {
+                console.log('🏷️ Auto-generating labels for simple mode clusters...');
+                const labels = await AnalysisService.generateClusterLabels(
+                  boardState.boardId || '',
+                  newClusters
+                );
+                
+                // ノード位置を反映してラベル位置を更新
+                const updatedLabels = labels.map(label => {
+                  const clusterCards = label.cardIds.map(id => networkData.nodes.find(n => n.id === id)).filter(Boolean);
+                  if (clusterCards.length === 0) return label;
+
+                  // 実際のノード位置を使用して位置を再計算
+                  const centerX = clusterCards.reduce((sum, node) => sum + (nodePositions[node!.id]?.x || node!.x), 0) / clusterCards.length;
+                  const centerY = clusterCards.reduce((sum, node) => sum + (nodePositions[node!.id]?.y || node!.y), 0) / clusterCards.length;
+                  const minY = Math.min(...clusterCards.map(node => (nodePositions[node!.id]?.y || node!.y)));
+
+                  return {
+                    ...label,
+                    position: {
+                      x: centerX,
+                      y: minY - 40
+                    }
+                  };
+                });
+                
+                setClusterLabels(updatedLabels);
+                setShowLabels(true);
+                console.log('🏷️ Simple mode labels auto-generated successfully:', updatedLabels.length);
+              } catch (error) {
+                console.error('Failed to auto-generate simple mode labels:', error);
+                // エラーが発生してもクラスタリング自体は成功しているので、ユーザーに警告は出さない
+              }
+            }
+            
+            console.log('🚀 Applied new clustering settings:', {
+              useWeightFiltering,
+              strengthThreshold,
+              newClusters: newClusters.length,
+              showVisualization: newClusters.length > 0,
+            });
+          }}
+          onExecuteAdvancedClustering={async () => {
+            // 高度解析実行（既存の実装を呼び出し）
+            try {
+              setIsAdvancedAnalyzing(true);
+              
+              console.log('🔬 Starting advanced clustering analysis with config:', advancedConfig);
+              
+              const result = await SmartClusteringService.analyzeClusters(
+                boardState.boardId || '',
+                cards,
+                relationships,
+                advancedConfig.weights,
+                advancedConfig.clustering
+              );
+              
+              console.log('✅ Advanced clustering analysis completed:', result);
+              setSmartClusteringResult(result);
+              
+              // 詳細なクラスター情報を表示
+              if (result.clusters && result.clusters.length > 0) {
+                // Smart clustering 結果からラベルを生成
+                try {
+                  const clusterData = result.clusters.map((cluster, index) => 
+                    cluster.nodes.map(nodeId => nodeId).filter(Boolean)
+                  );
+                  
+                  console.log('🏷️ Generating labels for smart clustering result...');
+                  const labels = await AnalysisService.generateClusterLabels(
+                    boardState.boardId || '',
+                    clusterData
+                  );
+                  
+                  // ノード位置を反映してラベル位置を更新
+                  const updatedLabels = labels.map(label => {
+                    const clusterCards = label.cardIds.map(id => networkData.nodes.find(n => n.id === id)).filter(Boolean);
+                    if (clusterCards.length === 0) return label;
+
+                    // 実際のノード位置を使用して位置を再計算
+                    const centerX = clusterCards.reduce((sum, node) => sum + (nodePositions[node!.id]?.x || node!.x), 0) / clusterCards.length;
+                    const centerY = clusterCards.reduce((sum, node) => sum + (nodePositions[node!.id]?.y || node!.y), 0) / clusterCards.length;
+                    const minY = Math.min(...clusterCards.map(node => (nodePositions[node!.id]?.y || node!.y)));
+
+                    return {
+                      ...label,
+                      position: {
+                        x: centerX,
+                        y: minY - 40
+                      }
+                    };
+                  });
+                  
+                  setClusterLabels(updatedLabels);
+                  setShowLabels(true);
+                  console.log('🏷️ Smart clustering labels generated successfully:', updatedLabels.length);
+                } catch (labelError) {
+                  console.error('Failed to generate smart clustering labels:', labelError);
+                  // ラベル生成に失敗してもクラスタリング自体は成功
+                }
+              }
+            } catch (error) {
+              console.error('❌ Advanced clustering analysis failed:', error);
+              showCustomDialog(
+                'エラー',
+                '高度解析中にエラーが発生しました。設定を確認して再試行してください。',
+                () => hideCustomDialog()
+              );
+            } finally {
+              setIsAdvancedAnalyzing(false);
+            }
+          }}
+          onLoadClusterView={handleLoadClusterView}
+          canSaveCluster={canSaveCluster}
+          onSaveCurrentCluster={() => setShowSaveClusterDialog(true)}
+          boardId={boardState.boardId || ''}
+          cards={cards}
         />
       </SidePeakPanel>
 
