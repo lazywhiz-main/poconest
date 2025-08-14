@@ -369,10 +369,8 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   // グラウンデッド・セオリー管理関連のstate
   const [showGroundedTheoryManager, setShowGroundedTheoryManager] = useState(false);
 
-  // 新しいメインメニューカテゴリーのstate
-  const [showRelationsPanel, setShowRelationsPanel] = useState(false);
-  const [showViewNavigationPanel, setShowViewNavigationPanel] = useState(false);
-  const [showSearchFilterPanel, setShowSearchFilterPanel] = useState(false);
+  // 新しいメインメニューカテゴリーのstate（排他的表示）
+  const [activeSidePeak, setActiveSidePeak] = useState<'relations' | 'clustering' | 'theory' | 'view' | 'search' | null>(null);
   
   // 検索機能のstate
   const [searchQuery, setSearchQuery] = useState('');
@@ -922,8 +920,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       setShowFilteredClusters(view.showFilteredClusters);
       setShowLabels(view.showLabels);
 
-      // 自動的にクラスタータブに切り替え
-      setActiveFilterTab('clusters');
+      // activeFilterTab不要（左下パネル廃止）
 
       showCustomDialog(
         '読み込み完了',
@@ -2034,9 +2031,9 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       nodePositions,
       filterState: activeFilters,
       transform,
-      activeFilterTab,
+      // activeFilterTab: 左下パネル廃止により削除
     };
-  }, [advancedConfig.algorithm, strengthThreshold, useWeightFiltering, showFilteredClusters, clusterLabels, nodePositions, activeFilters, transform, activeFilterTab]);
+  }, [advancedConfig.algorithm, strengthThreshold, useWeightFiltering, showFilteredClusters, clusterLabels, nodePositions, activeFilters, transform]);
 
   const saveCurrentView = useCallback(async (viewName: string, description?: string) => {
     const nestId = boardState.currentNestId;
@@ -2080,7 +2077,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       // UI状態の復元
       setTransform(view.transform);
       setActiveFilters(view.filterState);
-      setActiveFilterTab(view.activeFilterTab);
+      // setActiveFilterTab(view.activeFilterTab); // 左下パネル廃止により不要
       
       // クラスタリング設定の復元
       setStrengthThreshold(view.clusteringConfig.strengthThreshold);
@@ -4761,11 +4758,11 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         <button
           style={{
             ...styles.categoryBtn,
-            background: showRelationsPanel ? THEME_COLORS.primaryOrange : THEME_COLORS.bgSecondary,
-            color: showRelationsPanel ? THEME_COLORS.textInverse : THEME_COLORS.textSecondary,
-            borderColor: showRelationsPanel ? THEME_COLORS.primaryOrange : THEME_COLORS.borderPrimary,
+            background: activeSidePeak === 'relations' ? THEME_COLORS.primaryOrange : THEME_COLORS.bgSecondary,
+            color: activeSidePeak === 'relations' ? THEME_COLORS.textInverse : THEME_COLORS.textSecondary,
+            borderColor: activeSidePeak === 'relations' ? THEME_COLORS.primaryOrange : THEME_COLORS.borderPrimary,
           }}
-          onClick={() => setShowRelationsPanel(!showRelationsPanel)}
+                      onClick={() => setActiveSidePeak(activeSidePeak === 'relations' ? null : 'relations')}
           title="関係性の生成・管理・分析"
         >
           🔗 Relations
@@ -4775,11 +4772,11 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         <button
           style={{
             ...styles.categoryBtn,
-            background: showClusteringControls ? THEME_COLORS.primaryGreen : THEME_COLORS.bgSecondary,
-            color: showClusteringControls ? THEME_COLORS.textInverse : THEME_COLORS.textSecondary,
-            borderColor: showClusteringControls ? THEME_COLORS.primaryGreen : THEME_COLORS.borderPrimary,
+            background: activeSidePeak === 'clustering' ? THEME_COLORS.primaryGreen : THEME_COLORS.bgSecondary,
+            color: activeSidePeak === 'clustering' ? THEME_COLORS.textInverse : THEME_COLORS.textSecondary,
+            borderColor: activeSidePeak === 'clustering' ? THEME_COLORS.primaryGreen : THEME_COLORS.borderPrimary,
           }}
-          onClick={() => setShowClusteringControls(!showClusteringControls)}
+          onClick={() => setActiveSidePeak(activeSidePeak === 'clustering' ? null : 'clustering')}
           title="ノードのグループ化と可視化"
         >
           🎛️ Clustering
@@ -4789,11 +4786,11 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         <button
           style={{
             ...styles.categoryBtn,
-            background: showGroundedTheoryManager ? THEME_COLORS.primaryPurple : THEME_COLORS.bgSecondary,
-            color: showGroundedTheoryManager ? THEME_COLORS.textInverse : THEME_COLORS.textSecondary,
-            borderColor: showGroundedTheoryManager ? THEME_COLORS.primaryPurple : THEME_COLORS.borderPrimary,
+            background: activeSidePeak === 'theory' ? THEME_COLORS.primaryPurple : THEME_COLORS.bgSecondary,
+            color: activeSidePeak === 'theory' ? THEME_COLORS.textInverse : THEME_COLORS.textSecondary,
+            borderColor: activeSidePeak === 'theory' ? THEME_COLORS.primaryPurple : THEME_COLORS.borderPrimary,
           }}
-          onClick={() => setShowGroundedTheoryManager(!showGroundedTheoryManager)}
+                      onClick={() => setActiveSidePeak(activeSidePeak === 'theory' ? null : 'theory')}
           title="仮説抽出と理論構築"
         >
           🧠 Theory Building
@@ -4803,11 +4800,11 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         <button
           style={{
             ...styles.categoryBtn,
-            background: showViewNavigationPanel ? THEME_COLORS.primaryBlue : THEME_COLORS.bgSecondary,
-            color: showViewNavigationPanel ? THEME_COLORS.textInverse : THEME_COLORS.textSecondary,
-            borderColor: showViewNavigationPanel ? THEME_COLORS.primaryBlue : THEME_COLORS.borderPrimary,
+            background: activeSidePeak === 'view' ? THEME_COLORS.primaryBlue : THEME_COLORS.bgSecondary,
+            color: activeSidePeak === 'view' ? THEME_COLORS.textInverse : THEME_COLORS.textSecondary,
+            borderColor: activeSidePeak === 'view' ? THEME_COLORS.primaryBlue : THEME_COLORS.borderPrimary,
           }}
-          onClick={() => setShowViewNavigationPanel(!showViewNavigationPanel)}
+                      onClick={() => setActiveSidePeak(activeSidePeak === 'view' ? null : 'view')}
           title="ビューポート操作・レイアウト制御"
         >
           🗺️ View & Navigation
@@ -4817,11 +4814,11 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         <button
           style={{
             ...styles.categoryBtn,
-            background: showSearchFilterPanel ? THEME_COLORS.primaryCyan : THEME_COLORS.bgSecondary,
-            color: showSearchFilterPanel ? THEME_COLORS.textInverse : THEME_COLORS.textSecondary,
-            borderColor: showSearchFilterPanel ? THEME_COLORS.primaryCyan : THEME_COLORS.borderPrimary,
+            background: activeSidePeak === 'search' ? THEME_COLORS.primaryCyan : THEME_COLORS.bgSecondary,
+            color: activeSidePeak === 'search' ? THEME_COLORS.textInverse : THEME_COLORS.textSecondary,
+            borderColor: activeSidePeak === 'search' ? THEME_COLORS.primaryCyan : THEME_COLORS.borderPrimary,
           }}
-          onClick={() => setShowSearchFilterPanel(!showSearchFilterPanel)}
+                      onClick={() => setActiveSidePeak(activeSidePeak === 'search' ? null : 'search')}
           title="ノード検索・フィルタリング"
         >
           🔍 Search & Filter
@@ -7960,7 +7957,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       <div style={{
         position: 'absolute',
         bottom: '20px',
-        right: '80px', // サイドピークとの干渉を避けるため右にマージン追加
+        left: '20px', // 左下に移動
         display: 'flex',
         alignItems: 'flex-end',
         gap: '20px',
@@ -9106,8 +9103,8 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
 
       {/* Relations サイドピークパネル */}
       <SidePeakPanel
-        isOpen={showRelationsPanel}
-        onClose={() => setShowRelationsPanel(false)}
+        isOpen={activeSidePeak === 'relations'}
+        onClose={() => setActiveSidePeak(null)}
         title="Relations"
         icon="🔗"
         width={600}
@@ -9136,8 +9133,8 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
 
       {/* Clustering サイドピークパネル */}
       <SidePeakPanel
-        isOpen={showClusteringControls}
-        onClose={() => setShowClusteringControls(false)}
+        isOpen={activeSidePeak === 'clustering'}
+        onClose={() => setActiveSidePeak(null)}
         title="Clustering"
         icon="🎛️"
         width={500}
@@ -9299,8 +9296,8 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
 
       {/* View & Navigation サイドピークパネル */}
       <SidePeakPanel
-        isOpen={showViewNavigationPanel}
-        onClose={() => setShowViewNavigationPanel(false)}
+        isOpen={activeSidePeak === 'view'}
+        onClose={() => setActiveSidePeak(null)}
         title="View & Navigation"
         icon="🗺️"
         width={400}
@@ -9368,8 +9365,8 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
 
       {/* Search & Filter サイドピークパネル */}
       <SidePeakPanel
-        isOpen={showSearchFilterPanel}
-        onClose={() => setShowSearchFilterPanel(false)}
+        isOpen={activeSidePeak === 'search'}
+        onClose={() => setActiveSidePeak(null)}
         title="Search & Filter"
         icon="🔍"
         width={450}
@@ -9395,8 +9392,8 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
 
       {/* Theory Building サイドピークパネル */}
       <SidePeakPanel
-        isOpen={showGroundedTheoryManager}
-        onClose={() => setShowGroundedTheoryManager(false)}
+        isOpen={activeSidePeak === 'theory'}
+        onClose={() => setActiveSidePeak(null)}
         title="Theory Building"
         icon="🧠"
         width={600}
@@ -9409,26 +9406,12 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         />
       </SidePeakPanel>
 
-      {/* View & Navigation サイドピークパネル */}
-      <SidePeakPanel
-        isOpen={showViewNavigationPanel}
-        onClose={() => setShowViewNavigationPanel(false)}
-        title="View & Navigation"
-        icon="🎯"
-        width={500}
-      >
-        <ViewNavigationSidePeak
-          onResetView={resetView}
-          onAutoLayout={applyForceLayout}
-          showMinimap={showMinimap}
-          onToggleMinimap={setShowMinimap}
-        />
-      </SidePeakPanel>
+
 
       {/* Search & Filter サイドピークパネル */}
       <SidePeakPanel
-        isOpen={showSearchFilterPanel}
-        onClose={() => setShowSearchFilterPanel(false)}
+        isOpen={activeSidePeak === 'search'}
+        onClose={() => setActiveSidePeak(null)}
         title="Search & Filter"
         icon="🔍"
         width={450}
