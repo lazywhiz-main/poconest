@@ -20,6 +20,7 @@ import { GroundedTheoryManager } from './GroundedTheoryManager';
 import { SidePeakPanel } from './SidePeakPanel';
 import { RelationsSidePeak } from './RelationsSidePeak';
 import { ClusteringSidePeak } from './ClusteringSidePeak';
+import { TheoryBuildingSidePeak } from './TheoryBuildingSidePeak';
 import AILabelSuggestionModal from '../../../../components/ui/AILabelSuggestionModal';
 import { THEME_COLORS } from '../../../../constants/theme';
 import { RelationsAnalysisService, type RelationsDuplicationReport, type RelationsQualityReport } from '../../../../services/RelationsAnalysisService';
@@ -9380,16 +9381,21 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         </div>
       </SidePeakPanel>
 
-      {/* グラウンデッド・セオリー分析管理 */}
-      {showGroundedTheoryManager && (
-        <GroundedTheoryManager
+      {/* Theory Building サイドピークパネル */}
+      <SidePeakPanel
+        isOpen={showGroundedTheoryManager}
+        onClose={() => setShowGroundedTheoryManager(false)}
+        title="Theory Building"
+        icon="🧠"
+        width={600}
+      >
+        <TheoryBuildingSidePeak
           currentClusters={clusterLabels}
           currentClusteringResult={smartClusteringResult}
           boardId={boardState.boardId || ''}
           nestId={boardState.currentNestId || ''}
-          onClose={() => setShowGroundedTheoryManager(false)}
         />
-      )}
+      </SidePeakPanel>
     </div>
   );
 };

@@ -21,7 +21,7 @@ interface GroundedTheoryManagerProps {
   currentClusteringResult: ClusteringResult | null;
   boardId: string;
   nestId: string;
-  onClose: () => void;
+  onClose?: () => void; // オプショナルに変更（サイドピーク用）
 }
 
 interface AnalysisCardProps {
