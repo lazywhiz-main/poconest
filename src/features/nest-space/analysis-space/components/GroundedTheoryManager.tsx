@@ -34,11 +34,11 @@ interface AnalysisCardProps {
 const AnalysisCard: React.FC<AnalysisCardProps> = ({ analysis, onView, onDelete }) => {
   const styles = {
     card: {
-      padding: '16px',
+      padding: '12px',
       backgroundColor: THEME_COLORS.bgTertiary,
-      borderRadius: THEME_COLORS.borderRadius.large,
+      borderRadius: THEME_COLORS.borderRadius.medium,
       border: `1px solid ${THEME_COLORS.borderSecondary}`,
-      marginBottom: '12px',
+      marginBottom: '10px',
       transition: 'all 0.2s ease'
     },
     header: {
@@ -48,7 +48,7 @@ const AnalysisCard: React.FC<AnalysisCardProps> = ({ analysis, onView, onDelete 
       marginBottom: '12px'
     },
     title: {
-      fontSize: '16px',
+      fontSize: '13px',
       fontWeight: '600',
       color: THEME_COLORS.textPrimary,
       margin: 0
@@ -61,10 +61,10 @@ const AnalysisCard: React.FC<AnalysisCardProps> = ({ analysis, onView, onDelete 
       marginBottom: '8px'
     },
     description: {
-      fontSize: '14px',
+      fontSize: '12px',
       color: THEME_COLORS.textSecondary,
       lineHeight: '1.4',
-      marginBottom: '12px'
+      marginBottom: '10px'
     },
     coreCategory: {
       display: 'inline-block',
@@ -82,9 +82,9 @@ const AnalysisCard: React.FC<AnalysisCardProps> = ({ analysis, onView, onDelete 
       alignItems: 'center'
     },
     button: {
-      padding: '6px 12px',
-      borderRadius: THEME_COLORS.borderRadius.medium,
-      fontSize: '12px',
+      padding: '5px 10px',
+      borderRadius: THEME_COLORS.borderRadius.small,
+      fontSize: '11px',
       fontWeight: '500',
       cursor: 'pointer',
       transition: 'all 0.2s ease',
@@ -367,58 +367,61 @@ export const GroundedTheoryManager: React.FC<GroundedTheoryManagerProps> = ({
       overflow: 'auto'
     },
     section: {
-      marginBottom: '32px'
+      marginBottom: '24px'
     },
     sectionTitle: {
-      fontSize: '18px',
+      fontSize: '14px',
       fontWeight: '600',
       color: THEME_COLORS.textPrimary,
-      marginBottom: '16px',
+      marginBottom: '12px',
       display: 'flex',
       alignItems: 'center',
-      gap: '8px'
+      gap: '6px'
     },
     newAnalysisSection: {
-      padding: '20px',
+      padding: '16px',
       backgroundColor: THEME_COLORS.bgTertiary,
-      borderRadius: THEME_COLORS.borderRadius.large,
+      borderRadius: THEME_COLORS.borderRadius.medium,
       border: `1px solid ${THEME_COLORS.borderSecondary}`,
       textAlign: 'center' as const
     },
     newAnalysisButton: {
-      padding: '12px 24px',
+      padding: '10px 20px',
       backgroundColor: THEME_COLORS.primaryGreen,
       color: THEME_COLORS.textInverse,
       border: 'none',
-      borderRadius: THEME_COLORS.borderRadius.large,
-      fontSize: '16px',
+      borderRadius: THEME_COLORS.borderRadius.medium,
+      fontSize: '13px',
       fontWeight: '600',
       cursor: 'pointer',
       transition: 'all 0.2s ease',
-      marginBottom: '12px'
+      marginBottom: '10px'
     },
     warningText: {
-      fontSize: '14px',
+      fontSize: '12px',
       color: THEME_COLORS.textMuted,
       margin: 0
     },
     errorText: {
       color: THEME_COLORS.primaryRed,
-      fontSize: '14px',
-      padding: '12px',
+      fontSize: '12px',
+      padding: '10px',
       backgroundColor: THEME_COLORS.primaryRed + '20',
       borderRadius: THEME_COLORS.borderRadius.medium,
       marginBottom: '16px'
     },
     emptyState: {
       textAlign: 'center' as const,
-      padding: '40px 20px',
-      color: THEME_COLORS.textMuted
+      padding: '30px 16px',
+      color: THEME_COLORS.textMuted,
+      fontSize: '12px',
+      lineHeight: '1.4',
     },
     loadingState: {
       textAlign: 'center' as const,
-      padding: '40px 20px',
-      color: THEME_COLORS.textSecondary
+      padding: '30px 16px',
+      color: THEME_COLORS.textSecondary,
+      fontSize: '12px',
     }
   };
 
@@ -433,27 +436,46 @@ export const GroundedTheoryManager: React.FC<GroundedTheoryManagerProps> = ({
     );
   }
 
-  // 管理画面モード
+  // 管理画面モード（サイドピーク用）
   return (
-    <div style={styles.overlay} onClick={onClose}>
-      <div style={styles.panel} onClick={(e) => e.stopPropagation()}>
-        <div style={styles.header}>
-          <h2 style={styles.title}>🧠 グラウンデッド・セオリー分析管理</h2>
-          <button 
-            style={styles.closeButton}
-            onClick={onClose}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = THEME_COLORS.bgTertiary;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-            }}
-          >
-            ×
-          </button>
-        </div>
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      height: '100%',
+      overflow: 'hidden',
+    }}>
+      {/* ヘッダー（サイドピーク用簡略版） */}
+      <div style={{
+        padding: '16px 20px',
+        borderBottom: `1px solid ${THEME_COLORS.borderSecondary}`,
+        flexShrink: 0,
+      }}>
+        <h3 style={{
+          fontSize: '14px',
+          fontWeight: '600',
+          color: THEME_COLORS.textPrimary,
+          margin: 0,
+          marginBottom: '4px',
+          fontFamily: 'Space Grotesk, system-ui, sans-serif'
+        }}>
+          🧠 グラウンデッド・セオリー分析管理
+        </h3>
+        <p style={{
+          fontSize: '11px',
+          color: THEME_COLORS.textSecondary,
+          margin: 0,
+          lineHeight: '1.3',
+        }}>
+          クラスターデータから理論的概念と関係性を抽出します
+        </p>
+      </div>
 
-        <div style={styles.content}>
+      {/* コンテンツエリア */}
+      <div style={{
+        flex: 1,
+        overflow: 'auto',
+        padding: '16px 20px',
+      }}>
           {error && (
             <div style={styles.errorText}>
               ❌ {error}
@@ -530,6 +552,5 @@ export const GroundedTheoryManager: React.FC<GroundedTheoryManagerProps> = ({
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
 };
