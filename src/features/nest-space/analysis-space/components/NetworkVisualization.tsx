@@ -229,7 +229,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   const [aiSuggestions, setAiSuggestions] = useState<UnifiedRelationshipSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [showSuggestionsPanel, setShowSuggestionsPanel] = useState(false);
+  // const [showSuggestionsPanel, setShowSuggestionsPanel] = useState(false); // サイドピークに統合により不要
   const [analysisProgress, setAnalysisProgress] = useState('');
   const [showAnalysisModal, setShowAnalysisModal] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -378,13 +378,13 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   // パラメータ設定モーダルの状態
   const [showParameterSettings, setShowParameterSettings] = useState(false);
 
-  // 統合分析フィルターの状態
-  const [methodFilters, setMethodFilters] = useState({
-    ai: true,
-    tag_similarity: true,
-    derived: true,
-    unified: true
-  });
+  // 統合分析フィルターの状態（サイドピーク内で管理するため削除予定）
+  // const [methodFilters, setMethodFilters] = useState({
+  //   ai: true,
+  //   tag_similarity: true,
+  //   derived: true,
+  //   unified: true
+  // });
 
   // 保存されたビューをロード
   useEffect(() => {
@@ -435,14 +435,14 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
 
 
 
-  // フィルター済み提案リスト（統合分析用）
-  const unifiedSuggestions = useMemo(() => {
-    // aiSuggestionsがUnifiedRelationshipSuggestion[]に変換されているかチェック
-    const unified = aiSuggestions as UnifiedRelationshipSuggestion[];
-    return unified.filter((suggestion) => 
-      suggestion.analysisMethod && methodFilters[suggestion.analysisMethod as keyof typeof methodFilters]
-    );
-  }, [aiSuggestions, methodFilters]);
+  // フィルター済み提案リスト（サイドピーク内で管理するため削除予定）
+  // const unifiedSuggestions = useMemo(() => {
+  //   // aiSuggestionsがUnifiedRelationshipSuggestion[]に変換されているかチェック
+  //   const unified = aiSuggestions as UnifiedRelationshipSuggestion[];
+  //   return unified.filter((suggestion) => 
+  //     suggestion.analysisMethod && methodFilters[suggestion.analysisMethod as keyof typeof methodFilters]
+  //   );
+  // }, [aiSuggestions, methodFilters]);
 
   // ページ遷移防止（分析中）
   useEffect(() => {
@@ -6964,8 +6964,8 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
 
 
 
-      {/* AI関係性提案パネル */}
-      {showSuggestionsPanel && (
+      {/* 旧AI関係性提案パネル削除 - サイドピークに統合済み */}
+      {false && showSuggestionsPanel && (
         <div style={{
           ...styles.panel,
           top: '20px',
