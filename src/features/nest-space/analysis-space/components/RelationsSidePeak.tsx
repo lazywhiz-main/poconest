@@ -170,10 +170,30 @@ export const RelationsSidePeak: React.FC<RelationsSidePeakProps> = ({
 
   const renderCreateTab = () => (
     <div style={styles.content}>
+      {/* 分析パラメータセクション */}
+      <div style={styles.section}>
+        <div style={styles.sectionTitle}>
+          🎛️ 分析パラメータ
+        </div>
+        <div style={styles.sectionDesc}>
+          関係性分析の閾値、重み付け、アルゴリズムパラメータを調整できます。分析実行前に設定してください。
+        </div>
+        <div style={styles.buttonGroup}>
+          <button
+            style={styles.button}
+            onClick={onOpenParameterSettings}
+            onMouseEnter={(e) => handleButtonHover(e, true)}
+            onMouseLeave={(e) => handleButtonHover(e, false)}
+          >
+            🎛️ パラメータ設定
+          </button>
+        </div>
+      </div>
+
       {/* 関係性生成セクション */}
       <div style={styles.section}>
         <div style={styles.sectionTitle}>
-          🔗 関係性生成
+          🔗 関係性生成実行
         </div>
         <div style={styles.sectionDesc}>
           AIによる統合分析でカード間の関係性を自動生成します。増分モードでは新しい関係性のみを生成し、フルモードでは全体を再分析します。
@@ -191,7 +211,7 @@ export const RelationsSidePeak: React.FC<RelationsSidePeakProps> = ({
             onMouseEnter={(e) => handleButtonHover(e, true)}
             onMouseLeave={(e) => handleButtonHover(e, false)}
           >
-            <span>🔗 関係性生成（増分）</span>
+            <span>🔗 統合分析（増分）</span>
             {isAnalyzing && <span>分析中...</span>}
           </button>
           <button
@@ -204,39 +224,50 @@ export const RelationsSidePeak: React.FC<RelationsSidePeakProps> = ({
             onMouseEnter={(e) => handleButtonHover(e, true)}
             onMouseLeave={(e) => handleButtonHover(e, false)}
           >
-            <span>🔄 全体再分析</span>
+            <span>🚀 完全再分析</span>
             {isAnalyzing && <span>分析中...</span>}
           </button>
         </div>
       </div>
 
-      {/* パラメータ設定セクション */}
+      {/* 分析結果表示エリア（プレースホルダー） */}
       <div style={styles.section}>
         <div style={styles.sectionTitle}>
-          🎛️ 分析パラメータ
+          📊 分析結果表示・承認
         </div>
         <div style={styles.sectionDesc}>
-          関係性分析の閾値、重み付け、アルゴリズムパラメータを調整できます。
+          分析実行後、ここに統合関係性提案が表示されます。各提案を確認して承認・拒否を決定してください。
         </div>
-        <div style={styles.buttonGroup}>
-          <button
-            style={styles.button}
-            onClick={onOpenParameterSettings}
-            onMouseEnter={(e) => handleButtonHover(e, true)}
-            onMouseLeave={(e) => handleButtonHover(e, false)}
-          >
-            🎛️ パラメータ設定
-          </button>
+        <div style={{ 
+          background: THEME_COLORS.bgTertiary, 
+          padding: '12px',
+          borderRadius: THEME_COLORS.borderRadius.medium,
+          color: THEME_COLORS.textSecondary,
+          fontSize: '12px'
+        }}>
+          📋 実装予定: 統合関係性提案パネルの統合（P2.6.1-P2.6.4）
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderManageTab = () => (
+    <div style={styles.content}>
+      {/* 統計情報 */}
+      <div style={styles.section}>
+        <div style={styles.statCard}>
+          <div style={styles.statNumber}>{relationsCount}</div>
+          <div style={styles.statLabel}>総関係性数</div>
         </div>
       </div>
 
-      {/* 品質分析セクション */}
+      {/* 品質分析セクション（作成・設定タブから移動） */}
       <div style={styles.section}>
         <div style={styles.sectionTitle}>
-          📊 品質分析
+          📊 品質分析・評価
         </div>
         <div style={styles.sectionDesc}>
-          現在の関係性の品質、密度、重複率を分析してレポートを生成します。
+          確定済みの関係性の品質、密度、重複率を分析してレポートを生成します。
         </div>
         <div style={styles.buttonGroup}>
           <button
@@ -252,18 +283,6 @@ export const RelationsSidePeak: React.FC<RelationsSidePeakProps> = ({
             <span>📊 品質分析実行</span>
             {isAnalyzingRelations && <span>分析中...</span>}
           </button>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderManageTab = () => (
-    <div style={styles.content}>
-      {/* 統計情報 */}
-      <div style={styles.section}>
-        <div style={styles.statCard}>
-          <div style={styles.statNumber}>{relationsCount}</div>
-          <div style={styles.statLabel}>総関係性数</div>
         </div>
       </div>
 
