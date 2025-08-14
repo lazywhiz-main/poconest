@@ -32,6 +32,21 @@ interface AdvancedConfig {
   };
 }
 
+// クラスターラベルの型定義（AnalysisServiceと同じ）
+interface ClusterLabel {
+  id: string;
+  text: string;
+  position: { x: number; y: number };
+  cardIds: string[];
+  confidence?: number;
+  theme?: string;
+  metadata?: {
+    dominantTags?: string[];
+    avgConnections?: number;
+    centerCard?: string;
+  };
+}
+
 interface ClusteringSidePeakProps {
   /** 現在の分析モード */
   analysisMode: 'simple' | 'advanced' | 'saved-views';
@@ -67,6 +82,20 @@ interface ClusteringSidePeakProps {
   boardId: string;
   /** カード情報リスト */
   cards: BoardItem[];
+
+  // 表示中のクラスター関連（新規追加）
+  /** 現在表示中のクラスターラベル */
+  clusterLabels: ClusterLabel[];
+  /** ラベル表示フラグ */
+  showLabels: boolean;
+  /** ラベル表示切り替え */
+  onShowLabelsChange: (show: boolean) => void;
+  /** クラスタークリック処理 */
+  onClusterClick: (clusterId: string) => void;
+  /** クラスターズーム処理 */
+  onClusterZoom: (clusterId: string) => void;
+  /** クラスター削除処理 */
+  onClusterDelete: (clusterId: string) => void;
 }
 
 /**
@@ -91,6 +120,12 @@ export const ClusteringSidePeak: React.FC<ClusteringSidePeakProps> = ({
   onSaveCurrentCluster,
   boardId,
   cards,
+  clusterLabels,
+  showLabels,
+  onShowLabelsChange,
+  onClusterClick,
+  onClusterZoom,
+  onClusterDelete,
 }) => {
   const [activeTab, setActiveTab] = useState<'execution' | 'displayed' | 'saved'>('execution');
 
@@ -523,22 +558,296 @@ export const ClusteringSidePeak: React.FC<ClusteringSidePeakProps> = ({
   // タブ2: 表示中のクラスター
   const renderDisplayedTab = () => (
     <div style={styles.content}>
+      {/* ラベル表示制御セクション */}
       <div style={styles.section}>
         <div style={styles.sectionTitle}>
-          📌 表示中のクラスター情報
+          👁️ クラスターラベル表示制御
+        </div>
+        <div style={styles.sectionDesc}>
+          ネットワーク上のクラスターラベルの表示/非表示を制御できます。
+        </div>
+        
+        <div style={styles.controlGroup}>
+          <label style={styles.controlLabel}>
+            <input
+              type="checkbox"
+              checked={showLabels}
+              onChange={(e) => onShowLabelsChange(e.target.checked)}
+              style={styles.checkbox}
+            />
+            クラスターラベルを表示
+          </label>
+        </div>
+      </div>
+
+      {/* 表示中のクラスター一覧 */}
+      <div style={styles.section}>
+        <div style={styles.sectionTitle}>
+          📌 表示中のクラスター一覧
         </div>
         <div style={styles.sectionDesc}>
           現在ネットワーク上に表示されているクラスターの詳細情報です。
         </div>
-        <div style={{ 
-          background: THEME_COLORS.bgTertiary, 
-          padding: '12px',
-          borderRadius: THEME_COLORS.borderRadius.medium,
-          color: THEME_COLORS.textSecondary,
-          fontSize: '12px'
-        }}>
-          📋 実装予定: 左下フィルター領域から移行予定（P3.4）
-        </div>
+        
+        {clusterLabels.length === 0 ? (
+          <div style={{
+            textAlign: 'center',
+            color: THEME_COLORS.textMuted,
+            fontSize: '12px',
+            padding: '20px',
+            background: THEME_COLORS.bgTertiary,
+            borderRadius: THEME_COLORS.borderRadius.medium,
+          }}>
+            表示中のクラスターがありません
+            <br />
+            <span style={{ fontSize: '10px' }}>
+              「クラスタリング実施」タブで分析を実行してください
+            </span>
+          </div>
+        ) : (
+          <div style={{
+            maxHeight: '400px',
+            overflowY: 'auto',
+          }}>
+            {clusterLabels.map((cluster, index) => (
+              <div
+                key={cluster.id}
+                style={{
+                  background: THEME_COLORS.bgTertiary,
+                  border: `1px solid ${THEME_COLORS.borderSecondary}`,
+                  borderRadius: '8px',
+                  padding: '12px',
+                  marginBottom: '8px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+                onClick={() => onClusterClick(cluster.id)}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = THEME_COLORS.primaryGreen;
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.boxShadow = `0 4px 12px ${THEME_COLORS.primaryGreen}20`;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = THEME_COLORS.borderSecondary;
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              >
+                {/* クラスター基本情報 */}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-start',
+                  marginBottom: '8px',
+                }}>
+                  <div style={{
+                    flex: 1,
+                    marginRight: '8px',
+                  }}>
+                    <div style={{
+                      color: THEME_COLORS.textPrimary,
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      marginBottom: '4px',
+                      lineHeight: '1.3',
+                    }}>
+                      {cluster.text}
+                    </div>
+                    <div style={{
+                      color: THEME_COLORS.textMuted,
+                      fontSize: '10px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                    }}>
+                      <span>📊 {cluster.cardIds.length} カード</span>
+                      {cluster.confidence && (
+                        <span>🎯 {Math.round(cluster.confidence * 100)}%</span>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* アクションボタン */}
+                  <div style={{
+                    display: 'flex',
+                    gap: '4px',
+                  }}>
+                    <button
+                      style={{
+                        background: THEME_COLORS.primaryBlue,
+                        border: 'none',
+                        borderRadius: '4px',
+                        color: THEME_COLORS.textInverse,
+                        padding: '4px 8px',
+                        fontSize: '10px',
+                        cursor: 'pointer',
+                        fontWeight: '500',
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onClusterClick(cluster.id);
+                      }}
+                      onMouseEnter={(e) => handleButtonHover(e, true)}
+                      onMouseLeave={(e) => handleButtonHover(e, false)}
+                      title="詳細表示"
+                    >
+                      👁️ 詳細
+                    </button>
+                    <button
+                      style={{
+                        background: THEME_COLORS.primaryCyan,
+                        border: 'none',
+                        borderRadius: '4px',
+                        color: THEME_COLORS.textInverse,
+                        padding: '4px 8px',
+                        fontSize: '10px',
+                        cursor: 'pointer',
+                        fontWeight: '500',
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onClusterZoom(cluster.id);
+                      }}
+                      onMouseEnter={(e) => handleButtonHover(e, true)}
+                      onMouseLeave={(e) => handleButtonHover(e, false)}
+                      title="ズーム"
+                    >
+                      🔍 ズーム
+                    </button>
+                    <button
+                      style={{
+                        background: THEME_COLORS.primaryRed,
+                        border: 'none',
+                        borderRadius: '4px',
+                        color: THEME_COLORS.textInverse,
+                        padding: '4px 8px',
+                        fontSize: '10px',
+                        cursor: 'pointer',
+                        fontWeight: '500',
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onClusterDelete(cluster.id);
+                      }}
+                      onMouseEnter={(e) => handleButtonHover(e, true)}
+                      onMouseLeave={(e) => handleButtonHover(e, false)}
+                      title="削除"
+                    >
+                      🗑️ 削除
+                    </button>
+                  </div>
+                </div>
+                
+                {/* テーマとタグ */}
+                {(cluster.theme || cluster.metadata?.dominantTags) && (
+                  <div style={{
+                    fontSize: '9px',
+                    color: THEME_COLORS.textMuted,
+                    marginBottom: '8px',
+                  }}>
+                    {cluster.theme && (
+                      <div style={{ marginBottom: '2px' }}>
+                        🎨 テーマ: {cluster.theme}
+                      </div>
+                    )}
+                    {cluster.metadata?.dominantTags && cluster.metadata.dominantTags.length > 0 && (
+                      <div>
+                        🏷️ タグ: {cluster.metadata.dominantTags.slice(0, 3).join(', ')}
+                        {cluster.metadata.dominantTags.length > 3 && '...'}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* カード一覧（先頭3件のみ表示） */}
+                <div style={{
+                  fontSize: '9px',
+                  color: THEME_COLORS.textMuted,
+                }}>
+                  📄 カード:
+                  <div style={{
+                    marginTop: '4px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '2px',
+                  }}>
+                    {cluster.cardIds.slice(0, 3).map(cardId => {
+                      const card = cards.find(c => c.id === cardId);
+                      return card ? (
+                        <div key={cardId} style={{
+                          padding: '2px 6px',
+                          background: THEME_COLORS.bgQuaternary,
+                          borderRadius: '3px',
+                          fontSize: '8px',
+                          maxWidth: '100%',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}>
+                          {card.title}
+                        </div>
+                      ) : null;
+                    })}
+                    {cluster.cardIds.length > 3 && (
+                      <div style={{
+                        fontSize: '8px',
+                        color: THEME_COLORS.textMuted,
+                        fontStyle: 'italic',
+                      }}>
+                        +{cluster.cardIds.length - 3} その他のカード
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* 統計情報 */}
+        {clusterLabels.length > 0 && (
+          <div style={{
+            marginTop: '16px',
+            padding: '12px',
+            background: THEME_COLORS.bgQuaternary,
+            borderRadius: THEME_COLORS.borderRadius.medium,
+            fontSize: '11px',
+          }}>
+            <div style={{
+              color: THEME_COLORS.textSecondary,
+              fontWeight: '600',
+              marginBottom: '8px',
+            }}>
+              📊 クラスター統計
+            </div>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '8px',
+              fontSize: '10px',
+              color: THEME_COLORS.textMuted,
+            }}>
+              <div>
+                <span style={{ fontWeight: '600' }}>{clusterLabels.length}</span> クラスター
+              </div>
+              <div>
+                <span style={{ fontWeight: '600' }}>
+                  {clusterLabels.reduce((total, cluster) => total + cluster.cardIds.length, 0)}
+                </span> 総カード数
+              </div>
+              <div>
+                平均: <span style={{ fontWeight: '600' }}>
+                  {Math.round(clusterLabels.reduce((total, cluster) => total + cluster.cardIds.length, 0) / clusterLabels.length)}
+                </span> カード/クラスター
+              </div>
+              <div>
+                平均信頼度: <span style={{ fontWeight: '600' }}>
+                  {Math.round(clusterLabels.reduce((total, cluster) => total + (cluster.confidence || 0), 0) / clusterLabels.length * 100)}
+                </span>%
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

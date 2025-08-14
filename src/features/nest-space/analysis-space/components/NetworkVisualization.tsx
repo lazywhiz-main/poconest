@@ -9275,6 +9275,12 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
           onSaveCurrentCluster={() => setShowSaveClusterDialog(true)}
           boardId={boardState.boardId || ''}
           cards={cards}
+          clusterLabels={clusterLabels}
+          showLabels={showLabels}
+          onShowLabelsChange={setShowLabels}
+          onClusterClick={handleClusterClick}
+          onClusterZoom={handleClusterZoom}
+          onClusterDelete={handleClusterDelete}
         />
       </SidePeakPanel>
 
