@@ -9107,7 +9107,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
           onBulkDeleteRelations={handleBulkDeleteRelations}
           onOpenParameterSettings={() => setShowParameterSettings(true)}
           onRunRelationsAnalysis={handleRelationsAnalysis}
-          relationsCount={networkEdges.length}
+          relationsCount={relationships.length}
         />
       </SidePeakPanel>
 
