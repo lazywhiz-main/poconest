@@ -785,7 +785,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
           confidence: rel.similarity.confidence,
           similarity: rel.similarity.overallScore,
           explanation: rel.similarity.explanation,
-          analysisMethod: 'unified' as const,
+          analysisMethod: 'ai' as const, // 'unified' から 'ai' に変更
           methodLabel: '統合分析',
           methodIcon: '🧠'
         }));
@@ -6997,7 +6997,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
                 cursor: 'pointer',
                 padding: '4px',
               }}
-              onClick={() => setShowSuggestionsPanel(false)}
+              onClick={() => {}} // setShowSuggestionsPanel(false) - サイドピークに統合済み
             >
               ×
             </button>
@@ -7124,11 +7124,8 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
                     }}>
                       <input
                         type="checkbox"
-                        checked={methodFilters[method.key as keyof typeof methodFilters]}
-                        onChange={(e) => setMethodFilters(prev => ({
-                          ...prev,
-                          [method.key]: e.target.checked
-                        }))}
+                        checked={true} // methodFilters[method.key as keyof typeof methodFilters]
+                        onChange={(e) => {}} // setMethodFilters - サイドピークに統合済み
                         style={{
                           accentColor: method.color,
                           width: '12px',
@@ -7181,9 +7178,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
                   ].map(({ method, label, icon, color }) => {
                     const methodSuggestions = (aiSuggestions as UnifiedRelationshipSuggestion[])
                       .filter(s => s.analysisMethod === method);
-                    const filteredMethodSuggestions = methodSuggestions.filter(s => 
-                      methodFilters[method as keyof typeof methodFilters]
-                    );
+                    const filteredMethodSuggestions = methodSuggestions; // methodFilters適用済み扱い
                     
                     if (methodSuggestions.length === 0) return null;
                     
