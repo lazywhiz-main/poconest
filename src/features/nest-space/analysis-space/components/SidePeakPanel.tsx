@@ -34,44 +34,27 @@ export const SidePeakPanel: React.FC<SidePeakPanelProps> = ({
   maxHeight = '80vh',
   zIndex = 100,
 }) => {
-  if (!isOpen) return null;
-
   return (
     <>
-      {/* オーバーレイ背景（クリックで閉じる） */}
+      {/* サイドピークパネル本体 - 真のサイドピーク形式 */}
       <div
         style={{
           position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.3)',
-          zIndex: zIndex - 1,
-          transition: 'opacity 0.2s ease',
-        }}
-        onClick={onClose}
-      />
-
-      {/* サイドピークパネル本体 */}
-      <div
-        style={{
-          position: 'fixed',
-          top: '20px',
-          left: '200px', // メインメニューボタンの右側に配置
+          top: '70px', // メインメニューボタンの少し下
+          left: isOpen ? '20px' : '-380px', // 開いているときは20px、閉じているときは隠す
           width: `${width}px`,
           maxHeight,
           backgroundColor: THEME_COLORS.bgPrimary,
           border: `1px solid ${THEME_COLORS.borderPrimary}`,
           borderRadius: THEME_COLORS.borderRadius.large,
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-          backdropFilter: 'blur(12px)',
+          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)',
           zIndex,
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
-          transition: 'all 0.3s ease',
-          transform: 'translateY(0)',
+          transition: 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)', // スムーズなイーズアウト
+          opacity: isOpen ? 1 : 0,
+          pointerEvents: isOpen ? 'auto' : 'none', // 閉じているときはクリックを無効化
         }}
         onClick={(e) => e.stopPropagation()} // パネル内クリックでは閉じない
       >
