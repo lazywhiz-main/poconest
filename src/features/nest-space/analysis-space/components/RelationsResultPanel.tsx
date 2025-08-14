@@ -2,7 +2,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { THEME_COLORS } from '../../../../constants/theme';
 import type { BoardItem } from '../../../board-space/contexts/BoardContext';
 
-// 統合分析結果のインターフェース（NetworkVisualizationから移植）
+// 統合分析結果のインターフェース（RelationsSidePeakと共通）
 interface UnifiedRelationshipSuggestion {
   sourceCardId: string;
   targetCardId: string;
@@ -11,7 +11,7 @@ interface UnifiedRelationshipSuggestion {
   confidence: number;
   similarity?: number;
   explanation: string;
-  analysisMethod: 'ai' | 'tag_similarity' | 'derived' | 'unified';
+  analysisMethod: 'ai' | 'tag_similarity' | 'derived'; // 'unified'を除外してNetworkVisualizationと一致
   methodLabel: string;
   methodIcon: string;
 }
@@ -32,7 +32,7 @@ interface RelationsResultPanelProps {
   /** 全体一括承認 */
   onApproveAllSuggestions: () => void;
   /** 全体拒否（結果パネルを閉じる） */
-  onRejectAll: () => void;
+  onRejectAllSuggestions: () => void;
 }
 
 /**
@@ -47,7 +47,7 @@ export const RelationsResultPanel: React.FC<RelationsResultPanelProps> = ({
   onApproveMethodSuggestions,
   onRejectMethodSuggestions,
   onApproveAllSuggestions,
-  onRejectAll,
+  onRejectAllSuggestions,
 }) => {
   // 分析手法フィルター状態
   const [methodFilters, setMethodFilters] = useState({
@@ -374,7 +374,7 @@ export const RelationsResultPanel: React.FC<RelationsResultPanelProps> = ({
             cursor: 'pointer',
             transition: 'all 0.2s ease',
           }}
-          onClick={onRejectAll}
+          onClick={onRejectAllSuggestions}
         >
           全て拒否
         </button>

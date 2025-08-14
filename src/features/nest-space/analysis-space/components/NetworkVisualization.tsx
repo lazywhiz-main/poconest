@@ -3483,7 +3483,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
           }));
           
           setAiSuggestions([]);
-          setShowSuggestionsPanel(false);
+          // setShowSuggestionsPanel(false); // サイドピークに統合済み
           
           // データをリフレッシュ
           if (boardState.currentNestId) {
@@ -3515,7 +3515,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   // 手法別一括承認
   const approveMethodSuggestions = useCallback(async (method: 'ai' | 'tag_similarity' | 'derived') => {
     const methodSuggestions = (aiSuggestions as UnifiedRelationshipSuggestion[])
-      .filter(s => s.analysisMethod === method && methodFilters[method]);
+      .filter(s => s.analysisMethod === method);
     
     if (methodSuggestions.length === 0) return;
     
@@ -3584,19 +3584,19 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         () => hideCustomDialog()
       );
     }
-  }, [aiSuggestions, methodFilters, boardState.boardId, boardState.currentNestId, loadNestData, showCustomDialog, hideCustomDialog]);
+  }, [aiSuggestions, boardState.boardId, boardState.currentNestId, loadNestData, showCustomDialog, hideCustomDialog]);
 
   // 手法別一括拒否
   const rejectMethodSuggestions = useCallback((method: 'ai' | 'tag_similarity' | 'derived') => {
     const methodSuggestions = (aiSuggestions as UnifiedRelationshipSuggestion[])
-      .filter(s => s.analysisMethod === method && methodFilters[method]);
+      .filter(s => s.analysisMethod === method);
     
     if (methodSuggestions.length === 0) return;
     
     // 該当する手法の提案を除外
     const remainingSuggestions = aiSuggestions.filter(suggestion => {
       const unified = suggestion as UnifiedRelationshipSuggestion;
-      return !(unified.analysisMethod === method && methodFilters[method]);
+      return !(unified.analysisMethod === method);
     });
     
     setAiSuggestions(remainingSuggestions);
@@ -3607,7 +3607,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       `${methodSuggestions.length}個の${methodName}提案を拒否しました。`,
       () => hideCustomDialog()
     );
-  }, [aiSuggestions, methodFilters, showCustomDialog, hideCustomDialog]);
+  }, [aiSuggestions, showCustomDialog, hideCustomDialog]);
 
   // CSS styles
   const styles = {
@@ -6965,7 +6965,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
 
 
       {/* 旧AI関係性提案パネル削除 - サイドピークに統合済み */}
-      {false && showSuggestionsPanel && (
+      {false && (
         <div style={{
           ...styles.panel,
           top: '20px',
@@ -6986,7 +6986,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
               fontWeight: '600',
               fontFamily: 'Space Grotesk, system-ui, sans-serif',
             }}>
-              統合関係性提案 ({unifiedSuggestions.length})
+              統合関係性提案 ({aiSuggestions.length})
             </div>
             <button
               style={{
@@ -7003,7 +7003,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
             </button>
           </div>
 
-          {unifiedSuggestions.length === 0 ? (
+          {aiSuggestions.length === 0 ? (
             <div style={{
               textAlign: 'center',
               color: THEME_COLORS.textMuted,
@@ -7277,7 +7277,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
                     e.currentTarget.style.transform = 'translateY(0)';
                   }}
                 >
-                  表示中全て承認 ({unifiedSuggestions.length})
+                  表示中全て承認 ({aiSuggestions.length})
                 </button>
                 <button
                   style={{
@@ -7295,7 +7295,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
                   }}
                   onClick={() => {
                     setAiSuggestions([]);
-                    setShowSuggestionsPanel(false);
+                    // setShowSuggestionsPanel(false); // サイドピークに統合済み
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = THEME_COLORS.primaryRed;
@@ -7319,15 +7319,15 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
                 {(() => {
                   console.log('🔍 提案表示デバッグ:', {
                     totalAiSuggestions: aiSuggestions.length,
-                    unifiedSuggestions: unifiedSuggestions.length,
-                    methodFilters: methodFilters,
+                    // unifiedSuggestions: unifiedSuggestions.length,
+                    // methodFilters: methodFilters,
                     aiSuggestionsDetail: aiSuggestions.map(s => ({
                       source: cards.find(c => c.id === s.sourceCardId)?.title,
                       target: cards.find(c => c.id === s.targetCardId)?.title,
                       method: (s as UnifiedRelationshipSuggestion).analysisMethod
                     }))
                   });
-                  return unifiedSuggestions;
+                  return aiSuggestions;
                 })().map((suggestion, index) => {
                   const sourceCard = cards.find(c => c.id === suggestion.sourceCardId);
                   const targetCard = cards.find(c => c.id === suggestion.targetCardId);

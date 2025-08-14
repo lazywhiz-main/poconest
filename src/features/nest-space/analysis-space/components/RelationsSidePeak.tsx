@@ -12,7 +12,7 @@ interface UnifiedRelationshipSuggestion {
   confidence: number;
   similarity?: number;
   explanation: string;
-  analysisMethod: 'ai' | 'tag_similarity' | 'derived' | 'unified';
+  analysisMethod: 'ai' | 'tag_similarity' | 'derived';
   methodLabel: string;
   methodIcon: string;
 }
@@ -284,7 +284,7 @@ export const RelationsSidePeak: React.FC<RelationsSidePeakProps> = ({
           onApproveMethodSuggestions={onApproveMethodSuggestions}
           onRejectMethodSuggestions={onRejectMethodSuggestions}
           onApproveAllSuggestions={onApproveAllSuggestions}
-          onRejectAll={onRejectAllSuggestions}
+          onRejectAllSuggestions={onRejectAllSuggestions}
         />
       ) : (
         <div style={styles.section}>
