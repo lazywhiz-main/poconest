@@ -1,6 +1,27 @@
 import React from 'react';
 import { THEME_COLORS } from '../../../../constants/theme';
 
+// カスタムスクロールバーのスタイル
+const scrollbarStyles = `
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: ${THEME_COLORS.bgTertiary};
+    border-radius: 3px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: ${THEME_COLORS.borderSecondary};
+    border-radius: 3px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: ${THEME_COLORS.textSecondary};
+  }
+`;
+
 interface SidePeakPanelProps {
   /** パネルが表示されているかどうか */
   isOpen: boolean;
@@ -36,18 +57,22 @@ export const SidePeakPanel: React.FC<SidePeakPanelProps> = ({
 }) => {
   return (
     <>
+      {/* カスタムスクロールバーのスタイル */}
+      {isOpen && <style>{scrollbarStyles}</style>}
+      
       {/* サイドピークパネル本体 - 真のサイドピーク形式 */}
       <div
         style={{
           position: 'fixed',
-          top: '70px', // メインメニューボタンの少し下
-          left: isOpen ? '20px' : '-380px', // 開いているときは20px、閉じているときは隠す
+          top: '60px', // NESTヘッダーの下から開始
+          right: isOpen ? '20px' : `-${width + 20}px`, // 右側から、開いているときは20px、閉じているときは隠す
+          bottom: '20px', // 画面下から20px
           width: `${width}px`,
-          maxHeight,
+          height: 'calc(100vh - 80px)', // NESTヘッダー分を除いた高さ
           backgroundColor: THEME_COLORS.bgPrimary,
           border: `1px solid ${THEME_COLORS.borderPrimary}`,
           borderRadius: THEME_COLORS.borderRadius.large,
-          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)',
+          boxShadow: '-4px 0 16px rgba(0, 0, 0, 0.2)', // 左側に影
           zIndex,
           display: 'flex',
           flexDirection: 'column',
@@ -119,7 +144,11 @@ export const SidePeakPanel: React.FC<SidePeakPanelProps> = ({
             flex: 1,
             overflow: 'auto',
             padding: '0', // パディングは各カテゴリーで個別に設定
+            // カスタムスクロールバー
+            scrollbarWidth: 'thin',
+            scrollbarColor: `${THEME_COLORS.borderSecondary} ${THEME_COLORS.bgTertiary}`,
           }}
+          className="custom-scrollbar"
         >
           {children}
         </div>
