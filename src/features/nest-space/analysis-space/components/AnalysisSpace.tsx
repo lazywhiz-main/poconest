@@ -26,7 +26,7 @@ const AnalysisSpace: React.FC<AnalysisSpaceProps> = ({ nestId }) => {
     nodeSize: 'connection_based',
     edgeFilter: {
       minStrength: 0.1,
-      types: ['semantic', 'manual', 'derived', 'tag_similarity', 'ai'],
+      types: ['semantic', 'manual', 'derived', 'tag_similarity', 'ai', 'unified'],
     },
     nodeFilter: {
       types: ['INBOX', 'QUESTIONS', 'INSIGHTS', 'THEMES', 'ACTIONS'],

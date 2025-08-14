@@ -41,6 +41,8 @@ const AnalysisResultModal: React.FC<AnalysisResultModalProps> = ({
         return 'タグ類似性分析';
       case 'derived':
         return '推論関係性分析';
+      case 'unified':
+        return '統合Relations分析';
       default:
         return '関係性分析';
     }
@@ -52,6 +54,8 @@ const AnalysisResultModal: React.FC<AnalysisResultModalProps> = ({
         return THEME_COLORS.primaryCyan;
       case 'derived':
         return THEME_COLORS.primaryBlue;
+      case 'unified':
+        return THEME_COLORS.primaryPurple;
       default:
         return THEME_COLORS.primaryGreen;
     }

@@ -10,7 +10,7 @@ interface BoardItem {
 }
 
 export interface ClusteringConfig {
-  algorithm: 'dbscan' | 'hierarchical' | 'community' | 'semantic';
+  algorithm: 'dbscan' | 'hierarchical' | 'community' | 'semantic' | 'hdbscan';
   minClusterSize: number;
   maxClusterSize: number;
   similarityThreshold: number;
@@ -20,6 +20,10 @@ export interface ClusteringConfig {
   weightStrength: number;
   weightSemantic: number;
   weightTag: number;
+  
+  // HDBSCAN固有設定（オプション）
+  minPts?: number;
+  debug?: boolean;
 }
 
 export interface SmartCluster {
@@ -35,6 +39,22 @@ export interface SmartCluster {
   suggestedLabel: string;
   alternativeLabels: string[];
   reasoning: string;
+  // 新機能: 重複許可クラスタリング
+  membershipStrength?: { [nodeId: string]: number }; // ノードの所属強度 (0-1)
+  overlappingNodes?: string[]; // 他クラスターとの重複ノード
+}
+
+// ノード視点でのクラスター所属情報
+export interface NodeClusterMembership {
+  nodeId: string;
+  primaryCluster: string;      // メイン所属クラスター
+  secondaryClusters: Array<{   // サブ所属クラスター
+    clusterId: string;
+    strength: number;          // 所属強度 (0-1)
+    role: 'bridge' | 'peripheral' | 'shared'; // 役割
+  }>;
+  totalClusters: number;       // 所属クラスター総数
+  isFullyCovered: boolean;     // どこかに確実に所属しているか
 }
 
 export interface ClusteringResult {
@@ -43,6 +63,15 @@ export interface ClusteringResult {
   quality: ClusterQualityMetrics;
   algorithm: string;
   parameters: ClusteringConfig;
+  // 新機能: ノード包含情報
+  nodeMemberships?: { [nodeId: string]: NodeClusterMembership };
+  coverageStats?: {
+    totalNodes: number;
+    coveredNodes: number;
+    coverageRatio: number;
+    overlappingNodes: number;
+    averageMemberships: number;
+  };
 }
 
 export interface ClusterQualityMetrics {
@@ -86,6 +115,8 @@ export class SmartClusteringService {
       case 'semantic':
         clusters = await this.performSemanticClustering(nodes, cards, config);
         break;
+      case 'hdbscan':
+        return await this.performHDBSCAN(nodes, edges, cards, config);
       default:
         clusters = await this.performHybridClustering(nodes, edges, cards, config);
     }
@@ -105,15 +136,305 @@ export class SmartClusteringService {
     
     console.log(`✅ Smart Clustering Complete: ${clusters.length} clusters, ${outliers.length} outliers`);
     
+    // 新機能: 包含的クラスタリング後処理
+    const { enhancedClusters, nodeMemberships, coverageStats } = await this.applyInclusiveClustering(
+      nodes, 
+      edges, 
+      cards, 
+      clusters, 
+      outliers, 
+      similarityMatrix, 
+      config
+    );
+    
+    console.log(`🎯 包含的クラスタリング完了: カバー率 ${(coverageStats.coverageRatio * 100).toFixed(1)}%, 平均所属数 ${coverageStats.averageMemberships.toFixed(1)}`);
+    
     return {
-      clusters,
-      outliers,
+      clusters: enhancedClusters,
+      outliers: coverageStats.totalNodes > coverageStats.coveredNodes ? 
+        nodes.filter(n => !nodeMemberships[n.id]?.isFullyCovered).map(n => n.id) : [],
       quality,
       algorithm: config.algorithm,
-      parameters: config
+      parameters: config,
+      nodeMemberships,
+      coverageStats
     };
   }
   
+  /**
+   * 包含的クラスタリング: 全ノードをカバー、重複許可
+   */
+  private static async applyInclusiveClustering(
+    nodes: NetworkNode[],
+    edges: NetworkEdge[],
+    cards: BoardItem[],
+    initialClusters: SmartCluster[],
+    initialOutliers: string[],
+    similarityMatrix: number[][],
+    config: ClusteringConfig
+  ): Promise<{
+    enhancedClusters: SmartCluster[];
+    nodeMemberships: { [nodeId: string]: NodeClusterMembership };
+    coverageStats: {
+      totalNodes: number;
+      coveredNodes: number;
+      coverageRatio: number;
+      overlappingNodes: number;
+      averageMemberships: number;
+    };
+  }> {
+    
+    console.log(`🔄 包含的クラスタリング開始: ${initialClusters.length} 初期クラスター, ${initialOutliers.length} 外れ値`);
+    
+    const nodeMemberships: { [nodeId: string]: NodeClusterMembership } = {};
+    const enhancedClusters = [...initialClusters];
+    
+    // 1. 初期クラスターメンバーの所属情報設定
+    for (const cluster of enhancedClusters) {
+      cluster.membershipStrength = {};
+      cluster.overlappingNodes = [];
+      
+      for (const nodeId of cluster.nodes) {
+        cluster.membershipStrength[nodeId] = 1.0; // 初期メンバーは100%所属
+        
+        if (!nodeMemberships[nodeId]) {
+          nodeMemberships[nodeId] = {
+            nodeId,
+            primaryCluster: cluster.id,
+            secondaryClusters: [],
+            totalClusters: 1,
+            isFullyCovered: true
+          };
+        }
+      }
+    }
+    
+    // 2. 外れ値を関係性に基づいて再配属
+    const reassignedOutliers = new Set<string>();
+    
+    for (const outlierId of initialOutliers) {
+      const nodeIdx = nodes.findIndex(n => n.id === outlierId);
+      if (nodeIdx === -1) continue;
+      
+      // このノードの全ての関係性を調査
+      const connections = edges.filter(e => e.source === outlierId || e.target === outlierId);
+      
+      if (connections.length === 0) {
+        console.log(`⚠️ ${outlierId} は孤立ノード - 単独クラスター作成`);
+        // 完全孤立ノードは単独クラスターに
+        const singletonCluster = await this.createSingletonCluster(outlierId, nodes, cards);
+        enhancedClusters.push(singletonCluster);
+        
+        nodeMemberships[outlierId] = {
+          nodeId: outlierId,
+          primaryCluster: singletonCluster.id,
+          secondaryClusters: [],
+          totalClusters: 1,
+          isFullyCovered: true
+        };
+        reassignedOutliers.add(outlierId);
+        continue;
+      }
+      
+      // 関係性のあるノードを含むクラスターを探索
+      const candidateClusters: Array<{
+        cluster: SmartCluster;
+        strength: number;
+        connectionCount: number;
+      }> = [];
+      
+      for (const cluster of enhancedClusters) {
+        let connectionCount = 0;
+        let totalStrength = 0;
+        
+        for (const connection of connections) {
+          const connectedNodeId = connection.source === outlierId ? connection.target : connection.source;
+          if (cluster.nodes.includes(connectedNodeId)) {
+            connectionCount++;
+            totalStrength += connection.strength || 0.5;
+          }
+        }
+        
+        if (connectionCount > 0) {
+          const avgStrength = totalStrength / connectionCount;
+          candidateClusters.push({
+            cluster,
+            strength: avgStrength,
+            connectionCount
+          });
+        }
+      }
+      
+      // 候補クラスターを強度順にソート
+      candidateClusters.sort((a, b) => (b.strength * b.connectionCount) - (a.strength * a.connectionCount));
+      
+      if (candidateClusters.length > 0) {
+        // 最強候補をプライマリに
+        const primaryCandidate = candidateClusters[0];
+        if (primaryCandidate.strength >= 0.3) { // 最低閾値
+          
+          primaryCandidate.cluster.nodes.push(outlierId);
+          primaryCandidate.cluster.membershipStrength![outlierId] = primaryCandidate.strength;
+          
+          nodeMemberships[outlierId] = {
+            nodeId: outlierId,
+            primaryCluster: primaryCandidate.cluster.id,
+            secondaryClusters: [],
+            totalClusters: 1,
+            isFullyCovered: true
+          };
+          
+          // セカンダリ候補も追加（強度0.4以上）
+          for (let i = 1; i < candidateClusters.length && i < 3; i++) {
+            const secondaryCandidate = candidateClusters[i];
+            if (secondaryCandidate.strength >= 0.4) {
+              
+              secondaryCandidate.cluster.overlappingNodes!.push(outlierId);
+              secondaryCandidate.cluster.membershipStrength![outlierId] = secondaryCandidate.strength;
+              
+              nodeMemberships[outlierId].secondaryClusters.push({
+                clusterId: secondaryCandidate.cluster.id,
+                strength: secondaryCandidate.strength,
+                role: secondaryCandidate.connectionCount >= 2 ? 'bridge' : 'peripheral'
+              });
+              nodeMemberships[outlierId].totalClusters++;
+            }
+          }
+          
+          reassignedOutliers.add(outlierId);
+          console.log(`📌 ${outlierId} を ${nodeMemberships[outlierId].totalClusters}個のクラスターに配属`);
+        }
+      }
+    }
+    
+    // 3. 既存クラスター間での重複配属（Bridge Node Detection）
+    this.detectAndAssignBridgeNodes(enhancedClusters, nodes, edges, nodeMemberships, similarityMatrix);
+    
+    // 4. 統計計算
+    const totalNodes = nodes.length;
+    const coveredNodeIds = Object.keys(nodeMemberships).filter(id => nodeMemberships[id].isFullyCovered);
+    const overlappingNodeIds = Object.keys(nodeMemberships).filter(id => nodeMemberships[id].totalClusters > 1);
+    const totalMemberships = Object.values(nodeMemberships).reduce((sum, m) => sum + m.totalClusters, 0);
+    
+    const coverageStats = {
+      totalNodes,
+      coveredNodes: coveredNodeIds.length,
+      coverageRatio: coveredNodeIds.length / totalNodes,
+      overlappingNodes: overlappingNodeIds.length,
+      averageMemberships: totalMemberships / coveredNodeIds.length || 0
+    };
+    
+    console.log(`📊 包含的クラスタリング結果:`);
+    console.log(`   - 総ノード: ${totalNodes}`);
+    console.log(`   - カバー済み: ${coveredNodeIds.length} (${(coverageStats.coverageRatio * 100).toFixed(1)}%)`);
+    console.log(`   - 重複ノード: ${overlappingNodeIds.length}`);
+    console.log(`   - 平均所属数: ${coverageStats.averageMemberships.toFixed(2)}`);
+    
+    return {
+      enhancedClusters,
+      nodeMemberships,
+      coverageStats
+    };
+  }
+  
+  /**
+   * ブリッジノード検出と重複配属
+   */
+  private static detectAndAssignBridgeNodes(
+    clusters: SmartCluster[],
+    nodes: NetworkNode[],
+    edges: NetworkEdge[],
+    nodeMemberships: { [nodeId: string]: NodeClusterMembership },
+    similarityMatrix: number[][]
+  ): void {
+    
+    // クラスター間接続を分析
+    for (let i = 0; i < clusters.length; i++) {
+      for (let j = i + 1; j < clusters.length; j++) {
+        const clusterA = clusters[i];
+        const clusterB = clusters[j];
+        
+        // クラスター間の接続ノードを探索
+        const bridgeCandidates: { nodeId: string; strength: number }[] = [];
+        
+        for (const nodeA of clusterA.nodes) {
+          for (const nodeB of clusterB.nodes) {
+            const connection = edges.find(e => 
+              (e.source === nodeA && e.target === nodeB) || 
+              (e.source === nodeB && e.target === nodeA)
+            );
+            
+            if (connection && connection.strength && connection.strength >= 0.5) {
+              // 強い接続があるノードを両方のクラスターの候補に
+              bridgeCandidates.push({ nodeId: nodeA, strength: connection.strength });
+              bridgeCandidates.push({ nodeId: nodeB, strength: connection.strength });
+            }
+          }
+        }
+        
+        // 重複度の高いノードをブリッジノードとして両クラスターに配属
+        const uniqueBridges = [...new Map(bridgeCandidates.map(b => [b.nodeId, b])).values()];
+        
+        for (const bridge of uniqueBridges) {
+          if (bridge.strength >= 0.6) { // ブリッジ閾値
+            
+            const currentMembership = nodeMemberships[bridge.nodeId];
+            if (currentMembership) {
+              
+              // まだセカンダリに含まれていないクラスターを追加
+              const otherCluster = clusterA.nodes.includes(bridge.nodeId) ? clusterB : clusterA;
+              const alreadyMember = currentMembership.secondaryClusters.some(sc => sc.clusterId === otherCluster.id);
+              
+              if (!alreadyMember && currentMembership.primaryCluster !== otherCluster.id) {
+                
+                otherCluster.overlappingNodes!.push(bridge.nodeId);
+                otherCluster.membershipStrength![bridge.nodeId] = bridge.strength;
+                
+                currentMembership.secondaryClusters.push({
+                  clusterId: otherCluster.id,
+                  strength: bridge.strength,
+                  role: 'bridge'
+                });
+                currentMembership.totalClusters++;
+                
+                console.log(`🌉 ${bridge.nodeId} をブリッジノードとして ${otherCluster.id} に追加配属`);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  /**
+   * 単独クラスター作成
+   */
+  private static async createSingletonCluster(
+    nodeId: string,
+    nodes: NetworkNode[],
+    cards: BoardItem[]
+  ): Promise<SmartCluster> {
+    const node = nodes.find(n => n.id === nodeId);
+    const card = cards.find(c => c.id === nodeId);
+    
+    return {
+      id: `singleton-${nodeId}`,
+      nodes: [nodeId],
+      centroid: node!,
+      cohesion: 1.0,
+      separation: 0.0,
+      semanticTheme: '独立項目',
+      dominantTags: card?.tags?.slice(0, 3) || [],
+      dominantTypes: [card?.column_type || 'INBOX'],
+      confidence: 0.8,
+      suggestedLabel: `独立項目: ${card?.title?.substring(0, 20) || nodeId}`,
+      alternativeLabels: ['個別項目', '独立要素'],
+      reasoning: '他との関係性が薄い独立項目として分類',
+      membershipStrength: { [nodeId]: 1.0 },
+      overlappingNodes: []
+    };
+  }
+
   /**
    * 多次元類似度行列の計算
    */
@@ -183,12 +504,15 @@ export class SmartClusteringService {
     similarityMatrix: number[][],
     config: ClusteringConfig
   ): Promise<{ clusters: SmartCluster[], outliers: string[] }> {
-    // 動的パラメータ調整
+    // より包含性の高い動的パラメータ調整
     const nodeCount = nodes.length;
-    const adaptiveEps = Math.max(0.2, Math.min(0.8, 1 - config.similarityThreshold));
-    const adaptiveMinPts = Math.max(2, Math.min(config.minClusterSize, Math.floor(nodeCount / 8)));
     
-    console.log(`🔧 DBSCAN Parameters: eps=${adaptiveEps.toFixed(2)}, minPts=${adaptiveMinPts}, nodes=${nodeCount}`);
+    // 包含率を高めるため、より寛容なパラメータに調整
+    const adaptiveEps = Math.max(0.4, Math.min(0.9, 1.2 - config.similarityThreshold)); // より大きなeps
+    const adaptiveMinPts = Math.max(2, Math.min(config.minClusterSize, Math.max(2, Math.floor(nodeCount / 12)))); // より小さなminPts
+    
+    console.log(`🔧 DBSCAN Parameters (高包含率): eps=${adaptiveEps.toFixed(2)}, minPts=${adaptiveMinPts}, nodes=${nodeCount}`);
+    console.log(`🎯 目標: 高い包含率でより多くのノードをクラスター化`);
     
     const eps = adaptiveEps;
     const minPts = adaptiveMinPts;
@@ -296,11 +620,178 @@ export class SmartClusteringService {
       }
     }
     
-    console.log(`📊 DBSCAN Results: ${clusters.length} clusters, ${outliers.length} outliers`);
+    console.log(`📊 DBSCAN初期結果: ${clusters.length} clusters, ${outliers.length} outliers`);
+    
+    // セカンダリクラスタリング: 外れ値を既存クラスターに統合または小さなクラスターを作成
+    if (outliers.length > 0) {
+      const { additionalClusters, remainingOutliers } = await this.performSecondaryClusteringForOutliers(
+        nodes, 
+        outliers, 
+        clusters, 
+        similarityMatrix, 
+        config
+      );
+      
+      clusters.push(...additionalClusters);
+      outliers.length = 0; // 配列をクリア
+      outliers.push(...remainingOutliers);
+      
+      console.log(`📊 セカンダリクラスタリング後: ${clusters.length} total clusters, ${outliers.length} final outliers`);
+    }
     
     return { clusters, outliers };
   }
   
+  /**
+   * セカンダリクラスタリング: 外れ値をできるだけクラスター化
+   */
+  private static async performSecondaryClusteringForOutliers(
+    nodes: NetworkNode[],
+    outlierIds: string[],
+    existingClusters: SmartCluster[],
+    similarityMatrix: number[][],
+    config: ClusteringConfig
+  ): Promise<{ additionalClusters: SmartCluster[], remainingOutliers: string[] }> {
+    
+    console.log(`🔄 セカンダリクラスタリング開始: ${outlierIds.length} outliers`);
+    
+    const outlierNodes = nodes.filter(node => outlierIds.includes(node.id));
+    const outlierIndices = outlierNodes.map(node => nodes.findIndex(n => n.id === node.id));
+    
+    const additionalClusters: SmartCluster[] = [];
+    const remainingOutliers: string[] = [];
+    
+    // 戦略1: 既存クラスターへの最近傍統合
+    const assignedToExisting = new Set<string>();
+    
+    for (const outlierId of outlierIds) {
+      const outlierIdx = nodes.findIndex(n => n.id === outlierId);
+      if (outlierIdx === -1) continue;
+      
+      let bestCluster: SmartCluster | null = null;
+      let bestSimilarity = 0;
+      
+      // 各既存クラスターとの平均類似度を計算
+      for (const cluster of existingClusters) {
+        const clusterNodeIndices = cluster.nodes.map(id => nodes.findIndex(n => n.id === id));
+        let totalSimilarity = 0;
+        let validCount = 0;
+        
+        for (const clusterNodeIdx of clusterNodeIndices) {
+          if (clusterNodeIdx !== -1 && outlierIdx < similarityMatrix.length && clusterNodeIdx < similarityMatrix[outlierIdx].length) {
+            totalSimilarity += similarityMatrix[outlierIdx][clusterNodeIdx];
+            validCount++;
+          }
+        }
+        
+        if (validCount > 0) {
+          const avgSimilarity = totalSimilarity / validCount;
+          // より寛容な閾値で統合
+          if (avgSimilarity > 0.3 && avgSimilarity > bestSimilarity) {
+            bestSimilarity = avgSimilarity;
+            bestCluster = cluster;
+          }
+        }
+      }
+      
+      if (bestCluster) {
+        bestCluster.nodes.push(outlierId);
+        assignedToExisting.add(outlierId);
+        console.log(`📌 ${outlierId} を既存クラスター ${bestCluster.id} に統合 (類似度: ${bestSimilarity.toFixed(2)})`);
+      }
+    }
+    
+    // 戦略2: 残りの外れ値で小さなクラスターを作成
+    const unassignedOutliers = outlierIds.filter(id => !assignedToExisting.has(id));
+    
+    while (unassignedOutliers.length >= 2) {
+      const clusterCandidates: string[] = [];
+      const baseOutlier = unassignedOutliers[0];
+      const baseIdx = nodes.findIndex(n => n.id === baseOutlier);
+      
+      clusterCandidates.push(baseOutlier);
+      
+      // 最も類似度の高い1-2個のノードを探す
+      const similarities: { id: string, similarity: number }[] = [];
+      
+      for (let i = 1; i < unassignedOutliers.length; i++) {
+        const otherId = unassignedOutliers[i];
+        const otherIdx = nodes.findIndex(n => n.id === otherId);
+        
+        if (baseIdx !== -1 && otherIdx !== -1 && 
+            baseIdx < similarityMatrix.length && otherIdx < similarityMatrix[baseIdx].length) {
+          const sim = similarityMatrix[baseIdx][otherIdx];
+          similarities.push({ id: otherId, similarity: sim });
+        }
+      }
+      
+      similarities.sort((a, b) => b.similarity - a.similarity);
+      
+      // 上位1-2個を小クラスターに追加（閾値を緩く）
+      for (const item of similarities.slice(0, 2)) {
+        if (item.similarity > 0.2) { // とても緩い閾値
+          clusterCandidates.push(item.id);
+        }
+      }
+      
+      if (clusterCandidates.length >= 2) {
+        // 小さなクラスターを作成
+        const cluster = await this.createSmallCluster(
+          clusterCandidates.map(id => nodes.find(n => n.id === id)!),
+          `secondary-${additionalClusters.length}`,
+          config
+        );
+        
+        additionalClusters.push(cluster);
+        
+        // unassignedOutliersから削除
+        clusterCandidates.forEach(id => {
+          const index = unassignedOutliers.indexOf(id);
+          if (index > -1) unassignedOutliers.splice(index, 1);
+        });
+        
+        console.log(`🆕 小クラスター作成: ${clusterCandidates.length} nodes`);
+      } else {
+        // 統合できない場合は残り外れ値に
+        remainingOutliers.push(unassignedOutliers.shift()!);
+      }
+    }
+    
+    // 1個だけ残った場合は外れ値に
+    remainingOutliers.push(...unassignedOutliers);
+    
+    console.log(`✅ セカンダリクラスタリング完了: +${additionalClusters.length} clusters, ${remainingOutliers.length} final outliers`);
+    
+    return { additionalClusters, remainingOutliers };
+  }
+  
+  /**
+   * 小さなクラスターを作成
+   */
+  private static async createSmallCluster(
+    clusterNodes: NetworkNode[],
+    clusterId: string,
+    config: ClusteringConfig
+  ): Promise<SmartCluster> {
+    const centroid = clusterNodes[0]; // 簡略化
+    const nodeIds = clusterNodes.map(n => n.id);
+    
+    return {
+      id: clusterId,
+      nodes: nodeIds,
+      centroid,
+      cohesion: 0.6, // デフォルト値
+      separation: 0.4,
+      semanticTheme: 'その他関連項目',
+      dominantTags: [],
+      dominantTypes: [],
+      confidence: 0.5,
+      suggestedLabel: `関連項目群(${nodeIds.length})`,
+      alternativeLabels: ['その他', '関連項目', '補助的要素'],
+      reasoning: 'セカンダリクラスタリングにより生成'
+    };
+  }
+
   /**
    * 統計学的テキスト分析による合理的キーワード抽出（改良版）
    */
@@ -1189,5 +1680,60 @@ export class SmartClusteringService {
     }
     
     return beautifiedKeyword; // フォールバック
+  }
+
+  /**
+   * HDBSCAN実行（統合メソッド）
+   */
+  private static async performHDBSCAN(
+    nodes: NetworkNode[],
+    edges: NetworkEdge[],
+    cards: BoardItem[],
+    config: ClusteringConfig
+  ): Promise<ClusteringResult> {
+    console.log('🎯 HDBSCAN実行開始');
+    
+    try {
+      // HDBSCANProviderを動的インポート（バンドルサイズ最適化）
+      const { HDBSCANProvider } = await import('./clustering/hdbscan/HDBSCANProvider');
+      
+      // HDBSCANプロバイダーで実行
+      const result = await HDBSCANProvider.performClustering(nodes, edges, cards as any, config);
+      
+      console.log(`✅ HDBSCAN完了: ${result.clusters.length}クラスター`);
+      
+      // 既存システムとの互換性を保証するため、結果形式を調整
+      return {
+        ...result,
+        algorithm: 'hdbscan' as const,
+        parameters: config
+      };
+      
+    } catch (error) {
+      console.error('❌ HDBSCAN実行エラー:', error);
+      
+      // フォールバック: DBSCANで実行
+      console.warn('🔄 フォールバック: DBSCANで実行します');
+      const fallbackConfig = { ...config, algorithm: 'dbscan' as const };
+      const similarityMatrix = await this.calculateSimilarityMatrix(nodes, edges, cards, fallbackConfig);
+      const { clusters, outliers } = await this.performDBSCAN(nodes, similarityMatrix, fallbackConfig);
+      
+      // 品質評価
+      const quality = this.evaluateClusterQuality(clusters, outliers, similarityMatrix);
+
+      return {
+        clusters,
+        outliers,
+        quality,
+        algorithm: 'dbscan',
+        parameters: fallbackConfig,
+        
+        // エラー情報を含める
+        error: {
+          message: 'HDBSCAN実行エラー、DBSCANにフォールバック',
+          originalError: error instanceof Error ? error.message : String(error)
+        }
+      } as ClusteringResult;
+    }
   }
 } 

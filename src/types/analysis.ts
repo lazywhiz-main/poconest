@@ -6,7 +6,7 @@ export interface CardRelationship {
   id: string;
   card_id: string;
   related_card_id: string;
-  relationship_type: 'semantic' | 'manual' | 'derived' | 'tag_similarity' | 'ai';
+  relationship_type: 'semantic' | 'manual' | 'derived' | 'tag_similarity' | 'ai' | 'unified';
   strength: number; // 0.0-1.0
   confidence: number; // AI分析の確信度 0.0-1.0
   metadata: {

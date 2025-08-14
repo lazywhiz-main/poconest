@@ -6,7 +6,7 @@ export interface CardRelationshipDB {
   id: string;
   card_id: string;
   related_card_id: string;
-  relationship_type: 'semantic' | 'manual' | 'derived' | 'tag_similarity' | 'ai';
+  relationship_type: 'semantic' | 'manual' | 'derived' | 'tag_similarity' | 'ai' | 'unified';
   strength: number;
   confidence: number;
   metadata: any;
@@ -252,7 +252,7 @@ export class AnalysisService {
     boardId: string,
     cardId: string,
     relatedCardId: string,
-    relationshipType: 'semantic' | 'manual' | 'derived' | 'tag_similarity' | 'ai',
+    relationshipType: 'semantic' | 'manual' | 'derived' | 'tag_similarity' | 'ai' | 'unified',
     strength: number,
     confidence: number = 1.0,
     metadata: any = {}
@@ -338,6 +338,153 @@ export class AnalysisService {
     } catch (error) {
       console.error('Failed to delete relationship:', error);
       return false;
+    }
+  }
+
+  /**
+   * 🗑️ Relations一括削除機能
+   */
+  static async bulkDeleteRelationships(options: {
+    boardId?: string;           // 特定ボードのRelations削除
+    relationshipType?: 'ai' | 'semantic' | 'tag_similarity' | 'derived' | 'manual' | 'unified'; // 特定タイプのみ削除
+    strengthRange?: { min?: number; max?: number }; // 強度範囲で削除
+    olderThan?: string;         // 指定日時より古いもの削除
+    all?: boolean;              // 全削除（危険操作）
+  }): Promise<{
+    success: boolean;
+    deletedCount: number;
+    details: string;
+    error?: string;
+  }> {
+    try {
+      console.log('🗑️ [AnalysisService] Relations一括削除開始:', options);
+      
+      // クエリ構築
+      let query = supabase.from('board_card_relations').delete();
+      
+      // ボード指定削除
+      if (options.boardId) {
+        // board_card_relationsから直接ボードIDで絞り込むため、
+        // カード経由でフィルタリング
+        const { data: boardCards } = await supabase
+          .from('board_cards')
+          .select('id')
+          .eq('board_id', options.boardId);
+        
+        if (!boardCards || boardCards.length === 0) {
+          return {
+            success: false,
+            deletedCount: 0,
+            details: '指定されたボードにカードが見つかりません',
+            error: 'No cards found in board'
+          };
+        }
+        
+        const cardIds = boardCards.map(c => c.id);
+        query = query.in('card_id', cardIds);
+      }
+      
+      // タイプ指定削除
+      if (options.relationshipType) {
+        query = query.eq('relationship_type', options.relationshipType);
+      }
+      
+      // 強度範囲削除
+      if (options.strengthRange) {
+        if (options.strengthRange.min !== undefined) {
+          query = query.gte('strength', options.strengthRange.min);
+        }
+        if (options.strengthRange.max !== undefined) {
+          query = query.lte('strength', options.strengthRange.max);
+        }
+      }
+      
+      // 日時範囲削除
+      if (options.olderThan) {
+        query = query.lt('created_at', options.olderThan);
+      }
+      
+      // 全削除の安全チェック
+      if (options.all && !options.boardId && !options.relationshipType && !options.strengthRange && !options.olderThan) {
+        console.warn('⚠️ [AnalysisService] 全Relations削除が要求されました');
+        // 全削除の場合は特別な確認なしで実行（管理用）
+      }
+      
+      // 削除前カウント取得
+      const countQuery = supabase.from('board_card_relations').select('id', { count: 'exact', head: true });
+      
+      // 同じ条件でカウント
+      if (options.boardId) {
+        const { data: boardCards } = await supabase
+          .from('board_cards')
+          .select('id')
+          .eq('board_id', options.boardId);
+        
+        if (boardCards) {
+          const cardIds = boardCards.map(c => c.id);
+          countQuery.in('card_id', cardIds);
+        }
+      }
+      
+      if (options.relationshipType) {
+        countQuery.eq('relationship_type', options.relationshipType);
+      }
+      
+      if (options.strengthRange) {
+        if (options.strengthRange.min !== undefined) {
+          countQuery.gte('strength', options.strengthRange.min);
+        }
+        if (options.strengthRange.max !== undefined) {
+          countQuery.lte('strength', options.strengthRange.max);
+        }
+      }
+      
+      if (options.olderThan) {
+        countQuery.lt('created_at', options.olderThan);
+      }
+      
+      const { count: beforeCount } = await countQuery;
+      
+      // 実際の削除実行
+      const { error, count: deletedCount } = await query;
+      
+      if (error) {
+        console.error('❌ [AnalysisService] 一括削除エラー:', error);
+        return {
+          success: false,
+          deletedCount: 0,
+          details: `削除エラー: ${error.message}`,
+          error: error.message
+        };
+      }
+      
+      const finalDeletedCount = deletedCount || 0;
+      
+      // 詳細メッセージ作成
+      const details = [
+        options.boardId ? `ボード: ${options.boardId}` : null,
+        options.relationshipType ? `タイプ: ${options.relationshipType}` : null,
+        options.strengthRange ? `強度: ${options.strengthRange.min || 0}-${options.strengthRange.max || 1}` : null,
+        options.olderThan ? `日時: ${options.olderThan}より古い` : null,
+        options.all ? '全Relations' : null
+      ].filter(Boolean).join(', ');
+      
+      console.log(`✅ [AnalysisService] 一括削除完了: ${finalDeletedCount}件削除 (${details})`);
+      
+      return {
+        success: true,
+        deletedCount: finalDeletedCount,
+        details: `${finalDeletedCount}件のRelationsを削除しました (${details})`
+      };
+      
+    } catch (error) {
+      console.error('❌ [AnalysisService] 一括削除で予期しないエラー:', error);
+      return {
+        success: false,
+        deletedCount: 0,
+        details: '一括削除中に予期しないエラーが発生しました',
+        error: error instanceof Error ? error.message : String(error)
+      };
     }
   }
 
@@ -467,12 +614,9 @@ export class AnalysisService {
           const tagsB = new Set(cardB.tags);
           const commonTags = [...tagsA].filter(tag => tagsB.has(tag));
           
-          // Phase1: より厳しい最小共通タグ数フィルタ
-          // 共通タグが2個以上、または共通タグ1個で両カードが非常に小さいタグセットの場合のみ
-          const minCommonTags = commonTags.length >= 2 ? 2 : 
-                               (commonTags.length === 1 && tagsA.size <= 2 && tagsB.size <= 2) ? 1 : 0;
-          
-          if (commonTags.length < minCommonTags) continue;
+          // 🔧 Relations量増加: 最小共通タグ数を緩和
+          // 最低1個の共通タグがあれば関係性候補とする
+          if (commonTags.length < 1) continue;
 
           // Phase2: 改良された類似度計算（ジャカード類似度）
           const intersection = commonTags.length;
@@ -487,8 +631,8 @@ export class AnalysisService {
           // 基本類似度（ジャカード + カバレッジのバランス）
           const similarity = (jaccard * 0.6) + (avgCoverage * 0.4);
 
-          // Phase1: より厳しい類似度閾値フィルタ（0.4 → 0.6）
-          if (similarity < 0.6) continue;
+          // 🔧 Relations量増加: 類似度閾値を緩和（0.6 → 0.4）
+          if (similarity < 0.4) continue;
 
           // 既存関係性チェック
           const pairKey = `${cardA.id}-${cardB.id}`;
@@ -645,6 +789,65 @@ export class AnalysisService {
   }
 
   /**
+   * テキスト類似度計算ヘルパー（推論分析用）
+   */
+  private static calculateTextSimilarityHelper(textA: string, textB: string): number {
+    if (!textA || !textB) return 0;
+    
+    // 日本語対応の単語分割
+    const cleanTextA = textA.replace(/[^\w\s\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/g, ' ').toLowerCase();
+    const cleanTextB = textB.replace(/[^\w\s\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/g, ' ').toLowerCase();
+    
+    const wordsA = cleanTextA.split(/\s+/).filter(w => w.length > 1);
+    const wordsB = cleanTextB.split(/\s+/).filter(w => w.length > 1);
+    
+    if (wordsA.length === 0 || wordsB.length === 0) return 0;
+    
+    const setA = new Set(wordsA);
+    const setB = new Set(wordsB);
+    
+    const intersection = [...setA].filter(word => setB.has(word)).length;
+    const union = new Set([...setA, ...setB]).size;
+    
+    return union > 0 ? intersection / union : 0;
+  }
+
+  /**
+   * 既存Relations全タイプを取得（重複防止用）
+   */
+  private static async getExistingAllTypeRelations(boardId: string): Promise<Array<{card_id: string, related_card_id: string}>> {
+    try {
+      const { data, error } = await supabase
+        .from('board_card_relations')
+        .select('card_id, related_card_id, relationship_type')
+        .in('card_id', 
+          supabase
+            .from('board_cards')
+            .select('id')
+            .eq('board_id', boardId)
+        )
+        .in('relationship_type', ['ai', 'derived', 'tag_similarity', 'manual', 'semantic', 'unified']);
+      
+      if (error) {
+        console.error(`❌ [AnalysisService] 既存Relations取得エラー:`, error);
+        return [];
+      }
+      
+      return data || [];
+    } catch (error) {
+      console.error(`❌ [AnalysisService] 既存Relations取得例外:`, error);
+      return [];
+    }
+  }
+
+  /**
+   * カードペアの正規化キー作成（順序無関係）
+   */
+  private static createPairKey(cardId1: string, cardId2: string): string {
+    return cardId1 < cardId2 ? `${cardId1}-${cardId2}` : `${cardId2}-${cardId1}`;
+  }
+
+  /**
    * 推論関係性を自動生成（ルールベース）
    */
   static async generateDerivedRelationships(boardId: string): Promise<AnalysisResult> {
@@ -658,9 +861,18 @@ export class AnalysisService {
     };
 
     try {
-      console.log('[AnalysisService] Generating derived relationships...');
+      // 1. 既存Relations全タイプをチェック（重複防止）
+      const existingRelations = await this.getExistingAllTypeRelations(boardId);
+      const existingPairs = new Set(existingRelations.map(r => this.createPairKey(r.card_id, r.related_card_id)));
+      
+      console.log(`🔍 [AnalysisService] 既存Relations: ${existingRelations.length}件`);
+      console.log(`📝 [AnalysisService] 既存ペア: ${existingPairs.size}ペア (重複防止対象)`);
+      
+      // 2. カード取得開始
+      console.log('🔗 [AnalysisService] 推論関係性分析開始...');
       
       const cards = await this.getBoardCards(boardId);
+      console.log(`📊 [AnalysisService] 対象カード数: ${cards.length}枚`);
       
       if (cards.length < 2) {
         result.details.errors!.push('分析には2枚以上のカードが必要です');
@@ -669,12 +881,7 @@ export class AnalysisService {
       }
 
       // 既存の derived 関係性を取得
-      const existingRelationships = await this.getCardRelationships(boardId);
-      const existingDerivedRelationships = new Set(
-        existingRelationships
-          .filter(rel => rel.relationship_type === 'derived')
-          .map(rel => `${rel.card_id}-${rel.related_card_id}`)
-      );
+      // 既存の推論専用チェックは削除（全タイプチェックに統一）
 
       const newRelationships = [];
       const ruleStats: { [rule: string]: number } = {};
@@ -697,10 +904,9 @@ export class AnalysisService {
           for (const insight of cardsByType.INSIGHTS) {
             // テーマのメタデータに関連するインサイトIDがある場合
             if (theme.metadata?.relatedInsightIds?.includes(insight.id)) {
-              const pairKey = `${theme.id}-${insight.id}`;
-              const reversePairKey = `${insight.id}-${theme.id}`;
-              
-              if (!existingDerivedRelationships.has(pairKey) && !existingDerivedRelationships.has(reversePairKey)) {
+              // 重複チェック（全タイプ対応）
+              const normalizedPairKey = this.createPairKey(theme.id, insight.id);
+              if (!existingPairs.has(normalizedPairKey)) {
                 const relationshipData = {
                   card_id: theme.id,
                   related_card_id: insight.id,
@@ -739,10 +945,9 @@ export class AnalysisService {
             
             // 質問の後1時間以内に作成されたインサイト
             if (insightTime > questionTime && insightTime - questionTime < 3600000) {
-              const pairKey = `${question.id}-${insight.id}`;
-              const reversePairKey = `${insight.id}-${question.id}`;
-              
-              if (!existingDerivedRelationships.has(pairKey) && !existingDerivedRelationships.has(reversePairKey)) {
+              // 重複チェック（全タイプ対応）
+              const normalizedPairKey = this.createPairKey(question.id, insight.id);
+              if (!existingPairs.has(normalizedPairKey)) {
                 const timeDiff = insightTime - questionTime;
                 const strength = Math.max(0.4, 0.8 - (timeDiff / 3600000) * 0.4); // 時間が近いほど強い関係
                 
@@ -776,31 +981,124 @@ export class AnalysisService {
         }
       }
 
-      // ルール3: INSIGHTSとACTIONSの関係（ワークフロー的関係）
-      if (cardsByType.INSIGHTS && cardsByType.ACTIONS) {
-        for (const insight of cardsByType.INSIGHTS) {
-          for (const action of cardsByType.ACTIONS) {
-            // インサイトとアクションが同じタグを持つ場合
-            const insightTags = new Set(insight.tags || []);
-            const actionTags = new Set(action.tags || []);
-            const commonTags = [...insightTags].filter(tag => actionTags.has(tag));
+      // 🔧 新ルール3: 内容類似性推論（セマンティック分析）
+      const maxContentSimilarityPairs = 60; // 最大60ペアまで
+      let contentSimilarityCount = 0;
+      
+      for (let i = 0; i < cards.length && contentSimilarityCount < maxContentSimilarityPairs; i++) {
+        for (let j = i + 1; j < cards.length && contentSimilarityCount < maxContentSimilarityPairs; j++) {
+          const cardA = cards[i];
+          const cardB = cards[j];
+          
+          // 重複チェック（全タイプ対応）
+          const normalizedPairKey = this.createPairKey(cardA.id, cardB.id);
+          if (!existingPairs.has(normalizedPairKey)) {
+            // タイトル類似性計算
+            const titleSimilarity = this.calculateTextSimilarityHelper(cardA.title || '', cardB.title || '');
             
-            if (commonTags.length > 0) {
-              const pairKey = `${insight.id}-${action.id}`;
-              const reversePairKey = `${action.id}-${insight.id}`;
+            // 本文類似性計算  
+            const contentSimilarity = this.calculateTextSimilarityHelper(cardA.content || '', cardB.content || '');
+            
+            // タグ類似性計算
+            const tagsA = new Set(cardA.tags || []);
+            const tagsB = new Set(cardB.tags || []);
+            const commonTags = [...tagsA].filter(tag => tagsB.has(tag));
+            const tagSimilarity = commonTags.length > 0 ? commonTags.length / Math.max(tagsA.size, tagsB.size) : 0;
+            
+            // 統合類似度（重み付き平均）
+            const overallSimilarity = (titleSimilarity * 0.3) + (contentSimilarity * 0.6) + (tagSimilarity * 0.1);
+            
+            // 閾値チェック（0.3以上で関係性あり）
+            if (overallSimilarity >= 0.3) {
+              const strength = Math.min(0.8, overallSimilarity + 0.1); // 類似度に基づく強度
               
-              if (!existingDerivedRelationships.has(pairKey) && !existingDerivedRelationships.has(reversePairKey)) {
-                const strength = Math.min(0.8, 0.5 + (commonTags.length * 0.1));
+              const relationshipData = {
+                card_id: cardA.id,
+                related_card_id: cardB.id,
+                relationship_type: 'derived' as const,
+                strength,
+                confidence: 0.8,
+                metadata: {
+                  derivationRule: 'content_similarity',
+                  explanation: `内容類似性: ${(overallSimilarity * 100).toFixed(1)}%`,
+                  titleSimilarity: titleSimilarity.toFixed(3),
+                  contentSimilarity: contentSimilarity.toFixed(3),
+                  tagSimilarity: tagSimilarity.toFixed(3),
+                  overallSimilarity: overallSimilarity.toFixed(3),
+                  commonTags,
+                  autoGenerated: true,
+                  generatedAt: new Date().toISOString(),
+                }
+              };
+
+              newRelationships.push(relationshipData);
+              ruleStats['内容類似性'] = (ruleStats['内容類似性'] || 0) + 1;
+              contentSimilarityCount++;
+
+              result.relationships.push({
+                cardA: { id: cardA.id, title: cardA.title, type: cardA.column_type },
+                cardB: { id: cardB.id, title: cardB.title, type: cardB.column_type },
+                strength,
+                explanation: `内容類似性${(overallSimilarity * 100).toFixed(1)}%`
+              });
+            }
+          }
+        }
+      }
+
+      // 🔧 改良ルール4: ワークフロー関係（内容ベース）
+      const workflowPairs = [
+        { sourceType: 'QUESTIONS', targetType: 'INSIGHTS', label: '質問→洞察' },
+        { sourceType: 'INSIGHTS', targetType: 'ACTIONS', label: '洞察→行動' },
+        { sourceType: 'INSIGHTS', targetType: 'THEMES', label: '洞察→テーマ' },
+        { sourceType: 'QUESTIONS', targetType: 'ACTIONS', label: '質問→行動' }
+      ];
+
+      workflowPairs.forEach(({ sourceType, targetType, label }) => {
+        const sourceCards = cardsByType[sourceType] || [];
+        const targetCards = cardsByType[targetType] || [];
+        
+        for (const sourceCard of sourceCards) {
+          for (const targetCard of targetCards) {
+            // 重複チェック（全タイプ対応）
+            const normalizedPairKey = this.createPairKey(sourceCard.id, targetCard.id);
+            if (!existingPairs.has(normalizedPairKey)) {
+              // 内容類似性計算
+              const titleSimilarity = this.calculateTextSimilarityHelper(sourceCard.title || '', targetCard.title || '');
+              const contentSimilarity = this.calculateTextSimilarityHelper(sourceCard.content || '', targetCard.content || '');
+              
+              // タグ類似性
+              const sourceTags = new Set(sourceCard.tags || []);
+              const targetTags = new Set(targetCard.tags || []);
+              const commonTags = [...sourceTags].filter(tag => targetTags.has(tag));
+              const tagSimilarity = commonTags.length > 0 ? commonTags.length / Math.max(sourceTags.size, targetTags.size) : 0;
+              
+              // ワークフロー類似度（内容重視）
+              const workflowSimilarity = (titleSimilarity * 0.2) + (contentSimilarity * 0.7) + (tagSimilarity * 0.1);
+              
+              // ワークフローボーナス（タイプ間の論理的関係）
+              const workflowBonus = 0.1;
+              const finalSimilarity = workflowSimilarity + workflowBonus;
+              
+              // 閾値チェック（0.25以上）
+              if (finalSimilarity >= 0.25) {
+                const strength = Math.min(0.8, finalSimilarity + 0.1);
                 
                 const relationshipData = {
-                  card_id: insight.id,
-                  related_card_id: action.id,
+                  card_id: sourceCard.id,
+                  related_card_id: targetCard.id,
                   relationship_type: 'derived' as const,
                   strength,
                   confidence: 0.8,
                   metadata: {
-                    derivationRule: 'insight_action_workflow',
-                    explanation: `共通タグ「${commonTags.join(', ')}」による洞察→行動の関係`,
+                    derivationRule: 'workflow_content_similarity',
+                    explanation: `${label}: 内容類似性${(workflowSimilarity * 100).toFixed(1)}%`,
+                    workflowType: label,
+                    titleSimilarity: titleSimilarity.toFixed(3),
+                    contentSimilarity: contentSimilarity.toFixed(3),
+                    tagSimilarity: tagSimilarity.toFixed(3),
+                    workflowSimilarity: workflowSimilarity.toFixed(3),
+                    finalSimilarity: finalSimilarity.toFixed(3),
                     commonTags,
                     autoGenerated: true,
                     generatedAt: new Date().toISOString(),
@@ -808,19 +1106,19 @@ export class AnalysisService {
                 };
 
                 newRelationships.push(relationshipData);
-                ruleStats['インサイト→アクション(ワークフロー)'] = (ruleStats['インサイト→アクション(ワークフロー)'] || 0) + 1;
+                ruleStats[label] = (ruleStats[label] || 0) + 1;
 
                 result.relationships.push({
-                  cardA: { id: insight.id, title: insight.title, type: insight.column_type },
-                  cardB: { id: action.id, title: action.title, type: action.column_type },
+                  cardA: { id: sourceCard.id, title: sourceCard.title, type: sourceCard.column_type },
+                  cardB: { id: targetCard.id, title: targetCard.title, type: targetCard.column_type },
                   strength,
-                  explanation: `共通タグ「${commonTags.join(', ')}」`
+                  explanation: `${label}: ${(workflowSimilarity * 100).toFixed(1)}%`
                 });
               }
             }
           }
         }
-      }
+      });
 
       if (newRelationships.length === 0) {
         result.details.errors!.push('新しい推論関係性は見つかりませんでした');
@@ -835,7 +1133,9 @@ export class AnalysisService {
       result.proposedRelationships = newRelationships; // 提案データを追加
       result.processingTime = Date.now() - startTime;
 
-      console.log(`Generated ${newRelationships.length} derived relationship proposals`);
+      console.log(`✅ [推論分析] 生成完了: ${newRelationships.length}件の推論Relations提案`);
+      console.log('📈 [推論分析] ルール別内訳:', JSON.stringify(ruleStats, null, 2));
+      console.log(`⏱️ [推論分析] 処理時間: ${Date.now() - startTime}ms`);
       return result;
     } catch (error) {
       console.error('Failed to generate derived relationships:', error);
