@@ -22,6 +22,7 @@ export class HDBSCANProvider {
   static convertToHDBSCANConfig(config: ClusteringConfig): HDBSCANConfig {
     return {
       minClusterSize: config.minClusterSize,
+      maxClusterSize: config.maxClusterSize,
       minSamples: config.minPts || Math.max(2, config.minClusterSize - 1),
       
       distanceWeights: {

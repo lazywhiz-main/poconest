@@ -14,6 +14,7 @@ export interface HDBSCANConfig {
   
   // 主要パラメータ
   minClusterSize: number;           // 最小クラスターサイズ (3-6推奨)
+  maxClusterSize?: number;          // 最大クラスターサイズ (制限)
   minSamples?: number;              // 最小サンプル数 (自動計算)
   
   // 距離計算重み

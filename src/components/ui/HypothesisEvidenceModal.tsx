@@ -21,27 +21,58 @@ interface RelationshipEvidence {
 interface HypothesisFormationPath {
   id: string;
   hypothesis: string;
+  
+  // パラダイムモデルの構成要素
+  paradigmModel: {
+    coreCategory: string;
+    causalConditions: string[];
+    contextFactors: string[];
+    interveningConditions: string[];
+    actionStrategies: string[];
+    consequences: string[];
+    theoreticalFramework: string;
+  };
+  
   formationSteps: Array<{
     step: number;
-    phase: 'concept_extraction' | 'relationship_discovery' | 'pattern_integration' | 'hypothesis_synthesis';
+    phase: 'concept_extraction' | 'relationship_discovery' | 'pattern_integration' | 'hypothesis_synthesis' | 'paradigm_construction';
     description: string;
     inputConcepts: string[];
     outputPatterns: string[];
     confidenceScore: number;
+    gtaMethod: 'open_coding' | 'axial_coding' | 'selective_coding';
   }>;
+  
   contributingClusters: Array<{
     clusterId: string;
     clusterName: string;
     contributionType: 'primary' | 'secondary' | 'supporting';
     conceptCount: number;
     conceptContributions: ConceptContribution[];
+    themeAnalysis?: {
+      primaryDomain: string;
+      keyConcepts: string[];
+      gtaFocus: string[];
+    };
   }>;
+  
   relationshipEvidence: RelationshipEvidence[];
+  
+  // 根拠の詳細情報
+  evidenceDetails: {
+    dataSources: string[];
+    analyticalMethods: string[];
+    validationSteps: string[];
+    limitations: string[];
+    alternativeExplanations: string[];
+  };
+  
   integrationQuality: {
     coherence: number;
     evidence_strength: number;
     concept_diversity: number;
     logical_consistency: number;
+    paradigm_robustness: number;
   };
 }
 
@@ -59,7 +90,7 @@ export const HypothesisEvidenceModal: React.FC<HypothesisEvidenceModalProps> = (
   onClose,
   formationPath
 }) => {
-  const [activeSection, setActiveSection] = useState<'path' | 'clusters' | 'relationships' | 'quality'>('path');
+  const [activeSection, setActiveSection] = useState<'path' | 'paradigm' | 'clusters' | 'relationships' | 'quality'>('path');
 
   if (!isVisible || !formationPath) return null;
 
@@ -93,6 +124,94 @@ export const HypothesisEvidenceModal: React.FC<HypothesisEvidenceModalProps> = (
       default: return 'その他';
     }
   };
+
+  const renderParadigmModelSection = () => (
+    <div>
+      <h3 style={{
+        margin: '0 0 20px 0',
+        fontSize: '18px',
+        fontWeight: '600',
+        color: THEME_COLORS.textPrimary
+      }}>
+        🏗️ パラダイムモデル構成
+      </h3>
+      
+      <div style={{ marginBottom: '20px' }}>
+        <div style={{
+          padding: '16px',
+          backgroundColor: THEME_COLORS.bgSecondary,
+          borderRadius: '8px',
+          border: `1px solid ${THEME_COLORS.borderPrimary}`
+        }}>
+          <h4 style={{
+            margin: '0 0 12px 0',
+            fontSize: '16px',
+            fontWeight: '600',
+            color: THEME_COLORS.primaryGreen
+          }}>
+            🎯 中核カテゴリ: {formationPath.paradigmModel.coreCategory}
+          </h4>
+          
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '16px',
+            marginTop: '16px'
+          }}>
+            <div>
+              <h5 style={{ margin: '0 0 8px 0', fontSize: '14px', fontWeight: '600' }}>🔗 因果条件</h5>
+              <ul style={{ margin: 0, paddingLeft: '20px' }}>
+                {formationPath.paradigmModel.causalConditions.map((condition, index) => (
+                  <li key={index} style={{ marginBottom: '4px' }}>{condition}</li>
+                ))}
+              </ul>
+            </div>
+            
+            <div>
+              <h5 style={{ margin: '0 0 8px 0', fontSize: '14px', fontWeight: '600' }}>🌍 文脈要因</h5>
+              <ul style={{ margin: 0, paddingLeft: '20px' }}>
+                {formationPath.paradigmModel.contextFactors.map((factor, index) => (
+                  <li key={index} style={{ marginBottom: '4px' }}>{factor}</li>
+                ))}
+              </ul>
+            </div>
+            
+            <div>
+              <h5 style={{ margin: '0 0 8px 0', fontSize: '14px', fontWeight: '600' }}>⚡ 介在条件</h5>
+              <ul style={{ margin: 0, paddingLeft: '20px' }}>
+                {formationPath.paradigmModel.interveningConditions.map((condition, index) => (
+                  <li key={index} style={{ marginBottom: '4px' }}>{condition}</li>
+                ))}
+              </ul>
+            </div>
+            
+            <div>
+              <h5 style={{ margin: '0 0 8px 0', fontSize: '14px', fontWeight: '600' }}>🎬 行動戦略</h5>
+              <ul style={{ margin: 0, paddingLeft: '20px' }}>
+                {formationPath.paradigmModel.actionStrategies.map((strategy, index) => (
+                  <li key={index} style={{ marginBottom: '4px' }}>{strategy}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+          
+          <div style={{ marginTop: '16px' }}>
+            <h5 style={{ margin: '0 0 8px 0', fontSize: '14px', fontWeight: '600' }}>📈 結果・帰結</h5>
+            <ul style={{ margin: 0, paddingLeft: '20px' }}>
+              {formationPath.paradigmModel.consequences.map((consequence, index) => (
+                <li key={index} style={{ marginBottom: '4px' }}>{consequence}</li>
+              ))}
+            </ul>
+          </div>
+          
+          <div style={{ marginTop: '16px' }}>
+            <h5 style={{ margin: '0 0 8px 0', fontSize: '14px', fontWeight: '600' }}>📚 理論的枠組み</h5>
+            <p style={{ margin: 0, fontStyle: 'italic' }}>{formationPath.paradigmModel.theoreticalFramework}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   const renderFormationPathSection = () => (
     <div>
@@ -621,6 +740,7 @@ export const HypothesisEvidenceModal: React.FC<HypothesisEvidenceModalProps> = (
         }}>
           {[
             { key: 'path', label: '🧠 形成パス', color: THEME_COLORS.primaryGreen },
+            { key: 'paradigm', label: '🏗️ パラダイム', color: THEME_COLORS.primaryTeal },
             { key: 'clusters', label: '🏢 クラスター', color: THEME_COLORS.primaryBlue },
             { key: 'relationships', label: '🔗 関係性', color: THEME_COLORS.primaryPurple },
             { key: 'quality', label: '📊 品質評価', color: THEME_COLORS.primaryOrange }
@@ -655,6 +775,7 @@ export const HypothesisEvidenceModal: React.FC<HypothesisEvidenceModalProps> = (
           backgroundColor: THEME_COLORS.bgSecondary
         }}>
           {activeSection === 'path' && renderFormationPathSection()}
+          {activeSection === 'paradigm' && renderParadigmModelSection()}
           {activeSection === 'clusters' && renderClustersSection()}
           {activeSection === 'relationships' && renderRelationshipsSection()}
           {activeSection === 'quality' && renderQualitySection()}

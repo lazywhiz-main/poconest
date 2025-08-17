@@ -7,8 +7,8 @@ import { CardModal } from '../../../board-space/components/BoardSpace';
 import { AIAnalysisService, type SuggestedRelationship } from '../../../../services/AIAnalysisService';
 import { AnalysisService, AnalysisResult, ClusterLabel } from '../../../../services/AnalysisService';
 import { SmartClusteringService, ClusteringConfig, ClusteringResult } from '../../../../services/SmartClusteringService';
-import { ClusterViewService } from '../../../../services/ClusterViewService';
 import type { SavedClusterView } from '../../../../types/clusterView';
+import { ClusterViewService } from '../../../../services/ClusterViewService';
 import type { BoardColumnType } from '../../../../types/board';
 import AnalysisResultModal from './AnalysisResultModal';
 import { supabase } from '../../../../services/supabase/client';
@@ -135,6 +135,9 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   const [showDensity, setShowDensity] = useState(false);
   const [activeFilters, setActiveFilters] = useState<{ tags: string[], types: string[], relationships: string[] }>({ tags: [], types: [], relationships: [] });
   const [detectedClusters, setDetectedClusters] = useState<string[][]>([]);
+  
+  // サイドピークスクロール状態管理
+  const [isSidePeakScrolling, setIsSidePeakScrolling] = useState(false);
   
   // 動的な描画領域サイズ（ノード数に応じて調整）
   const [containerDimensions, setContainerDimensions] = useState({ width: 4800, height: 3600 });
@@ -289,6 +292,40 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     }
   }, [cards.length, nodePositions]);
 
+  // 保存されたクラスタービューの最新版を自動読み込み
+  useEffect(() => {
+    const loadLatestClusterView = async () => {
+      try {
+        console.log('🔄 [NetworkVisualization] 最新クラスタービューの自動読み込み開始');
+        
+        if (!boardState.boardId) {
+          console.log('ℹ️ [NetworkVisualization] boardIdが設定されていないためスキップ');
+          return;
+        }
+        
+        // ClusterViewServiceを使用して最新のクラスタービューを取得
+        const response = await ClusterViewService.getLatestClusterView(boardState.boardId);
+        
+        if (response.success && response.data) {
+          console.log('✅ [NetworkVisualization] 最新クラスタービューを自動読み込み:', response.data.name);
+          
+          // クラスタービューを自動読み込み
+          await handleLoadClusterView(response.data);
+        } else {
+          console.log('ℹ️ [NetworkVisualization] 保存されたクラスタービューがありません');
+        }
+      } catch (error) {
+        console.log('ℹ️ [NetworkVisualization] 最新クラスタービューの自動読み込みをスキップ:', error);
+        // エラーは無視（初回起動時など）
+      }
+    };
+    
+    // カードデータが読み込まれた後に実行
+    if (cards.length > 0 && boardState.boardId) {
+      loadLatestClusterView();
+    }
+  }, [cards.length, boardState.boardId]);
+
   // Analysis result modal state
   const [analysisModalVisible, setAnalysisModalVisible] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
@@ -327,7 +364,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   const [strengthThreshold, setStrengthThreshold] = useState(0.3);
   const [useWeightFiltering, setUseWeightFiltering] = useState(true);
   const [showClusteringControls, setShowClusteringControls] = useState(false);
-  const [showFilteredClusters, setShowFilteredClusters] = useState(false);
+  const [showFilteredClusters, setShowFilteredClusters] = useState(true); // デフォルトON
   const [filteredClusters, setFilteredClusters] = useState<string[][]>([]);
   // const [isFilterPanelCollapsed, setIsFilterPanelCollapsed] = useState(false); // 左下パネル廃止により不要
   const [showMinimap, setShowMinimap] = useState(true);
@@ -807,7 +844,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         
         setAiSuggestions(combinedSuggestions);
         // 結果をサイドピークに表示するため、Relations パネルを開く
-        setShowRelationsPanel(true);
+        setActiveSidePeak('relations');
         
         console.log('🔍 [DEBUG] setAiSuggestions完了, suggestions数:', suggestions.length);
         
@@ -1280,8 +1317,19 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         clusterSizes: clusterNodeIds.map(c => c.length),
         firstCluster: clusterNodeIds[0]?.slice(0, 3) // 最初の3ノードIDを表示
       });
+      
+      console.log(`🔧 [NetworkVisualization] filteredClusters設定前:`, {
+        beforeSetFilteredClusters: filteredClusters.length,
+        beforeShowFilteredClusters: showFilteredClusters
+      });
+      
       setFilteredClusters(clusterNodeIds);
       setShowFilteredClusters(true);
+      
+      console.log(`✅ [NetworkVisualization] filteredClusters設定完了:`, {
+        newClusterNodeIds: clusterNodeIds.length,
+        newShowFilteredClusters: true
+      });
       
       // ラベルを設定
       const smartLabels: ClusterLabel[] = result.clusters.map((cluster, index) => ({
@@ -1469,7 +1517,9 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         // 領域変更時は配置も再計算
         if (nodeCount > 1) {
           const newOrganicPositions = generateOrganicLayout();
-          setNodePositions(newOrganicPositions);
+          // 領域変更時もビューポート中央に配置
+          const centeredPositions = centerNodesInViewport(newOrganicPositions);
+          setNodePositions(centeredPositions);
         }
         
         // 最適なズームレベルに自動調整
@@ -1494,6 +1544,23 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // サイドピークスクロール状態の監視
+  useEffect(() => {
+    const handleSidePeakScroll = (event: CustomEvent) => {
+      setIsSidePeakScrolling(event.detail.isScrolling);
+      
+      // デバッグログ（開発時のみ）
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`🎯 [NetworkVisualization] サイドピークスクロール状態: ${event.detail.isScrolling ? 'スクロール中' : '停止'} → Zoom/Minimap表示: ${!event.detail.isScrolling ? 'ON' : 'OFF'}`);
+      }
+    };
+
+    window.addEventListener('sidePeakScrollStateChange', handleSidePeakScroll as EventListener);
+    return () => {
+      window.removeEventListener('sidePeakScrollStateChange', handleSidePeakScroll as EventListener);
+    };
   }, []);
 
   // パン機能
@@ -1597,40 +1664,40 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
 
   // クラスターラベル位置を更新する関数
   const updateClusterLabelPositions = useCallback((newNodePositions: { [key: string]: { x: number, y: number } }) => {
-    const updatedLabels = clusterLabels.map(label => {
-      // ラベルに関連するノード（カード）を取得
-      const clusterCards = label.cardIds.map(id => networkData.nodes.find(n => n.id === id)).filter(Boolean);
-      if (clusterCards.length === 0) return label;
+    setClusterLabels(currentLabels => {
+      return currentLabels.map(label => {
+        // ラベルに関連するノード（カード）を取得
+        const clusterCards = label.cardIds.map(id => networkData.nodes.find(n => n.id === id)).filter(Boolean);
+        if (clusterCards.length === 0) return label;
 
-      // 新しいノード位置を使用してラベル位置を再計算
-      const centerX = clusterCards.reduce((sum, node) => {
-        const pos = newNodePositions[node!.id] || { x: node!.x, y: node!.y };
-        return sum + pos.x;
-      }, 0) / clusterCards.length;
-      
-      const centerY = clusterCards.reduce((sum, node) => {
-        const pos = newNodePositions[node!.id] || { x: node!.x, y: node!.y };
-        return sum + pos.y;
-      }, 0) / clusterCards.length;
-      
-      // クラスター内のノードの最上部にラベルを配置
-      const minY = Math.min(...clusterCards.map(node => {
-        const pos = newNodePositions[node!.id] || { x: node!.x, y: node!.y };
-        return pos.y;
-      }));
+        // 新しいノード位置を使用してラベル位置を再計算
+        const centerX = clusterCards.reduce((sum, node) => {
+          const pos = newNodePositions[node!.id] || { x: node!.x, y: node!.y };
+          return sum + pos.x;
+        }, 0) / clusterCards.length;
+        
+        const centerY = clusterCards.reduce((sum, node) => {
+          const pos = newNodePositions[node!.id] || { x: node!.x, y: node!.y };
+          return sum + pos.y;
+        }, 0) / clusterCards.length;
+        
+        // クラスター内のノードの最上部にラベルを配置
+        const minY = Math.min(...clusterCards.map(node => {
+          const pos = newNodePositions[node!.id] || { x: node!.x, y: node!.y };
+          return pos.y;
+        }));
 
-      return {
-        ...label,
-        position: {
-          x: centerX,
-          y: minY - 40 // ノードの上部に少し余裕を持って配置
-        }
-      };
+        return {
+          ...label,
+          position: {
+            x: centerX,
+            y: minY - 40 // ノードの上部に少し余裕を持って配置
+          }
+        };
+      });
     });
-
-    setClusterLabels(updatedLabels);
     // console.log('🏷️ Cluster label positions updated after layout change');
-  }, [clusterLabels, networkData.nodes]);
+  }, [networkData.nodes]);
 
   // nodePositionsが変更された際にラベル位置を自動更新
   useEffect(() => {
@@ -1638,6 +1705,52 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       updateClusterLabelPositions(nodePositions);
     }
   }, [nodePositions, showLabels, clusterLabels, updateClusterLabelPositions]);
+
+  // 🌊 ビューポート中央にノードを配置する関数
+  const centerNodesInViewport = useCallback((positions: { [key: string]: { x: number, y: number } }) => {
+    // ブラウザーの表示領域の中央を計算
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const viewportCenterX = viewportWidth / 2;
+    const viewportCenterY = viewportHeight / 2;
+    
+    // 現在のノード位置の中心を計算
+    const nodeIds = Object.keys(positions);
+    if (nodeIds.length === 0) return positions;
+    
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    nodeIds.forEach(id => {
+      const pos = positions[id];
+      minX = Math.min(minX, pos.x);
+      maxX = Math.max(maxX, pos.x);
+      minY = Math.min(minY, pos.y);
+      maxY = Math.max(maxY, pos.y);
+    });
+    
+    const currentCenterX = (minX + maxX) / 2;
+    const currentCenterY = (minY + maxY) / 2;
+    
+    // ビューポート中央に移動するためのオフセットを計算
+    const offsetX = viewportCenterX - currentCenterX;
+    const offsetY = viewportCenterY - currentCenterY;
+    
+    // 全ノードをオフセット分移動
+    const centeredPositions: { [key: string]: { x: number, y: number } } = {};
+    nodeIds.forEach(id => {
+      centeredPositions[id] = {
+        x: positions[id].x + offsetX,
+        y: positions[id].y + offsetY
+      };
+    });
+    
+    console.log('🎯 [Center Nodes] ビューポート中央にノードを配置:', {
+      viewportCenter: { x: viewportCenterX, y: viewportCenterY },
+      currentCenter: { x: currentCenterX, y: currentCenterY },
+      offset: { x: offsetX, y: offsetY }
+    });
+    
+    return centeredPositions;
+  }, []);
 
   // 🌊 改良された有機的配置（クラスターがない場合のフォールバック）
   const generateImprovedOrganicLayout = useCallback((containerWidth: number, containerHeight: number) => {
@@ -1763,8 +1876,10 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         RelationsParameterManager.LAYOUT_AREA.width, 
         RelationsParameterManager.LAYOUT_AREA.height
       );
-      setNodePositions(positions);
-      console.log(`✅ [Enhanced Auto Layout] 完了: ${Object.keys(positions).length}ノード (固定領域: ${RelationsParameterManager.LAYOUT_AREA.width}x${RelationsParameterManager.LAYOUT_AREA.height})`);
+      // ビューポート中央にノードを配置
+      const centeredPositions = centerNodesInViewport(positions);
+      setNodePositions(centeredPositions);
+      console.log(`✅ [Enhanced Auto Layout] 完了: ${Object.keys(centeredPositions).length}ノード (固定領域: ${RelationsParameterManager.LAYOUT_AREA.width}x${RelationsParameterManager.LAYOUT_AREA.height})`);
       return;
     } else {
       // パターンB: 強化されたクラスターベースレイアウト
@@ -1935,8 +2050,10 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         Object.assign(allPositions, newPositions);
       });
       
-      setNodePositions(allPositions);
-      console.log(`✅ [Enhanced Auto Layout] 完了: ${Object.keys(allPositions).length}ノード`);
+      // ビューポート中央にノードを配置
+      const centeredPositions = centerNodesInViewport(allPositions);
+      setNodePositions(centeredPositions);
+      console.log(`✅ [Enhanced Auto Layout] 完了: ${Object.keys(centeredPositions).length}ノード`);
       return;
     }
   }, [networkData.nodes, detectClusters, strengthThreshold, useWeightFiltering, generateImprovedOrganicLayout]);
@@ -2676,9 +2793,11 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       // より早いタイミングで実行して、初期ビューから重複のない配置を提供
       const timer = setTimeout(() => {
         const organicPositions = generateOrganicLayout();
-        setNodePositions(organicPositions);
+        // 初期レイアウトでもビューポート中央に配置
+        const centeredPositions = centerNodesInViewport(organicPositions);
+        setNodePositions(centeredPositions);
         setHasAppliedInitialLayout(true);
-        console.log('Applied initial organic layout:', organicPositions);
+        console.log('Applied initial centered organic layout:', centeredPositions);
       }, 100); // 1000ms → 100ms に短縮
       
       return () => clearTimeout(timer);
@@ -2697,9 +2816,10 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     setHighlightedNodes(new Set());
     setShowDensity(false);
     
-    // 新しい有機的なランダム配置を生成
+    // ブラウザーの表示領域の中央にノードを配置
     const newOrganicPositions = generateOrganicLayout();
-    setNodePositions(newOrganicPositions);
+    const centeredPositions = centerNodesInViewport(newOrganicPositions);
+    setNodePositions(centeredPositions);
     
     // 手動リセットフラグをセット
     setIsManualReset(true);
@@ -2709,7 +2829,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     setClusterLabels([]);
     setShowLabels(false);
     
-    console.log('Reset View with new organic layout:', newOrganicPositions);
+    console.log('Reset View with centered organic layout:', centeredPositions);
   };
 
   // 初期クラスタリング実行（デフォルト設定）
@@ -3067,7 +3187,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       setAiSuggestions(filteredSuggestions as UnifiedRelationshipSuggestion[]);
       setShowAnalysisModal(false);
       // 結果をサイドピークに表示するため、Relations パネルを開く
-      setShowRelationsPanel(true);
+      setActiveSidePeak('relations');
       
       const analysisTypeLabel = analysisType === 'incremental' ? '増分' : '完全';
       
@@ -3338,7 +3458,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       setAiSuggestions(unifiedAiSuggestions);
       setShowAnalysisModal(false);
       // 結果をサイドピークに表示するため、Relations パネルを開く
-      setShowRelationsPanel(true);
+      setActiveSidePeak('relations');
       
       if (filteredSuggestions.length === 0) {
         showCustomDialog(
@@ -4457,16 +4577,59 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
           
 
 
-          {/* Cluster highlights (重み閾値フィルタリング適用) */}
-          {showFilteredClusters && filteredClusters.map((cluster, index) => {
+          {/* Cluster highlights (クラスター境界線描画) */}
+          {(() => {
+            // 境界線描画のためのクラスター配列を決定
+            let clustersToRender: string[][] = [];
+            
+            if (filteredClusters.length > 0) {
+              // フィルタリングされたクラスターが存在する場合
+              clustersToRender = filteredClusters;
+              console.log(`🎨 [境界線描画] フィルタリングされたクラスターを使用: ${clustersToRender.length}個`);
+            } else if (clusterLabels.length > 0) {
+              // クラスターラベルから境界線用のクラスターを生成
+              clustersToRender = clusterLabels.map(label => label.cardIds);
+              console.log(`🎨 [境界線描画] クラスターラベルから境界線生成: ${clustersToRender.length}個`);
+            } else {
+              console.log(`🎨 [境界線描画] 描画対象のクラスターがありません`);
+            }
+            
+            return clustersToRender;
+          })()}
+          
+          {(() => {
+            // 境界線描画のためのクラスター配列を決定
+            let clustersToRender: string[][] = [];
+            
+            if (filteredClusters.length > 0) {
+              clustersToRender = filteredClusters;
+            } else if (clusterLabels.length > 0) {
+              clustersToRender = clusterLabels.map(label => label.cardIds);
+            }
+            
+            return clustersToRender;
+          })().map((cluster, index) => {
             const clusterNodes = cluster.map(id => networkData.nodes.find(n => n.id === id)).filter(Boolean);
             console.log(`🎨 [NetworkVisualization] クラスター${index}表示処理:`, {
               clusterSize: cluster.length,
               foundNodes: clusterNodes.length,
               nodeIds: cluster.slice(0, 3), // 最初の3ノードID
-              willRender: clusterNodes.length >= 2
+              willRender: clusterNodes.length >= 2,
+              networkNodesCount: networkData.nodes.length,
+              filteredClustersCount: filteredClusters.length,
+              clusterLabelsCount: clusterLabels.length,
+              dataSource: showFilteredClusters && filteredClusters.length > 0 ? 'filteredClusters' : 'clusterLabels'
             });
-            if (clusterNodes.length < 2) return null;
+            if (clusterNodes.length < 2) {
+              console.warn(`⚠️ クラスター${index}: ノード数不足 (${clusterNodes.length}個)`);
+              return null;
+            }
+            
+            console.log(`🎨 [境界線] クラスター${index}の位置情報:`, {
+              nodePositionsKeys: Object.keys(nodePositions).length,
+              clusterNodeIds: clusterNodes.map(n => n!.id),
+              hasPositions: clusterNodes.map(n => !!nodePositions[n!.id])
+            });
             
             const padding = 45; // 標準より少し小さく
             // 実際のノード位置を使用してクラスター境界を計算
@@ -4476,6 +4639,11 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
                 x: Math.round(pos.x),
                 y: Math.round(pos.y)
               };
+              console.log(`📍 [境界線] ノード${n!.id}位置:`, { 
+                fromNodePositions: nodePositions[n!.id], 
+                fromNode: { x: n!.x, y: n!.y }, 
+                final: roundedPos 
+              });
               return { ...roundedPos, size: getNodeSize(n!.size) };
             });
             
@@ -4488,6 +4656,12 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
             const centerY = (minY + maxY) / 2;
             const radiusX = (maxX - minX) / 2;
             const radiusY = (maxY - minY) / 2;
+            
+            console.log(`🔵 [境界線] クラスター${index}楕円描画:`, {
+              centerX, centerY, radiusX, radiusY,
+              minX, maxX, minY, maxY,
+              nodeCount: nodePositionsInCluster.length
+            });
             
             return (
               <ellipse
@@ -7963,8 +8137,8 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         gap: '20px',
         zIndex: 10,
       }}>
-        {/* Minimap (moved here from separate block) */}
-        {showMinimap && (
+        {/* Minimap (moved here from separate block) - サイドピークスクロール中は非表示 */}
+        {showMinimap && !isSidePeakScrolling && (
           <div style={{
             width: '200px',
             height: '150px',
@@ -8055,12 +8229,13 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
           </div>
         )}
 
-        {/* Zoom Controls */}
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '10px',
-        }}>
+        {/* Zoom Controls - サイドピークスクロール中は非表示 */}
+        {!isSidePeakScrolling && (
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px',
+          }}>
         <button
           style={{
             background: THEME_COLORS.bgSecondary,
@@ -8104,6 +8279,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
           −
         </button>
         </div>
+        )}
       </div>
 
       {/* Card Editing Modal */}
@@ -9107,7 +9283,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         onClose={() => setActiveSidePeak(null)}
         title="Relations"
         icon="🔗"
-        width={600}
+        width={500}
       >
         <RelationsSidePeak
           isAnalyzing={isAnalyzing}
@@ -9217,12 +9393,11 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
               
               console.log('🔬 Starting advanced clustering analysis with config:', advancedConfig);
               
-              const result = await SmartClusteringService.analyzeClusters(
-                boardState.boardId || '',
+              const result = await SmartClusteringService.performSmartClustering(
+                networkData.nodes,
+                networkData.edges,
                 cards,
-                relationships,
-                advancedConfig.weights,
-                advancedConfig.clustering
+                convertToClusteringConfig(advancedConfig)
               );
               
               console.log('✅ Advanced clustering analysis completed:', result);
@@ -9300,7 +9475,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         onClose={() => setActiveSidePeak(null)}
         title="View & Navigation"
         icon="🗺️"
-        width={400}
+        width={500}
       >
         <div style={{ padding: '20px' }}>
           <h4 style={{ color: THEME_COLORS.textPrimary, marginBottom: '16px' }}>
@@ -9369,7 +9544,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         onClose={() => setActiveSidePeak(null)}
         title="Search & Filter"
         icon="🔍"
-        width={450}
+        width={500}
       >
         <div style={{ padding: '20px' }}>
           <h4 style={{ color: THEME_COLORS.textPrimary, marginBottom: '16px' }}>
@@ -9396,7 +9571,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         onClose={() => setActiveSidePeak(null)}
         title="Theory Building"
         icon="🧠"
-        width={600}
+        width={500}
       >
         <TheoryBuildingSidePeak
           currentClusters={clusterLabels}
@@ -9414,7 +9589,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         onClose={() => setActiveSidePeak(null)}
         title="Search & Filter"
         icon="🔍"
-        width={450}
+        width={500}
       >
         <SearchFilterSidePeak
           activeFilters={activeFilters}

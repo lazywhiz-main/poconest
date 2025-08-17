@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { THEME_COLORS } from '../../../../constants/theme';
 
 // カスタムスクロールバーのスタイル
@@ -55,6 +55,59 @@ export const SidePeakPanel: React.FC<SidePeakPanelProps> = ({
   maxHeight = '80vh',
   zIndex = 100,
 }) => {
+  // スクロール状態管理
+  const [isScrolling, setIsScrolling] = useState(false);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout>();
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // スクロール検知
+  const handleScroll = useCallback(() => {
+    setIsScrolling(true);
+    
+    // スクロール停止後300msでレンダリング再開
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+    
+    scrollTimeoutRef.current = setTimeout(() => {
+      setIsScrolling(false);
+    }, 300);
+  }, []);
+
+  // スクロールイベントリスナーの設定
+  useEffect(() => {
+    const contentElement = contentRef.current;
+    if (contentElement && isOpen) {
+      contentElement.addEventListener('scroll', handleScroll, { passive: true });
+      return () => {
+        contentElement.removeEventListener('scroll', handleScroll);
+      };
+    }
+  }, [isOpen, handleScroll]);
+
+  // クリーンアップ
+  useEffect(() => {
+    return () => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // スクロール状態をグローバルコンテキストに通知
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('sidePeakScrollStateChange', {
+        detail: { isScrolling }
+      }));
+      
+      // デバッグログ（開発時のみ）
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`🎯 [SidePeakPanel] スクロール状態変更: ${isScrolling ? 'スクロール中' : '停止'}`);
+      }
+    }
+  }, [isScrolling]);
+
   return (
     <>
       {/* カスタムスクロールバーのスタイル */}
@@ -140,6 +193,7 @@ export const SidePeakPanel: React.FC<SidePeakPanelProps> = ({
 
         {/* コンテンツエリア */}
         <div
+          ref={contentRef}
           style={{
             flex: 1,
             overflow: 'auto',

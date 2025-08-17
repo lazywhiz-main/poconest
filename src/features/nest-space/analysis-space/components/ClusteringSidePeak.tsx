@@ -480,7 +480,7 @@ export const ClusteringSidePeak: React.FC<ClusteringSidePeakProps> = ({
             
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
               <div>
-                <label style={{ ...styles.controlLabel, fontSize: '10px' }}>最小クラスター数</label>
+                <label style={{ ...styles.controlLabel, fontSize: '10px' }}>最小クラスターサイズ</label>
                 <input
                   type="number"
                   min="2"
@@ -497,7 +497,7 @@ export const ClusteringSidePeak: React.FC<ClusteringSidePeakProps> = ({
                 />
               </div>
               <div>
-                <label style={{ ...styles.controlLabel, fontSize: '10px' }}>最大クラスター数</label>
+                <label style={{ ...styles.controlLabel, fontSize: '10px' }}>最大クラスターサイズ</label>
                 <input
                   type="number"
                   min="5"

@@ -129,6 +129,50 @@ export class ClusterViewService {
   }
   
   /**
+   * 指定ボードの最新のクラスタービューを取得
+   */
+  static async getLatestClusterView(boardId: string): Promise<ClusterViewResponse> {
+    try {
+      console.log('🔄 [ClusterViewService] 最新ビュー取得開始:', boardId);
+      
+      const { data, error } = await supabase
+        .from('cluster_views')
+        .select('*')
+        .eq('board_id', boardId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+      
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // データが見つからない場合
+          console.log('ℹ️ [ClusterViewService] 保存されたビューがありません');
+          return { success: false, error: 'No saved views found' };
+        }
+        console.error('❌ [ClusterViewService] 取得エラー:', error);
+        return { success: false, error: error.message };
+      }
+      
+      if (!data) {
+        return { success: false, error: 'Latest cluster view not found' };
+      }
+      
+      // データ変換
+      const view = this.convertRecordToView(data);
+      
+      console.log('✅ [ClusterViewService] 最新ビュー取得完了:', view.name);
+      return { success: true, data: view };
+      
+    } catch (error) {
+      console.error('❌ [ClusterViewService] 予期しないエラー:', error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      };
+    }
+  }
+
+  /**
    * 特定のクラスタービューを取得
    */
   static async getClusterView(id: string): Promise<ClusterViewResponse> {
