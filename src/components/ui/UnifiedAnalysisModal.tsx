@@ -291,7 +291,7 @@ const UnifiedAnalysisModal: React.FC<UnifiedAnalysisModalProps> = ({
                       color: THEME_COLORS.textMuted,
                       fontSize: '11px',
                     }}>
-                      {rel.similarity.cardA.type}
+                      {rel.similarity.cardA.column_type || 'unknown'}
                     </div>
                   </div>
 
@@ -323,7 +323,7 @@ const UnifiedAnalysisModal: React.FC<UnifiedAnalysisModalProps> = ({
                       color: THEME_COLORS.textMuted,
                       fontSize: '11px',
                     }}>
-                      {rel.similarity.cardB.type}
+                      {rel.similarity.cardB.column_type || 'unknown'}
                     </div>
                   </div>
 
@@ -343,7 +343,7 @@ const UnifiedAnalysisModal: React.FC<UnifiedAnalysisModalProps> = ({
                       color: THEME_COLORS.textMuted,
                       fontSize: '10px',
                     }}>
-                      {rel.relationship.relationship_type}
+                      {rel.relationshipId || 'unknown'}
                     </div>
                   </div>
                 </div>

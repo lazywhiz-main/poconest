@@ -5,7 +5,7 @@ interface AnalysisResultModalProps {
   isVisible: boolean;
   onClose: () => void;
   result: AnalysisResult | null;
-  analysisType: 'tag_similarity' | 'derived' | null;
+  analysisType: 'tag_similarity' | 'derived' | 'unified' | null;
 }
 
 const THEME_COLORS = {

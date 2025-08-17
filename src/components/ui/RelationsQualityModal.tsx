@@ -407,7 +407,7 @@ export const RelationsQualityModal: React.FC<RelationsQualityModalProps> = ({
               </div>
               <div style={{
                 fontSize: '11px',
-                color: THEME_COLORS.textTertiary
+                color: THEME_COLORS.textMuted
               }}>
                 貢献: {qualityReport.qualityBreakdown.connectionContribution}pts
               </div>
@@ -437,7 +437,7 @@ export const RelationsQualityModal: React.FC<RelationsQualityModalProps> = ({
               </div>
               <div style={{
                 fontSize: '11px',
-                color: THEME_COLORS.textTertiary
+                color: THEME_COLORS.textMuted
               }}>
                 貢献: {qualityReport.qualityBreakdown.densityContribution}pts
               </div>
@@ -467,7 +467,7 @@ export const RelationsQualityModal: React.FC<RelationsQualityModalProps> = ({
               </div>
               <div style={{
                 fontSize: '11px',
-                color: THEME_COLORS.textTertiary
+                color: THEME_COLORS.textMuted
               }}>
                 貢献: {qualityReport.qualityBreakdown.strongRelationsContribution}pts
               </div>
@@ -497,7 +497,7 @@ export const RelationsQualityModal: React.FC<RelationsQualityModalProps> = ({
               </div>
               <div style={{
                 fontSize: '11px',
-                color: THEME_COLORS.textTertiary
+                color: THEME_COLORS.textMuted
               }}>
                 貢献: {qualityReport.qualityBreakdown.averageStrengthContribution}pts
               </div>

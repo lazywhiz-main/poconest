@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AILabelingSuggestion, AILabelingService } from '../../services/ai/AILabelingService';
-import { BoardItem } from '../../types/board';
+import { BoardCard } from '../../features/board-space/contexts/BoardContext';
 import { THEME_COLORS } from '../../constants/theme';
 
 interface AILabelSuggestionModalProps {

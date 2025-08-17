@@ -98,10 +98,10 @@ const boardReducer = (state: BoardState, action: BoardAction): BoardState => {
         payloadCount: action.payload?.length || 0,
         newCardsCount: newCards.length,
         existingCardsCount: state.cards.length,
-        payloadPreview: action.payload?.slice(0, 2).map(card => ({
+        payloadPreview: action.payload?.slice(0, 2).map((card: any) => ({
           id: card?.id,
           title: card?.title,
-          column_type: card?.column_type || card?.columnType
+          column_type: card?.column_type
         })),
         fullStackTrace: stack
       });
@@ -215,8 +215,8 @@ export const BoardProvider: React.FC<BoardProviderProps> = ({ children, currentN
       cardsPreview: cards?.slice(0, 2).map(card => ({
         id: card?.id,
         title: card?.title,
-        column_type: card?.column_type || card?.columnType,
-        created_at: card?.created_at || card?.createdAt
+        column_type: card?.column_type,
+        created_at: card?.created_at
       })),
       fullStackTrace: stack
     });
@@ -328,7 +328,7 @@ export const BoardProvider: React.FC<BoardProviderProps> = ({ children, currentN
         boardId: boardData.id,
         nestId: nestId,
         cardsCount: cardData?.length || 0,
-        cardsPreview: cardData?.slice(0, 3).map(card => ({
+        cardsPreview: cardData?.slice(0, 3).map((card: any) => ({
           id: card.id,
           title: card.title,
           content: card.content?.substring(0, 50) + '...',
