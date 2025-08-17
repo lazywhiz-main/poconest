@@ -31,6 +31,7 @@ import RelationsQualityModal from '../../../../components/ui/RelationsQualityMod
 import { UnifiedRelationsService, type UnifiedAnalysisResult } from '../../../../services/UnifiedRelationsService';
 import { RelationsParameterManager } from '../../../../services/RelationsParameterManager';
 import RelationsParameterSettingsModal from '../../../../components/ui/RelationsParameterSettingsModal';
+import { useToast } from '../../../../components/ui/Toast';
 
 // 統合分析結果のインターフェース
 interface UnifiedRelationshipSuggestion extends SuggestedRelationship {
@@ -125,6 +126,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   onNodeDoubleClick,
 }) => {
   const authUser = useAuth();
+  const { showToast } = useToast();
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [highlightedNodes, setHighlightedNodes] = useState<Set<string>>(new Set());
   // 初期ビューポートを画面中央に設定（ノードが見えるように）
@@ -413,9 +415,9 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
 
   // Relations重複削除関連のstate (一時的にコメントアウト)
-  // const [isDeduplicating, setIsDeduplicating] = useState(false);
-  // const [deduplicationResult, setDeduplicationResult] = useState<any>(null);
-  // const [showDeduplicationModal, setShowDeduplicationModal] = useState(false);
+  const [isDeduplicating, setIsDeduplicating] = useState(false);
+  const [deduplicationResult, setDeduplicationResult] = useState<any>(null);
+  const [showDeduplicationModal, setShowDeduplicationModal] = useState(false);
   
   // パラメータ設定モーダルの状態
   const [showParameterSettings, setShowParameterSettings] = useState(false);
@@ -959,11 +961,13 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
 
       // activeFilterTab不要（左下パネル廃止）
 
-      showCustomDialog(
-        '読み込み完了',
-        `クラスタービュー「${view.name}」を読み込みました。\n左下のクラスタータブで詳細を確認できます。`,
-        () => hideCustomDialog()
-      );
+      // トースターで読み込み完了を表示
+      showToast({
+        type: 'success',
+        title: '読み込み完了',
+        message: `クラスタービュー「${view.name}」を読み込みました。左下のクラスタータブで詳細を確認できます。`,
+        duration: 4000
+      });
 
       console.log('✅ [NetworkVisualization] クラスタービュー読み込み完了:', {
         clusterCount: view.clusterLabels.length,
@@ -971,11 +975,13 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       });
     } catch (error) {
       console.error('❌ [NetworkVisualization] 読み込みエラー:', error);
-      showCustomDialog(
-        'エラー',
-        `読み込みに失敗しました: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        () => hideCustomDialog()
-      );
+      // トースターでエラーを表示
+      showToast({
+        type: 'error',
+        title: 'エラー',
+        message: `読み込みに失敗しました: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        duration: 5000
+      });
     }
   };
 

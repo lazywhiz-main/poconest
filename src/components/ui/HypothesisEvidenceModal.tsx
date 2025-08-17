@@ -740,7 +740,7 @@ export const HypothesisEvidenceModal: React.FC<HypothesisEvidenceModalProps> = (
         }}>
           {[
             { key: 'path', label: '🧠 形成パス', color: THEME_COLORS.primaryGreen },
-            { key: 'paradigm', label: '🏗️ パラダイム', color: THEME_COLORS.primaryTeal },
+            { key: 'paradigm', label: '🏗️ パラダイム', color: THEME_COLORS.primaryBlue },
             { key: 'clusters', label: '🏢 クラスター', color: THEME_COLORS.primaryBlue },
             { key: 'relationships', label: '🔗 関係性', color: THEME_COLORS.primaryPurple },
             { key: 'quality', label: '📊 品質評価', color: THEME_COLORS.primaryOrange }
