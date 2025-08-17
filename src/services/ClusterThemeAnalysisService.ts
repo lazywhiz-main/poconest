@@ -3,7 +3,7 @@
  * 既存のクラスターに対して、GTA分析に活用できるテーマを抽出する
  */
 
-import type { BoardCard } from '../types/board';
+import type { BoardItem } from './SmartClusteringService';
 import type { ClusterLabel } from './AnalysisService';
 
 export interface ContentTheme {
@@ -31,7 +31,7 @@ export class ClusterThemeAnalysisService {
    */
   static async analyzeExistingCluster(
     clusterLabel: ClusterLabel,
-    clusterCards: BoardCard[]
+    clusterCards: BoardItem[]
   ): Promise<ContentTheme> {
     
     console.log(`🎯 [ClusterThemeAnalysisService] テーマ分析開始: ${clusterLabel.id}`);
@@ -72,7 +72,7 @@ export class ClusterThemeAnalysisService {
   private static async extractThemeFromExistingLabel(
     existingLabel: string,
     cardSummary: string,
-    clusterCards: BoardCard[]
+    clusterCards: BoardItem[]
   ): Promise<ContentTheme> {
     
     const prompt = `
@@ -121,7 +121,7 @@ ${clusterCards.length}枚
   /**
    * カード内容のサマリーを作成
    */
-  private static createCardSummary(clusterCards: BoardCard[]): string {
+  private static createCardSummary(clusterCards: BoardItem[]): string {
     const typeCounts: { [key: string]: number } = {};
     const tagCounts: { [key: string]: number } = {};
     
@@ -251,7 +251,7 @@ ${clusterCards.length}枚
   private static calculateThemeConfidence(
     existingLabel: string,
     themeResult: Omit<ContentTheme, 'confidence'>,
-    clusterCards: BoardCard[]
+    clusterCards: BoardItem[]
   ): number {
     let confidence = 0.7; // ベース信頼度
     
@@ -276,7 +276,7 @@ ${clusterCards.length}枚
   /**
    * フォールバックテーマ生成
    */
-  private static generateFallbackTheme(clusterCards: BoardCard[]): ContentTheme {
+  private static generateFallbackTheme(clusterCards: BoardItem[]): ContentTheme {
     const dominantType = clusterCards.reduce((acc, card) => {
       acc[card.column_type] = (acc[card.column_type] || 0) + 1;
       return acc;
@@ -302,7 +302,7 @@ ${clusterCards.length}枚
    */
   static async analyzeMultipleClusters(
     clusterLabels: ClusterLabel[],
-    allCards: BoardCard[]
+    allCards: BoardItem[]
   ): Promise<ThemeAnalysisResult[]> {
     
     console.log(`🎯 [ClusterThemeAnalysisService] 一括テーマ分析開始: ${clusterLabels.length}クラスター`);

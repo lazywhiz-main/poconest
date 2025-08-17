@@ -1,4 +1,4 @@
-import { BoardCard } from '../../features/board-space/contexts/BoardContext';
+import { BoardItem } from '../../SmartClusteringService';
 import { supabase } from '../supabase';
 
 // 🧠 グラウンデッド・セオリー分析の型定義

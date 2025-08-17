@@ -2,6 +2,7 @@ import React, { createContext, useContext, useReducer, useCallback, useState, us
 import { supabase } from '../../../services/supabase/client';
 import { getBoardCardsWithTags, Source } from '../../../services/BoardService';
 import { BoardColumnType } from 'src/types/board';
+import { BoardItem } from '../../../services/SmartClusteringService';
 
 // ボード空間の状態定義
 interface BoardState {
