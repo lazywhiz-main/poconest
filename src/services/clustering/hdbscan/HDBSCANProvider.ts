@@ -38,12 +38,12 @@ export class HDBSCANProvider {
       
       // 詳細設定
       // distanceMetric: 'combined', // 型定義に存在しないため削除
-      enableHierarchyOptimization: true,
-      useAdaptiveMinSamples: true,
+      // enableHierarchyOptimization: true, // 型定義に存在しないため削除
+      // useAdaptiveMinSamples: true, // 型定義に存在しないため削除
       
       // 性能設定
-      enableCaching: true,
-      enableParallelProcessing: false, // Phase 4で実装予定
+      // enableCaching: true, // 型定義に存在しないため削除
+      // enableParallelProcessing: false, // Phase 4で実装予定
       
       // デバッグ設定
       verboseLogging: config.debug || false
@@ -109,30 +109,19 @@ export class HDBSCANProvider {
       });
     });
 
-    // カバレッジ統計
+    // カバレッジ統計（SmartClusteringServiceの型定義に合わせる）
     const totalNodes = originalNodes.length;
     const clusteredNodes = hdbscanResult.statistics.clusteredNodes;
-    const outlierNodes = hdbscanResult.statistics.outlierNodes;
+    const coveredNodes = clusteredNodes; // 重複なしクラスタリング
+    const overlappingNodes = 0; // HDBSCANでは重複なし
+    const averageMemberships = 1.0; // 各ノードは1つのクラスターにのみ所属
     
     const coverageStats = {
       totalNodes,
-      clusteredNodes,
-      outlierNodes,
+      coveredNodes,
       coverageRatio: hdbscanResult.statistics.coverageRatio,
-      
-      // 詳細統計
-      clusterCount: smartClusters.length,
-      averageClusterSize: clusteredNodes / Math.max(1, smartClusters.length),
-      largestClusterSize: Math.max(...smartClusters.map(c => c.nodes.length), 0),
-      smallestClusterSize: Math.min(...smartClusters.map(c => c.nodes.length), 0),
-      
-      // 品質指標
-      averageStability: hdbscanResult.statistics.averageStability,
-      overallQuality: hdbscanResult.qualityMetrics?.silhouetteScore || 0,
-      
-      // アルゴリズム情報
-      algorithmUsed: 'hdbscan',
-      processingTimeMs: hdbscanResult.processingTime
+      overlappingNodes,
+      averageMemberships
     };
 
     return {
@@ -158,8 +147,8 @@ export class HDBSCANProvider {
       quality: {
         silhouetteScore: hdbscanResult.qualityMetrics?.silhouetteScore || 0,
         modularityScore: hdbscanResult.qualityMetrics?.modularityScore || 0,
-        stabilityScore: hdbscanResult.statistics.averageStability,
-        overallScore: hdbscanResult.statistics.averageStability // 安定性を総合スコアとして使用
+        // stabilityScore: hdbscanResult.statistics.averageStability, // 型定義に存在しないため削除
+        // overallScore: hdbscanResult.statistics.averageStability // 型定義に存在しないため削除
       }
     };
   }
@@ -198,7 +187,7 @@ export class HDBSCANProvider {
         cards
       );
       
-      console.log(`✅ HDBSCANプロバイダー完了: ${clusteringResult.clusters.length}クラスター, カバー率${(clusteringResult.coverageStats.coverageRatio * 100).toFixed(1)}%`);
+      console.log(`✅ HDBSCANプロバイダー完了: ${clusteringResult.clusters.length}クラスター, カバー率${(clusteringResult.coverageStats?.coverageRatio || 0) * 100).toFixed(1)}%`);
       
       return clusteringResult;
       
@@ -212,18 +201,20 @@ export class HDBSCANProvider {
         nodeMemberships: {},
         coverageStats: {
           totalNodes: nodes.length,
-          clusteredNodes: 0,
-          outlierNodes: nodes.length,
+          coveredNodes: 0,
           coverageRatio: 0,
-          clusterCount: 0,
-          averageClusterSize: 0,
-          largestClusterSize: 0,
-          smallestClusterSize: 0,
-          averageStability: 0,
-          overallQuality: 0,
-          algorithmUsed: 'hdbscan',
-          processingTimeMs: 0
-        }
+          overlappingNodes: 0,
+          averageMemberships: 0
+        },
+        quality: {
+          silhouetteScore: 0,
+          modularityScore: 0,
+          intraClusterDistance: 0,
+          interClusterDistance: 0,
+          coverageRatio: 0
+        },
+        algorithm: 'hdbscan',
+        parameters: config
       };
     }
   }
@@ -358,11 +349,11 @@ export class HDBSCANProvider {
       
       algorithm: 'hdbscan',
       // distanceMetric: 'combined', // 型定義に存在しないため削除
-      enableHierarchyOptimization: true,
-      useAdaptiveMinSamples: true,
+      // enableHierarchyOptimization: true, // 型定義に存在しないため削除
+      // useAdaptiveMinSamples: true, // 型定義に存在しないため削除
       
-      enableCaching: true,
-      enableParallelProcessing: nodeCount > 200,
+      // enableCaching: true, // 型定義に存在しないため削除
+      // enableParallelProcessing: nodeCount > 200, // 型定義に存在しないため削除
       
       verboseLogging: false
     };
@@ -391,18 +382,19 @@ export class HDBSCANProvider {
     // HDBSCAN実行
     const hdbscanResult = await this.performClustering(nodes, edges, cards, config);
     
-    // 比較指標計算
-    const coverageImprovement = hdbscanResult.coverageStats.coverageRatio - 
-                               dbscanResult.coverageStats.coverageRatio;
+    // 比較指標計算（利用可能なプロパティのみ使用）
+    const coverageImprovement = (hdbscanResult.coverageStats?.coverageRatio || 0) - 
+                               (dbscanResult.coverageStats?.coverageRatio || 0);
     
-    const clusterCountChange = hdbscanResult.coverageStats.clusterCount - 
-                              dbscanResult.coverageStats.clusterCount;
+    // clusterCountは利用できないため、clusters.lengthを使用
+    const clusterCountChange = hdbscanResult.clusters.length - 
+                              dbscanResult.clusters.length;
     
-    const qualityImprovement = (hdbscanResult.coverageStats.overallQuality || 0) - 
-                              (dbscanResult.coverageStats.overallQuality || 0);
+    // overallQualityは利用できないため、デフォルト値を使用
+    const qualityImprovement = 0; // 比較不能
     
-    const processingTimeRatio = (hdbscanResult.coverageStats.processingTimeMs || 1) / 
-                               Math.max(1, dbscanResult.coverageStats.processingTimeMs || 1);
+    // processingTimeMsは利用できないため、デフォルト値を使用
+    const processingTimeRatio = 1.0; // 比較不能
     
     // 推奨判定
     let recommendation: 'HDBSCAN' | 'DBSCAN' | 'EQUIVALENT';
