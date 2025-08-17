@@ -1,26 +1,27 @@
 import { NetworkNode, NetworkEdge } from '../types/analysis';
+import type { BoardColumnType } from '../types/board';
 
 // BoardItem interface definition
 export interface BoardItem {
   id: string;
   title: string;
-  content?: string;
+  content: string;
   tags?: string[];
-  column_type: string;
-  created_at?: string;
-  updated_at?: string;
-  order_index?: number;
-  is_archived?: boolean;
-  metadata?: any;
+  column_type: BoardColumnType;
+  created_at: string;
+  updated_at: string;
+  order_index: number;
+  is_archived: boolean;
+  metadata: any;
   board_id: string;
   nest_id?: string;
-  created_by?: string;
+  created_by: string;
   created_by_display_name?: string;
-  description?: string;
+  description: string;
   insights?: { id: string; title: string }[];
   themes?: { id: string; title: string }[];
   sources?: any[];
-  referencedBy?: { id: string; title: string; column_type: string }[];
+  referencedBy?: { id: string; title: string; column_type: BoardColumnType }[];
   related_cards?: any[];
 }
 
