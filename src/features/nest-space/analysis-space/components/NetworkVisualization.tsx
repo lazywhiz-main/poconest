@@ -368,11 +368,11 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   const [showClusteringControls, setShowClusteringControls] = useState(false);
   const [showFilteredClusters, setShowFilteredClusters] = useState(true); // デフォルトON
   const [filteredClusters, setFilteredClusters] = useState<string[][]>([]);
-  // const [isFilterPanelCollapsed, setIsFilterPanelCollapsed] = useState(false); // 左下パネル廃止により不要
+  const [isFilterPanelCollapsed, setIsFilterPanelCollapsed] = useState(false);
   const [showMinimap, setShowMinimap] = useState(true);
   
-  // フィルターパネルのタブ管理（左下パネル廃止により不要）
-  // const [activeFilterTab, setActiveFilterTab] = useState<'nodes' | 'relationships' | 'clusters'>('nodes');
+  // フィルターパネルのタブ管理
+  const [activeFilterTab, setActiveFilterTab] = useState<'nodes' | 'relationships' | 'clusters'>('nodes');
   
   // ビュー保存・管理の状態
   const [savedViews, setSavedViews] = useState<SavedView[]>([]);
@@ -825,7 +825,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
           sourceCardId: rel.similarity.cardA.id,
           targetCardId: rel.similarity.cardB.id,
           relationshipType: 'conceptual' as const,
-          suggestedStrength: rel.relationship.strength,
+          suggestedStrength: rel.strength,
           confidence: rel.similarity.confidence,
           similarity: rel.similarity.overallScore,
           explanation: rel.similarity.explanation,
@@ -2154,9 +2154,9 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       nodePositions,
       filterState: activeFilters,
       transform,
-      // activeFilterTab: 左下パネル廃止により削除
+      activeFilterTab,
     };
-  }, [advancedConfig.algorithm, strengthThreshold, useWeightFiltering, showFilteredClusters, clusterLabels, nodePositions, activeFilters, transform]);
+  }, [advancedConfig.algorithm, strengthThreshold, useWeightFiltering, showFilteredClusters, clusterLabels, nodePositions, activeFilters, transform, activeFilterTab]);
 
   const saveCurrentView = useCallback(async (viewName: string, description?: string) => {
     const nestId = boardState.currentNestId;

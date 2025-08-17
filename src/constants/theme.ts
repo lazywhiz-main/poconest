@@ -21,10 +21,17 @@ export const THEME_COLORS = {
   textSecondary: '#a6adc8',
   textMuted: '#6c7086',
   textInverse: '#0f0f23',
+  text: '#e2e8f0', // 汎用テキスト
+  textTertiary: '#6c7086', // 3次テキスト
   
   // Border
   borderPrimary: '#333366',
   borderSecondary: '#45475a',
+  border: '#333366', // 汎用ボーダー
+  
+  // Card & Background
+  cardBackground: '#1a1a2e', // カード背景
+  background: '#0f0f23', // 汎用背景
   
   // Border Radius（統一感のための角の丸さ）
   borderRadius: {

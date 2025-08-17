@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../../services/supabase/client';
 import { Speaker, Word } from '../../../../services/GoogleSpeechToTextService';
-import TextSpeakerDiarizationService from '../../../../services/TextSpeakerDiarizationService';
+// import TextSpeakerDiarizationService from '../../../../services/TextSpeakerDiarizationService';
 import { startBackgroundJobWorker } from '../../../../services/backgroundJobWorker';
 import { nestAIProviderService } from '../../../../services/ai/NestAIProviderService';
 
@@ -349,52 +349,52 @@ const SpeakerDiarizationView: React.FC<SpeakerDiarizationViewProps> = ({
         embeddingModel: modelConfig?.embeddingModel
       });
       
-      const jobId = await TextSpeakerDiarizationService.startSpeakerDiarizationJob(
-        meetingId,
-        provider, // NEST設定から取得したプロバイダーを使用
-        { 
-          model: modelConfig?.model || 'gpt-4o', 
-          embeddingModel: modelConfig?.embeddingModel || 'text-embedding-ada-002', 
-          maxTokens: 8192 
-        }
-      );
+      // const jobId = await TextSpeakerDiarizationService.startSpeakerDiarizationJob(
+      //   meetingId,
+      //   provider, // NEST設定から取得したプロバイダーを使用
+      //   { 
+      //     model: modelConfig?.model || 'gpt-4o', 
+      //       embeddingModel: modelConfig?.embeddingModel || 'text-embedding-ada-002', 
+      //       maxTokens: 8192 
+      //   }
+      // );
       
-      setCurrentJobId(jobId);
-      setJobStatus('running');
-      console.log('✅ 話者分離ジョブ作成完了:', jobId);
+      // setCurrentJobId(jobId);
+      // setJobStatus('running');
+      // console.log('✅ 話者分離ジョブ作成完了:', jobId);
       
       // ジョブの進捗を監視
-      const progressInterval = setInterval(async () => {
-        try {
-          const jobStatus = await TextSpeakerDiarizationService.getSpeakerDiarizationJobStatus(jobId);
+      // const progressInterval = setInterval(async () => {
+      //   try {
+      //     const jobStatus = await TextSpeakerDiarizationService.getSpeakerDiarizationJobStatus(jobId);
           
-          if (jobStatus.status === 'completed') {
-            console.log('✅ 話者分離ジョブ完了:', jobStatus);
-            setDiarizationProgress(100);
-            setJobStatus('completed');
-            clearInterval(progressInterval);
-            
-            // 話者データを再読み込み
-            await loadSpeakerData();
-            setViewMode('diarized');
-            setIsDiarizing(false);
-            
-          } else if (jobStatus.status === 'failed') {
-            console.error('❌ 話者分離ジョブ失敗:', jobStatus);
-            setJobStatus('failed');
-            clearInterval(progressInterval);
-            setIsDiarizing(false);
-            alert('話者分離処理に失敗しました。');
-            
-          } else if (jobStatus.status === 'running') {
-            // 進捗を更新
-            const progress = jobStatus.progress || 0;
-            setDiarizationProgress(Math.max(10, Math.min(progress, 90)));
-          }
-        } catch (error) {
-          console.error('❌ ジョブ状態取得エラー:', error);
-        }
-      }, 2000); // 2秒間隔で監視
+          // if (jobStatus.status === 'completed') {
+          //   console.log('✅ 話者分離ジョブ完了:', jobStatus);
+          //   setDiarizationProgress(100);
+          //   setJobStatus('completed');
+          //   clearInterval(progressInterval);
+          //   
+          //   // 話者データを再読み込み
+          //   await loadSpeakerData();
+          //   setViewMode('diarized');
+          //   setIsDiarizing(false);
+          //   
+          // } else if (jobStatus.status === 'failed') {
+          //   console.error('❌ 話者分離ジョブ失敗:', jobStatus);
+          //   setJobStatus('failed');
+          //   clearInterval(progressInterval);
+          //   setIsDiarizing(false);
+          //   alert('話者分離処理に失敗しました。');
+          //   
+          // } else if (jobStatus.status === 'running') {
+          //   // 進捗を更新
+          //   const progress = jobStatus.progress || 0;
+          //   setDiarizationProgress(Math.max(10, Math.min(progress, 90)));
+          // }
+        // } catch (error) {
+        //   console.error('❌ ジョブ状態取得エラー:', error);
+        // }
+      // }, 2000); // 2秒間隔で監視
       
     } catch (error) {
       console.error('❌ 話者分離ジョブ作成エラー:', error);
