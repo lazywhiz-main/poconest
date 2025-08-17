@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { DndContext } from '@dnd-kit/core';
 import { SortableContext, useSortable, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { BoardItem } from '../contexts/BoardContext';
+import type { BoardItem } from '../../../services/SmartClusteringService';
 import theme from '../../../styles/theme';
 
 interface SortableBoardColumnProps {

@@ -1,5 +1,5 @@
 import { supabase } from './supabase/client';
-import type { BoardItem } from '../features/board-space/contexts/BoardContext';
+import type { BoardItem } from './SmartClusteringService';
 import type { CardRelationship, NetworkVisualizationConfig } from '../types/analysis';
 
 export interface CardRelationshipDB {

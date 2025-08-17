@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { THEME_COLORS } from '../../../../constants/theme';
 import { ClusterViewManager } from './ClusterViewManager';
-import type { BoardItem } from '../../../board-space/contexts/BoardContext';
+import type { BoardItem } from '../../../../services/SmartClusteringService';
 
 // クラスタリング結果の型定義
 interface ClusteringResult {

@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useBoardSpace } from '../hooks/useBoardSpace';
 import { BoardColumnType } from 'src/types/board';
-import type { BoardItem } from '../../../board-space/contexts/BoardContext';
+import type { BoardItem } from '../../../../services/SmartClusteringService';
 
 const BOARD_COLUMN_TYPES = ['INBOX', 'QUESTIONS', 'INSIGHTS', 'THEMES', 'ACTIONS'] as const;
 

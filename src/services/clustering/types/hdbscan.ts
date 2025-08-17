@@ -3,7 +3,7 @@
  */
 
 import type { NetworkNode, NetworkEdge } from '../../../types/analysis';
-import type { BoardItem } from '../../../features/board-space/contexts/BoardContext';
+import type { BoardItem } from '../../SmartClusteringService';
 
 // ===========================================
 // コアデータ構造

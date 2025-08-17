@@ -518,28 +518,4 @@ export const useBoardContext = (): BoardContextType => {
   return context;
 };
 
-// カード型
-export interface BoardItem {
-  id: string;
-  board_id: string;
-  title: string;
-  description: string;
-  content: string;
-  column_type: BoardColumnType;
-  created_by: string;
-  created_at: string;
-  updated_at: string;
-  order_index: number;
-  is_archived: boolean;
-  metadata: Record<string, any>;
-  tags?: string[];
-  sources?: Source[];
-  related_card_ids?: string[];
-  related_cards?: BoardItem[];
-  created_by_display_name?: string;
-  updated_by?: string;
-  updated_by_display_name?: string;
-  // 関係性分析フラグ
-  is_relationship_analyzed?: boolean;
-  last_relationship_analysis_at?: string;
-} 
+// BoardItem型はSmartClusteringServiceからインポート 

@@ -1,5 +1,5 @@
 import { BoardColumnType } from './board';
-import type { BoardItem } from '../features/board-space/contexts/BoardContext';
+import type { BoardItem } from '../services/SmartClusteringService';
 
 // ネットワーク関係性
 export interface CardRelationship {

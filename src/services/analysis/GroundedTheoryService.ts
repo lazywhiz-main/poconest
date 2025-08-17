@@ -1,4 +1,4 @@
-import { BoardItem } from '../../SmartClusteringService';
+import type { BoardItem } from '../SmartClusteringService';
 import { supabase } from '../supabase';
 
 // 🧠 グラウンデッド・セオリー分析の型定義

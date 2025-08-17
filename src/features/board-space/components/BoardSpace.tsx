@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, useWin
 // import DraggableFlatList, { RenderItemParams } from 'react-native-draggable-flatlist';
 import theme from '../../../styles/theme';
 import Card from '../../../components/Card';
-import { BoardItem, useBoardContext } from '../contexts/BoardContext';
+import { useBoardContext } from '../contexts/BoardContext';
+import type { BoardItem } from '../../../services/SmartClusteringService';
 import { BoardColumnType } from 'src/types/board';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Markdown from 'react-markdown';
@@ -287,7 +288,7 @@ const CardModal: React.FC<CardModalProps> = ({
       setContent(initialData.content || '');
       setTags(initialData.tags || []);
       setSources(initialData.sources || []);
-      setRelatedCardIds(initialData.related_card_ids || (initialData.related_cards || []).map((c: any) => c.id) || []);
+      setRelatedCardIds((initialData.related_cards || []).map((c: any) => c.id) || []);
       setIsEditingContent(false);
     } else {
       setTitle('');
@@ -840,10 +841,10 @@ const BoardSpace: React.FC<BoardSpaceProps> = ({ nestId }) => {
   const handleEditCard = (card: BoardItem) => {
     // related_card_idsがなければrelated_cardsから補完
     let cardForEdit = card;
-    if ((!card.related_card_ids || card.related_card_ids.length === 0) && card.related_cards && card.related_cards.length > 0) {
+    if (card.related_cards && card.related_cards.length > 0) {
       cardForEdit = {
         ...card,
-        related_card_ids: card.related_cards.map(c => c.id),
+        related_cards: card.related_cards,
       };
     }
     setSelectedCard(cardForEdit);
@@ -1087,7 +1088,7 @@ const BoardSpace: React.FC<BoardSpaceProps> = ({ nestId }) => {
         {/* メタ情報 */}
         <div className="card-meta" style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 0 }}>
           <span>{`Created: ${formatJapanDateTime(card.created_at)} | ${card.created_by_display_name || '不明'}`}</span>
-          <span>{`Updated: ${formatJapanDateTime(card.updated_at)} | ${card.updated_by_display_name || card.created_by_display_name || '不明'}`}</span>
+          <span>{`Updated: ${formatJapanDateTime(card.updated_at)} | ${card.created_by_display_name || '不明'}`}</span>
         </div>
       </div>
     );

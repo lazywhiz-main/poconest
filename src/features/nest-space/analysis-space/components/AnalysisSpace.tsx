@@ -10,7 +10,7 @@ import {
 import { useBoardSpace } from '../../board-space/hooks/useBoardSpace';
 import NetworkVisualization from './NetworkVisualization';
 import type { NetworkVisualizationConfig } from '../../../../types/analysis';
-import type { BoardItem } from '../../../board-space/contexts/BoardContext';
+import type { BoardItem } from '../../../../services/SmartClusteringService';
 
 interface AnalysisSpaceProps {
   nestId: string;

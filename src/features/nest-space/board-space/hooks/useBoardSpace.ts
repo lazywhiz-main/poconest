@@ -6,7 +6,7 @@ import { SpaceType } from 'src/types/nestSpace.types';
 import { BoardColumnType, Card, BoardViewSettings } from '../../../../types/board';
 import { useChatSpace } from '../../chat-space/hooks/useChatSpace';
 import { getCardSources } from '../../../../services/BoardService';
-import type { BoardItem } from '../../../board-space/contexts/BoardContext';
+import type { BoardItem } from '../../../../services/SmartClusteringService';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface BoardFilter {
@@ -603,7 +603,7 @@ export const useBoardSpace = () => {
     created_at: item.created_at,
     updated_at: item.updated_at,
     created_by: item.created_by,
-    updated_by: item.updated_by,
+    updated_by: item.updated_at,
     tags: item.tags,
     order: item.order_index,
     sourceId: item.metadata?.source_message_id,

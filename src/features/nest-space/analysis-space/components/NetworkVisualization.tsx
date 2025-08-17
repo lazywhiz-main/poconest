@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import type { NetworkNode, NetworkEdge, NetworkGraphData, NetworkVisualizationConfig } from '../../../../types/analysis';
-import type { BoardItem } from '../../../board-space/contexts/BoardContext';
+import type { BoardItem } from '../../../../services/SmartClusteringService';
 import { GroundedTheoryResultPanel } from '../../../../components/ui/GroundedTheoryResultPanel';
 import { useBoardContext } from '../../../board-space/contexts/BoardContext';
 import { CardModal } from '../../../board-space/components/BoardSpace';
@@ -2319,16 +2319,16 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     if (card) {
       console.log('[NetworkVisualization] handleEditCard - Original card:', card);
       console.log('[NetworkVisualization] related_cards:', card.related_cards);
-      console.log('[NetworkVisualization] related_card_ids:', card.related_card_ids);
+      console.log('[NetworkVisualization] related_cards:', card.related_cards);
       
       // related_card_idsがなければrelated_cardsから補完
       let cardForEdit = card;
-      if ((!card.related_card_ids || card.related_card_ids.length === 0) && card.related_cards && card.related_cards.length > 0) {
+      if (card.related_cards && card.related_cards.length > 0) {
         cardForEdit = {
           ...card,
-          related_card_ids: card.related_cards.map(c => c.id),
+          related_cards: card.related_cards,
         };
-        console.log('[NetworkVisualization] Complemented related_card_ids:', cardForEdit.related_card_ids);
+        console.log('[NetworkVisualization] Complemented related_cards:', cardForEdit.related_cards);
       }
       
       console.log('[NetworkVisualization] Final cardForEdit:', cardForEdit);

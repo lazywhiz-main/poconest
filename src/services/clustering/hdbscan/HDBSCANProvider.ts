@@ -4,8 +4,8 @@
  */
 
 import type { NetworkNode, NetworkEdge } from '../../../types/analysis';
-import type { BoardItem } from '../../../features/board-space/contexts/BoardContext';
-import type { ClusteringConfig, ClusteringResult, SmartCluster } from '../SmartClusteringService';
+import type { BoardItem } from '../../SmartClusteringService';
+import type { ClusteringConfig, ClusteringResult, SmartCluster } from '../../SmartClusteringService';
 import type { HDBSCANConfig, HDBSCANResult } from '../types/hdbscan';
 
 import { HDBSCANClusterer } from './HDBSCANClusterer';
@@ -37,7 +37,7 @@ export class HDBSCANProvider {
       algorithm: 'hdbscan' as const,
       
       // 詳細設定
-      distanceMetric: 'combined',
+      // distanceMetric: 'combined', // 型定義に存在しないため削除
       enableHierarchyOptimization: true,
       useAdaptiveMinSamples: true,
       
@@ -357,7 +357,7 @@ export class HDBSCANProvider {
       outlierAssignmentThreshold: 0.3,
       
       algorithm: 'hdbscan',
-      distanceMetric: 'combined',
+      // distanceMetric: 'combined', // 型定義に存在しないため削除
       enableHierarchyOptimization: true,
       useAdaptiveMinSamples: true,
       

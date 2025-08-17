@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { THEME_COLORS } from '../../../../constants/theme';
-import type { BoardItem } from '../../../board-space/contexts/BoardContext';
+import type { BoardItem } from '../../../../services/SmartClusteringService';
 
 // 統合分析結果のインターフェース（RelationsSidePeakと共通）
 interface UnifiedRelationshipSuggestion {

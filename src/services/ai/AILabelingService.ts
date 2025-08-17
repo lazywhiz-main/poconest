@@ -1,4 +1,4 @@
-import type { BoardItem } from '../../features/board-space/contexts/BoardContext';
+import type { BoardItem } from '../SmartClusteringService';
 import { ClusterLabel } from '../AnalysisService';
 import { supabase } from '../supabase/client';
 
