@@ -12,7 +12,7 @@ export interface BoardItem {
   order_index?: number;
   is_archived?: boolean;
   metadata?: any;
-  board_id?: string;
+  board_id: string;
   nest_id?: string;
   created_by?: string;
   created_by_display_name?: string;
