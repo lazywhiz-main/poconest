@@ -619,14 +619,15 @@ export function NestProvider({ children }: { children: React.ReactNode }) {
         // Edge Function経由でメール送信
         const baseUrl = window.location.origin; // 現在のドメインを取得
         const inviteLink = `${baseUrl}/invite/${token}`;
-        const { success, error: mailError } = await sendInvitationEmail({
+        const success = await sendInvitationEmail({
+          invitationId: token,
           email,
           nestName: nest.name,
           inviterEmail: user.email || '',
           inviteLink,
         });
         if (!success) {
-          console.error('Failed to send invitation email:', mailError);
+          console.error('Failed to send invitation email');
           // 必要に応じてエラーハンドリング
         }
       }

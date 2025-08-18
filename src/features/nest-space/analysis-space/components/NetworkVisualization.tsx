@@ -35,7 +35,7 @@ import { useToast } from '../../../../components/ui/Toast';
 
 // 統合分析結果のインターフェース
 interface UnifiedRelationshipSuggestion extends SuggestedRelationship {
-  analysisMethod: 'ai' | 'tag_similarity' | 'derived';
+  analysisMethod: 'ai' | 'tag_similarity' | 'derived' | 'unified';
   methodLabel: string;
   methodIcon: string;
   confidence: number;
@@ -1029,8 +1029,8 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   };
 
   // 保存可能かどうかのチェック
-  const canSaveCluster = () => {
-    return smartClusteringResult && clusterLabels.length > 0;
+  const canSaveCluster = (): boolean => {
+    return !!(smartClusteringResult && clusterLabels.length > 0);
   };
 
   // ネットワークデータの計算
@@ -4471,27 +4471,27 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
                 svgViewBox: `0 0 ${containerDimensions.width} ${containerDimensions.height}`,
                 transform: transform,
                 sourceNode: {
-                  id: sourceNode.id,
-                  originalPos: { x: sourceNode.x, y: sourceNode.y },
-                  nodePositions: nodePositions[sourceNode.id],
+                  id: sourceNode!.id,
+                  originalPos: { x: sourceNode!.x, y: sourceNode!.y },
+                  nodePositions: nodePositions[sourceNode!.id],
                   finalPos: sourcePos,
                   roundedPos: roundedSourcePos,
                   basePos: baseSourcePos,
                   domAwarePos: domAwareSourcePos,
-                  size: sourceNode.size,
+                  size: sourceNode!.size,
                   actualSize: sourceSize,
                   domLeft: domAwareSourcePos.x - sourceSize / 2,
                   domTop: domAwareSourcePos.y - sourceSize / 2
                 },
                 targetNode: {
-                  id: targetNode.id,
-                  originalPos: { x: targetNode.x, y: targetNode.y },
-                  nodePositions: nodePositions[targetNode.id],
+                  id: targetNode!.id,
+                  originalPos: { x: targetNode!.x, y: targetNode!.y },
+                  nodePositions: nodePositions[targetNode!.id],
                   finalPos: targetPos,
                   roundedPos: roundedTargetPos,
                   basePos: baseTargetPos,
                   domAwarePos: domAwareTargetPos,
-                  size: targetNode.size,
+                  size: targetNode!.size,
                   actualSize: targetSize,
                   domLeft: domAwareTargetPos.x - targetSize / 2,
                   domTop: domAwareTargetPos.y - targetSize / 2

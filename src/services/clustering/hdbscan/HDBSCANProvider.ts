@@ -154,7 +154,8 @@ export class HDBSCANProvider {
         useTagSimilarity: true,
         useContentSimilarity: true,
         weightStrength: 0.5,
-        weightSemantic: 0.3
+        weightSemantic: 0.3,
+        weightTag: 0.2
         // weightStructural: 0.2 // 型定義に存在しないため削除
       }
     };

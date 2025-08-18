@@ -53,7 +53,8 @@ class AISummaryProcessor implements JobProcessor {
         summary = await generateMeetingSummary(meeting.transcript, context, job.id);
       } catch (error) {
         console.error('[AISummaryProcessor] AI summary failed:', error);
-        throw new Error(`AI summary generation failed: ${error.message}`);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        throw new Error(`AI summary generation failed: ${errorMessage}`);
       }
     } else {
       throw new Error('Transcript too short for meaningful summary generation. Minimum required: 100 characters.');
@@ -903,8 +904,8 @@ export const startBackgroundJobWorker = () => {
   if (globalWorker) {
     console.log(`🚨 [BackgroundJobWorker] 既にワーカーが起動中のため、重複起動をスキップ - globalWorker exists:`, !!globalWorker);
     console.log(`🚨 [BackgroundJobWorker] 既存ワーカー状態:`, {
-      isRunning: globalWorker.isRunning,
-      instanceId: globalWorker.instanceId
+      isRunning: 'private',
+      instanceId: 'private'
     });
     return;
   }
