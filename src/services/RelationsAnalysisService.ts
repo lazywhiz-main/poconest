@@ -214,10 +214,11 @@ export class RelationsAnalysisService {
         conflictingRelations,
         recommendations,
         computationalDuplication: {
-          totalComputational: 0,
-          semanticDuplication: 0,
-          structuralDuplication: 0,
-          confidence: 0.8
+          semanticOverlap: 0,
+          typeConflicts: 0,
+          redundantCalculations: 0,
+          efficiencyLoss: 0.1,
+          problematicTypes: []
         }
       };
       

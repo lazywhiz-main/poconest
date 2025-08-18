@@ -32,6 +32,7 @@ interface AdvancedConfig {
   };
   labeling: {
     useSemanticLabeling: boolean;
+    maxLabelsPerCluster: number;
     confidenceThreshold: number;
   };
 }

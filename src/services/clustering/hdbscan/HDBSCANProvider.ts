@@ -31,22 +31,12 @@ export class HDBSCANProvider {
         structural: 0.15   // 🔧 構造情報活用拡大（5% → 15%）
       },
       
+      clusterSelectionMethod: 'eom',
+      allowSingletons: false,
       clusterSelectionEpsilon: 0.0,
       outlierAssignmentThreshold: 0.5, // より積極的にクラスターに割り当て（外れ値を減らす）
       
-      algorithm: 'hdbscan' as const,
-      
-      // 詳細設定
-      // distanceMetric: 'combined', // 型定義に存在しないため削除
-      // enableHierarchyOptimization: true, // 型定義に存在しないため削除
-      // useAdaptiveMinSamples: true, // 型定義に存在しないため削除
-      
-      // 性能設定
-      // enableCaching: true, // 型定義に存在しないため削除
-      // enableParallelProcessing: false, // Phase 4で実装予定
-      
-      // デバッグ設定
-      // verboseLogging: config.debug || false // 型定義に存在しないため削除
+      algorithm: 'hdbscan' as const
     };
   }
 
@@ -130,18 +120,18 @@ export class HDBSCANProvider {
       nodeMemberships,
       coverageStats,
       
-      // 拡張情報
-      hierarchyInfo: {
-        clusterTree: hdbscanResult.clusterTree,
-        stabilityScores: hdbscanResult.stabilityScores,
-        outlierScores: hdbscanResult.outlierScores
-      },
+      // 拡張情報（型定義に存在しないため削除）
+      // hierarchyInfo: {
+      //   clusterTree: hdbscanResult.clusterTree,
+      //   stabilityScores: hdbscanResult.stabilityScores,
+      //   outlierScores: hdbscanResult.outlierScores
+      // },
       
-      qualityMetrics: {
-        silhouette: hdbscanResult.qualityMetrics?.silhouetteScore || 0,
-        modularity: hdbscanResult.qualityMetrics?.modularityScore || 0,
-        stability: hdbscanResult.statistics.averageStability
-      },
+      // qualityMetrics: {
+      //   silhouette: hdbscanResult.qualityMetrics?.silhouetteScore || 0,
+      //   modularity: hdbscanResult.qualityMetrics?.modularityScore || 0,
+      //   stability: hdbscanResult.statistics.averageStability
+      // },
       
       // 既存システム互換性のためのquality
       quality: {
@@ -347,18 +337,12 @@ export class HDBSCANProvider {
         structural: structuralWeight
       },
       
+      clusterSelectionMethod: 'eom',
+      allowSingletons: false,
       clusterSelectionEpsilon: userPreferences?.prioritizeAccuracy ? 0.1 : 0.0,
       outlierAssignmentThreshold: 0.3,
       
-      algorithm: 'hdbscan',
-      // distanceMetric: 'combined', // 型定義に存在しないため削除
-      // enableHierarchyOptimization: true, // 型定義に存在しないため削除
-      // useAdaptiveMinSamples: true, // 型定義に存在しないため削除
-      
-      // enableCaching: true, // 型定義に存在しないため削除
-      // enableParallelProcessing: nodeCount > 200, // 型定義に存在しないため削除
-      
-      // verboseLogging: false // 型定義に存在しないため削除
+      algorithm: 'hdbscan'
     };
   }
 
