@@ -224,10 +224,8 @@ export class SpeakerAnalysisService {
         model: this.AI_CONFIG.openai.model
       };
     } else {
-      console.error('[SpeakerAnalysisService] デバッグ用環境変数情報:', {
-        'import.meta.env': import.meta.env,
-        'process.env keys': Object.keys(process.env).filter(k => k.includes('API_KEY'))
-      });
+      // デバッグ用環境変数情報（ビルド時エラー回避のため詳細ログを簡略化）
+      console.error('[SpeakerAnalysisService] AI APIキーが見つかりません');
       throw new Error('AI APIキーが設定されていません。VITE_OPENAI_API_KEY または VITE_GEMINI_API_KEY を設定してください。');
     }
   }

@@ -101,6 +101,8 @@ interface ClusteringSidePeakProps {
   onClusterZoom: (clusterId: string) => void;
   /** クラスター削除処理 */
   onClusterDelete: (clusterId: string) => void;
+  /** エクスポートモーダル表示 */
+  onShowExportModal: () => void;
 }
 
 /**
@@ -131,6 +133,7 @@ export const ClusteringSidePeak: React.FC<ClusteringSidePeakProps> = ({
   onClusterClick,
   onClusterZoom,
   onClusterDelete,
+  onShowExportModal,
 }) => {
   const [activeTab, setActiveTab] = useState<'execution' | 'displayed' | 'saved'>('execution');
 
@@ -584,6 +587,40 @@ export const ClusteringSidePeak: React.FC<ClusteringSidePeakProps> = ({
           </label>
         </div>
       </div>
+
+      {/* エクスポート機能 */}
+      {clusterLabels.length > 0 && (
+        <div style={styles.section}>
+          <div style={styles.sectionTitle}>
+            📊 エクスポート
+          </div>
+          <div style={styles.sectionDesc}>
+            現在表示中のクラスターをCSV、JSON、Excel形式でエクスポートできます。
+          </div>
+          <button
+            style={{
+              ...styles.executeBtn,
+              background: THEME_COLORS.primaryBlue,
+              borderColor: THEME_COLORS.primaryBlue,
+              width: '100%',
+              marginTop: '8px'
+            }}
+            onClick={onShowExportModal}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = THEME_COLORS.primaryBlue;
+              e.currentTarget.style.borderColor = THEME_COLORS.primaryBlue;
+              e.currentTarget.style.transform = 'translateY(-2px)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = THEME_COLORS.primaryBlue;
+              e.currentTarget.style.borderColor = THEME_COLORS.primaryBlue;
+              e.currentTarget.style.transform = 'translateY(0)';
+            }}
+          >
+            📊 クラスタリング結果をエクスポート
+          </button>
+        </div>
+      )}
 
       {/* 表示中のクラスター一覧 */}
       <div style={styles.section}>
