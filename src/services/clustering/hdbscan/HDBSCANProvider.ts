@@ -142,6 +142,14 @@ export class HDBSCANProvider {
         intraClusterDistance: 0, // 型定義に必要だが計算不能のためデフォルト値
         interClusterDistance: 0, // 型定義に必要だが計算不能のためデフォルト値
         coverageRatio: hdbscanResult.statistics.coverageRatio || 0
+      },
+      algorithm: 'hdbscan',
+      parameters: {
+        algorithm: 'hdbscan',
+        minClusterSize: 3,
+        maxClusterSize: 10,
+        minPts: 2,
+        similarityThreshold: 0.5
       }
     };
   }

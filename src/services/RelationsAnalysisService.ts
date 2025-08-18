@@ -742,6 +742,13 @@ export class RelationsAnalysisService {
         semantic: 0,
         unified: 0
       },
+      computationalDuplication: {
+        semanticOverlap: 0,
+        typeConflicts: 0,
+        redundantCalculations: 0,
+        efficiencyLoss: 0.0,
+        problematicTypes: []
+      },
       qualityMetrics: {
         averageStrength: {
           ai: 0,
