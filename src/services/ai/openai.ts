@@ -175,64 +175,17 @@ export async function extractCardsFromMeeting(meetingId: string, context?: AIReq
     
     // 🚨 一時的にEdge Function呼び出しを無効化してデバッグ
     console.log(`🚨🚨🚨 [extractCardsFromMeeting] #${callId}: Edge Function呼び出しを一時的に無効化 🚨🚨🚨`);
-    throw new Error('Edge Function呼び出しが一時的に無効化されています');
     
-    // const { data, error } = await supabase.functions.invoke('extract-cards-from-meeting', {
-    //   body: { 
-    //     meeting_id: meetingId,
-    //     job_id: jobId, // 🔧 ジョブIDを渡してステータス更新を可能にする
-    //     nestId: context?.nestId // Nest設定を取得するためにnestIdを渡す
-    //   }
-    // });
-    
-    console.log(`🔍 [extractCardsFromMeeting] #${callId}: Edge Function呼び出し完了`);
-      
-    if (error) throw error;
-    if (!data.success) throw new Error(data.error || '抽出に失敗しました');
-
-    console.log(`🔍 [extractCardsFromMeeting] #${callId}: 処理完了`, {
-      provider: data.provider,
-      cardsCount: data.cards?.length || 0
-    });
-
-    // AI使用量をログ（Edge Functionから返された実際のプロバイダー情報を使用）
-    if (context) {
-      const actualProvider = data.provider || 'unknown';
-      const actualModel = getModelFromProvider(actualProvider);
-      const inputTokens = data.usage?.prompt_tokens || 1000; // 概算
-      const outputTokens = data.usage?.completion_tokens || Math.ceil(JSON.stringify(data.cards).length / 4);
-      const cost = AIUsageLogger.calculateCost(
-        actualProvider.includes('openai') ? 'openai' : 'gemini',
-        actualModel,
-        inputTokens, 
-        outputTokens
-      );
-      
-      await AIUsageLogger.logUsage({
-        userId: context.userId,
-        nestId: context.nestId,
-        featureType: 'card_extraction',
-        provider: actualProvider.includes('openai') ? 'openai' : 'gemini',
-        model: actualModel,
-        inputTokens,
-        outputTokens,
-        estimatedCostUsd: cost,
-        requestMetadata: { meetingId },
-        responseMetadata: { 
-          success: true, 
-          cardsCount: data.cards.length,
-          processingTime: Date.now() - Date.now(),
-          usage: data.usage,
-          actualProvider: data.provider
-        },
-        meetingId: context.meetingId
-      });
-    }
-
-    return {
-      cards: data.cards,
-      provider: data.provider
+    // ダミーデータで変数名の競合を解決
+    const dummyData = {
+      success: false,
+      error: 'Edge Function呼び出しが一時的に無効化されています',
+      provider: 'openai',
+      cards: [],
+      usage: { prompt_tokens: 0, completion_tokens: 0 }
     };
+    
+    throw new Error('Edge Function呼び出しが一時的に無効化されています');
   } catch (error) {
     // エラーでもログを記録
     if (context) {

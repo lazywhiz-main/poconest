@@ -149,7 +149,13 @@ export class HDBSCANProvider {
         minClusterSize: 3,
         maxClusterSize: 10,
         minPts: 2,
-        similarityThreshold: 0.5
+        similarityThreshold: 0.5,
+        useSemanticAnalysis: true,
+        useTagSimilarity: true,
+        useContentSimilarity: true,
+        weightStrength: 0.5,
+        weightSemantic: 0.3,
+        weightStructural: 0.2
       }
     };
   }

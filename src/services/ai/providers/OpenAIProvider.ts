@@ -312,24 +312,6 @@ export class OpenAIProvider implements AIProvider {
       // 🚨 一時的にEdge Function呼び出しを無効化してデバッグ
       console.log('🚨🚨🚨 [OpenAIProvider] Edge Function呼び出しを一時的に無効化 🚨🚨🚨');
       throw new Error('OpenAIProvider Edge Function呼び出しが一時的に無効化されています');
-      
-      // const response = await supabase.functions.invoke('extract-cards-from-meeting', {
-      //   body: {
-      //     meeting_id: meetingId, // meeting_idを明示的に追加
-      //     job_id: jobId, // job_idを追加
-      //     action: 'extract_cards',
-      //     content: meetingContent,
-      //     provider: 'openai',
-      //     model: this.config.model,
-      //     maxTokens: this.config.maxTokens
-      //   }
-      // });
-
-      if (!response.data?.success) {
-        throw new Error(response.data?.error || 'Card extraction failed');
-      }
-
-      return response.data.cards || [];
     } catch (error) {
       console.error('[OpenAIProvider] Failed to extract cards:', error);
       return [];
