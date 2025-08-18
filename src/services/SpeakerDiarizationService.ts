@@ -92,7 +92,7 @@ export class SpeakerDiarizationService {
       userId: job.user_id,
       progress: job.progress || 0,
       result: job.result,
-      error: job.error_message,
+      errorMessage: job.error_message,
       metadata: job.metadata || {},
       createdAt: job.created_at,
       updatedAt: job.updated_at,

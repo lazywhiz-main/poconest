@@ -82,6 +82,12 @@ export const ProcessingSteps = {
     { step: 33, label: '文字変換中', description: '音声を文字に変換しています' },
     { step: 66, label: '精度向上処理中', description: '変換精度を向上させています' },
     { step: 100, label: '完了', description: '文字起こしが完成しました' }
+  ],
+  speaker_diarization: [
+    { step: 0, label: '文字起こし解析中', description: '会話内容を読み込んでいます' },
+    { step: 33, label: '話者識別中', description: 'AI話者分離を実行しています' },
+    { step: 66, label: '発話整理中', description: '話者別に発言を整理しています' },
+    { step: 100, label: '完了', description: '話者分離が完成しました' }
   ]
 } as const;
 
@@ -89,7 +95,8 @@ export const ProcessingSteps = {
 export const EstimatedDuration = {
   ai_summary: 3,     // AI要約: 3分
   card_extraction: 2, // カード抽出: 2分
-  transcription: 5   // 文字起こし: 5分
+  transcription: 5,   // 文字起こし: 5分
+  speaker_diarization: 4  // 話者分離: 4分
 } as const;
 
 // 🔧 新追加: ジョブタイプ別リトライ設定
@@ -111,6 +118,12 @@ export const RetryConfiguration = {
     baseDelayMs: 3000,     // 3秒
     maxDelayMs: 60000,     // 60秒
     timeoutMinutes: 15     // 15分でタイムアウト
+  },
+  speaker_diarization: {
+    maxRetries: 3,
+    baseDelayMs: 2500,     // 2.5秒
+    maxDelayMs: 45000,     // 45秒
+    timeoutMinutes: 12     // 12分でタイムアウト
   }
 } as const;
 
@@ -139,5 +152,13 @@ export const JobMessages = {
     completed: '文字起こしが完成しました',
     failed: '文字起こしに失敗しました',
     cancelled: '文字起こし処理がキャンセルされました'
+  },
+  speaker_diarization: {
+    skeleton: 'AI話者分離を実行中...',
+    pending: '話者分離処理を開始します',
+    running: '話者を分離中です',
+    completed: '話者分離が完成しました',
+    failed: '話者分離に失敗しました',
+    cancelled: '話者分離処理がキャンセルされました'
   }
 } as const; 

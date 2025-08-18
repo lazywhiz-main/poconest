@@ -77,7 +77,7 @@ const ClusteringExportModal: React.FC<ClusteringExportModalProps> = ({
         <div className="modal-body" style={styles.body}>
           {!canExport ? (
             <div style={styles.errorMessage}>
-              <Icon name="alert" size={16} />
+              <Icon name="close" size={16} />
               エクスポートするクラスターがありません。クラスタリングを実行してください。
             </div>
           ) : (
@@ -156,12 +156,12 @@ const ClusteringExportModal: React.FC<ClusteringExportModalProps> = ({
             >
               {isExporting ? (
                 <>
-                  <Icon name="loading" size={16} />
+                  <Icon name="loader" size={16} />
                   エクスポート中...
                 </>
               ) : (
                 <>
-                  <Icon name="download" size={16} />
+                  <Icon name="upload" size={16} />
                   エクスポート
                 </>
               )}
