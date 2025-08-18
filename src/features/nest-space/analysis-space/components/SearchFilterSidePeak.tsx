@@ -401,7 +401,11 @@ export const SearchFilterSidePeak: React.FC<SearchFilterSidePeakProps> = ({
               key={tag}
               style={{
                 ...styles.filterChip,
-                ...(isSelected ? styles.activeFilterChip : {}),
+                ...(isSelected ? { 
+                  background: THEME_COLORS.primaryGreen,
+                  color: THEME_COLORS.textInverse,
+                  borderColor: THEME_COLORS.primaryGreen
+                } : {}),
               }}
               onClick={() => onToggleTagFilter(tag)}
             >

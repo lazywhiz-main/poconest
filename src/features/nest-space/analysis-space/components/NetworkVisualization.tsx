@@ -40,6 +40,7 @@ interface UnifiedRelationshipSuggestion extends SuggestedRelationship {
   methodIcon: string;
   confidence: number;
   isAlreadyCreated?: boolean; // 既にDBに作成済みかどうか
+  // relationshipTypeはSuggestedRelationshipから継承される（'semantic' | 'topical' | 'conceptual'）
 }
 
 // ビュー保存・管理のインターフェース

@@ -255,6 +255,18 @@ export class RelationsDeduplicationService {
    * 全Relations取得
    */
   private static async getAllRelations(boardId: string): Promise<CardRelationship[]> {
+    // まずboard_cardsからIDを取得
+    const { data: cardIds, error: cardError } = await supabase
+      .from('board_cards')
+      .select('id')
+      .eq('board_id', boardId);
+    
+    if (cardError || !cardIds) {
+      throw new Error(`カードID取得失敗: ${cardError?.message || 'Unknown error'}`);
+    }
+    
+    const cardIdArray = cardIds.map(card => card.id);
+    
     const { data, error } = await supabase
       .from('board_card_relations')
       .select(`
@@ -268,12 +280,7 @@ export class RelationsDeduplicationService {
         created_at,
         updated_at
       `)
-      .in('card_id', 
-        supabase
-          .from('board_cards')
-          .select('id')
-          .eq('board_id', boardId)
-      );
+      .in('card_id', cardIdArray);
 
     if (error) {
       throw new Error(`Relations取得失敗: ${error.message}`);

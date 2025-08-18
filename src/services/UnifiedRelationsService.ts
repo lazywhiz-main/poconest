@@ -687,11 +687,8 @@ export class UnifiedRelationsService {
       },
       relationships: finalSimilarities.map((sim, index) => ({
         similarity: sim,
-        relationship: {
-          strength: sim.overallScore,
-          confidence: sim.confidence,
-          relationship_type: 'unified' as const
-        },
+        strength: sim.overallScore,
+        confidence: sim.confidence,
         relationshipId: savedIds[index] || undefined
       })),
       summary: {

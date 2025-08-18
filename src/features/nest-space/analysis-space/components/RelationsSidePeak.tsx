@@ -12,7 +12,7 @@ interface UnifiedRelationshipSuggestion {
   confidence: number;
   similarity?: number;
   explanation: string;
-  analysisMethod: 'ai' | 'tag_similarity' | 'derived';
+  analysisMethod: 'ai' | 'tag_similarity' | 'derived' | 'unified';
   methodLabel: string;
   methodIcon: string;
 }
@@ -39,13 +39,13 @@ interface RelationsSidePeakProps {
   /** カード情報リスト */
   cards: BoardItem[];
   /** 個別提案の承認 */
-  onApproveSuggestion?: (suggestion: UnifiedRelationshipSuggestion) => void;
+  onApproveSuggestion?: (suggestion: UnifiedRelationshipSuggestion) => void | Promise<void>;
   /** 個別提案の拒否 */
-  onRejectSuggestion?: (suggestion: UnifiedRelationshipSuggestion) => void;
+  onRejectSuggestion?: (suggestion: UnifiedRelationshipSuggestion) => void | Promise<void>;
   /** 手法別一括承認 */
-  onApproveMethodSuggestions?: (method: 'ai' | 'tag_similarity' | 'derived') => void;
+  onApproveMethodSuggestions?: (method: 'ai' | 'tag_similarity' | 'derived' | 'unified') => void;
   /** 手法別一括拒否 */
-  onRejectMethodSuggestions?: (method: 'ai' | 'tag_similarity' | 'derived') => void;
+  onRejectMethodSuggestions?: (method: 'ai' | 'tag_similarity' | 'derived' | 'unified') => void;
   /** 全体一括承認 */
   onApproveAllSuggestions?: () => void;
   /** 全体拒否（結果パネルを閉じる） */

@@ -23,27 +23,58 @@ interface RelationshipEvidence {
 interface HypothesisFormationPath {
   id: string;
   hypothesis: string;
+  
+  // パラダイムモデルの構成要素
+  paradigmModel: {
+    coreCategory: string;
+    causalConditions: string[];
+    contextFactors: string[];
+    interveningConditions: string[];
+    actionStrategies: string[];
+    consequences: string[];
+    theoreticalFramework: string;
+  };
+  
   formationSteps: Array<{
     step: number;
-    phase: 'concept_extraction' | 'relationship_discovery' | 'pattern_integration' | 'hypothesis_synthesis';
+    phase: 'concept_extraction' | 'relationship_discovery' | 'pattern_integration' | 'hypothesis_synthesis' | 'paradigm_construction';
     description: string;
     inputConcepts: string[];
     outputPatterns: string[];
     confidenceScore: number;
+    gtaMethod: 'open_coding' | 'axial_coding' | 'selective_coding';
   }>;
+  
   contributingClusters: Array<{
     clusterId: string;
     clusterName: string;
     contributionType: 'primary' | 'secondary' | 'supporting';
     conceptCount: number;
     conceptContributions: ConceptContribution[];
+    themeAnalysis?: {
+      primaryDomain: string;
+      keyConcepts: string[];
+      gtaFocus: string[];
+    };
   }>;
+  
   relationshipEvidence: RelationshipEvidence[];
+  
+  // 根拠の詳細情報
+  evidenceDetails: {
+    dataSources: string[];
+    analyticalMethods: string[];
+    validationSteps: string[];
+    limitations: string[];
+    alternativeExplanations: string[];
+  };
+  
   integrationQuality: {
     coherence: number;
     evidence_strength: number;
     concept_diversity: number;
     logical_consistency: number;
+    paradigm_robustness: number;
   };
 }
 
@@ -331,6 +362,15 @@ export const GroundedTheoryResultPanel: React.FC<GroundedTheoryResultPanelProps>
     return {
       id: hypothesis.id,
       hypothesis: hypothesis.statement,
+      paradigmModel: {
+        coreCategory: '地域体験価値創造',
+        causalConditions: ['地域連携の基盤', '教育機関の存在', '体験価値の認識'],
+        contextFactors: ['地域文化', '大学資源', '参加者ニーズ'],
+        interveningConditions: ['行政支援', '民間協力', '技術革新'],
+        actionStrategies: ['体験プログラム開発', '地域連携強化', '価値創造手法'],
+        consequences: ['地域活性化', '教育効果向上', '体験価値向上'],
+        theoreticalFramework: '地域連携型体験価値創造理論'
+      },
       formationSteps: [
         {
           step: 1,
@@ -338,7 +378,8 @@ export const GroundedTheoryResultPanel: React.FC<GroundedTheoryResultPanelProps>
           description: 'クラスター「宇都宮・宇都宮大学」から地域教育関連概念を抽出',
           inputConcepts: ['地域', '大学', '学生'],
           outputPatterns: ['地域連携', '教育機関活用'],
-          confidenceScore: 0.75
+          confidenceScore: 0.75,
+          gtaMethod: 'open_coding'
         },
         {
           step: 2,
@@ -346,7 +387,8 @@ export const GroundedTheoryResultPanel: React.FC<GroundedTheoryResultPanelProps>
           description: 'エンターテーメント体験クラスターとの強い関係性を発見',
           inputConcepts: ['体験価値', 'エンターテーメント', '参加型'],
           outputPatterns: ['体験価値創造', '参加者エンゲージメント'],
-          confidenceScore: 0.68
+          confidenceScore: 0.68,
+          gtaMethod: 'axial_coding'
         },
         {
           step: 3,
@@ -354,7 +396,8 @@ export const GroundedTheoryResultPanel: React.FC<GroundedTheoryResultPanelProps>
           description: '地域×教育×体験の三位一体パターンを統合',
           inputConcepts: ['地域連携', '体験価値創造', '参加者エンゲージメント'],
           outputPatterns: ['複合的価値創造'],
-          confidenceScore: 0.82
+          confidenceScore: 0.82,
+          gtaMethod: 'axial_coding'
         },
         {
           step: 4,
@@ -362,7 +405,8 @@ export const GroundedTheoryResultPanel: React.FC<GroundedTheoryResultPanelProps>
           description: 'エンターテーメント性仮説の統合的構築',
           inputConcepts: ['複合的価値創造', '参加者体験'],
           outputPatterns: ['食体験エンターテーメント性理論'],
-          confidenceScore: 0.76
+          confidenceScore: 0.76,
+          gtaMethod: 'selective_coding'
         }
       ],
       contributingClusters: [
@@ -425,11 +469,19 @@ export const GroundedTheoryResultPanel: React.FC<GroundedTheoryResultPanelProps>
           ]
         }
       ],
+      evidenceDetails: {
+        dataSources: ['クラスター分析結果', '関係性分析', 'パターン抽出'],
+        analyticalMethods: ['グラウンデッド・セオリー分析', 'クラスター分析', '関係性分析'],
+        validationSteps: ['概念整合性チェック', '関係性妥当性検証', 'パターン一貫性確認'],
+        limitations: ['サンプルサイズの制限', '分析手法の制約', '文脈依存性'],
+        alternativeExplanations: ['地域特性による偶然の一致', '他の要因の影響']
+      },
       integrationQuality: {
         coherence: 0.81,
         evidence_strength: 0.75,
         concept_diversity: 0.68,
-        logical_consistency: 0.79
+        logical_consistency: 0.79,
+        paradigm_robustness: 0.76
       }
     };
   };

@@ -817,15 +817,23 @@ export class AnalysisService {
    */
   private static async getExistingAllTypeRelations(boardId: string): Promise<Array<{card_id: string, related_card_id: string}>> {
     try {
+      // まずboard_cardsからIDを取得
+      const { data: cardIds, error: cardError } = await supabase
+        .from('board_cards')
+        .select('id')
+        .eq('board_id', boardId);
+      
+      if (cardError || !cardIds) {
+        console.error(`❌ [AnalysisService] カードID取得エラー:`, cardError);
+        return [];
+      }
+      
+      const cardIdArray = cardIds.map(card => card.id);
+      
       const { data, error } = await supabase
         .from('board_card_relations')
         .select('card_id, related_card_id, relationship_type')
-        .in('card_id', 
-          supabase
-            .from('board_cards')
-            .select('id')
-            .eq('board_id', boardId)
-        )
+        .in('card_id', cardIdArray)
         .in('relationship_type', ['ai', 'derived', 'tag_similarity', 'manual', 'semantic', 'unified']);
       
       if (error) {
