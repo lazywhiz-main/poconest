@@ -731,7 +731,11 @@ ${conversationFlow}
         throw new Error('JSON形式のレスポンスが見つかりません');
       }
 
-      const jsonStr = jsonMatch[1] || jsonMatch[0];
+      let jsonStr = jsonMatch[1] || jsonMatch[0];
+      
+      // JSON修復処理
+      jsonStr = this.repairJsonString(jsonStr);
+      
       const parsed = JSON.parse(jsonStr);
 
       return {
@@ -875,7 +879,11 @@ ${conversationFlow}
         throw new Error('JSON形式のレスポンスが見つかりません');
       }
 
-      const jsonStr = jsonMatch[1] || jsonMatch[0];
+      let jsonStr = jsonMatch[1] || jsonMatch[0];
+      
+      // JSON修復処理
+      jsonStr = this.repairJsonString(jsonStr);
+      
       const parsed = JSON.parse(jsonStr);
 
       return {
@@ -1118,6 +1126,53 @@ ${conversationFlow}
     } catch (error) {
       console.error('[SpeakerAnalysisService] 洞察メモ削除エラー:', error);
       throw error;
+    }
+  }
+
+  /**
+   * JSON文字列の修復処理
+   */
+  private static repairJsonString(jsonStr: string): string {
+    try {
+      // 最初にそのままパースを試行
+      JSON.parse(jsonStr);
+      return jsonStr;
+    } catch (error) {
+      console.log('[SpeakerAnalysisService] JSON修復を試行:', error.message);
+      
+      let repaired = jsonStr;
+      
+      // 1. 日本語の値をクォート修正
+      repaired = repaired.replace(/:\s*([^",\[\{\}]+[^",\[\{\}\s])/g, (match, value) => {
+        // 数値や真偽値でない場合はクォートで囲む
+        if (!value.match(/^(true|false|null|\d+(\.\d+)?)$/)) {
+          return match.replace(value, `"${value.trim()}"`);
+        }
+        return match;
+      });
+      
+      // 2. 末尾のカンマを削除
+      repaired = repaired.replace(/,(\s*[}\]])/g, '$1');
+      
+      // 3. 改行やタブを削除
+      repaired = repaired.replace(/[\n\r\t]/g, '');
+      
+      // 4. 余分なスペースを削除
+      repaired = repaired.replace(/\s+/g, ' ');
+      
+      // 5. 配列やオブジェクトの前後のスペースを調整
+      repaired = repaired.replace(/\s*([{}[\],:])\s*/g, '$1');
+      
+      console.log('[SpeakerAnalysisService] JSON修復後:', repaired.substring(0, 200) + '...');
+      
+      // 修復後のパースを試行
+      try {
+        JSON.parse(repaired);
+        return repaired;
+      } catch (secondError) {
+        console.error('[SpeakerAnalysisService] JSON修復失敗:', secondError.message);
+        throw new Error(`JSON修復に失敗しました: ${secondError.message}`);
+      }
     }
   }
 }
