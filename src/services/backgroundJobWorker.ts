@@ -374,9 +374,24 @@ class TranscriptionProcessor implements JobProcessor {
 class SpeakerDiarizationProcessor implements JobProcessor {
   async process(job: BackgroundJob): Promise<any> {
     console.log(`[SpeakerDiarizationProcessor] Processing job ${job.id}`);
+    console.log(`[SpeakerDiarizationProcessor] Job data:`, {
+      id: job.id,
+      meetingId: job.meetingId,
+      userId: job.userId,
+      type: job.type,
+      status: job.status,
+      metadata: job.metadata
+    });
+    
+    // meetingIdの妥当性チェック
+    if (!job.meetingId || job.meetingId === 'undefined' || typeof job.meetingId !== 'string') {
+      throw new Error(`Invalid meetingId: ${job.meetingId} (type: ${typeof job.meetingId})`);
+    }
     
     // Step 1: ミーティングデータ取得 (25%)
     await this.updateProgress(job.id, 25, 'ミーティングデータを取得中...');
+    
+    console.log(`[SpeakerDiarizationProcessor] Fetching meeting with ID: ${job.meetingId}`);
     
     const { data: meeting, error } = await supabase
       .from('meetings')

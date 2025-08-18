@@ -10,6 +10,11 @@ export class SpeakerDiarizationService {
     primaryProvider: string = 'gemini',
     modelConfig: any = {}
   ): Promise<string> {
+    // meetingIdの妥当性チェック
+    if (!meetingId || meetingId === 'undefined' || typeof meetingId !== 'string') {
+      throw new Error(`Invalid meetingId provided: ${meetingId} (type: ${typeof meetingId})`);
+    }
+
     console.log('[SpeakerDiarizationService] 話者分離ジョブ開始:', {
       meetingId,
       primaryProvider,
