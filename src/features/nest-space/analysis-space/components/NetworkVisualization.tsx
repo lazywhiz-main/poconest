@@ -32,6 +32,7 @@ import { UnifiedRelationsService, type UnifiedAnalysisResult } from '../../../..
 import { RelationsParameterManager } from '../../../../services/RelationsParameterManager';
 import RelationsParameterSettingsModal from '../../../../components/ui/RelationsParameterSettingsModal';
 import { useToast } from '../../../../components/ui/Toast';
+import ClusteringExportModal from '../../../../components/ui/ClusteringExportModal';
 
 // 統合分析結果のインターフェース
 interface UnifiedRelationshipSuggestion extends SuggestedRelationship {
@@ -405,6 +406,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   // クラスタービュー管理関連のstate
   const [showSaveClusterDialog, setShowSaveClusterDialog] = useState(false);
   const [isSavingCluster, setIsSavingCluster] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   // グラウンデッド・セオリー管理関連のstate
   const [showGroundedTheoryManager, setShowGroundedTheoryManager] = useState(false);
@@ -6279,6 +6281,30 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
                   >
                     💾 現在のクラスターを保存
                   </button>
+                  
+                  {/* クラスタリング結果をエクスポートボタン */}
+                  <button
+                    style={{
+                      ...styles.applyButton,
+                      background: THEME_COLORS.primaryBlue,
+                      borderColor: THEME_COLORS.primaryBlue,
+                      width: '100%',
+                      marginTop: '8px'
+                    }}
+                    onClick={() => setShowExportModal(true)}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = THEME_COLORS.primaryBlue;
+                      e.currentTarget.style.borderColor = THEME_COLORS.primaryBlue;
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = THEME_COLORS.primaryBlue;
+                      e.currentTarget.style.borderColor = THEME_COLORS.primaryBlue;
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }}
+                  >
+                    📊 クラスタリング結果をエクスポート
+                  </button>
                 </div>
               )}
             </div>
@@ -9650,6 +9676,15 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
           onSearchQueryChange={setSearchQuery}
         />
       </SidePeakPanel>
+
+      {/* クラスタリング結果エクスポートモーダル */}
+      <ClusteringExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        clusters={filteredClusters || []}
+        clusterLabels={clusterLabels}
+        cards={cards}
+      />
     </div>
   );
 };

@@ -225,7 +225,7 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
   };
   
   // タブ状態管理
-  const [activeTab, setActiveTab] = useState<'transcript' | 'summary' | 'cards'>('transcript');
+  const [activeTab, setActiveTab] = useState<'transcript' | 'summary' | 'speaker-analysis' | 'cards'>('transcript');
   
   const [users, setUsers] = useState<Record<string, UserInfo>>({});
   

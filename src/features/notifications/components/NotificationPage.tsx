@@ -4,6 +4,7 @@ import { NotificationService } from '../services/NotificationService';
 import { ServiceHeader } from '../../../components/ServiceHeader';
 import Icon, { IconName } from '../../../components/ui/Icon';
 import type { NotificationType, NotificationPriority, NotificationFilter } from '../types/notification';
+import { supabase } from '../../../services/supabase/client';
 import '../styles/notification-page.css';
 
 const NotificationPage: React.FC = () => {
@@ -38,6 +39,8 @@ const NotificationPage: React.FC = () => {
     { value: 'transcription', label: '転写', icon: 'meeting' },
     { value: 'mention', label: 'メンション', icon: 'chat' },
     { value: 'meeting_update', label: 'ミーティング', icon: 'meeting' },
+    { value: 'nest_invite', label: 'NEST招待', icon: 'bell' },
+    { value: 'member_join', label: 'メンバー参加', icon: 'user' },
     { value: 'system', label: 'システム', icon: 'settings' },
     { value: 'urgent', label: '緊急', icon: 'bell' }
   ];
@@ -82,6 +85,81 @@ const NotificationPage: React.FC = () => {
     if (minutes < 60) return `${minutes}分前`;
     if (hours < 24) return `${hours}時間前`;
     return `${days}日前`;
+  };
+
+  // アクションボタンクリック時の処理
+  const handleActionClick = async (action: any, notification: any) => {
+    try {
+      if (action.action === 'accept_invitation') {
+        // 招待を承認
+        const { data: invitation, error } = await supabase
+          .from('nest_invitations')
+          .select('*')
+          .eq('id', notification.data.invitation_id)
+          .single();
+
+        if (error || !invitation) {
+          console.error('招待情報の取得に失敗:', error);
+          return;
+        }
+
+        // 招待を承認状態に更新
+        const { error: updateError } = await supabase
+          .from('nest_invitations')
+          .update({ is_accepted: true })
+          .eq('id', invitation.id);
+
+        if (updateError) {
+          console.error('招待の承認に失敗:', updateError);
+          return;
+        }
+
+        // メンバーとして追加
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { error: memberError } = await supabase
+            .from('nest_members')
+            .insert({
+              nest_id: invitation.nest_id,
+              user_id: user.id,
+              role: 'member',
+              joined_at: new Date().toISOString()
+            });
+
+          if (memberError) {
+            console.error('メンバー追加に失敗:', memberError);
+            return;
+          }
+        }
+
+        // 通知を既読にして削除
+        await markAsRead(notification.id);
+        await deleteNotification(notification.id);
+        
+        alert('招待を承認しました！NESTに参加できます。');
+        
+      } else if (action.action === 'decline_invitation') {
+        // 招待を辞退
+        const { error } = await supabase
+          .from('nest_invitations')
+          .delete()
+          .eq('id', notification.data.invitation_id);
+
+        if (error) {
+          console.error('招待の削除に失敗:', error);
+          return;
+        }
+
+        // 通知を既読にして削除
+        await markAsRead(notification.id);
+        await deleteNotification(notification.id);
+        
+        alert('招待を辞退しました。');
+      }
+    } catch (error) {
+      console.error('アクション実行中にエラー:', error);
+      alert('処理中にエラーが発生しました。');
+    }
   };
 
   const getPriorityColor = (priority: NotificationPriority) => {
@@ -334,7 +412,12 @@ const NotificationPage: React.FC = () => {
                 </div>
 
                 {/* アクションボタン */}
-                {selectedNotificationData.data.actions && selectedNotificationData.data.actions.length > 0 && (
+                {(() => {
+                  console.log('Notification data:', selectedNotificationData);
+                  console.log('Actions:', selectedNotificationData.data?.actions);
+                  return null;
+                })()}
+                {selectedNotificationData.data?.actions && selectedNotificationData.data.actions.length > 0 ? (
                   <div className="detail-actions">
                     <h4>アクション</h4>
                     <div className="action-buttons">
@@ -342,11 +425,17 @@ const NotificationPage: React.FC = () => {
                         <button
                           key={action.id}
                           className={`action-button ${action.type}`}
+                          onClick={() => handleActionClick(action, selectedNotificationData)}
                         >
                           {action.label}
                         </button>
                       ))}
                     </div>
+                  </div>
+                ) : (
+                  <div className="detail-actions">
+                    <p>アクションがありません</p>
+                    <p>Debug: {JSON.stringify(selectedNotificationData.data)}</p>
                   </div>
                 )}
               </div>

@@ -25,11 +25,12 @@ import ConfirmModal from '../../../../components/ui/ConfirmModal';
 import { JobType } from '../../../meeting-space/types/backgroundJob';
 // import { useBackgroundJobs } from '../../../meeting-space/hooks/useBackgroundJobs'; // 削除
 import SpeakerDiarizationView from './SpeakerDiarizationView';
+import SpeakerAnalysisView from './SpeakerAnalysisView';
 
 interface MeetingDetailPanelProps {
   meeting: MeetingUI;
-  activeTab: 'transcript' | 'summary' | 'cards';
-  onTabChange: (tab: 'transcript' | 'summary' | 'cards') => void;
+  activeTab: 'transcript' | 'summary' | 'speaker-analysis' | 'cards';
+  onTabChange: (tab: 'transcript' | 'summary' | 'speaker-analysis' | 'cards') => void;
   onSaveMeeting?: (meeting: Partial<MeetingUI>) => void;
   onMeetingUpdate?: (meeting: MeetingUI) => void;
   onAISummary?: () => void;
@@ -156,6 +157,8 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
   const [showNewCardModal, setShowNewCardModal] = useState(false);
   const [creatorInfo, setCreatorInfo] = useState<UserInfo | null>(null);
 
+
+
   // AI要約・カード抽出のモーダル状態
   const [isAISummaryLoading, setIsAISummaryLoading] = useState(false);
   const [isCardExtractionLoading, setIsCardExtractionLoading] = useState(false);
@@ -173,6 +176,8 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
 
   // トーストシステム
   const { showToast } = useToast();
+
+
 
   // ボタン状態の管理
   const getButtonState = useCallback((jobType: 'ai_summary' | 'card_extraction') => {
@@ -690,6 +695,7 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
       <div className="meeting-tab-container">
         {[
           { key: 'transcript' as const, label: '全文' },
+          { key: 'speaker-analysis' as const, label: '話者分析' },
           { key: 'summary' as const, label: '要約' },
           { key: 'cards' as const, label: '関連カード' },
         ].map(tab => (
@@ -1104,6 +1110,23 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
                 </div>
               )}
             </div>
+          </div>
+        );
+
+      case 'speaker-analysis':
+        return (
+          <div style={{ 
+            height: 'calc(100vh - 330px)',
+            display: 'flex', 
+            flexDirection: 'column'
+          }}>
+            <SpeakerAnalysisView 
+              meetingId={meeting.id}
+              transcript={meeting.transcript || ''}
+              onAnalysisComplete={(analysisData) => {
+                console.log('話者分析完了:', analysisData);
+              }}
+            />
           </div>
         );
 

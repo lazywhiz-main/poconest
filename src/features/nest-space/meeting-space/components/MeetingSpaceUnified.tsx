@@ -86,7 +86,7 @@ const MeetingSpaceUnified: React.FC<MeetingSpaceUnifiedProps> = ({ nestId }) => 
   const [selectedMeeting, setSelectedMeeting] = useState<MeetingUI | null>(null);
   
   // タブ状態管理
-  const [activeTab, setActiveTab] = useState<'transcript' | 'summary' | 'cards'>('transcript');
+  const [activeTab, setActiveTab] = useState<'transcript' | 'summary' | 'speaker-analysis' | 'cards'>('transcript');
   const [users, setUsers] = useState<Record<string, UserInfo>>({});
   
   // ドラッグ&ドロップ用のstate

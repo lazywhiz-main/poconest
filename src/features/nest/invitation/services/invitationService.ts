@@ -115,18 +115,46 @@ export const inviteMemberByEmail = async (nestId: string, email: string) => {
 
     // 通知を送信（既存ユーザーの場合はアプリ内通知）
     if (existingUser) {
-      await supabase.from('notifications').insert({
+      const notificationData = {
         user_id: existingUser.id,
-        type: 'nest_invitation',
+        type: 'nest_invite',
         title: `${nest?.name || 'NEST'}への招待`,
         content: `${user.email}があなたを${nest?.name || 'NEST'}に招待しました`,
         data: {
           nest_id: nestId,
           invitation_id: invitation.id,
-          token
+          token,
+          actions: [
+            {
+              id: 'accept_invitation',
+              label: '招待を承認',
+              type: 'primary',
+              action: 'accept_invitation'
+            },
+            {
+              id: 'decline_invitation',
+              label: '招待を辞退',
+              type: 'secondary',
+              action: 'decline_invitation'
+            }
+          ]
         },
         is_read: false
-      });
+      };
+      
+      console.log('[inviteMemberByEmail] 通知データ:', notificationData);
+      
+      const { data: notification, error: notificationError } = await supabase
+        .from('notifications')
+        .insert(notificationData)
+        .select()
+        .single();
+        
+      if (notificationError) {
+        console.error('[inviteMemberByEmail] 通知作成エラー:', notificationError);
+      } else {
+        console.log('[inviteMemberByEmail] 通知作成成功:', notification);
+      }
     }
     // 既存ユーザーかどうかに関係なくメール送信Edge Functionを呼び出す
     console.log('[inviteMemberByEmail] send-invitation呼び出し直前', { email, nestName: nest?.name, inviterEmail: user.email, inviteLink: `https://poconest.app/invite/${token}` });

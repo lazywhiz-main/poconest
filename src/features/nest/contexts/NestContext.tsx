@@ -605,13 +605,27 @@ export function NestProvider({ children }: { children: React.ReactNode }) {
       if (existingUser) {
         await supabase.from('notifications').insert({
           user_id: existingUser.id,
-          type: 'nest_invitation',
+          type: 'nest_invite',
           title: `${nest.name}への招待`,
           content: `${user.email}があなたを${nest.name}に招待しました`,
           data: {
             nest_id: nestId,
             invitation_id: data.id,
-            token: token
+            token: token,
+            actions: [
+              {
+                id: 'accept_invitation',
+                label: '招待を承認',
+                type: 'primary',
+                action: 'accept_invitation'
+              },
+              {
+                id: 'decline_invitation',
+                label: '招待を辞退',
+                type: 'secondary',
+                action: 'decline_invitation'
+              }
+            ]
           },
           is_read: false
         });
