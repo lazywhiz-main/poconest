@@ -370,6 +370,115 @@ class TranscriptionProcessor implements JobProcessor {
   }
 }
 
+// 話者分離処理
+class SpeakerDiarizationProcessor implements JobProcessor {
+  async process(job: BackgroundJob): Promise<any> {
+    console.log(`[SpeakerDiarizationProcessor] Processing job ${job.id}`);
+    
+    // Step 1: ミーティングデータ取得 (25%)
+    await this.updateProgress(job.id, 25, 'ミーティングデータを取得中...');
+    
+    const { data: meeting, error } = await supabase
+      .from('meetings')
+      .select('*')
+      .eq('id', job.meetingId)
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to fetch meeting: ${error.message}`);
+    }
+
+    if (!meeting) {
+      throw new Error('Meeting not found');
+    }
+
+    if (!meeting.transcript) {
+      throw new Error('Meeting transcript not found');
+    }
+
+    // Step 2: 認証トークン取得 (30%)
+    await this.updateProgress(job.id, 30, '認証情報を準備中...');
+    
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !session) {
+      throw new Error('認証セッションの取得に失敗しました');
+    }
+
+    // Step 3: Edge Function呼び出し (50-90%)
+    await this.updateProgress(job.id, 50, 'AI話者分離を実行中...');
+    
+    // AI設定の取得
+    const primaryProvider = job.metadata?.primaryProvider || 'gemini';
+    const modelConfig = job.metadata?.modelConfig || {};
+    const maxTokens = modelConfig?.maxTokens || job.metadata?.maxTokens || (primaryProvider === 'gemini' ? 200000 : 16384);
+
+    console.log('[SpeakerDiarizationProcessor] Edge Function呼び出し開始:', {
+      meetingId: job.meetingId,
+      provider: primaryProvider,
+      maxTokens,
+      transcriptLength: meeting.transcript.length
+    });
+
+    const { data, error: edgeFunctionError } = await supabase.functions.invoke('speaker-diarization', {
+      body: {
+        meetingId: job.meetingId,
+        provider: primaryProvider,
+        model: modelConfig?.model || (primaryProvider === 'gemini' ? 'gemini-2.0-flash' : 'gpt-4o'),
+        maxTokens
+      },
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`
+      }
+    });
+
+    await this.updateProgress(job.id, 90, '話者分離結果を保存中...');
+
+    if (edgeFunctionError) {
+      console.error('[SpeakerDiarizationProcessor] Edge Function error:', edgeFunctionError);
+      throw new Error(`Edge Function error: ${edgeFunctionError.message}`);
+    }
+
+    // Step 4: 結果の検証と保存 (100%)
+    await this.updateProgress(job.id, 100, '話者分離完了');
+
+    console.log('[SpeakerDiarizationProcessor] Edge Function response:', data);
+
+    // NESTのupdated_atを更新
+    if (meeting.nest_id) {
+      try {
+        await NestUpdateService.updateNestActivity(meeting.nest_id);
+      } catch (error) {
+        console.warn('Failed to update nest activity:', error);
+      }
+    }
+
+    const result = {
+      meetingId: job.meetingId,
+      speakersCount: data?.speakersCount || 0,
+      utterancesCount: data?.utterancesCount || 0,
+      analysisMethod: data?.analysisMethod || 'llm',
+      processingTimeMs: data?.processingTimeMs || 0,
+      timestamp: new Date().toISOString()
+    };
+
+    console.log(`[SpeakerDiarizationProcessor] Job ${job.id} completed with result:`, result);
+    return result;
+  }
+
+  private async updateProgress(jobId: string | null, progress: number, message: string) {
+    if (!jobId) return;
+    
+    await supabase
+      .from('background_jobs')
+      .update({ 
+        progress,
+        metadata: { current_step: message },
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', jobId);
+  }
+}
+
 
 
 // ワーカーマネージャー
@@ -386,6 +495,7 @@ export class BackgroundJobWorker {
     this.processors.set('ai_summary', new AISummaryProcessor());
     this.processors.set('card_extraction', new CardExtractionProcessor());
     this.processors.set('transcription', new TranscriptionProcessor());
+    this.processors.set('speaker_diarization', new SpeakerDiarizationProcessor());
     
     console.log('🔧 [BackgroundJobWorker] プロセッサー登録完了:', Array.from(this.processors.keys()));
   }
@@ -875,6 +985,14 @@ export class BackgroundJobWorker {
 
   // データベース形式からアプリ形式に変換
   private dbToApp(dbJob: any): BackgroundJob {
+    console.log(`🔧 [BackgroundJobWorker] #${this.instanceId} dbToApp変換:`, {
+      id: dbJob.id,
+      type: dbJob.type,
+      meeting_id: dbJob.meeting_id,
+      user_id: dbJob.user_id,
+      allFields: Object.keys(dbJob)
+    });
+
     return {
       id: dbJob.id,
       type: dbJob.type,

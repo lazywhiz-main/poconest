@@ -155,35 +155,10 @@ const SpeakerDiarizationView: React.FC<SpeakerDiarizationViewProps> = ({
       console.log('🔍 話者データ読み込み開始:', { meetingId });
       setLoading(true);
 
-      // 話者情報を取得
-      console.log('👥 話者情報を取得中...');
-      const { data: speakersData, error: speakersError } = await supabase
-        .from('meeting_speakers')
-        .select('*')
-        .eq('meeting_id', meetingId)
-        .order('speaker_tag');
+      const { SpeakerDiarizationService } = await import('../../../../services/SpeakerDiarizationService');
+      const { speakers: speakersData, utterances: utterancesData } = await SpeakerDiarizationService.getSpeakerData(meetingId);
 
-      console.log('👥 話者情報取得結果:', { speakersData, speakersError });
-
-      if (speakersError) {
-        console.error('❌ 話者情報取得エラー:', speakersError);
-        return;
-      }
-
-      // 発言詳細を取得
-      console.log('💬 発言詳細を取得中...');
-      const { data: utterancesData, error: utterancesError } = await supabase
-        .from('meeting_utterances')
-        .select('*')
-        .eq('meeting_id', meetingId)
-        .order('start_time');
-
-      console.log('💬 発言詳細取得結果:', { utterancesData, utterancesError });
-
-      if (utterancesError) {
-        console.error('❌ 発言詳細取得エラー:', utterancesError);
-        return;
-      }
+      console.log('👥 話者データ取得結果:', { speakersData, utterancesData });
 
       // 話者ごとに発言をグループ化
       const speakersWithUtterances: SpeakerWithUtterances[] = speakersData.map(speaker => {
@@ -349,52 +324,54 @@ const SpeakerDiarizationView: React.FC<SpeakerDiarizationViewProps> = ({
         embeddingModel: modelConfig?.embeddingModel
       });
       
-      // const jobId = await TextSpeakerDiarizationService.startSpeakerDiarizationJob(
-      //   meetingId,
-      //   provider, // NEST設定から取得したプロバイダーを使用
-      //   { 
-      //     model: modelConfig?.model || 'gpt-4o', 
-      //       embeddingModel: modelConfig?.embeddingModel || 'text-embedding-ada-002', 
-      //       maxTokens: 8192 
-      //   }
-      // );
+      const { SpeakerDiarizationService } = await import('../../../../services/SpeakerDiarizationService');
       
-      // setCurrentJobId(jobId);
-      // setJobStatus('running');
-      // console.log('✅ 話者分離ジョブ作成完了:', jobId);
+      const jobId = await SpeakerDiarizationService.startSpeakerDiarizationJob(
+        meetingId,
+        provider, // NEST設定から取得したプロバイダーを使用
+        { 
+          model: modelConfig?.model || (provider === 'gemini' ? 'gemini-2.0-flash' : 'gpt-4o'), 
+          embeddingModel: modelConfig?.embeddingModel || 'text-embedding-ada-002', 
+          maxTokens: provider === 'gemini' ? 200000 : 16384  // OpenAIの場合は16384に調整
+        }
+      );
+      
+      setCurrentJobId(jobId);
+      setJobStatus('running');
+      console.log('✅ 話者分離ジョブ作成完了:', jobId);
       
       // ジョブの進捗を監視
-      // const progressInterval = setInterval(async () => {
-      //   try {
-      //     const jobStatus = await TextSpeakerDiarizationService.getSpeakerDiarizationJobStatus(jobId);
+      const progressInterval = setInterval(async () => {
+        try {
+          const jobStatus = await SpeakerDiarizationService.getSpeakerDiarizationJobStatus(jobId);
           
-          // if (jobStatus.status === 'completed') {
-          //   console.log('✅ 話者分離ジョブ完了:', jobStatus);
-          //   setDiarizationProgress(100);
-          //   setJobStatus('completed');
-          //   clearInterval(progressInterval);
-          //   
-          //   // 話者データを再読み込み
-          //   await loadSpeakerData();
-          //   setViewMode('diarized');
-          //   setIsDiarizing(false);
-          //   
-          // } else if (jobStatus.status === 'failed') {
-          //   console.error('❌ 話者分離ジョブ失敗:', jobStatus);
-          //   setJobStatus('failed');
-          //   clearInterval(progressInterval);
-          //   setIsDiarizing(false);
-          //   alert('話者分離処理に失敗しました。');
-          //   
-          // } else if (jobStatus.status === 'running') {
-          //   // 進捗を更新
-          //   const progress = jobStatus.progress || 0;
-          //   setDiarizationProgress(Math.max(10, Math.min(progress, 90)));
-          // }
-        // } catch (error) {
-        //   console.error('❌ ジョブ状態取得エラー:', error);
-        // }
-      // }, 2000); // 2秒間隔で監視
+          if (jobStatus.status === 'completed') {
+            console.log('✅ 話者分離ジョブ完了:', jobStatus);
+            setDiarizationProgress(100);
+            setJobStatus('completed');
+            clearInterval(progressInterval);
+            
+            // 話者データを再読み込み
+            await loadSpeakerData();
+            setViewMode('diarized');
+            setIsDiarizing(false);
+            
+          } else if (jobStatus.status === 'failed') {
+            console.error('❌ 話者分離ジョブ失敗:', jobStatus);
+            setJobStatus('failed');
+            clearInterval(progressInterval);
+            setIsDiarizing(false);
+            alert('話者分離処理に失敗しました。');
+            
+          } else if (jobStatus.status === 'running') {
+            // 進捗を更新
+            const progress = jobStatus.progress || 0;
+            setDiarizationProgress(Math.max(10, Math.min(progress, 90)));
+          }
+        } catch (error) {
+          console.error('❌ ジョブ状態取得エラー:', error);
+        }
+      }, 2000); // 2秒間隔で監視
       
     } catch (error) {
       console.error('❌ 話者分離ジョブ作成エラー:', error);

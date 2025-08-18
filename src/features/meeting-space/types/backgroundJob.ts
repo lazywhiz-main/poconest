@@ -1,4 +1,4 @@
-export type JobType = 'ai_summary' | 'card_extraction' | 'transcription';
+export type JobType = 'ai_summary' | 'card_extraction' | 'transcription' | 'speaker_diarization';
 
 export type JobStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
 

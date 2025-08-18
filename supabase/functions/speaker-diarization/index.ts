@@ -808,7 +808,7 @@ serve(async (req) => {
 
     console.log('[speaker-diarization] 🔍 リクエストパラメータ詳細:', {
       contentLength: content?.length || 0,
-      contentPreview: content?.substring(0, 200) + '...',
+      contentPreview: content ? content.substring(0, 200) + '...' : 'undefined...',
       meetingId: meetingId || 'not provided',
       provider: provider || 'openai',
       model: model || 'default',
@@ -816,11 +816,6 @@ serve(async (req) => {
       hasContent: !!content,
       contentType: typeof content
     });
-
-    if (!content || content.trim() === '') {
-      console.error('[speaker-diarization] ❌ コンテンツが空です');
-      throw new Error('Content is required for speaker diarization');
-    }
 
     // meetingIdのUUID形式バリデーションを追加
     if (!meetingId) {
@@ -837,34 +832,73 @@ serve(async (req) => {
 
     console.log('[speaker-diarization] ✅ meetingIdバリデーション完了:', meetingId);
 
+    // contentが提供されていない場合、meetingIdからtranscriptを取得
+    let finalContent = content;
+    if (!content || content.trim() === '') {
+      console.log('[speaker-diarization] 📊 meetingIdからtranscriptを取得中:', meetingId);
+      
+      // Supabaseクライアントの初期化
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+      const supabase = createClient(supabaseUrl, supabaseKey);
+
+      // ミーティングデータを取得
+      const { data: meeting, error: meetingError } = await supabase
+        .from('meetings')
+        .select('transcript')
+        .eq('id', meetingId)
+        .single();
+
+      if (meetingError) {
+        console.error('[speaker-diarization] ❌ ミーティングデータ取得エラー:', meetingError);
+        throw new Error(`Failed to fetch meeting: ${meetingError.message}`);
+      }
+
+      if (!meeting || !meeting.transcript || meeting.transcript.trim() === '') {
+        console.error('[speaker-diarization] ❌ ミーティングのtranscriptが空です');
+        throw new Error('Meeting transcript is required for speaker diarization');
+      }
+
+      finalContent = meeting.transcript;
+      console.log('[speaker-diarization] ✅ transcript取得完了:', {
+        transcriptLength: finalContent.length,
+        transcriptPreview: finalContent.substring(0, 200) + '...'
+      });
+    }
+
+    if (!finalContent || finalContent.trim() === '') {
+      console.error('[speaker-diarization] ❌ 最終的なコンテンツが空です');
+      throw new Error('Content is required for speaker diarization');
+    }
+
     const finalProvider = provider || 'openai';
     const finalModel = model || (finalProvider === 'openai' ? 'gpt-4o' : 'gemini-2.0-flash');
     // Geminiの場合はより大きなトークン数を設定（長時間発話対応）
-    const finalMaxTokens = maxTokens || (finalProvider === 'openai' ? 8192 : 200000);
+    const finalMaxTokens = maxTokens || (finalProvider === 'openai' ? 16384 : 200000);
 
     console.log('[speaker-diarization] ⚙️ 最終設定:', {
       provider: finalProvider,
       model: finalModel,
       maxTokens: finalMaxTokens,
-      contentLength: content.length,
-      estimatedTokens: Math.ceil(content.length / 4)
+      contentLength: finalContent.length,
+      estimatedTokens: Math.ceil(finalContent.length / 4)
     });
 
     // テキストが長い場合は分割処理を使用（20分問題対応で分割を有効化）
     const maxSegmentLength = 4000; // 20分問題対応で小さめの分割サイズ
-    const shouldSplit = content.length > maxSegmentLength;
+    const shouldSplit = finalContent.length > maxSegmentLength;
     const startTime = Date.now();
     let parsedResult: any;
     
     if (shouldSplit) {
       console.log('[speaker-diarization] 🔪 長いテキストを分割処理します:', {
-        contentLength: content.length,
+        contentLength: finalContent.length,
         maxSegmentLength,
-        estimatedSegments: Math.ceil(content.length / maxSegmentLength)
+        estimatedSegments: Math.ceil(finalContent.length / maxSegmentLength)
       });
       
       // テキストをセグメントに分割
-      const segments = splitTextIntoSegments(content, maxSegmentLength);
+      const segments = splitTextIntoSegments(finalContent, maxSegmentLength);
       
       // 各セグメントを個別に処理
       const segmentResults: any[] = [];
@@ -1004,7 +1038,7 @@ ${segment}`;
 - 配列やオブジェクトの構造が不完全な場合は、必ず閉じ括弧を追加してください
 
 文字起こし内容:
-${content}`;
+${finalContent}`;
 
       // LLM呼び出し
       let result: any;
@@ -1037,7 +1071,7 @@ ${content}`;
       // LLM結果を処理
       console.log('[speaker-diarization] 🔍 JSON解析処理開始');
       try {
-        parsedResult = await processLLMResponse(result, content);
+        parsedResult = await processLLMResponse(result, finalContent);
         console.log('[speaker-diarization] ✅ JSON解析処理完了:', {
           hasSpeakers: !!parsedResult?.speakers,
           speakersCount: parsedResult?.speakers?.length || 0,
@@ -1076,7 +1110,7 @@ ${content}`;
     // データベース保存
     let savedResult;
     try {
-      savedResult = await saveDiarizationResults(content, parsedResult, finalProvider, finalModel, meetingId);
+      savedResult = await saveDiarizationResults(finalContent, parsedResult, finalProvider, finalModel, meetingId);
       console.log('[speaker-diarization] ✅ データベース保存完了');
     } catch (saveError) {
       console.error('[speaker-diarization] ❌ データベース保存エラー:', saveError);
