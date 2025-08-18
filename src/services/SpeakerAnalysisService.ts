@@ -1138,7 +1138,8 @@ ${conversationFlow}
       JSON.parse(jsonStr);
       return jsonStr;
     } catch (error) {
-      console.log('[SpeakerAnalysisService] JSON修復を試行:', error.message);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.log('[SpeakerAnalysisService] JSON修復を試行:', errorMessage);
       
       let repaired = jsonStr;
       
@@ -1170,8 +1171,9 @@ ${conversationFlow}
         JSON.parse(repaired);
         return repaired;
       } catch (secondError) {
-        console.error('[SpeakerAnalysisService] JSON修復失敗:', secondError.message);
-        throw new Error(`JSON修復に失敗しました: ${secondError.message}`);
+        const secondErrorMessage = secondError instanceof Error ? secondError.message : String(secondError);
+        console.error('[SpeakerAnalysisService] JSON修復失敗:', secondErrorMessage);
+        throw new Error(`JSON修復に失敗しました: ${secondErrorMessage}`);
       }
     }
   }
