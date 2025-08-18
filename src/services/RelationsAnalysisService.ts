@@ -212,7 +212,13 @@ export class RelationsAnalysisService {
         typeDistribution,
         qualityMetrics,
         conflictingRelations,
-        recommendations
+        recommendations,
+        computationalDuplication: {
+          totalComputational: 0,
+          semanticDuplication: 0,
+          structuralDuplication: 0,
+          confidence: 0.8
+        }
       };
       
       console.log(`✅ [RelationsAnalysisService] 重複分析完了:`, {
@@ -732,7 +738,8 @@ export class RelationsAnalysisService {
         derived: 0,
         tag_similarity: 0,
         manual: 0,
-        semantic: 0
+        semantic: 0,
+        unified: 0
       },
       qualityMetrics: {
         averageStrength: {
@@ -740,14 +747,16 @@ export class RelationsAnalysisService {
           derived: 0,
           tag_similarity: 0,
           manual: 0,
-          semantic: 0
+          semantic: 0,
+          unified: 0
         },
         averageConfidence: {
           ai: 0,
           derived: 0,
           tag_similarity: 0,
           manual: 0,
-          semantic: 0
+          semantic: 0,
+          unified: 0
         },
         strengthDistribution: { low: 0, medium: 0, high: 0 },
         confidenceDistribution: { low: 0, medium: 0, high: 0 }

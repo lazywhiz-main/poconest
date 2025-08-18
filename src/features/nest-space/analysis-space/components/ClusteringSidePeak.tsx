@@ -30,6 +30,10 @@ interface AdvancedConfig {
     maxClusterSize: number;
     similarityThreshold: number;
   };
+  labeling: {
+    useSemanticLabeling: boolean;
+    confidenceThreshold: number;
+  };
 }
 
 // クラスターラベルの型定義（AnalysisServiceと同じ）

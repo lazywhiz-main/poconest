@@ -46,7 +46,7 @@ export class HDBSCANProvider {
       // enableParallelProcessing: false, // Phase 4で実装予定
       
       // デバッグ設定
-      verboseLogging: config.debug || false
+      // verboseLogging: config.debug || false // 型定義に存在しないため削除
     };
   }
 
@@ -149,6 +149,9 @@ export class HDBSCANProvider {
         modularityScore: hdbscanResult.qualityMetrics?.modularityScore || 0,
         // stabilityScore: hdbscanResult.statistics.averageStability, // 型定義に存在しないため削除
         // overallScore: hdbscanResult.statistics.averageStability // 型定義に存在しないため削除
+        intraClusterDistance: 0, // 型定義に必要だが計算不能のためデフォルト値
+        interClusterDistance: 0, // 型定義に必要だが計算不能のためデフォルト値
+        coverageRatio: hdbscanResult.statistics.coverageRatio || 0
       }
     };
   }
@@ -187,7 +190,7 @@ export class HDBSCANProvider {
         cards
       );
       
-      console.log(`✅ HDBSCANプロバイダー完了: ${clusteringResult.clusters.length}クラスター, カバー率${(clusteringResult.coverageStats?.coverageRatio || 0) * 100).toFixed(1)}%`);
+      console.log(`✅ HDBSCANプロバイダー完了: ${clusteringResult.clusters.length}クラスター, カバー率${((clusteringResult.coverageStats?.coverageRatio || 0) * 100).toFixed(1)}%`);
       
       return clusteringResult;
       
@@ -355,7 +358,7 @@ export class HDBSCANProvider {
       // enableCaching: true, // 型定義に存在しないため削除
       // enableParallelProcessing: nodeCount > 200, // 型定義に存在しないため削除
       
-      verboseLogging: false
+      // verboseLogging: false // 型定義に存在しないため削除
     };
   }
 
