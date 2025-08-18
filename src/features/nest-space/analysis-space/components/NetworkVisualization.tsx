@@ -3694,7 +3694,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   }, [aiSuggestions, boardState.boardId, boardState.currentNestId, loadNestData]);
 
   // 手法別一括承認
-  const approveMethodSuggestions = useCallback(async (method: 'ai' | 'tag_similarity' | 'derived') => {
+  const approveMethodSuggestions = useCallback(async (method: 'ai' | 'tag_similarity' | 'derived' | 'unified') => {
     const methodSuggestions = (aiSuggestions as UnifiedRelationshipSuggestion[])
       .filter(s => s.analysisMethod === method);
     
@@ -3768,7 +3768,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   }, [aiSuggestions, boardState.boardId, boardState.currentNestId, loadNestData, showCustomDialog, hideCustomDialog]);
 
   // 手法別一括拒否
-  const rejectMethodSuggestions = useCallback((method: 'ai' | 'tag_similarity' | 'derived') => {
+  const rejectMethodSuggestions = useCallback((method: 'ai' | 'tag_similarity' | 'derived' | 'unified') => {
     const methodSuggestions = (aiSuggestions as UnifiedRelationshipSuggestion[])
       .filter(s => s.analysisMethod === method);
     

@@ -7,10 +7,10 @@ import type { BoardItem } from '../../../../services/SmartClusteringService';
 interface UnifiedRelationshipSuggestion {
   sourceCardId: string;
   targetCardId: string;
-  relationshipType: string;
+  relationshipType: 'semantic' | 'topical' | 'conceptual';
   suggestedStrength: number;
   confidence: number;
-  similarity?: number;
+  similarity: number;
   explanation: string;
   analysisMethod: 'ai' | 'tag_similarity' | 'derived' | 'unified';
   methodLabel: string;
