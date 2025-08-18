@@ -599,23 +599,14 @@ export const ClusteringSidePeak: React.FC<ClusteringSidePeakProps> = ({
           </div>
           <button
             style={{
-              ...styles.executeBtn,
-              background: THEME_COLORS.primaryBlue,
-              borderColor: THEME_COLORS.primaryBlue,
+              ...styles.button,
+              ...styles.primaryButton,
               width: '100%',
               marginTop: '8px'
             }}
             onClick={onShowExportModal}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = THEME_COLORS.primaryBlue;
-              e.currentTarget.style.borderColor = THEME_COLORS.primaryBlue;
-              e.currentTarget.style.transform = 'translateY(-2px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = THEME_COLORS.primaryBlue;
-              e.currentTarget.style.borderColor = THEME_COLORS.primaryBlue;
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
+            onMouseEnter={handleButtonHover}
+            onMouseLeave={(e) => handleButtonHover(e, false)}
           >
             📊 クラスタリング結果をエクスポート
           </button>

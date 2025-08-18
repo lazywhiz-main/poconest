@@ -9659,7 +9659,13 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       <ClusteringExportModal
         isOpen={showExportModal}
         onClose={() => setShowExportModal(false)}
-        clusters={filteredClusters || []}
+        clusters={clusterLabels.length > 0 ? clusterLabels.map((label, index) => ({
+          id: label.id,
+          members: label.cardIds || [],
+          size: (label.cardIds || []).length,
+          label: label.text,
+          createdAt: new Date().toISOString()
+        })) : filteredClusters || []}
         clusterLabels={clusterLabels}
         cards={cards}
       />
