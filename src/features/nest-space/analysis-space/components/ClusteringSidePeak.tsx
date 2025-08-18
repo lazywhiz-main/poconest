@@ -605,7 +605,7 @@ export const ClusteringSidePeak: React.FC<ClusteringSidePeakProps> = ({
               marginTop: '8px'
             }}
             onClick={onShowExportModal}
-            onMouseEnter={handleButtonHover}
+            onMouseEnter={(e) => handleButtonHover(e, true)}
             onMouseLeave={(e) => handleButtonHover(e, false)}
           >
             📊 クラスタリング結果をエクスポート
