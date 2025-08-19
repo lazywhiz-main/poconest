@@ -158,4 +158,77 @@ export class SpeakerDiarizationService {
 
     return speakers && speakers.length > 0;
   }
+
+  /**
+   * 直接呼び出し版: Edge Functionを直接呼び出して話者分離を実行
+   */
+  static async executeSpeakerDiarizationDirect(
+    meetingId: string,
+    provider: string = 'gemini',
+    model: string = 'gemini-1.5-flash'
+  ): Promise<any> {
+    try {
+      console.log('[SpeakerDiarizationService] 🚀 直接呼び出し版開始:', { meetingId, provider, model });
+
+      // 既存のsupabaseクライアントを使用
+
+      // 現在のユーザーを取得
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        throw new Error('ユーザー認証エラー: ' + (userError?.message || 'ユーザーが見つかりません'));
+      }
+
+      // セッションからアクセストークンを取得
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !session?.access_token) {
+        throw new Error('セッショントークンエラー: ' + (sessionError?.message || 'アクセストークンが見つかりません'));
+      }
+
+      // Edge Functionを直接呼び出し
+      const { data, error } = await supabase.functions.invoke('speaker-diarization', {
+        body: {
+          meetingId,
+          provider,
+          model
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
+        }
+      });
+
+      if (error) {
+        throw new Error(`Edge Function呼び出しエラー: ${error.message}`);
+      }
+
+      console.log('[SpeakerDiarizationService] ✅ 直接呼び出し版完了:', data);
+      return data;
+
+    } catch (error) {
+      console.error('[SpeakerDiarizationService] ❌ 直接呼び出し版エラー:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 設定フラグ: どちらの実装を使用するか
+   * true: 直接呼び出し版, false: BackgroundWorker版
+   */
+  static readonly USE_DIRECT_CALL = true;
+
+  /**
+   * 統合インターフェース: 設定に応じて適切な実装を選択
+   */
+  static async executeSpeakerDiarization(
+    meetingId: string,
+    provider: string = 'gemini',
+    model: string = 'gemini-1.5-flash'
+  ): Promise<any> {
+    if (this.USE_DIRECT_CALL) {
+      console.log('[SpeakerDiarizationService] 🔄 直接呼び出し版を使用');
+      return this.executeSpeakerDiarizationDirect(meetingId, provider, model);
+    } else {
+      console.log('[SpeakerDiarizationService] 🔄 BackgroundWorker版を使用');
+      return this.startSpeakerDiarizationJob(meetingId, provider, model);
+    }
+  }
 }

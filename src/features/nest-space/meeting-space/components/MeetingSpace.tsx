@@ -220,12 +220,12 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
   const currentRunningJob = activeJobs.find(job => job.status === 'running')?.type || null;
   
   // 🔧 シンプルなジョブ実行状態チェック
-  const isJobRunning = (jobType: 'ai_summary' | 'card_extraction') => {
+  const isJobRunning = (jobType: 'ai_summary' | 'card_extraction' | 'speaker_diarization') => {
     return activeJobs.some(job => job.type === jobType);
   };
   
   // タブ状態管理
-  const [activeTab, setActiveTab] = useState<'transcript' | 'summary' | 'speaker-analysis' | 'cards'>('transcript');
+  const [activeTab, setActiveTab] = useState<'transcript' | 'summary' | 'speaker-analysis' | 'cards' | 'test'>('transcript');
   
   const [users, setUsers] = useState<Record<string, UserInfo>>({});
   

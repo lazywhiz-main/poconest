@@ -26,11 +26,12 @@ import { JobType } from '../../../meeting-space/types/backgroundJob';
 // import { useBackgroundJobs } from '../../../meeting-space/hooks/useBackgroundJobs'; // 削除
 import SpeakerDiarizationView from './SpeakerDiarizationView';
 import SpeakerAnalysisView from './SpeakerAnalysisView';
+import SpeakerDiarizationTestPage from './SpeakerDiarizationTestPage';
 
 interface MeetingDetailPanelProps {
   meeting: MeetingUI;
-  activeTab: 'transcript' | 'summary' | 'speaker-analysis' | 'cards';
-  onTabChange: (tab: 'transcript' | 'summary' | 'speaker-analysis' | 'cards') => void;
+  activeTab: 'transcript' | 'summary' | 'speaker-analysis' | 'cards' | 'test';
+  onTabChange: (tab: 'transcript' | 'summary' | 'speaker-analysis' | 'cards' | 'test') => void;
   onSaveMeeting?: (meeting: Partial<MeetingUI>) => void;
   onMeetingUpdate?: (meeting: MeetingUI) => void;
   onAISummary?: () => void;
@@ -712,6 +713,7 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
           { key: 'speaker-analysis' as const, label: '話者分析' },
           { key: 'summary' as const, label: '要約' },
           { key: 'cards' as const, label: '関連カード' },
+          { key: 'test' as const, label: '🧪 テスト' },
         ].map(tab => (
           <div
             key={tab.key}
@@ -1143,6 +1145,17 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
               isJobRunning={isJobRunning}
               getButtonState={getButtonState}
             />
+          </div>
+        );
+
+      case 'test':
+        return (
+          <div style={{ 
+            height: 'calc(100vh - 330px)',
+            display: 'flex', 
+            flexDirection: 'column'
+          }}>
+            <SpeakerDiarizationTestPage />
           </div>
         );
 

@@ -86,7 +86,7 @@ const MeetingSpaceUnified: React.FC<MeetingSpaceUnifiedProps> = ({ nestId }) => 
   const [selectedMeeting, setSelectedMeeting] = useState<MeetingUI | null>(null);
   
   // タブ状態管理
-  const [activeTab, setActiveTab] = useState<'transcript' | 'summary' | 'speaker-analysis' | 'cards'>('transcript');
+  const [activeTab, setActiveTab] = useState<'transcript' | 'summary' | 'speaker-analysis' | 'cards' | 'test'>('transcript');
   const [users, setUsers] = useState<Record<string, UserInfo>>({});
   
   // ドラッグ&ドロップ用のstate
@@ -103,7 +103,7 @@ const MeetingSpaceUnified: React.FC<MeetingSpaceUnifiedProps> = ({ nestId }) => 
   const currentRunningJob = activeJobs.find(job => job.status === 'running')?.type || null;
   
   // ジョブ実行状態チェック
-  const isJobRunning = (jobType: 'ai_summary' | 'card_extraction') => {
+  const isJobRunning = (jobType: 'ai_summary' | 'card_extraction' | 'speaker_diarization') => {
     return activeJobs.some(job => job.type === jobType);
   };
 
