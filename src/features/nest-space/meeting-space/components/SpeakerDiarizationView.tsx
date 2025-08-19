@@ -40,6 +40,15 @@ const SpeakerDiarizationView: React.FC<SpeakerDiarizationViewProps> = ({
         stroke-linecap: round;
         stroke-linejoin: round;
       }
+      
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      
+      .spinner-icon {
+        animation: spin 1s linear infinite;
+      }
     `;
     document.head.appendChild(style);
     return () => {
@@ -61,6 +70,7 @@ const SpeakerDiarizationView: React.FC<SpeakerDiarizationViewProps> = ({
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
   const [jobStatus, setJobStatus] = useState<string>('idle');
   const [nestAISettings, setNestAISettings] = useState<any>(null);
+  const [progressInterval, setProgressInterval] = useState<NodeJS.Timeout | null>(null);
 
   const viewModeOptions = [
     { value: 'raw', label: '生テキスト', icon: '📝' },
@@ -134,6 +144,15 @@ const SpeakerDiarizationView: React.FC<SpeakerDiarizationViewProps> = ({
   useEffect(() => {
     setEditedTranscript(transcript);
   }, [transcript]);
+
+  // クリーンアップ処理
+  useEffect(() => {
+    return () => {
+      if (progressInterval) {
+        clearInterval(progressInterval);
+      }
+    };
+  }, [progressInterval]);
 
   // 外側クリックでドロップダウンを閉じる
   useEffect(() => {
@@ -373,6 +392,9 @@ const SpeakerDiarizationView: React.FC<SpeakerDiarizationViewProps> = ({
         }
       }, 2000); // 2秒間隔で監視
       
+      // クリーンアップ関数を保存
+      setProgressInterval(progressInterval);
+      
     } catch (error) {
       console.error('❌ 話者分離ジョブ作成エラー:', error);
       alert('話者分離ジョブの作成に失敗しました。');
@@ -575,11 +597,20 @@ const SpeakerDiarizationView: React.FC<SpeakerDiarizationViewProps> = ({
               disabled={isDiarizing || !editedTranscript}
               style={{ ...styles.diarizationButton, opacity: isDiarizing || !editedTranscript ? 0.6 : 1, cursor: isDiarizing || !editedTranscript ? 'not-allowed' : 'pointer' }}
             >
-              <svg viewBox="0 0 24 24" style={{ width: 16, height: 16, marginRight: 6 }} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-                <path d="M2 17l10 5 10-5"/>
-                <path d="M2 12l10 5 10-5"/>
-              </svg>
+              {isDiarizing ? (
+                // 実行中: スピナーアイコン
+                <svg viewBox="0 0 24 24" style={{ width: 16, height: 16, marginRight: 6 }} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="spinner-icon">
+                  <circle cx="12" cy="12" r="10"/>
+                  <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                </svg>
+              ) : (
+                // 通常時: 既存の立方体アイコン
+                <svg viewBox="0 0 24 24" style={{ width: 16, height: 16, marginRight: 6 }} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                  <path d="M2 17l10 5 10-5"/>
+                  <path d="M2 12l10 5 10-5"/>
+                </svg>
+              )}
               {isDiarizing ? `分離中... ${diarizationProgress}%` : '話者分離を実行'}
             </button>
             {isDiarizing && (

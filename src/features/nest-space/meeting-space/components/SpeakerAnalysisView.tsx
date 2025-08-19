@@ -12,6 +12,13 @@ interface SpeakerAnalysisViewProps {
   meetingId: string;
   transcript: string;
   onAnalysisComplete?: (analysisData: any) => void;
+  isJobRunning?: (jobType: 'ai_summary' | 'card_extraction' | 'speaker_diarization') => boolean;
+  getButtonState?: (jobType: 'ai_summary' | 'card_extraction' | 'speaker_diarization') => {
+    text: string;
+    icon: string;
+    disabled: boolean;
+    spinning: boolean;
+  };
 }
 
 type AnalysisType = 'emotion' | 'pattern' | 'discourse' | 'creativity' | 'insights' | 'comparison';

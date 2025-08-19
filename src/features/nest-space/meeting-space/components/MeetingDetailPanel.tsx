@@ -39,7 +39,7 @@ interface MeetingDetailPanelProps {
   isCardExtractionDisabled?: boolean;
   isAISummaryDisabled?: boolean;
   isCreatingJob?: JobType | null;
-  isJobRunning?: (jobType: 'ai_summary' | 'card_extraction') => boolean;
+  isJobRunning?: (jobType: 'ai_summary' | 'card_extraction' | 'speaker_diarization') => boolean;
   onDeleteMeeting?: (meetingId: string) => void;
 }
 
@@ -180,7 +180,7 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
 
 
   // ボタン状態の管理
-  const getButtonState = useCallback((jobType: 'ai_summary' | 'card_extraction') => {
+  const getButtonState = useCallback((jobType: 'ai_summary' | 'card_extraction' | 'speaker_diarization') => {
     // 新しいisJobRunning関数を優先して使用
     const isRunning = isJobRunning ? isJobRunning(jobType) : (isCreatingJob === jobType);
     
@@ -199,9 +199,16 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
           disabled: true,
           spinning: true
         };
-      } else {
+      } else if (jobType === 'card_extraction') {
         return {
           text: 'カード抽出実行中...',
+          icon: 'loader' as const,
+          disabled: true,
+          spinning: true
+        };
+      } else {
+        return {
+          text: '話者分離実行中...',
           icon: 'loader' as const,
           disabled: true,
           spinning: true
@@ -219,10 +226,17 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
         disabled: isDisabled,
         spinning: false
       };
-    } else {
+    } else if (jobType === 'card_extraction') {
       return {
         text: 'カード抽出',
         icon: 'card-extract' as const,
+        disabled: isDisabled,
+        spinning: false
+      };
+    } else {
+      return {
+        text: '話者分離',
+        icon: 'analysis' as const,
         disabled: isDisabled,
         spinning: false
       };
@@ -1126,6 +1140,8 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
               onAnalysisComplete={(analysisData) => {
                 console.log('話者分析完了:', analysisData);
               }}
+              isJobRunning={isJobRunning}
+              getButtonState={getButtonState}
             />
           </div>
         );
