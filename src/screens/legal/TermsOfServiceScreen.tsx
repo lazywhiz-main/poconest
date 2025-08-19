@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 40,
     fontFamily: 'var(--font-family-text)',
-    background: 'linear-gradient(135deg, var(--primary-green) 0%, var(--primary-blue) 100%)',
+    backgroundColor: 'linear-gradient(135deg, var(--primary-green) 0%, var(--primary-blue) 100%)',
     WebkitBackgroundClip: 'text',
     WebkitTextFillColor: 'transparent',
   } as any,

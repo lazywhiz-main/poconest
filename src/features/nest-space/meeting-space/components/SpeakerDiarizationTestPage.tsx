@@ -44,8 +44,9 @@ const SpeakerDiarizationTestPage: React.FC = () => {
         const timestamp = timestampMatch[1];
         const namePart = line.substring(0, line.indexOf(timestamp)).trim();
         
-        // 名前部分に数字が含まれていないことを確認
-        if (namePart && !/\d/.test(namePart)) {
+        // 名前部分が有効で、数字が含まれていないことを確認
+        // または「話者 X」パターンの場合
+        if (namePart && (!/\d/.test(namePart) || /^話者\s+\d+$/.test(namePart))) {
           // 既存の名前候補かチェック
           const existingIndex = verifiedNames.findIndex(n => n.name === namePart);
           if (existingIndex >= 0) {

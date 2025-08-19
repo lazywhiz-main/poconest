@@ -103,7 +103,7 @@ const PoconestLogo: React.FC = () => {
         width: 56,
         height: 56,
         borderRadius: 14,
-        background: 'linear-gradient(135deg, #00ff88 0%, #64b5f6 100%)',
+        backgroundColor: 'linear-gradient(135deg, #00ff88 0%, #64b5f6 100%)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -247,7 +247,7 @@ const LoginScreen: React.FC = () => {
             alignItems: 'center',
             width: '100%',
             padding: 0,
-            background: 'transparent',
+            backgroundColor: 'transparent',
             overflowY: 'auto',
           }}
         >
@@ -271,7 +271,7 @@ const LoginScreen: React.FC = () => {
                     fontSize: 42,
                     fontWeight: 700,
                     fontFamily: 'Space Grotesk',
-                    background: 'linear-gradient(135deg, #00ff88 0%, #64b5f6 100%)',
+                    backgroundColor: 'linear-gradient(135deg, #00ff88 0%, #64b5f6 100%)',
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent',
                     backgroundClip: 'text',
@@ -285,7 +285,7 @@ const LoginScreen: React.FC = () => {
                 <Text style={styles.kvTitle}>
                   少人数チームの
                   <span style={{
-                    background: 'linear-gradient(135deg, #00ff88 0%, #64b5f6 100%)',
+                    backgroundColor: 'linear-gradient(135deg, #00ff88 0%, #64b5f6 100%)',
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent',
                     backgroundClip: 'text',
@@ -294,7 +294,7 @@ const LoginScreen: React.FC = () => {
                   }}>深い対話</span>
                   から<br />
                   <span style={{
-                    background: 'linear-gradient(135deg, #64b5f6 0%, #9c27b0 100%)',
+                    backgroundColor: 'linear-gradient(135deg, #64b5f6 0%, #9c27b0 100%)',
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent',
                     backgroundClip: 'text',
@@ -325,7 +325,7 @@ const LoginScreen: React.FC = () => {
                 <View style={styles.demoHeader}>
                   <Text style={styles.demoHeaderEmoji}>🧠</Text>
                   <span style={{
-                    background: 'linear-gradient(90deg, #00ff88 0%, #64b5f6 100%)',
+                    backgroundColor: 'linear-gradient(90deg, #00ff88 0%, #64b5f6 100%)',
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent',
                     backgroundClip: 'text',
@@ -633,7 +633,7 @@ const LoginScreen: React.FC = () => {
                     fontSize: 42,
                     fontWeight: 700,
                     fontFamily: 'Space Grotesk',
-                    background: 'linear-gradient(135deg, #00ff88 0%, #64b5f6 100%)',
+                    backgroundColor: 'linear-gradient(135deg, #00ff88 0%, #64b5f6 100%)',
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent',
                     backgroundClip: 'text',
@@ -647,7 +647,7 @@ const LoginScreen: React.FC = () => {
                 <Text style={styles.kvTitle}>
                   少人数チームの
                   <span style={{
-                    background: 'linear-gradient(135deg, #00ff88 0%, #64b5f6 100%)',
+                    backgroundColor: 'linear-gradient(135deg, #00ff88 0%, #64b5f6 100%)',
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent',
                     backgroundClip: 'text',
@@ -656,7 +656,7 @@ const LoginScreen: React.FC = () => {
                   }}>深い対話</span>
                   から<br />
                   <span style={{
-                    background: 'linear-gradient(135deg, #64b5f6 0%, #9c27b0 100%)',
+                    backgroundColor: 'linear-gradient(135deg, #64b5f6 0%, #9c27b0 100%)',
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent',
                     backgroundClip: 'text',
@@ -687,8 +687,7 @@ const LoginScreen: React.FC = () => {
                 <View style={styles.demoHeader}>
                   <Text style={styles.demoHeaderEmoji}>🧠</Text>
                   <span style={{
-                    background: 'linear-gradient(90deg, #00ff88 0%, #64b5f6 100%)',
-                    WebkitBackgroundClip: 'text',
+                    backgroundColor: 'linear-gradient(90deg, #00ff88 0%, #64b5f6 100%)',
                     WebkitTextFillColor: 'transparent',
                     backgroundClip: 'text',
                     fontWeight: 700,
@@ -1110,11 +1109,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 0,
     borderRadius: 0,
-    background: 'transparent',
+    backgroundColor: 'transparent',
     color: 'var(--text-secondary)',
   },
   authTabActive: {
-    background: 'var(--primary-green)',
+    backgroundColor: 'var(--primary-green)',
     color: 'var(--text-inverse)',
     borderWidth: 0,
     borderRadius: 0,
@@ -1206,7 +1205,7 @@ const styles = StyleSheet.create({
   },
   formButton: {
     width: '100%',
-    background: 'var(--primary-green)',
+    backgroundColor: 'var(--primary-green)',
     color: 'var(--text-inverse)',
     borderRadius: 6,
     padding: 12,

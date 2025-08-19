@@ -79,14 +79,11 @@ async function callGemini(prompt: string, model: string = 'gemini-2.0-flash', ma
   return data.candidates[0].content.parts[0].text;
 }
 
-// ルールベース処理で話者分離を実行
+// テストページで動作済みのロジックを移植
 async function processWithRuleBasedLogic(content: string): Promise<any> {
   console.log('[speaker-diarization] 🔍 ルールベース処理開始');
   
   try {
-    // クリーンテキストの作成（タイムスタンプ除去）
-    const cleanText = content.replace(/\d{1,2}:\d{2}(:\d{2})?/g, '');
-    
     // 名前候補の抽出（元のテキストを使用）
     const nameCandidates = extractNameCandidates(content);
     console.log('[speaker-diarization] 📊 名前候補抽出完了:', nameCandidates.length);
@@ -126,65 +123,52 @@ async function processWithRuleBasedLogic(content: string): Promise<any> {
   }
 }
 
-// 名前候補の抽出（完全名パターンを直接抽出）
-function extractNameCandidates(cleanText: string): Array<{name: string, count: number}> {
-  console.log('[speaker-diarization] 🔍 extractNameCandidates開始');
-  console.log('[speaker-diarization] 📝 cleanText長さ:', cleanText.length);
-  console.log('[speaker-diarization] 📝 cleanTextプレビュー:', cleanText.substring(0, 200));
-  
+// テストページで動作済みのロジックを移植
+function extractNameCandidates(text: string): Array<{name: string, count: number}> {
   const verifiedNames: Array<{name: string, count: number}> = [];
-  const lines = cleanText.split('\n').filter(line => line.trim());
-  
-  console.log('[speaker-diarization] 📊 処理行数:', lines.length);
+  const lines = text.split('\n').filter(line => line.trim());
   
   // 各行から完全名パターンを直接抽出
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    
+  for (const line of lines) {
     // 行の末尾にタイムスタンプがあるかチェック
     const timestampMatch = line.match(/(\d{1,2}:\d{2}(?::\d{2})?)\s*$/);
     if (timestampMatch) {
       const timestamp = timestampMatch[1];
       const namePart = line.substring(0, line.indexOf(timestamp)).trim();
       
-      console.log(`[speaker-diarization] 🎯 行${i}: タイムスタンプ発見: "${timestamp}", 名前部分: "${namePart}"`);
-      
-      // 名前部分に数字が含まれていないことを確認
-      if (namePart && !/\d/.test(namePart)) {
+      // 名前部分が有効で、数字が含まれていないことを確認
+      // または「話者 X」パターンの場合
+      if (namePart && (!/\d/.test(namePart) || /^話者\s+\d+$/.test(namePart))) {
         // 既存の名前候補かチェック
         const existingIndex = verifiedNames.findIndex(n => n.name === namePart);
         if (existingIndex >= 0) {
           // 既存の場合はカウントを増やす
           verifiedNames[existingIndex].count++;
-          console.log(`[speaker-diarization] ✅ 既存名前候補カウント増加: "${namePart}" -> ${verifiedNames[existingIndex].count}`);
         } else {
           // 新規の場合は追加
           verifiedNames.push({
             name: namePart,
             count: 1
           });
-          console.log(`[speaker-diarization] ➕ 新規名前候補追加: "${namePart}"`);
         }
-      } else {
-        console.log(`[speaker-diarization] ❌ 名前部分が無効: "${namePart}"`);
       }
-    } else {
-      console.log(`[speaker-diarization] ⚠️ 行${i}: タイムスタンプなし: "${line}"`);
     }
   }
   
-  console.log('[speaker-diarization] 📊 最終名前候補数:', verifiedNames.length);
-  console.log('[speaker-diarization] 📊 最終名前候補:', verifiedNames);
-  
-  // 2回以上出現する名前のみを返す
+  // 2回以上出現する名前のみを返す（テストページと同じ条件）
   const filteredNames = verifiedNames
     .filter(candidate => candidate.count >= 2)
     .sort((a, b) => b.count - a.count);
   
-  console.log('[speaker-diarization] 📊 フィルタ後名前候補数:', filteredNames.length);
-  console.log('[speaker-diarization] 📊 フィルタ後名前候補:', filteredNames);
+  console.log('[speaker-diarization] 📊 名前候補抽出完了:', filteredNames.length, '件');
   
   return filteredNames;
+}
+
+// 正規表現の特殊文字をエスケープ
+function escapeRegex(string: string) {
+  if (!string) return '';
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 // 同じ苗字の異なる完全名を検索
@@ -230,32 +214,39 @@ function extractUtterances(content: string, nameCandidates: Array<{name: string,
   }> = [];
   
   const highConfidenceNames = nameCandidates
-    .filter(c => c.count >= 3)
+    .filter(c => c.count >= 2)  // 2回以上出現する名前を使用（テストページと同じ条件）
     .map(c => c.name);
+  
+  console.log('[speaker-diarization] 🔍 高信頼度名前:', highConfidenceNames);
   
   // 全ての名前+タイムスタンプパターンを作成
   const allPatterns: Array<{ pattern: RegExp, name: string }> = [];
   
   for (const name of highConfidenceNames) {
-    const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    
-    // パターン1: 名前 時間
-    allPatterns.push({
-      pattern: new RegExp(`^${escapedName}\\s+(\\d{1,2}:\\d{2}(?::\\d{2})?)\\s*$`, 'gm'),
-      name: name
-    });
-    
-    // パターン2: [名前] 時間
-    allPatterns.push({
-      pattern: new RegExp(`^\\[${escapedName}\\]\\s+(\\d{1,2}:\\d{2}(?::\\d{2})?)\\s*$`, 'gm'),
-      name: name
-    });
-    
-    // パターン3: 名前: 時間
-    allPatterns.push({
-      pattern: new RegExp(`^${escapedName}:\\s*(\\d{1,2}:\\d{2}(?::\\d{2})?)\\s*$`, 'gm'),
-      name: name
-    });
+    try {
+      const escapedName = escapeRegex(name);
+      
+      // パターン1: 名前 時間（完全マッチ）
+      allPatterns.push({
+        pattern: new RegExp(`^${escapedName}\\s+(\\d{1,2}:\\d{2}(?::\\d{2})?)\\s*$`, 'gm'),
+        name: name
+      });
+      
+      // パターン2: [名前] 時間（完全マッチ）
+      allPatterns.push({
+        pattern: new RegExp(`^\\[${escapedName}\\]\\s+(\\d{1,2}:\\d{2}(?::\\d{2})?)\\s*$`, 'gm'),
+        name: name
+      });
+      
+      // パターン3: 名前: 時間（完全マッチ）
+      allPatterns.push({
+        pattern: new RegExp(`^${escapedName}:\\s*(\\d{1,2}:\\d{2}(?::\\d{2})?)\\s*$`, 'gm'),
+        name: name
+      });
+    } catch (error) {
+      console.error(`[speaker-diarization] 正規表現エラー (${name}):`, error);
+      continue;
+    }
   }
   
   // テキスト全体から名前+タイムスタンプの位置を特定
@@ -271,17 +262,26 @@ function extractUtterances(content: string, nameCandidates: Array<{name: string,
     pattern.lastIndex = 0; // グローバル検索をリセット
     
     while ((match = pattern.exec(content)) !== null) {
-      markers.push({
+      // 名前+タイムスタンプの文字列から名前を除去してタイムスタンプを取得
+      const fullMatch = match[0];
+      const speaker = name; // 既に特定済みの名前
+      const timestamp = match[1]; // 1番目のキャプチャグループがタイムスタンプ
+      
+      const marker = {
         position: match.index,
-        speaker: name,
-        timestamp: match[1],
-        fullMatch: match[0]
-      });
+        speaker: speaker,
+        timestamp: timestamp,
+        fullMatch: fullMatch
+      };
+      
+      markers.push(marker);
     }
   }
   
   // 位置でソート
   markers.sort((a, b) => a.position - b.position);
+  
+  console.log('[speaker-diarization] 📍 検出されたマーカー:', markers);
   
   // マーカー間でテキストを分割
   for (let i = 0; i < markers.length; i++) {
@@ -307,6 +307,7 @@ function extractUtterances(content: string, nameCandidates: Array<{name: string,
     }
   }
   
+  console.log('[speaker-diarization] 🗣️ 抽出された発話:', utterances);
   return utterances;
 }
 
