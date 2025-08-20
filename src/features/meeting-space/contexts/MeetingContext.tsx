@@ -74,6 +74,11 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       // テキストファイルの場合のみ従来の処理（Supabase Storage使用）
       const fileExt = file.name.split('.').pop();
+      const isTextFile = file.type === 'text/plain' || file.name.toLowerCase().endsWith('.txt') || file.name.toLowerCase().endsWith('.vtt');
+      
+      if (!isTextFile) {
+        throw new Error('サポートされていないファイル形式です。テキストファイル（.txt, .vtt）のみ対応しています。');
+      }
       const fileName = `${meetingId}/${Date.now()}.${fileExt}`;
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('meeting-files')

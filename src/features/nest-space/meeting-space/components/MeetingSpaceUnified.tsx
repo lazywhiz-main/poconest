@@ -419,7 +419,7 @@ const MeetingSpaceUnified: React.FC<MeetingSpaceUnifiedProps> = ({ nestId }) => 
               onClick={() => {
                 const input = document.createElement('input');
                 input.type = 'file';
-                input.accept = '.txt,.mp4,.mp3,.wav,.pdf';
+                input.accept = '.txt,.mp4,.mp3,.wav,.pdf,.vtt';
                 input.onchange = (e) => {
                   const file = (e.target as HTMLInputElement).files?.[0];
                   if (file) handleUpload({ file });

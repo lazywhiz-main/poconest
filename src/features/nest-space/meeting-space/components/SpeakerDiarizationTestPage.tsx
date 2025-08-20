@@ -24,6 +24,69 @@ const SpeakerDiarizationTestPage: React.FC = () => {
     extractedUtterances: Utterance[];
     patterns: string[];
   } | null>(null);
+  const [detectedFormat, setDetectedFormat] = useState<'webvtt' | 'existing' | 'unknown'>('unknown');
+  const [fileName, setFileName] = useState<string>('');
+
+  // ファイルアップロード処理
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // ファイル拡張子チェック
+    if (!file.name.toLowerCase().endsWith('.vtt')) {
+      alert('WebVTTファイル（.vtt）のみアップロード可能です。');
+      return;
+    }
+
+    setFileName(file.name);
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target?.result as string;
+      if (content) {
+        setInputText(content);
+        const format = detectFormat(content);
+        setDetectedFormat(format);
+        console.log('📁 ファイル読み込み完了:', {
+          fileName: file.name,
+          fileSize: file.size,
+          contentLength: content.length,
+          detectedFormat: format
+        });
+      }
+    };
+    reader.readAsText(file, 'utf-8');
+  };
+
+  // 形式判定
+  const detectFormat = (text: string): 'webvtt' | 'existing' | 'unknown' => {
+    const lines = text.split('\n');
+    
+    // WebVTT形式の判定（より厳密）
+    const hasVttTimestamp = lines.some(line => 
+      /^\d{2}:\d{2}:\d{2}\.\d{3}\s*-->\s*\d{2}:\d{2}:\d{2}\.\d{3}$/.test(line.trim())
+    );
+    
+    // 既存形式の判定（より厳密）
+    const hasExistingTimestamp = lines.some(line => {
+      const trimmed = line.trim();
+      return /\d{1,2}:\d{2}(?::\d{2})?\s*$/.test(trimmed) && 
+             /[^\d\s:]/.test(trimmed); // 数字とコロン以外の文字が含まれている
+    });
+    
+    // 判定ロジック
+    if (hasVttTimestamp && !hasExistingTimestamp) {
+      return 'webvtt';
+    } else if (hasExistingTimestamp && !hasVttTimestamp) {
+      return 'existing';
+    } else if (hasVttTimestamp && hasExistingTimestamp) {
+      // 両方のパターンが混在 → 未知の形式として扱う
+      return 'unknown';
+    } else {
+      // どちらのパターンも検出されない → 未知の形式
+      return 'unknown';
+    }
+  };
 
   // テキストをクリーンアップ（時間パターンを除去）
   const cleanText = useMemo(() => {
@@ -31,8 +94,52 @@ const SpeakerDiarizationTestPage: React.FC = () => {
     return inputText.replace(/\d{1,2}:\d{2}(:\d{2})?/g, '');
   }, [inputText]);
 
-  // 新しいロジック: 完全名パターンを直接抽出
-  const extractNameCandidates = (text: string): NameCandidate[] => {
+  // WebVTT形式用の名前候補抽出
+  const extractNameCandidatesWebVtt = (text: string): NameCandidate[] => {
+    const verifiedNames: NameCandidate[] = [];
+    const lines = text.split('\n').filter(line => line.trim());
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      
+      // WebVTTタイムスタンプ行をチェック
+      const timestampMatch = line.match(/^\d{2}:\d{2}:\d{2}\.\d{3}\s*-->\s*\d{2}:\d{2}:\d{2}\.\d{3}$/);
+      if (timestampMatch) {
+        // 次の行で話者名を抽出
+        const nextLine = lines[i + 1];
+        if (nextLine) {
+          const speakerMatch = nextLine.match(/^([^:]+):\s*(.+)$/);
+          if (speakerMatch) {
+            const speakerName = speakerMatch[1].trim();
+            
+            // 既存の名前候補かチェック
+            const existingIndex = verifiedNames.findIndex(n => n.name === speakerName);
+            if (existingIndex >= 0) {
+              verifiedNames[existingIndex].count++;
+              verifiedNames[existingIndex].leadingCount++;
+            } else {
+              verifiedNames.push({
+                name: speakerName,
+                count: 1,
+                leadingCount: 1,
+                leadingRate: 1.0,
+                variations: [speakerName],
+                confidence: 'high'
+              });
+            }
+          }
+        }
+      }
+    }
+    
+    // 2回以上出現する名前のみを返す
+    return verifiedNames
+      .filter(candidate => candidate.count >= 2)
+      .sort((a, b) => b.count - a.count);
+  };
+
+  // 既存形式用の名前候補抽出
+  const extractNameCandidatesExisting = (text: string): NameCandidate[] => {
     const verifiedNames: NameCandidate[] = [];
     const lines = text.split('\n').filter(line => line.trim());
     
@@ -72,6 +179,23 @@ const SpeakerDiarizationTestPage: React.FC = () => {
     return verifiedNames
       .filter(candidate => candidate.count >= 2)
       .sort((a, b) => b.count - a.count);
+  };
+
+  // 統合された名前候補抽出関数
+  const extractNameCandidates = (text: string): NameCandidate[] => {
+    const format = detectFormat(text);
+    
+    switch (format) {
+      case 'webvtt':
+        return extractNameCandidatesWebVtt(text);
+      case 'existing':
+        return extractNameCandidatesExisting(text);
+      case 'unknown':
+        console.warn('⚠️ 未知の形式を検出。既存形式として処理を試行します。');
+        return extractNameCandidatesExisting(text);
+      default:
+        return extractNameCandidatesExisting(text);
+    }
   };
 
   // 正規表現の特殊文字をエスケープ
@@ -138,8 +262,65 @@ const SpeakerDiarizationTestPage: React.FC = () => {
     return patterns;
   };
 
-  // 発話抽出（テキスト分割ベースのアプローチ）
-  const extractUtterances = (text: string, nameCandidates: NameCandidate[]): Utterance[] => {
+  // WebVTT形式用の発話抽出
+  const extractUtterancesWebVtt = (text: string, nameCandidates: NameCandidate[]): Utterance[] => {
+    const utterances: Utterance[] = [];
+    const lines = text.split('\n').filter(line => line.trim());
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      
+      // WebVTTタイムスタンプ行をチェック
+      const timestampMatch = line.match(/^(\d{2}:\d{2}:\d{2}\.\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}\.\d{3})$/);
+      if (timestampMatch) {
+        const startTime = timestampMatch[1];
+        const endTime = timestampMatch[2];
+        
+        // 次の行で話者名と発話内容を抽出
+        const nextLine = lines[i + 1];
+        if (nextLine) {
+          const speakerMatch = nextLine.match(/^([^:]+):\s*(.+)$/);
+          if (speakerMatch) {
+            const speakerName = speakerMatch[1].trim();
+            const speechContent = speakerMatch[2].trim();
+            
+            // その後の行で発話内容を継続
+            let fullContent = speechContent;
+            let j = i + 2;
+            
+            while (j < lines.length && !lines[j].match(/^\d{2}:\d{2}:\d{2}\.\d{3}\s*-->/)) {
+              const line = lines[j].trim();
+              
+              // 数字のみの行をスキップ（WebVTTの番号行除外）
+              if (line && !/^\d+$/.test(line)) {
+                fullContent += ' ' + line;
+              }
+              j++;
+            }
+            
+            // 最終的なクリーンアップ（末尾の数字を除去）
+            const cleanedText = fullContent
+              .replace(/\s+\d+\s*$/, '')    // 末尾の数字除去
+              .replace(/\s+\d+(\s+\d+)*\s*$/, '') // 複数の数字も除去
+              .trim();
+            
+            utterances.push({
+              speaker: speakerName,
+              startTime: startTime,
+              endTime: endTime,
+              text: cleanedText,
+              confidence: 0.95
+            });
+          }
+        }
+      }
+    }
+    
+    return utterances;
+  };
+
+  // 既存形式用の発話抽出（テキスト分割ベースのアプローチ）
+  const extractUtterancesExisting = (text: string, nameCandidates: NameCandidate[]): Utterance[] => {
     const utterances: Utterance[] = [];
     const highConfidenceNames = nameCandidates
       .filter(c => c.confidence === 'high')
@@ -258,6 +439,23 @@ const SpeakerDiarizationTestPage: React.FC = () => {
     return utterances;
   };
 
+  // 統合された発話抽出関数
+  const extractUtterances = (text: string, nameCandidates: NameCandidate[]): Utterance[] => {
+    const format = detectFormat(text);
+    
+    switch (format) {
+      case 'webvtt':
+        return extractUtterancesWebVtt(text, nameCandidates);
+      case 'existing':
+        return extractUtterancesExisting(text, nameCandidates);
+      case 'unknown':
+        console.warn('⚠️ 未知の形式を検出。既存形式として処理を試行します。');
+        return extractUtterancesExisting(text, nameCandidates);
+      default:
+        return extractUtterancesExisting(text, nameCandidates);
+    }
+  };
+
   // 分析実行
   const runAnalysis = () => {
     console.log('🔍 分析実行開始');
@@ -269,6 +467,11 @@ const SpeakerDiarizationTestPage: React.FC = () => {
     }
     
     try {
+      // 形式判定を更新
+      const format = detectFormat(inputText);
+      setDetectedFormat(format);
+      console.log('🔍 検出された形式:', format);
+      
       console.log('📊 名前候補抽出開始');
       const nameCandidates = extractNameCandidates(inputText);
       console.log('✅ 名前候補抽出完了:', nameCandidates);
@@ -365,6 +568,30 @@ const SpeakerDiarizationTestPage: React.FC = () => {
 よろしくお願いします。`);
   };
 
+  // WebVTT形式のサンプルテキスト
+  const setWebVttSampleText = () => {
+    setInputText(`00:20:10.000 --> 00:20:12.000
+Gさん: うんうん。
+
+00:20:11.000 --> 00:20:13.000
+Nさん: もはやちょっと物足りないのかもしれないですよね。
+
+00:20:13.000 --> 00:20:16.000
+Gさん: うん。あ、そうそうそう。それはすごい。
+
+00:20:16.000 --> 00:20:21.000
+Gさん: あるんだと思われわれる。まあ、でもそこで留まってる人ももちろんいるんだけど。みたいな。
+
+00:20:22.000 --> 00:20:24.000
+Gさん: 言っても。
+
+00:20:24.000 --> 00:20:30.000
+Gさん: そこはじゃあ幸せにならないみたいなのが証明されてきちゃってるよね。みたいな。多分今。
+
+00:20:32.000 --> 00:20:36.000
+Nさん: いや、そういう話もみんなしてるんだなぁ。そしたらなんかとっととやらないと。なんか。`);
+  };
+
   return (
     <div style={{ 
       padding: '20px', 
@@ -419,6 +646,19 @@ const SpeakerDiarizationTestPage: React.FC = () => {
           >
             複雑パターン（会社名・敬称）
           </button>
+          <button
+            onClick={setWebVttSampleText}
+            style={{
+              background: '#ff6b6b',
+              color: '#ffffff',
+              border: 'none',
+              padding: '8px 16px',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            WebVTT形式
+          </button>
         </div>
       </div>
 
@@ -468,6 +708,27 @@ const SpeakerDiarizationTestPage: React.FC = () => {
           maxHeight: '400px',
           overflowY: 'auto'
         }}>
+          {/* 形式判定結果 */}
+          <div style={{ 
+            background: '#1a1a2e', 
+            padding: '20px', 
+            borderRadius: '8px', 
+            border: '1px solid #333366',
+            marginBottom: '20px',
+            gridColumn: '1 / -1'
+          }}>
+            <h3 style={{ color: '#e2e8f0', marginBottom: '15px' }}>🔍 形式判定結果</h3>
+            <div style={{ 
+              padding: '10px', 
+              background: '#2a2a3e', 
+              borderRadius: '4px',
+              color: '#a6adc8',
+              fontSize: '14px'
+            }}>
+              検出された形式: <strong style={{ color: '#00ff88' }}>{detectFormat(inputText)}</strong>
+            </div>
+          </div>
+
           {/* 名前候補 */}
           <div style={{ 
             background: '#1a1a2e', 

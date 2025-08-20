@@ -35,7 +35,7 @@ const MeetingForm: React.FC<MeetingFormProps> = ({ onSubmit, onCancel, droppedFi
     if (droppedFile) {
       const processDroppedFile = async () => {
         try {
-          if (droppedFile.type === 'text/plain') {
+          if (droppedFile.type === 'text/plain' || droppedFile.name.toLowerCase().endsWith('.vtt')) {
             const text = await droppedFile.text();
             setTranscript(text);
             setUploadFileName(droppedFile.name);
@@ -134,7 +134,7 @@ const MeetingForm: React.FC<MeetingFormProps> = ({ onSubmit, onCancel, droppedFi
     
     const isAudio = file.type.startsWith('audio/');
     const isVideo = file.type.startsWith('video/');
-    const isText = file.type === 'text/plain' || file.name.endsWith('.txt');
+    const isText = file.type === 'text/plain' || file.name.endsWith('.txt') || file.name.toLowerCase().endsWith('.vtt');
     
     if (isText) {
       // テキストファイルの場合：即座に内容を読み込み
@@ -190,7 +190,7 @@ const MeetingForm: React.FC<MeetingFormProps> = ({ onSubmit, onCancel, droppedFi
               ファイルを選択
               <input
                 type="file"
-                accept=".txt,.mp3,.wav,.m4a,.mp4,.webm,.mov"
+                accept=".txt,.mp3,.wav,.m4a,.mp4,.webm,.mov,.vtt"
                 onChange={handleFileChange}
                 style={{ display: 'none' }}
               />

@@ -796,7 +796,7 @@ const MeetingDetailPanel: React.FC<MeetingDetailPanelProps> = ({
             ref={fileInputRef}
             onChange={handleFileChange}
             style={{ display: 'none' }}
-            accept=".txt,.md,.doc,.docx,.pdf"
+            accept=".txt,.md,.doc,.docx,.pdf,.vtt"
           />
           <button
             onClick={handleFileSelect}

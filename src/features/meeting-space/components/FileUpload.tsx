@@ -15,8 +15,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({ meetingId }) => {
 
       // ファイルタイプの検証
       const fileExt = file.name.split('.').pop()?.toLowerCase();
-      if (fileExt !== 'txt') {
-        alert('現在はtxtファイルのみアップロード可能です');
+      if (fileExt !== 'txt' && fileExt !== 'vtt') {
+        alert('現在はtxtファイルとvttファイルのみアップロード可能です');
         return;
       }
 
@@ -36,7 +36,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ meetingId }) => {
         <span className="text-gray-700">ファイルをアップロード</span>
         <input
           type="file"
-          accept=".txt"
+          accept=".txt,.vtt"
           onChange={handleFileChange}
           disabled={isLoading}
           className="mt-1 block w-full"

@@ -79,11 +79,58 @@ async function callGemini(prompt: string, model: string = 'gemini-2.0-flash', ma
   return data.candidates[0].content.parts[0].text;
 }
 
+// 形式判定
+function detectFormat(text: string): 'webvtt' | 'existing' | 'unknown' {
+  const lines = text.split('\n');
+  
+  // WebVTT形式の判定（より厳密）
+  const hasVttTimestamp = lines.some(line => 
+    /^\d{2}:\d{2}:\d{2}\.\d{3}\s*-->\s*\d{2}:\d{2}:\d{2}\.\d{3}$/.test(line.trim())
+  );
+  
+  // 既存形式の判定（より厳密）
+  const hasExistingTimestamp = lines.some(line => {
+    const trimmed = line.trim();
+    return /\d{1,2}:\d{2}(?::\d{2})?\s*$/.test(trimmed) && 
+           /[^\d\s:]/.test(trimmed); // 数字とコロン以外の文字が含まれている
+  });
+  
+  // 判定ロジック
+  if (hasVttTimestamp && !hasExistingTimestamp) {
+    return 'webvtt';
+  } else if (hasExistingTimestamp && !hasVttTimestamp) {
+    return 'existing';
+  } else if (hasVttTimestamp && hasExistingTimestamp) {
+    // 両方のパターンが混在 → 未知の形式として扱う
+    return 'unknown';
+  } else {
+    // どちらのパターンも検出されない → 未知の形式
+    return 'unknown';
+  }
+}
+
+// 時間形式の正規化（数値秒に変換）
+function normalizeTime(timeStr: string, format: 'webvtt' | 'existing'): number {
+  if (format === 'webvtt') {
+    // 00:20:10.000 → 1210秒
+    const [hours, minutes, seconds] = timeStr.split(':');
+    return parseInt(hours) * 3600 + parseInt(minutes) * 60 + parseFloat(seconds);
+  } else {
+    // 00:05 → 5秒
+    const [minutes, seconds] = timeStr.split(':');
+    return parseInt(minutes) * 60 + parseInt(seconds || '0');
+  }
+}
+
 // テストページで動作済みのロジックを移植
 async function processWithRuleBasedLogic(content: string): Promise<any> {
   console.log('[speaker-diarization] 🔍 ルールベース処理開始');
   
   try {
+    // 形式判定
+    const format = detectFormat(content);
+    console.log('[speaker-diarization] 🔍 検出された形式:', format);
+    
     // 名前候補の抽出（元のテキストを使用）
     const nameCandidates = extractNameCandidates(content);
     console.log('[speaker-diarization] 📊 名前候補抽出完了:', nameCandidates.length);
@@ -114,6 +161,13 @@ async function processWithRuleBasedLogic(content: string): Promise<any> {
       }
     };
     
+    console.log('[speaker-diarization] 📋 最終結果構築完了:', {
+      speakersCount: result.speakers.length,
+      utterancesCount: result.utterances.length,
+      firstSpeaker: result.speakers[0]?.name || 'なし',
+      firstUtterance: result.utterances[0]?.text?.substring(0, 50) + '...' || 'なし'
+    });
+    
     console.log('[speaker-diarization] ✅ ルールベース処理完了');
     return result;
     
@@ -123,8 +177,57 @@ async function processWithRuleBasedLogic(content: string): Promise<any> {
   }
 }
 
-// テストページで動作済みのロジックを移植
-function extractNameCandidates(text: string): Array<{name: string, count: number}> {
+// WebVTT形式用の名前候補抽出
+function extractNameCandidatesWebVtt(text: string): Array<{name: string, count: number}> {
+  console.log('[speaker-diarization] 🔍 WebVTT名前候補抽出開始');
+  
+  // 改行文字を正規化（\r\n → \n）
+  const normalizedText = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  
+  const verifiedNames: Array<{name: string, count: number}> = [];
+  const lines = normalizedText.split('\n').filter(line => line.trim());
+  
+  console.log('[speaker-diarization] 📊 処理行数:', lines.length);
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    
+    // WebVTTタイムスタンプ行をチェック
+    const timestampMatch = line.match(/^\d{2}:\d{2}:\d{2}\.\d{3}\s*-->\s*\d{2}:\d{2}:\d{2}\.\d{3}$/);
+    if (timestampMatch) {
+      // 次の行で話者名を抽出
+      const nextLine = lines[i + 1];
+      if (nextLine) {
+        const speakerMatch = nextLine.match(/^([^:]+):\s*(.+)$/);
+        if (speakerMatch) {
+          const speakerName = speakerMatch[1].trim();
+          
+          // 既存の名前候補かチェック
+          const existingIndex = verifiedNames.findIndex(n => n.name === speakerName);
+          if (existingIndex >= 0) {
+            verifiedNames[existingIndex].count++;
+          } else {
+            verifiedNames.push({
+              name: speakerName,
+              count: 1
+            });
+          }
+        }
+      }
+    }
+  }
+  
+  // 2回以上出現する名前のみを返す
+  const filteredNames = verifiedNames
+    .filter(candidate => candidate.count >= 2)
+    .sort((a, b) => b.count - a.count);
+  
+  console.log('[speaker-diarization] 📊 WebVTT名前候補抽出完了:', filteredNames.length, '件');
+  return filteredNames;
+}
+
+// 既存形式用の名前候補抽出
+function extractNameCandidatesExisting(text: string): Array<{name: string, count: number}> {
   const verifiedNames: Array<{name: string, count: number}> = [];
   const lines = text.split('\n').filter(line => line.trim());
   
@@ -165,6 +268,23 @@ function extractNameCandidates(text: string): Array<{name: string, count: number
   return filteredNames;
 }
 
+// 統合された名前候補抽出関数
+function extractNameCandidates(text: string): Array<{name: string, count: number}> {
+  const format = detectFormat(text);
+  
+  switch (format) {
+    case 'webvtt':
+      return extractNameCandidatesWebVtt(text);
+    case 'existing':
+      return extractNameCandidatesExisting(text);
+    case 'unknown':
+      console.warn('[speaker-diarization] ⚠️ 未知の形式を検出。既存形式として処理を試行します。');
+      return extractNameCandidatesExisting(text);
+    default:
+      return extractNameCandidatesExisting(text);
+  }
+}
+
 // 正規表現の特殊文字をエスケープ
 function escapeRegex(string: string) {
   if (!string) return '';
@@ -197,8 +317,94 @@ function findSameFamilyNames(text: string, baseWord: string, currentName: string
   return [...new Set(familyNames)];
 }
 
-// 発話の抽出
-function extractUtterances(content: string, nameCandidates: Array<{name: string, count: number}>): Array<{
+// WebVTT形式用の発話抽出
+function extractUtterancesWebVtt(content: string, nameCandidates: Array<{name: string, count: number}>): Array<{
+  speaker: string,
+  startTime: string,
+  endTime: string,
+  text: string,
+  confidence: number
+}> {
+  console.log('[speaker-diarization] 🔍 WebVTT発話抽出開始');
+  
+  // 改行文字を正規化（\r\n → \n）
+  const normalizedContent = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const lines = normalizedContent.split('\n').filter(line => line.trim());
+  
+  console.log('[speaker-diarization] 📊 発話抽出処理行数:', lines.length);
+  console.log('[speaker-diarization] 👥 名前候補数:', nameCandidates.length);
+  
+  const utterances: Array<{
+    speaker: string,
+    startTime: string,
+    endTime: string,
+    text: string,
+    confidence: number
+  }> = [];
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    
+    // WebVTTタイムスタンプ行をチェック
+    const timestampMatch = line.match(/^(\d{2}:\d{2}:\d{2}\.\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}\.\d{3})$/);
+    if (timestampMatch) {
+      const startTime = timestampMatch[1];
+      const endTime = timestampMatch[2];
+      
+      // 次の行で話者名と発話内容を抽出
+      const nextLine = lines[i + 1];
+      if (nextLine) {
+        const speakerMatch = nextLine.match(/^([^:]+):\s*(.+)$/);
+        if (speakerMatch) {
+          const speakerName = speakerMatch[1].trim();
+          const speechContent = speakerMatch[2].trim();
+          
+          // その後の行で発話内容を継続
+          let fullContent = speechContent;
+          let j = i + 2;
+          
+          while (j < lines.length && !lines[j].match(/^\d{2}:\d{2}:\d{2}\.\d{3}\s*-->/)) {
+            const line = lines[j].trim();
+            
+            // 数字のみの行をスキップ（WebVTTの番号行除外）
+            if (line && !/^\d+$/.test(line)) {
+              fullContent += ' ' + line;
+            }
+            j++;
+          }
+          
+          // 最終的なクリーンアップ（末尾の数字を除去）
+          const cleanedText = fullContent
+            .replace(/\s+\d+\s*$/, '')    // 末尾の数字除去
+            .replace(/\s+\d+(\s+\d+)*\s*$/, '') // 複数の数字も除去
+            .trim();
+          
+          utterances.push({
+            speaker: speakerName,
+            startTime: startTime,
+            endTime: endTime,
+            text: cleanedText,
+            confidence: 0.95
+          });
+          
+          console.log('[speaker-diarization] ✅ 発話抽出成功:', {
+            speaker: speakerName,
+            startTime: startTime,
+            endTime: endTime,
+            textLength: cleanedText.length,
+            textPreview: cleanedText.substring(0, 50) + '...'
+          });
+        }
+      }
+    }
+  }
+  
+  console.log('[speaker-diarization] 📊 WebVTT発話抽出完了:', utterances.length, '件');
+  return utterances;
+}
+
+// 既存形式用の発話抽出
+function extractUtterancesExisting(content: string, nameCandidates: Array<{name: string, count: number}>): Array<{
   speaker: string,
   startTime: string,
   endTime: string,
@@ -311,6 +517,29 @@ function extractUtterances(content: string, nameCandidates: Array<{name: string,
   return utterances;
 }
 
+// 統合された発話抽出関数
+function extractUtterances(content: string, nameCandidates: Array<{name: string, count: number}>): Array<{
+  speaker: string,
+  startTime: string,
+  endTime: string,
+  text: string,
+  confidence: number
+}> {
+  const format = detectFormat(content);
+  
+  switch (format) {
+    case 'webvtt':
+      return extractUtterancesWebVtt(content, nameCandidates);
+    case 'existing':
+      return extractUtterancesExisting(content, nameCandidates);
+    case 'unknown':
+      console.warn('[speaker-diarization] ⚠️ 未知の形式を検出。既存形式として処理を試行します。');
+      return extractUtterancesExisting(content, nameCandidates);
+    default:
+      return extractUtterancesExisting(content, nameCandidates);
+  }
+}
+
 // 時間形式を数値（秒）に変換する関数（複数フォーマット対応）
 function timeStringToSeconds(timeString: string): number {
   if (!timeString || typeof timeString !== 'string') return 0;
@@ -342,6 +571,16 @@ function timeStringToSeconds(timeString: string): number {
       if (!isNaN(hours) && !isNaN(minutes) && !isNaN(seconds)) {
         return hours * 3600 + minutes * 60 + seconds;
       }
+    }
+    
+    // WebVTT形式の時間を処理 (00:20:10.000)
+    const vttTimeMatch = trimmed.match(/^(\d{2}):(\d{2}):(\d{2})\.(\d{3})$/);
+    if (vttTimeMatch) {
+      const hours = parseInt(vttTimeMatch[1], 10);
+      const minutes = parseInt(vttTimeMatch[2], 10);
+      const seconds = parseInt(vttTimeMatch[3], 10);
+      const milliseconds = parseInt(vttTimeMatch[4], 10);
+      return hours * 3600 + minutes * 60 + seconds + milliseconds / 1000;
     }
   }
   
@@ -950,7 +1189,14 @@ async function saveDiarizationResults(content: string, result: any, provider: st
           if (rawStartTime.includes(':')) {
             const parts = rawStartTime.split(':');
             if (parts.length === 2) detectedFormat = 'mm:ss';
-            else if (parts.length === 3) detectedFormat = 'hh:mm:ss';
+            else if (parts.length === 3) {
+              // WebVTT形式かどうかを判定
+              if (rawStartTime.includes('.')) {
+                detectedFormat = 'hh:mm:ss.mmm';
+              } else {
+                detectedFormat = 'hh:mm:ss';
+              }
+            }
           } else if (!isNaN(Number(rawStartTime))) {
             detectedFormat = 'seconds_number';
           }

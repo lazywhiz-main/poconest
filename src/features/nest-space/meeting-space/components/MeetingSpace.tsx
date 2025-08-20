@@ -688,10 +688,11 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
       const isAudio = file.type.startsWith('audio/');
       const isVideo = file.type.startsWith('video/');
       const isText = file.type === 'text/plain';
+      const isWebVtt = file.name.toLowerCase().endsWith('.vtt') || file.type === 'text/vtt';
       
-      console.log('🔧 ファイルタイプ判定:', { isAudio, isVideo, isText, fileType: file.type });
+      console.log('🔧 ファイルタイプ判定:', { isAudio, isVideo, isText, isWebVtt, fileType: file.type, fileName: file.name });
       
-      if (isText) {
+      if (isText || isWebVtt) {
         // テキストファイルの場合：従来の処理
         const text = await file.text();
         
@@ -712,7 +713,13 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
         
         // selectedMeetingを更新
         setSelectedMeeting(prev => prev ? { ...prev, transcript: text } : null);
-        showToast({ title: '成功', message: 'テキストファイルをアップロードしました。', type: 'success' });
+        
+        // ファイルタイプに応じたメッセージ
+        const message = isWebVtt 
+          ? 'WebVTTファイルをアップロードしました。話者分離を実行できます。'
+          : 'テキストファイルをアップロードしました。';
+        
+        showToast({ title: '成功', message, type: 'success' });
         
       } else       if (isAudio || isVideo) {
         // 音声・動画ファイルの場合：新しいアーキテクチャで処理
@@ -917,7 +924,7 @@ const MeetingSpace: React.FC<MeetingSpaceProps> = ({ nestId }) => {
                     // ファイル選択ダイアログを開く
                     const input = document.createElement('input');
                     input.type = 'file';
-                    input.accept = '.txt,.mp4,.webm,.mov,.mp3,.wav,.m4a,.pdf';
+                    input.accept = '.txt,.mp4,.webm,.mov,.mp3,.wav,.m4a,.pdf,.vtt';
                     input.onchange = (e) => {
                       const file = (e.target as HTMLInputElement).files?.[0];
                       if (file) {
