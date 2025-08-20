@@ -72,6 +72,11 @@ const SpeakerDiarizationView: React.FC<SpeakerDiarizationViewProps> = ({
   const [jobStatus, setJobStatus] = useState<string>('idle');
   const [nestAISettings, setNestAISettings] = useState<any>(null);
   const [progressInterval, setProgressInterval] = useState<NodeJS.Timeout | null>(null);
+  
+  // エクスポート機能の状態管理
+  const [exportFormat, setExportFormat] = useState<'txt' | 'csv' | 'vtt'>('txt');
+  const [isExporting, setIsExporting] = useState(false);
+  const [meetingName, setMeetingName] = useState<string>('ミーティング');
 
   const viewModeOptions = [
     { value: 'raw', label: '生テキスト', icon: '📝' },
@@ -79,6 +84,141 @@ const SpeakerDiarizationView: React.FC<SpeakerDiarizationViewProps> = ({
   ];
 
   const currentOption = viewModeOptions.find(option => option.value === viewMode);
+
+  // エクスポート用データ生成
+  const generateExportData = (): Array<{
+    timestamp: string;
+    speaker: string;
+    utterance: string;
+  }> => {
+    const exportData: Array<{
+      timestamp: string;
+      speaker: string;
+      utterance: string;
+    }> = [];
+
+    speakers.forEach(speaker => {
+      speaker.utterances.forEach(utterance => {
+        // startTimeを秒から時間形式に変換
+        const formatTime = (seconds: number): string => {
+          const hours = Math.floor(seconds / 3600);
+          const minutes = Math.floor((seconds % 3600) / 60);
+          const secs = Math.floor(seconds % 60);
+          
+          if (hours > 0) {
+            return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+          } else {
+            return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+          }
+        };
+
+        exportData.push({
+          timestamp: formatTime(utterance.startTime),
+          speaker: speaker.name || `話者${speaker.speakerTag}`,
+          utterance: utterance.word || ''
+        });
+      });
+    });
+
+    // タイムスタンプ順にソート
+    return exportData.sort((a, b) => {
+      const timeA = a.timestamp;
+      const timeB = b.timestamp;
+      
+      // 時間形式の比較（HH:MM:SS > MM:SS）
+      const partsA = timeA.split(':').map(Number);
+      const partsB = timeB.split(':').map(Number);
+      
+      if (partsA.length !== partsB.length) {
+        return partsA.length - partsB.length;
+      }
+      
+      for (let i = 0; i < partsA.length; i++) {
+        if (partsA[i] !== partsB[i]) {
+          return partsA[i] - partsB[i];
+        }
+      }
+      return 0;
+    });
+  };
+
+  // プレーンテキスト形式生成
+  const generatePlainText = (exportData: Array<{timestamp: string; speaker: string; utterance: string}>): string => {
+    return exportData
+      .map(item => `${item.timestamp} ${item.speaker}: ${item.utterance}`)
+      .join('\n\n');
+  };
+
+  // CSV形式生成
+  const generateCSV = (exportData: Array<{timestamp: string; speaker: string; utterance: string}>): string => {
+    const headers = ['タイムスタンプ', '話者', '発話内容'];
+    const rows = exportData.map(item => [item.timestamp, item.speaker, item.utterance]);
+    return [headers, ...rows].map(row => row.join(',')).join('\n');
+  };
+
+  // WebVTT形式生成
+  const generateWebVTT = (exportData: Array<{timestamp: string; speaker: string; utterance: string}>): string => {
+    const header = 'WEBVTT\n\n';
+    const body = exportData
+      .map((item, i) => `${i + 1}\n${item.timestamp} --> ${item.timestamp}\n${item.speaker}: ${item.utterance}\n`)
+      .join('\n');
+    return header + body;
+  };
+
+  // ファイルダウンロード処理
+  const downloadFile = (content: string, filename: string, mimeType: string) => {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // エクスポート処理
+  const handleExport = async () => {
+    if (speakers.length === 0) return;
+    
+    setIsExporting(true);
+    
+    try {
+      const exportData = generateExportData();
+      let content: string;
+      let filename: string;
+      let mimeType: string;
+      
+      switch (exportFormat) {
+        case 'txt':
+          content = generatePlainText(exportData);
+          filename = `${meetingName}_話者分離結果.txt`;
+          mimeType = 'text/plain';
+          break;
+        case 'csv':
+          content = generateCSV(exportData);
+          filename = `${meetingName}_話者分離結果.csv`;
+          mimeType = 'text/csv';
+          break;
+        case 'vtt':
+          content = generateWebVTT(exportData);
+          filename = `${meetingName}_話者分離結果.vtt`;
+          mimeType = 'text/vtt';
+          break;
+        default:
+          content = generatePlainText(exportData);
+          filename = `${meetingName}_話者分離結果.txt`;
+          mimeType = 'text/plain';
+      }
+      
+      downloadFile(content, filename, mimeType);
+      
+    } catch (error) {
+      console.error('エクスポートエラー:', error);
+      // エラー通知（必要に応じて実装）
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   // meetingデータからnestIdを取得
   useEffect(() => {
@@ -89,7 +229,7 @@ const SpeakerDiarizationView: React.FC<SpeakerDiarizationViewProps> = ({
         console.log('🔍 ミーティングデータからnestId取得中...', { meetingId });
         const { data: meeting, error } = await supabase
           .from('meetings')
-          .select('nest_id')
+          .select('nest_id, title')
           .eq('id', meetingId)
           .single();
           
@@ -110,6 +250,11 @@ const SpeakerDiarizationView: React.FC<SpeakerDiarizationViewProps> = ({
           } catch (error) {
             console.error('❌ NEST AI設定取得エラー:', error);
           }
+        }
+        
+        // ミーティング名を設定
+        if (meeting?.title) {
+          setMeetingName(meeting.title);
         }
       } catch (error) {
         console.error('❌ nestId取得エラー:', error);
@@ -919,6 +1064,30 @@ const SpeakerDiarizationView: React.FC<SpeakerDiarizationViewProps> = ({
                 話者分析タブで詳細分析を開始する
               </button>
             )}
+            
+            {/* エクスポート機能 */}
+            {speakers.length > 0 && (
+              <div style={styles.headerExportContainer}>
+                <select 
+                  value={exportFormat} 
+                  onChange={(e) => setExportFormat(e.target.value as 'txt' | 'csv' | 'vtt')}
+                  style={styles.headerExportSelect}
+                >
+                  <option value="txt">.txt</option>
+                  <option value="csv">.csv</option>
+                  <option value="vtt">.vtt</option>
+                </select>
+                
+                <button 
+                  onClick={handleExport}
+                  disabled={isExporting}
+                  style={styles.headerExportButton}
+                >
+                  {isExporting ? '出力中...' : 'エクスポート'}
+                </button>
+              </div>
+            )}
+            
             <button
               onClick={() => {
                 console.log('🔄 再分析ボタンがクリックされました');
@@ -1005,6 +1174,42 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     transition: 'all 0.2s ease',
+  },
+  
+  // ヘッダー用エクスポートスタイル
+  headerExportContainer: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
+  headerExportSelect: {
+    backgroundColor: '#232345',
+    color: '#e2e8f0',
+    border: '1px solid #333366',
+    borderRadius: '6px',
+    padding: '6px 10px',
+    fontSize: '13px',
+    outline: 'none',
+    cursor: 'pointer',
+    minWidth: '80px',
+  },
+  headerExportButton: {
+    backgroundColor: '#00ff88',
+    color: '#0f0f23',
+    border: 'none',
+    borderRadius: '6px',
+    padding: '8px 12px',
+    fontSize: '13px',
+    fontWeight: '500',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'all 0.2s ease',
+    '&:disabled': {
+      backgroundColor: '#666666',
+      cursor: 'not-allowed',
+    },
   },
   viewModeLabel: {
     color: '#e2e8f0',
@@ -1635,6 +1840,55 @@ const styles = {
     justifyContent: 'center',
     transition: 'all 0.2s ease',
     boxShadow: '0 4px 12px rgba(249, 115, 22, 0.2)',
+  },
+  
+  // エクスポート機能のスタイル
+  exportContainer: {
+    marginTop: '20px',
+    padding: '16px',
+    backgroundColor: '#1a1a2e',
+    borderRadius: '8px',
+    border: '1px solid #333366',
+  },
+  exportTitle: {
+    color: '#e2e8f0',
+    fontSize: '16px',
+    fontWeight: '600',
+    marginBottom: '12px',
+  },
+  exportControls: {
+    display: 'flex',
+    gap: '12px',
+    alignItems: 'center',
+  },
+  exportSelect: {
+    backgroundColor: '#232345',
+    color: '#e2e8f0',
+    border: '1px solid #333366',
+    borderRadius: '6px',
+    padding: '8px 12px',
+    fontSize: '14px',
+    outline: 'none',
+    cursor: 'pointer',
+    minWidth: '200px',
+  },
+  exportButton: {
+    backgroundColor: '#00ff88',
+    color: '#0f0f23',
+    border: 'none',
+    borderRadius: '6px',
+    padding: '10px 16px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'all 0.2s ease',
+    '&:disabled': {
+      backgroundColor: '#666666',
+      cursor: 'not-allowed',
+    },
   },
 };
 
