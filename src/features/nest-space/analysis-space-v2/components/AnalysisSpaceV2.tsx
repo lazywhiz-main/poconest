@@ -1,4 +1,4 @@
-import React, { memo, useMemo, useState, useCallback, useEffect, useRef } from 'react';
+import React, { memo, useMemo, useState, useCallback, useEffect, useRef, useTransition, Suspense } from 'react';
 import { useAnalysisSpace } from '../contexts/AnalysisSpaceContext';
 import NetworkCanvas from './NetworkCanvas';
 import RelationsSidePeak from './RelationsSidePeak';
@@ -58,6 +58,7 @@ const AnalysisSpaceV2: React.FC<AnalysisSpaceV2Props> = memo(({
   const { state, setActiveSidePanel, setNetworkData } = useAnalysisSpace();
   const [renderPhase, setRenderPhase] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Intersection Observerによる可視性検出
@@ -98,22 +99,26 @@ const AnalysisSpaceV2: React.FC<AnalysisSpaceV2Props> = memo(({
     setNetworkData(networkData);
   }, [networkData, setNetworkData]);
 
-  // サイドパネルの切り替え（useCallbackで最適化）
+  // サイドパネルの切り替え（useTransitionで最適化）
   const handleSidePanelToggle = useCallback((panelType: 'relations' | 'clustering' | 'theory' | 'view' | 'search') => {
     if (state.activeSidePanel === panelType) {
       setActiveSidePanel(null);
       setRenderPhase(1); // 基本表示に戻す
     } else {
-      setActiveSidePanel(panelType);
-      setRenderPhase(2); // 即座にサイドパネル表示
+      startTransition(() => {
+        setActiveSidePanel(panelType);
+        setRenderPhase(2); // 即座にサイドパネル表示
+      });
     }
-  }, [state.activeSidePanel, setActiveSidePanel]);
+  }, [state.activeSidePanel, setActiveSidePanel, startTransition]);
 
-  // サイドパネルを閉じる（useCallbackで最適化）
+  // サイドパネルを閉じる（useTransitionで最適化）
   const handleCloseSidePanel = useCallback(() => {
-    setActiveSidePanel(null);
-    setRenderPhase(1); // 基本表示に戻す
-  }, [setActiveSidePanel]);
+    startTransition(() => {
+      setActiveSidePanel(null);
+      setRenderPhase(1); // 基本表示に戻す
+    });
+  }, [setActiveSidePanel, startTransition]);
 
   // レンダリングフェーズの段階的制御
   useEffect(() => {
@@ -148,6 +153,7 @@ const AnalysisSpaceV2: React.FC<AnalysisSpaceV2Props> = memo(({
       <div style={styles.header}>
         <div style={styles.title}>
           🚀 分析スペース V2 (ベータ版)
+          {isPending && <span style={styles.pendingIndicator}> ⏳</span>}
         </div>
         <div style={styles.controls}>
           <button
@@ -156,6 +162,7 @@ const AnalysisSpaceV2: React.FC<AnalysisSpaceV2Props> = memo(({
               ...styles.controlButton,
               ...(state.activeSidePanel === 'relations' && styles.activeButton)
             }}
+            disabled={isPending}
           >
             🔗 関連性
           </button>
@@ -165,6 +172,7 @@ const AnalysisSpaceV2: React.FC<AnalysisSpaceV2Props> = memo(({
               ...styles.controlButton,
               ...(state.activeSidePanel === 'clustering' && styles.activeButton)
             }}
+            disabled={isPending}
           >
             🎯 クラスタリング
           </button>
@@ -174,6 +182,7 @@ const AnalysisSpaceV2: React.FC<AnalysisSpaceV2Props> = memo(({
               ...styles.controlButton,
               ...(state.activeSidePanel === 'theory' && styles.activeButton)
             }}
+            disabled={isPending}
           >
             💡 理論構築
           </button>
@@ -183,6 +192,7 @@ const AnalysisSpaceV2: React.FC<AnalysisSpaceV2Props> = memo(({
               ...styles.controlButton,
               ...(state.activeSidePanel === 'view' && styles.activeButton)
             }}
+            disabled={isPending}
           >
             👁️ ビュー
           </button>
@@ -192,6 +202,7 @@ const AnalysisSpaceV2: React.FC<AnalysisSpaceV2Props> = memo(({
               ...styles.controlButton,
               ...(state.activeSidePanel === 'search' && styles.activeButton)
             }}
+            disabled={isPending}
           >
             🔍 検索
           </button>
@@ -202,11 +213,13 @@ const AnalysisSpaceV2: React.FC<AnalysisSpaceV2Props> = memo(({
       <div style={styles.content}>
         {/* ネットワークキャンバス */}
         <div style={styles.canvasContainer}>
-          <NetworkCanvas
-            data={networkData}
-            onNodeClick={onNodeSelect}
-            onNodeDoubleClick={onNodeDoubleClick}
-          />
+          <Suspense fallback={<div style={styles.loadingFallback}>読み込み中...</div>}>
+            <NetworkCanvas
+              data={networkData}
+              onNodeClick={onNodeSelect}
+              onNodeDoubleClick={onNodeDoubleClick}
+            />
+          </Suspense>
         </div>
 
         {/* サイドパネル（段階的表示） */}
@@ -227,6 +240,7 @@ const AnalysisSpaceV2: React.FC<AnalysisSpaceV2Props> = memo(({
               <button
                 onClick={handleCloseSidePanel}
                 style={styles.closeButton}
+                disabled={isPending}
               >
                 ✕
               </button>
@@ -234,20 +248,22 @@ const AnalysisSpaceV2: React.FC<AnalysisSpaceV2Props> = memo(({
             <div style={styles.sidePanelContent}>
               {/* Phase 2: 軽量コンテンツ */}
               {renderPhase >= 2 && (
-                <>
-                  {state.activeSidePanel === 'relations' && (
-                    <RelationsSidePeak
-                      isOpen={true}
-                      onClose={handleCloseSidePanel}
-                    />
-                  )}
-                  {state.activeSidePanel === 'clustering' && (
-                    <ClusteringSidePeak
-                      isOpen={true}
-                      onClose={handleCloseSidePanel}
-                    />
-                  )}
-                </>
+                <Suspense fallback={<div style={styles.loadingFallback}>パネル読み込み中...</div>}>
+                  <>
+                    {state.activeSidePanel === 'relations' && (
+                      <RelationsSidePeak
+                        isOpen={true}
+                        onClose={handleCloseSidePanel}
+                      />
+                    )}
+                    {state.activeSidePanel === 'clustering' && (
+                      <ClusteringSidePeak
+                        isOpen={true}
+                        onClose={handleCloseSidePanel}
+                      />
+                    )}
+                  </>
+                </Suspense>
               )}
               
               {/* Phase 3: 重いコンテンツ */}
@@ -274,6 +290,43 @@ AnalysisSpaceV2.displayName = 'AnalysisSpaceV2';
 
 // スタイル定義
 const styles = {
+  // レンダリング制御のためのアニメーション
+  '@keyframes slideIn': {
+    from: {
+      transform: 'translateX(100%)',
+      opacity: 0,
+    },
+    to: {
+      transform: 'translateX(0)',
+      opacity: 1,
+    },
+  },
+  '@keyframes fadeIn': {
+    from: {
+      opacity: 0,
+      transform: 'translateY(10px)',
+    },
+    to: {
+      opacity: 1,
+      transform: 'translateY(0)',
+    },
+  },
+  // 段階的表示のためのスタイル
+  phase1: {
+    opacity: 1,
+    transform: 'translateX(0)',
+    transition: 'opacity 0.2s ease-out',
+    willChange: 'auto',
+  },
+  phase2: {
+    animation: 'slideIn 0.3s ease-out',
+    willChange: 'transform, opacity',
+  },
+  phase3: {
+    animation: 'fadeIn 0.4s ease-out 0.1s both',
+    willChange: 'transform, opacity',
+  },
+  // 初期レンダリング安定化
   container: {
     display: 'flex',
     flexDirection: 'column' as const,
@@ -283,6 +336,11 @@ const styles = {
     fontFamily: 'system-ui, -apple-system, sans-serif',
     willChange: 'auto',
     contain: 'layout style paint',
+    // レンダリング安定化のための追加プロパティ
+    transform: 'translateZ(0)', // GPU加速強制
+    backfaceVisibility: 'hidden' as const,
+    perspective: '1000px',
+    transformStyle: 'preserve-3d' as const,
   },
   header: {
     display: 'flex',
@@ -293,16 +351,25 @@ const styles = {
     backgroundColor: '#1a1a2e',
     willChange: 'auto',
     contain: 'layout style',
+    // レンダリング安定化
+    transform: 'translateZ(0)',
+    backfaceVisibility: 'hidden' as const,
   },
   title: {
     fontSize: '20px',
     fontWeight: 'bold',
     color: '#00ff88',
   },
+  pendingIndicator: {
+    fontSize: '16px',
+    color: '#ffd700', // 金の色
+  },
   controls: {
     display: 'flex',
     gap: '8px',
     willChange: 'auto',
+    // レンダリング安定化
+    transform: 'translateZ(0)',
   },
   controlButton: {
     padding: '8px 16px',
@@ -315,6 +382,9 @@ const styles = {
     fontSize: '14px',
     willChange: 'auto',
     contain: 'layout style',
+    // レンダリング安定化
+    transform: 'translateZ(0)',
+    backfaceVisibility: 'hidden' as const,
   },
   activeButton: {
     backgroundColor: '#00ff88',
@@ -339,6 +409,12 @@ const styles = {
     willChange: 'transform, opacity',
     contain: 'layout style paint',
     backfaceVisibility: 'hidden' as const,
+    // レンダリング安定化の強化
+    transform: 'translateZ(0)',
+    perspective: '1000px',
+    transformStyle: 'preserve-3d' as const,
+    // 初期状態の安定化
+    opacity: 1,
   },
   sidePanelHeader: {
     display: 'flex',
@@ -377,6 +453,15 @@ const styles = {
     fontSize: '16px',
     fontStyle: 'italic',
   },
+  loadingFallback: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: '100%',
+    color: '#888888',
+    fontSize: '18px',
+    fontWeight: 'bold',
+  },
   errorContainer: {
     display: 'flex',
     alignItems: 'center',
@@ -406,41 +491,6 @@ const styles = {
     cursor: 'pointer',
     fontSize: '14px',
     marginLeft: '12px',
-  },
-  // レンダリング制御のためのアニメーション
-  '@keyframes slideIn': {
-    from: {
-      transform: 'translateX(100%)',
-      opacity: 0,
-    },
-    to: {
-      transform: 'translateX(0)',
-      opacity: 1,
-    },
-  },
-  '@keyframes fadeIn': {
-    from: {
-      opacity: 0,
-      transform: 'translateY(10px)',
-    },
-    to: {
-      opacity: 1,
-      transform: 'translateY(0)',
-    },
-  },
-  // 段階的表示のためのスタイル
-  phase1: {
-    opacity: 1,
-    transform: 'translateX(0)',
-    transition: 'opacity 0.2s ease-out',
-  },
-  phase2: {
-    animation: 'slideIn 0.3s ease-out',
-    willChange: 'transform, opacity',
-  },
-  phase3: {
-    animation: 'fadeIn 0.4s ease-out 0.1s both',
-    willChange: 'transform, opacity',
   },
 };
 
