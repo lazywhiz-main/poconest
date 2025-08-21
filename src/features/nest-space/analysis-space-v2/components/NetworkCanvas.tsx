@@ -223,70 +223,264 @@ const VirtualizedNodeList = memo<{
 
 VirtualizedNodeList.displayName = 'VirtualizedNodeList';
 
+// WebGLレンダラークラス
+class WebGLRenderer {
+  private gl: WebGLRenderingContext | null = null;
+  private canvas: HTMLCanvasElement | null = null;
+  private program: WebGLProgram | null = null;
+  private isInitialized = false;
+
+  constructor(canvas: HTMLCanvasElement) {
+    this.canvas = canvas;
+    this.initWebGL();
+  }
+
+  private initWebGL() {
+    if (!this.canvas) return;
+
+    try {
+      // WebGLコンテキストの取得
+      this.gl = this.canvas.getContext('webgl') as WebGLRenderingContext || 
+                 this.canvas.getContext('experimental-webgl') as WebGLRenderingContext;
+      
+      if (!this.gl) {
+        console.warn('WebGL not supported, falling back to Canvas 2D');
+        return;
+      }
+
+      // WebGLの初期化
+      this.gl.clearColor(0.0, 0.0, 0.0, 0.0);
+      this.gl.enable(this.gl.BLEND);
+      this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
+      
+      // シェーダーの初期化
+      this.initShaders();
+      
+      this.isInitialized = true;
+      console.log('WebGL initialized successfully');
+    } catch (error) {
+      console.error('WebGL initialization failed:', error);
+    }
+  }
+
+  private initShaders() {
+    if (!this.gl) return;
+
+    // 頂点シェーダー
+    const vertexShaderSource = `
+      attribute vec2 a_position;
+      attribute vec4 a_color;
+      varying vec4 v_color;
+      uniform mat3 u_matrix;
+      
+      void main() {
+        gl_Position = vec4((u_matrix * vec3(a_position, 1.0)).xy, 0, 1);
+        v_color = a_color;
+      }
+    `;
+
+    // フラグメントシェーダー
+    const fragmentShaderSource = `
+      precision mediump float;
+      varying vec4 v_color;
+      
+      void main() {
+        gl_FragColor = v_color;
+      }
+    `;
+
+    // シェーダーの作成とリンク
+    const vertexShader = this.createShader(this.gl.VERTEX_SHADER, vertexShaderSource);
+    const fragmentShader = this.createShader(this.gl.FRAGMENT_SHADER, fragmentShaderSource);
+    
+    if (vertexShader && fragmentShader) {
+      this.program = this.createProgram(vertexShader, fragmentShader);
+    }
+  }
+
+  private createShader(type: number, source: string): WebGLShader | null {
+    if (!this.gl) return null;
+
+    const shader = this.gl.createShader(type);
+    if (!shader) return null;
+
+    this.gl.shaderSource(shader, source);
+    this.gl.compileShader(shader);
+
+    if (!this.gl.getShaderParameter(shader, this.gl.COMPILE_STATUS)) {
+      console.error('Shader compilation error:', this.gl.getShaderInfoLog(shader));
+      this.gl.deleteShader(shader);
+      return null;
+    }
+
+    return shader;
+  }
+
+  private createProgram(vertexShader: WebGLShader, fragmentShader: WebGLShader): WebGLProgram | null {
+    if (!this.gl) return null;
+
+    const program = this.gl.createProgram();
+    if (!program) return null;
+
+    this.gl.attachShader(program, vertexShader);
+    this.gl.attachShader(program, fragmentShader);
+    this.gl.linkProgram(program);
+
+    if (!this.gl.getProgramParameter(program, this.gl.LINK_STATUS)) {
+      console.error('Program linking error:', this.gl.getProgramInfoLog(program));
+      this.gl.deleteProgram(program);
+      return null;
+    }
+
+    return program;
+  }
+
+  // 強制的な初期化（Zoom操作の代替）
+  public forceInitialization() {
+    if (!this.gl || !this.canvas) return;
+
+    // 最小限の描画を実行してGPUコンテキストを初期化
+    this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+    
+    // 1x1ピクセルの描画でGPUコンテキストを確実に初期化
+    this.gl.drawArrays(this.gl.POINTS, 0, 1);
+    
+    console.log('WebGL force initialization completed');
+  }
+
+  // ノードの描画
+  public renderNodes(nodes: NetworkNode[], transform: Viewport) {
+    if (!this.gl || !this.program || !this.isInitialized) {
+      return false; // WebGLが利用できない場合はfalse
+    }
+
+    // WebGLでの描画処理
+    this.gl.useProgram(this.program);
+    
+    // トランスフォーム行列の設定
+    const matrixLocation = this.gl.getUniformLocation(this.program, 'u_matrix');
+    if (matrixLocation) {
+      const matrix = [
+        transform.scale, 0, 0,
+        0, transform.scale, 0,
+        transform.x, transform.y, 1
+      ];
+      this.gl.uniformMatrix3fv(matrixLocation, false, matrix);
+    }
+
+    // ノードの描画
+    nodes.forEach(node => {
+      // ノードの位置と色を設定
+      const positionLocation = this.gl!.getAttribLocation(this.program!, 'a_position');
+      const colorLocation = this.gl!.getAttribLocation(this.program!, 'a_color');
+      
+      if (positionLocation !== -1 && colorLocation !== -1) {
+        // 位置データ
+        const positions = new Float32Array([node.x, node.y]);
+        const positionBuffer = this.gl!.createBuffer();
+        this.gl!.bindBuffer(this.gl!.ARRAY_BUFFER, positionBuffer);
+        this.gl!.bufferData(this.gl!.ARRAY_BUFFER, positions, this.gl!.STATIC_DRAW);
+        this.gl!.enableVertexAttribArray(positionLocation);
+        this.gl!.vertexAttribPointer(positionLocation, 2, this.gl!.FLOAT, false, 0, 0);
+
+        // 色データ
+        const colors = new Float32Array([1.0, 1.0, 1.0, 1.0]); // 白色
+        const colorBuffer = this.gl!.createBuffer();
+        this.gl!.bindBuffer(this.gl!.ARRAY_BUFFER, colorBuffer);
+        this.gl!.bufferData(this.gl!.ARRAY_BUFFER, colors, this.gl!.STATIC_DRAW);
+        this.gl!.enableVertexAttribArray(colorLocation);
+        this.gl!.vertexAttribPointer(colorLocation, 4, this.gl!.FLOAT, false, 0, 0);
+
+        // 描画
+        this.gl!.drawArrays(this.gl!.POINTS, 0, 1);
+      }
+    });
+
+    return true; // WebGL描画が成功
+  }
+
+  // クリーンアップ
+  public dispose() {
+    if (this.gl && this.program) {
+      this.gl.deleteProgram(this.program);
+    }
+  }
+}
+
 // メインのネットワークキャンバスコンポーネント
-const NetworkCanvas: React.FC<NetworkCanvasProps> = memo(({ 
-  data, 
-  onNodeClick, 
-  onNodeDoubleClick, 
-  onEdgeClick 
+const NetworkCanvas: React.FC<NetworkCanvasProps> = memo(({
+  data,
+  onNodeClick,
+  onNodeDoubleClick,
+  onEdgeClick
 }) => {
-  const { state, setSelectedNode, setHighlightedNodes, setTransform } = useAnalysisSpace();
-  const canvasRef = useRef<HTMLDivElement>(null);
+  const { state, setSelectedNode, setTransform } = useAnalysisSpace();
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const webglRendererRef = useRef<WebGLRenderer | null>(null);
   const isDraggingRef = useRef(false);
   const lastMousePosRef = useRef({ x: 0, y: 0 });
 
-  // 表示範囲内のノードのみをフィルタリング（仮想化）
-  const visibleNodes = useMemo(() => {
-    const { transform, containerDimensions } = state.network;
-    const margin = 100; // ビューポート外のマージン
-    
-    return data.nodes.filter(node => {
-      const pos = state.network.nodePositions[node.id] || { x: node.x, y: node.y };
-      const screenX = (pos.x + transform.x) * transform.scale;
-      const screenY = (pos.y + transform.y) * transform.scale;
+  // WebGLレンダラーの初期化
+  useEffect(() => {
+    if (canvasRef.current && !webglRendererRef.current) {
+      webglRendererRef.current = new WebGLRenderer(canvasRef.current);
       
-      return screenX >= -margin && 
-             screenX <= containerDimensions.width + margin &&
-             screenY >= -margin && 
-             screenY <= containerDimensions.height + margin;
-    });
-  }, [data.nodes, state.network.transform, state.network.nodePositions, state.network.containerDimensions]);
+      // 強制的な初期化を実行
+      setTimeout(() => {
+        webglRendererRef.current?.forceInitialization();
+      }, 100);
+    }
 
-  // 表示範囲内のエッジのみをフィルタリング
-  const visibleEdges = useMemo(() => {
-    const visibleNodeIds = new Set(visibleNodes.map(n => n.id));
-    
-    return data.edges.filter(edge => 
-      visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target)
-    );
-  }, [data.edges, visibleNodes]);
+    return () => {
+      if (webglRendererRef.current) {
+        webglRendererRef.current.dispose();
+        webglRendererRef.current = null;
+      }
+    };
+  }, []);
+
+  // キャンバスサイズの調整
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const resizeCanvas = () => {
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * window.devicePixelRatio;
+      canvas.height = rect.height * window.devicePixelRatio;
+      
+      // WebGLレンダラーが利用可能な場合は強制初期化
+      if (webglRendererRef.current) {
+        webglRendererRef.current.forceInitialization();
+      }
+    };
+
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    return () => window.removeEventListener('resize', resizeCanvas);
+  }, []);
 
   // マウスイベントハンドラー
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (e.target === canvasRef.current) {
-      isDraggingRef.current = true;
-      lastMousePosRef.current = { x: e.clientX, y: e.clientY };
-      setSelectedNode(null);
-    }
-  }, [setSelectedNode]);
+    isDraggingRef.current = true;
+    lastMousePosRef.current = { x: e.clientX, y: e.clientY };
+  }, []);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (isDraggingRef.current && canvasRef.current) {
-      const deltaX = e.clientX - lastMousePosRef.current.x;
-      const deltaY = e.clientY - lastMousePosRef.current.y;
-      
-      // トランスフォームを更新
-      const newTransform = {
-        ...state.network.transform,
-        x: state.network.transform.x + deltaX / state.network.transform.scale,
-        y: state.network.transform.y + deltaY / state.network.transform.scale,
-      };
-      
-      // コンテキスト経由でトランスフォームを更新
-      setTransform(newTransform);
-      
-      lastMousePosRef.current = { x: e.clientX, y: e.clientY };
-    }
+    if (!isDraggingRef.current) return;
+
+    const deltaX = e.clientX - lastMousePosRef.current.x;
+    const deltaY = e.clientY - lastMousePosRef.current.y;
+
+    const newTransform = {
+      ...state.network.transform,
+      x: state.network.transform.x + deltaX,
+      y: state.network.transform.y + deltaY,
+    };
+
+    setTransform(newTransform);
+    lastMousePosRef.current = { x: e.clientX, y: e.clientY };
   }, [state.network.transform, setTransform]);
 
   const handleMouseUp = useCallback(() => {
@@ -294,18 +488,15 @@ const NetworkCanvas: React.FC<NetworkCanvasProps> = memo(({
   }, []);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
-    // preventDefaultを安全に呼び出し
     try {
       e.preventDefault();
     } catch (error) {
-      // passiveイベントリスナーの場合は無視
-      console.warn('Wheel event preventDefault failed (passive listener):', error);
+      console.warn('Wheel event preventDefault failed:', error);
     }
     
     const delta = e.deltaY > 0 ? 0.9 : 1.1;
     const newScale = Math.max(0.1, Math.min(3, state.network.transform.scale * delta));
     
-    // ズーム中心をマウス位置に設定
     const rect = canvasRef.current?.getBoundingClientRect();
     if (rect) {
       const mouseX = e.clientX - rect.left;
@@ -318,18 +509,23 @@ const NetworkCanvas: React.FC<NetworkCanvasProps> = memo(({
         y: state.network.transform.y + (mouseY / newScale - mouseY / state.network.transform.scale),
       };
       
-      // コンテキスト経由でトランスフォームを更新
       setTransform(newTransform);
+      
+      // Zoom操作後にWebGLの強制初期化を実行
+      setTimeout(() => {
+        webglRendererRef.current?.forceInitialization();
+      }, 50);
     }
   }, [state.network.transform, setTransform]);
 
+  // ノードクリックハンドラー
   const handleNodeClick = useCallback((nodeId: string) => {
-    const node = visibleNodes.find(n => n.id === nodeId);
+    const node = data.nodes.find(n => n.id === nodeId);
     if (node) {
       setSelectedNode(node);
     }
     onNodeClick?.(nodeId);
-  }, [setSelectedNode, onNodeClick, visibleNodes]);
+  }, [data.nodes, setSelectedNode, onNodeClick]);
 
   const handleNodeDoubleClick = useCallback((nodeId: string) => {
     onNodeDoubleClick?.(nodeId);
@@ -338,6 +534,43 @@ const NetworkCanvas: React.FC<NetworkCanvasProps> = memo(({
   const handleEdgeClick = useCallback((edgeId: string) => {
     onEdgeClick?.(edgeId);
   }, [onEdgeClick]);
+
+  // 表示するノードとエッジの計算
+  const visibleNodes = useMemo(() => {
+    return data.nodes.filter(node => {
+      const pos = state.network.nodePositions[node.id] || { x: node.x, y: node.y };
+      const transformedPos = {
+        x: (pos.x + state.network.transform.x) * state.network.transform.scale,
+        y: (pos.y + state.network.transform.y) * state.network.transform.scale,
+      };
+      
+      // ビューポート内のノードのみ表示
+      return transformedPos.x >= -100 && 
+             transformedPos.x <= window.innerWidth + 100 &&
+             transformedPos.y >= -100 && 
+             transformedPos.y <= window.innerHeight + 100;
+    });
+  }, [data.nodes, state.network.nodePositions, state.network.transform]);
+
+  const visibleEdges = useMemo(() => {
+    return data.edges.filter(edge => {
+      const sourceNode = visibleNodes.find(n => n.id === edge.source);
+      const targetNode = visibleNodes.find(n => n.id === edge.target);
+      return sourceNode && targetNode;
+    });
+  }, [data.edges, visibleNodes]);
+
+  // WebGL描画の実行
+  useEffect(() => {
+    if (webglRendererRef.current && visibleNodes.length > 0) {
+      const webglSuccess = webglRendererRef.current.renderNodes(visibleNodes, state.network.transform);
+      
+      if (!webglSuccess) {
+        // WebGLが失敗した場合はCanvas 2Dにフォールバック
+        console.log('WebGL rendering failed, using Canvas 2D fallback');
+      }
+    }
+  }, [visibleNodes, state.network.transform]);
 
   // キャンバスのスタイル
   const canvasStyle = {
@@ -351,14 +584,26 @@ const NetworkCanvas: React.FC<NetworkCanvasProps> = memo(({
 
   return (
     <div
-      ref={canvasRef}
       style={canvasStyle}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onWheel={handleWheel}
     >
-      {/* エッジの描画 */}
+      {/* WebGLキャンバス */}
+      <canvas
+        ref={canvasRef}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          pointerEvents: 'none',
+        }}
+      />
+      
+      {/* エッジの描画（SVG） */}
       {visibleEdges.map(edge => {
         const sourceNode = visibleNodes.find(n => n.id === edge.source);
         const targetNode = visibleNodes.find(n => n.id === edge.target);
@@ -368,7 +613,6 @@ const NetworkCanvas: React.FC<NetworkCanvasProps> = memo(({
         const sourcePos = state.network.nodePositions[sourceNode.id] || { x: sourceNode.x, y: sourceNode.y };
         const targetPos = state.network.nodePositions[targetNode.id] || { x: targetNode.x, y: targetNode.y };
         
-        // トランスフォームを適用
         const transformedSourcePos = {
           x: (sourcePos.x + state.network.transform.x) * state.network.transform.scale,
           y: (sourcePos.y + state.network.transform.y) * state.network.transform.scale,
@@ -391,7 +635,7 @@ const NetworkCanvas: React.FC<NetworkCanvasProps> = memo(({
         );
       })}
       
-      {/* ノードの描画 */}
+      {/* ノードの描画（仮想化） */}
       <VirtualizedNodeList
         nodes={visibleNodes}
         transform={state.network.transform}
