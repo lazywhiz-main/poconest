@@ -1,4 +1,6 @@
 import React, { memo, useRef, useCallback, useMemo, useEffect } from 'react';
+import { FixedSizeList as List } from 'react-window';
+import AutoSizer from 'react-virtualized-auto-sizer';
 import type { NetworkData, NetworkNode, NetworkEdge, Viewport } from '../types';
 import { useAnalysisSpace } from '../contexts/AnalysisSpaceContext';
 
@@ -129,6 +131,97 @@ const NetworkEdge = memo<{
 });
 
 NetworkEdge.displayName = 'NetworkEdge';
+
+// 仮想化されたノードリストコンポーネント
+const VirtualizedNodeList = memo<{
+  nodes: NetworkNode[];
+  transform: Viewport;
+  nodePositions: Record<string, { x: number; y: number }>;
+  selectedNode: NetworkNode | null;
+  highlightedNodes: Set<string>;
+  onNodeClick: (nodeId: string) => void;
+  onNodeDoubleClick: (nodeId: string) => void;
+}>(({ 
+  nodes, 
+  transform, 
+  nodePositions, 
+  selectedNode, 
+  highlightedNodes, 
+  onNodeClick, 
+  onNodeDoubleClick 
+}) => {
+  const renderNode = useCallback(({ index, style }: { index: number; style: React.CSSProperties }) => {
+    const node = nodes[index];
+    const pos = nodePositions[node.id] || { x: node.x, y: node.y };
+    
+    // トランスフォームを適用
+    const transformedPos = {
+      x: (pos.x + transform.x) * transform.scale,
+      y: (pos.y + transform.y) * transform.scale,
+    };
+    
+    return (
+      <div style={style}>
+        <NetworkNode
+          node={node}
+          position={transformedPos}
+          isSelected={selectedNode?.id === node.id}
+          isHighlighted={highlightedNodes.has(node.id)}
+          transform={transform}
+          onClick={onNodeClick}
+          onDoubleClick={onNodeDoubleClick}
+        />
+      </div>
+    );
+  }, [nodes, nodePositions, transform, selectedNode, highlightedNodes, onNodeClick, onNodeDoubleClick]);
+
+  // 大量データの場合のみ仮想化を有効化
+  if (nodes.length < 100) {
+    return (
+      <>
+        {nodes.map(node => {
+          const pos = nodePositions[node.id] || { x: node.x, y: node.y };
+          const transformedPos = {
+            x: (pos.x + transform.x) * transform.scale,
+            y: (pos.y + transform.y) * transform.scale,
+          };
+          
+          return (
+            <NetworkNode
+              key={node.id}
+              node={node}
+              position={transformedPos}
+              isSelected={selectedNode?.id === node.id}
+              isHighlighted={highlightedNodes.has(node.id)}
+              transform={transform}
+              onClick={onNodeClick}
+              onDoubleClick={onNodeDoubleClick}
+            />
+          );
+        })}
+      </>
+    );
+  }
+
+  return (
+    <AutoSizer>
+      {({ height, width }: { height: number; width: number }) => (
+        <List
+          height={height}
+          width={width}
+          itemCount={nodes.length}
+          itemSize={60}
+          itemData={nodes}
+          overscanCount={5}
+        >
+          {renderNode}
+        </List>
+      )}
+    </AutoSizer>
+  );
+});
+
+VirtualizedNodeList.displayName = 'VirtualizedNodeList';
 
 // メインのネットワークキャンバスコンポーネント
 const NetworkCanvas: React.FC<NetworkCanvasProps> = memo(({ 
@@ -299,28 +392,15 @@ const NetworkCanvas: React.FC<NetworkCanvasProps> = memo(({
       })}
       
       {/* ノードの描画 */}
-      {visibleNodes.map(node => {
-        const pos = state.network.nodePositions[node.id] || { x: node.x, y: node.y };
-        
-        // トランスフォームを適用
-        const transformedPos = {
-          x: (pos.x + state.network.transform.x) * state.network.transform.scale,
-          y: (pos.y + state.network.transform.y) * state.network.transform.scale,
-        };
-        
-        return (
-          <NetworkNode
-            key={node.id}
-            node={node}
-            position={transformedPos}
-            isSelected={state.network.selectedNode?.id === node.id}
-            isHighlighted={state.network.highlightedNodes.has(node.id)}
-            transform={state.network.transform}
-            onClick={handleNodeClick}
-            onDoubleClick={handleNodeDoubleClick}
-          />
-        );
-      })}
+      <VirtualizedNodeList
+        nodes={visibleNodes}
+        transform={state.network.transform}
+        nodePositions={state.network.nodePositions}
+        selectedNode={state.network.selectedNode}
+        highlightedNodes={state.network.highlightedNodes}
+        onNodeClick={handleNodeClick}
+        onNodeDoubleClick={handleNodeDoubleClick}
+      />
     </div>
   );
 });
