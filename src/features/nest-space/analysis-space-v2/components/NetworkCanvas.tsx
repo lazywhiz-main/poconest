@@ -38,6 +38,15 @@ const NetworkNode = memo<{
   const config = NODE_CONFIG[node.type];
   const size = Math.max(20, Math.min(60, node.size * transform.scale));
   
+  // イベントハンドラーをuseCallbackで最適化
+  const handleClick = useCallback(() => {
+    onClick(node.id);
+  }, [onClick, node.id]);
+
+  const handleDoubleClick = useCallback(() => {
+    onDoubleClick(node.id);
+  }, [onDoubleClick, node.id]);
+  
   const nodeStyle = {
     position: 'absolute' as const,
     left: position.x - size / 2,
@@ -62,8 +71,8 @@ const NetworkNode = memo<{
   return (
     <div
       style={nodeStyle}
-      onClick={() => onClick(node.id)}
-      onDoubleClick={() => onDoubleClick(node.id)}
+      onClick={handleClick}
+      onDoubleClick={handleDoubleClick}
       title={`${node.title} (${node.type})`}
     >
       {config.icon}
@@ -86,6 +95,11 @@ const NetworkEdge = memo<{
   const opacity = isHighlighted ? 0.8 : 0.4;
   const strokeWidth = isHighlighted ? 3 : Math.max(1, edge.strength * 2);
   
+  // イベントハンドラーをuseCallbackで最適化
+  const handleClick = useCallback(() => {
+    onClick(edge.id);
+  }, [onClick, edge.id]);
+  
   // 線の描画（SVG使用）
   const path = `M ${sourcePos.x} ${sourcePos.y} L ${targetPos.x} ${targetPos.y}`;
   
@@ -98,7 +112,7 @@ const NetworkEdge = memo<{
         width: '100%',
         height: '100%',
         pointerEvents: 'none',
-        zIndex: 0,
+        zIndex: isHighlighted ? 2 : 1,
       }}
     >
       <path
@@ -107,9 +121,8 @@ const NetworkEdge = memo<{
         strokeWidth={strokeWidth}
         opacity={opacity}
         fill="none"
-        strokeLinecap="round"
-        onClick={() => onClick(edge.id)}
-        style={{ cursor: 'pointer', pointerEvents: 'auto' }}
+        style={{ cursor: 'pointer' }}
+        onClick={handleClick}
       />
     </svg>
   );

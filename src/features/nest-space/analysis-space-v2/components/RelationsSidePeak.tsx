@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useAnalysisSpace } from '../contexts/AnalysisSpaceContext';
 import type { NetworkEdge, NetworkNode } from '../types';
 
@@ -14,6 +14,19 @@ const RelationsSidePeak: React.FC<RelationsSidePeakProps> = ({ isOpen, onClose }
   const [selectedEdgeType, setSelectedEdgeType] = useState<string>('all');
   const [minStrength, setMinStrength] = useState(0.1);
   const [showOnlyConnected, setShowOnlyConnected] = useState(false);
+
+  // イベントハンドラーをuseCallbackで最適化
+  const handleEdgeTypeChange = useCallback((type: string) => {
+    setSelectedEdgeType(type);
+  }, []);
+
+  const handleMinStrengthChange = useCallback((strength: number) => {
+    setMinStrength(strength);
+  }, []);
+
+  const handleShowOnlyConnectedChange = useCallback((show: boolean) => {
+    setShowOnlyConnected(show);
+  }, []);
 
   // 関連性の統計情報
   const relationshipStats = useMemo(() => {
@@ -141,7 +154,7 @@ const RelationsSidePeak: React.FC<RelationsSidePeakProps> = ({ isOpen, onClose }
           <label style={styles.filterLabel}>関連性タイプ</label>
           <select
             value={selectedEdgeType}
-            onChange={(e) => setSelectedEdgeType(e.target.value)}
+            onChange={(e) => handleEdgeTypeChange(e.target.value)}
             style={styles.filterSelect}
           >
             <option value="all">すべて</option>
@@ -159,7 +172,7 @@ const RelationsSidePeak: React.FC<RelationsSidePeakProps> = ({ isOpen, onClose }
             max="1"
             step="0.01"
             value={minStrength}
-            onChange={(e) => setMinStrength(parseFloat(e.target.value))}
+            onChange={(e) => handleMinStrengthChange(parseFloat(e.target.value))}
             style={styles.filterRange}
           />
         </div>
@@ -169,7 +182,7 @@ const RelationsSidePeak: React.FC<RelationsSidePeakProps> = ({ isOpen, onClose }
             <input
               type="checkbox"
               checked={showOnlyConnected}
-              onChange={(e) => setShowOnlyConnected(e.target.checked)}
+              onChange={(e) => handleShowOnlyConnectedChange(e.target.checked)}
               style={styles.filterCheckbox}
             />
             選択されたノードとの関連性のみ

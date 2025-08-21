@@ -27,6 +27,23 @@ const ClusteringSidePeak: React.FC<ClusteringSidePeakProps> = ({ isOpen, onClose
   const [clusterThreshold, setClusterThreshold] = useState(0.5);
   const [showClusterDetails, setShowClusterDetails] = useState(false);
 
+  // イベントハンドラーをuseCallbackで最適化
+  const handleAlgorithmChange = useCallback((algorithm: 'hdbscan' | 'kmeans' | 'community') => {
+    setClusteringMethod(algorithm);
+  }, [setClusteringMethod]);
+
+  const handleMinClusterSizeChange = useCallback((size: number) => {
+    setMinClusterSize(size);
+  }, [setMinClusterSize]);
+
+  const handleClusterThresholdChange = useCallback((threshold: number) => {
+    setClusterThreshold(threshold);
+  }, [setClusterThreshold]);
+
+  const handleShowClusterDetailsToggle = useCallback(() => {
+    setShowClusterDetails(prev => !prev);
+  }, [setShowClusterDetails]);
+
   // クラスタリングアルゴリズムの実行
   const clusters = useMemo(() => {
     if (!networkData || networkData.nodes.length === 0) return [];
@@ -318,7 +335,7 @@ const ClusteringSidePeak: React.FC<ClusteringSidePeakProps> = ({ isOpen, onClose
           <label style={styles.configLabel}>アルゴリズム</label>
           <select
             value={clusteringMethod}
-            onChange={(e) => setClusteringMethod(e.target.value as any)}
+            onChange={(e) => handleAlgorithmChange(e.target.value as any)}
             style={styles.configSelect}
           >
             <option value="hdbscan">HDBSCAN</option>
@@ -336,7 +353,7 @@ const ClusteringSidePeak: React.FC<ClusteringSidePeakProps> = ({ isOpen, onClose
                 min="2"
                 max="20"
                 value={minClusterSize}
-                onChange={(e) => setMinClusterSize(parseInt(e.target.value))}
+                onChange={(e) => handleMinClusterSizeChange(parseInt(e.target.value))}
                 style={styles.configRange}
               />
             </div>
@@ -348,7 +365,7 @@ const ClusteringSidePeak: React.FC<ClusteringSidePeakProps> = ({ isOpen, onClose
                 max="1.0"
                 step="0.1"
                 value={clusterThreshold}
-                onChange={(e) => setClusterThreshold(parseFloat(e.target.value))}
+                onChange={(e) => handleClusterThresholdChange(parseFloat(e.target.value))}
                 style={styles.configRange}
               />
             </div>
@@ -401,7 +418,7 @@ const ClusteringSidePeak: React.FC<ClusteringSidePeakProps> = ({ isOpen, onClose
         <div style={styles.clustersHeader}>
           <h4 style={styles.sectionTitle}>クラスタ一覧</h4>
           <button
-            onClick={() => setShowClusterDetails(!showClusterDetails)}
+            onClick={handleShowClusterDetailsToggle}
             style={styles.toggleButton}
           >
             {showClusterDetails ? '詳細を隠す' : '詳細を表示'}

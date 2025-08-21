@@ -1,4 +1,4 @@
-import React, { memo, useMemo, useState } from 'react';
+import React, { memo, useMemo, useState, useCallback, useEffect } from 'react';
 import { useAnalysisSpace } from '../contexts/AnalysisSpaceContext';
 import NetworkCanvas from './NetworkCanvas';
 import RelationsSidePeak from './RelationsSidePeak';
@@ -56,6 +56,7 @@ const AnalysisSpaceV2: React.FC<AnalysisSpaceV2Props> = memo(({
   onNodeDoubleClick
 }) => {
   const { state, setActiveSidePanel, setNetworkData } = useAnalysisSpace();
+  const [renderPhase, setRenderPhase] = useState(0);
 
   // データを新しい形式に変換
   const networkData = useMemo(() => {
@@ -67,14 +68,37 @@ const AnalysisSpaceV2: React.FC<AnalysisSpaceV2Props> = memo(({
     setNetworkData(networkData);
   }, [networkData, setNetworkData]);
 
-  // サイドパネルの切り替え
-  const handleSidePanelToggle = (panelType: 'relations' | 'clustering' | 'theory' | 'view' | 'search') => {
+  // サイドパネルの切り替え（useCallbackで最適化）
+  const handleSidePanelToggle = useCallback((panelType: 'relations' | 'clustering' | 'theory' | 'view' | 'search') => {
     if (state.activeSidePanel === panelType) {
       setActiveSidePanel(null);
+      setRenderPhase(0);
     } else {
       setActiveSidePanel(panelType);
+      setRenderPhase(1); // 即座に表示開始
     }
-  };
+  }, [state.activeSidePanel, setActiveSidePanel]);
+
+  // サイドパネルを閉じる（useCallbackで最適化）
+  const handleCloseSidePanel = useCallback(() => {
+    setActiveSidePanel(null);
+    setRenderPhase(0);
+  }, [setActiveSidePanel]);
+
+  // レンダリングフェーズの段階的制御
+  useEffect(() => {
+    if (state.activeSidePanel && renderPhase === 1) {
+      // 軽量コンテンツを表示
+      const timer1 = setTimeout(() => setRenderPhase(2), 50);
+      // 重いコンテンツを表示
+      const timer2 = setTimeout(() => setRenderPhase(3), 200);
+      
+      return () => {
+        clearTimeout(timer1);
+        clearTimeout(timer2);
+      };
+    }
+  }, [state.activeSidePanel, renderPhase]);
 
   // エラーメッセージの表示
   if (state.error) {
@@ -84,7 +108,7 @@ const AnalysisSpaceV2: React.FC<AnalysisSpaceV2Props> = memo(({
           <span style={styles.errorIcon}>⚠️</span>
           {state.error}
           <button 
-            onClick={() => setActiveSidePanel(null)}
+            onClick={handleCloseSidePanel}
             style={styles.errorCloseButton}
           >
             ✕
@@ -142,7 +166,7 @@ const AnalysisSpaceV2: React.FC<AnalysisSpaceV2Props> = memo(({
             onClick={() => handleSidePanelToggle('search')}
             style={{
               ...styles.controlButton,
-              ...(state.activeSidePanel === 'search' && styles.activeButton)
+              ...(state.activeSidePanel === 'view' && styles.activeButton)
             }}
           >
             🔍 検索
@@ -161,8 +185,8 @@ const AnalysisSpaceV2: React.FC<AnalysisSpaceV2Props> = memo(({
           />
         </div>
 
-        {/* サイドパネル */}
-        {state.activeSidePanel && (
+        {/* サイドパネル（段階的表示） */}
+        {state.activeSidePanel && renderPhase >= 1 && (
           <div style={styles.sidePanel}>
             <div style={styles.sidePanelHeader}>
               <span style={styles.sidePanelTitle}>
@@ -173,44 +197,47 @@ const AnalysisSpaceV2: React.FC<AnalysisSpaceV2Props> = memo(({
                 {state.activeSidePanel === 'search' && '🔍 検索・フィルター'}
               </span>
               <button
-                onClick={() => setActiveSidePanel(null)}
+                onClick={handleCloseSidePanel}
                 style={styles.closeButton}
               >
                 ✕
               </button>
             </div>
             <div style={styles.sidePanelContent}>
-              {state.activeSidePanel === 'relations' && (
-                <RelationsSidePeak
-                  isOpen={true}
-                  onClose={() => setActiveSidePanel(null)}
-                />
+              {/* Phase 2: 軽量コンテンツ */}
+              {renderPhase >= 2 && (
+                <>
+                  {state.activeSidePanel === 'relations' && (
+                    <RelationsSidePeak
+                      isOpen={true}
+                      onClose={handleCloseSidePanel}
+                    />
+                  )}
+                  {state.activeSidePanel === 'clustering' && (
+                    <ClusteringSidePeak
+                      isOpen={true}
+                      onClose={handleCloseSidePanel}
+                    />
+                  )}
+                </>
               )}
-              {state.activeSidePanel === 'clustering' && (
-                <ClusteringSidePeak
-                  isOpen={true}
-                  onClose={() => setActiveSidePanel(null)}
-                />
-              )}
-              {(state.activeSidePanel === 'theory' || 
-                state.activeSidePanel === 'view' || 
-                state.activeSidePanel === 'search') && (
-                <div style={styles.placeholderContent}>
-                  🚧 {state.activeSidePanel} パネルの実装中...
-                </div>
+              
+              {/* Phase 3: 重いコンテンツ */}
+              {renderPhase >= 3 && (
+                <>
+                  {(state.activeSidePanel === 'theory' || 
+                    state.activeSidePanel === 'view' || 
+                    state.activeSidePanel === 'search') && (
+                    <div style={styles.placeholderContent}>
+                      🚧 {state.activeSidePanel} パネルの実装中...
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>
         )}
       </div>
-
-      {/* ローディング表示 */}
-      {state.isLoading && (
-        <div style={styles.loadingOverlay}>
-          <div style={styles.loadingSpinner}>⏳</div>
-          <div style={styles.loadingText}>分析中...</div>
-        </div>
-      )}
     </div>
   );
 });
@@ -222,173 +249,157 @@ const styles = {
   container: {
     display: 'flex',
     flexDirection: 'column' as const,
-    height: '100vh',
+    height: '100%',
     backgroundColor: '#0f0f23',
-    color: '#e2e8f0',
+    color: '#ffffff',
+    fontFamily: 'system-ui, -apple-system, sans-serif',
   },
-  
   header: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: '16px 24px',
-    backgroundColor: '#1a1a2e',
     borderBottom: '1px solid #333366',
-    zIndex: 100,
+    backgroundColor: '#1a1a2e',
   },
-  
   title: {
     fontSize: '20px',
     fontWeight: 'bold',
     color: '#00ff88',
   },
-  
   controls: {
     display: 'flex',
     gap: '8px',
   },
-  
   controlButton: {
     padding: '8px 16px',
-    backgroundColor: '#232345',
-    color: '#e2e8f0',
     border: '1px solid #333366',
     borderRadius: '6px',
+    backgroundColor: '#1a1a2e',
+    color: '#ffffff',
     cursor: 'pointer',
-    fontSize: '14px',
     transition: 'all 0.2s ease',
-    '&:hover': {
-      backgroundColor: '#2a2a4a',
-    },
+    fontSize: '14px',
   },
-  
   activeButton: {
     backgroundColor: '#00ff88',
-    color: '#0f0f23',
+    color: '#000000',
     borderColor: '#00ff88',
   },
-  
   content: {
     display: 'flex',
     flex: 1,
     overflow: 'hidden',
   },
-  
   canvasContainer: {
     flex: 1,
     position: 'relative' as const,
   },
-  
   sidePanel: {
     width: '400px',
     backgroundColor: '#1a1a2e',
     borderLeft: '1px solid #333366',
     display: 'flex',
     flexDirection: 'column' as const,
+    animation: 'slideIn 0.3s ease-out',
   },
-  
   sidePanelHeader: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: '16px',
+    padding: '16px 20px',
     borderBottom: '1px solid #333366',
-    backgroundColor: '#232345',
+    backgroundColor: '#2a2a3e',
   },
-  
   sidePanelTitle: {
     fontSize: '16px',
-    fontWeight: '600',
+    fontWeight: 'bold',
+    color: '#00ff88',
   },
-  
   closeButton: {
     padding: '4px 8px',
-    backgroundColor: 'transparent',
-    color: '#e2e8f0',
     border: 'none',
-    cursor: 'pointer',
-    fontSize: '16px',
     borderRadius: '4px',
-    '&:hover': {
-      backgroundColor: '#333366',
-    },
+    backgroundColor: '#ff4757',
+    color: '#ffffff',
+    cursor: 'pointer',
+    fontSize: '14px',
+    transition: 'background-color 0.2s ease',
   },
-  
   sidePanelContent: {
     flex: 1,
-    padding: '16px',
+    padding: '20px',
     overflow: 'auto',
   },
-  
   placeholderContent: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     height: '200px',
-    color: '#a6adc8',
+    color: '#888888',
     fontSize: '16px',
     fontStyle: 'italic',
   },
-  
-  loadingOverlay: {
-    position: 'absolute' as const,
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(15, 15, 35, 0.8)',
-    display: 'flex',
-    flexDirection: 'column' as const,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1000,
-  },
-  
-  loadingSpinner: {
-    fontSize: '48px',
-    marginBottom: '16px',
-    animation: 'spin 1s linear infinite',
-  },
-  
-  loadingText: {
-    fontSize: '18px',
-    color: '#e2e8f0',
-  },
-  
   errorContainer: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    height: '100vh',
+    height: '100%',
     backgroundColor: '#0f0f23',
   },
-  
   errorMessage: {
     display: 'flex',
     alignItems: 'center',
     gap: '12px',
-    padding: '16px 24px',
-    backgroundColor: '#dc2626',
+    padding: '20px',
+    backgroundColor: '#ff4757',
     color: '#ffffff',
     borderRadius: '8px',
     fontSize: '16px',
   },
-  
   errorIcon: {
     fontSize: '20px',
   },
-  
   errorCloseButton: {
     padding: '4px 8px',
-    backgroundColor: 'transparent',
-    color: '#ffffff',
-    border: '1px solid #ffffff',
+    border: 'none',
     borderRadius: '4px',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    color: '#ffffff',
     cursor: 'pointer',
     fontSize: '14px',
-    '&:hover': {
-      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    marginLeft: '12px',
+  },
+  // レンダリング制御のためのアニメーション
+  '@keyframes slideIn': {
+    from: {
+      transform: 'translateX(100%)',
+      opacity: 0,
     },
+    to: {
+      transform: 'translateX(0)',
+      opacity: 1,
+    },
+  },
+  '@keyframes fadeIn': {
+    from: {
+      opacity: 0,
+      transform: 'translateY(10px)',
+    },
+    to: {
+      opacity: 1,
+      transform: 'translateY(0)',
+    },
+  },
+  // 段階的表示のためのスタイル
+  phase1: {
+    animation: 'slideIn 0.2s ease-out',
+  },
+  phase2: {
+    animation: 'fadeIn 0.3s ease-out 0.1s both',
+  },
+  phase3: {
+    animation: 'fadeIn 0.4s ease-out 0.2s both',
   },
 };
 
