@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../../../services/supabase/client';
 import { Speaker, Word } from '../../../../services/GoogleSpeechToTextService';
 // import TextSpeakerDiarizationService from '../../../../services/TextSpeakerDiarizationService';
@@ -301,19 +301,19 @@ const SpeakerDiarizationView: React.FC<SpeakerDiarizationViewProps> = ({
   }, [progressInterval]);
 
   // 外側クリックでドロップダウンを閉じる
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Element;
-      if (isDropdownOpen && !target.closest('.custom-dropdown')) {
-        setIsDropdownOpen(false);
-      }
-    };
+  const handleClickOutside = useCallback((event: MouseEvent) => {
+    const target = event.target as Element;
+    if (isDropdownOpen && !target.closest('.custom-dropdown')) {
+      setIsDropdownOpen(false);
+    }
+  }, [isDropdownOpen]);
 
-    document.addEventListener('mousedown', handleClickOutside);
+  useEffect(() => {
+    document.addEventListener('mousedown', handleClickOutside, { passive: true });
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isDropdownOpen]);
+  }, [handleClickOutside]);
 
   const loadSpeakerData = async () => {
     try {

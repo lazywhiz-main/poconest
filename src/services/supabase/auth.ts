@@ -73,10 +73,14 @@ export const signInWithEmail = async (
     }
     
     // Supabaseへのログインリクエスト
+    console.log('🔐 ログインリクエスト開始:', { email, hasPassword: !!password });
+    
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password
     });
+    
+    console.log('🔐 ログインレスポンス:', { data, error });
     
     if (error) {
       return {

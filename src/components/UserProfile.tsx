@@ -26,7 +26,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({
       }
     }
     if (menuOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('mousedown', handleClickOutside, { passive: true });
     } else {
       document.removeEventListener('mousedown', handleClickOutside);
     }
