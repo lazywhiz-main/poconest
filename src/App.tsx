@@ -437,6 +437,7 @@ const AppContent: React.FC = () => {
           { id: 'meeting', icon: <Icon name="meeting" size={18} />, text: 'ミーティング', isActive: space === 'meeting' },
           { id: 'board', icon: <Icon name="board" size={18} />, text: 'ボード', isActive: space === 'board' },
           { id: 'analytics', icon: <Icon name="analysis" size={18} />, text: '分析', isActive: space === 'analytics' },
+          { id: 'analytics-beta', icon: <Icon name="zap" size={18} />, text: '分析（beta）', isActive: space === 'analytics-beta', badge: 1 },
           { id: 'settings', icon: <Icon name="settings" size={18} />, text: '設定', isActive: space === 'settings' },
         ],
       },
@@ -481,6 +482,13 @@ const AppContent: React.FC = () => {
         );
         break;
       case 'analytics':
+        SpaceComponent = (
+          <BoardProvider currentNestId={currentNest.id}>
+            <AnalysisSpace />
+          </BoardProvider>
+        );
+        break;
+      case 'analytics-beta':
         SpaceComponent = (
           <BoardProvider currentNestId={currentNest.id}>
             <AnalysisSpace />
@@ -597,6 +605,13 @@ const NestTopScreen: React.FC = () => {
         </BoardProvider>
       );
       break;
+    case 'analytics-beta':
+      SpaceComponent = (
+        <BoardProvider currentNestId={nest.id}>
+          <AnalysisSpace />
+        </BoardProvider>
+      );
+      break;
     case 'settings':
       SpaceComponent = <NestSettingsScreen nestId={nest.id} />;
       break;
@@ -623,6 +638,7 @@ const NestTopScreen: React.FC = () => {
         { id: 'meeting', icon: <Icon name="meeting" size={18} />, text: 'ミーティング', isActive: space === 'meeting' },
         { id: 'board', icon: <Icon name="board" size={18} />, text: 'ボード', isActive: space === 'board' },
         { id: 'analytics', icon: <Icon name="analysis" size={18} />, text: '分析', isActive: space === 'analytics' },
+        { id: 'analytics-beta', icon: <Icon name="zap" size={18} />, text: '分析（beta）', isActive: space === 'analytics-beta', badge: 1 },
         { id: 'settings', icon: <Icon name="settings" size={18} />, text: '設定', isActive: space === 'settings' },
       ],
     },

@@ -561,7 +561,7 @@ const ChatSpace: React.FC<ChatSpaceProps> = ({ nestId }) => {
         setMenuVisible(false);
       }
     };
-    window.addEventListener('mousedown', handleClick);
+    window.addEventListener('mousedown', handleClick, { passive: true });
     return () => window.removeEventListener('mousedown', handleClick);
   }, [menuVisible]);
 

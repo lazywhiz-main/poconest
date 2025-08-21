@@ -12,12 +12,17 @@ import NetworkVisualization from './NetworkVisualization';
 import type { NetworkVisualizationConfig } from '../../../../types/analysis';
 import type { BoardItem } from '../../../../services/SmartClusteringService';
 
+// 分析スペースV2のインポート
+import AnalysisSpaceV2, { AnalysisSpaceV2TestPage } from '../../../../features/nest-space/analysis-space-v2';
+
 interface AnalysisSpaceProps {
   nestId: string;
 }
 
 const AnalysisSpace: React.FC<AnalysisSpaceProps> = ({ nestId }) => {
   const { allCards, boardSpaceState } = useBoardSpace();
+  const [useBetaVersion, setUseBetaVersion] = useState(false);
+  const [showTestPage, setShowTestPage] = useState(false);
   const [config, setConfig] = useState<NetworkVisualizationConfig>({
     viewMode: 'circular',
     layoutType: 'circular',
@@ -92,127 +97,124 @@ const AnalysisSpace: React.FC<AnalysisSpaceProps> = ({ nestId }) => {
   // ローディング状態の判定（カードが空の場合をローディングとみなす）
   const isLoading = allCards.length === 0;
 
+  // ベータ版の切り替え
+  const toggleBetaVersion = () => {
+    setUseBetaVersion(!useBetaVersion);
+    setShowTestPage(false);
+  };
+
+  // テストページの切り替え
+  const toggleTestPage = () => {
+    setShowTestPage(!showTestPage);
+    setUseBetaVersion(false);
+  };
+
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <View style={styles.loadingContent}>
             {/* ローディングスピナー */}
-            <View style={styles.spinnerContainer}>
-              <View style={styles.spinner}>
-                <View style={styles.spinnerRing} />
-                <View style={[styles.spinnerRing, styles.spinnerRingDelay]} />
-              </View>
-            </View>
-            
-            {/* ローディングテキスト */}
-            <Text style={styles.loadingTitle}>思考の地図を生成中</Text>
-            <Text style={styles.loadingSubtitle}>カードネットワークを分析しています...</Text>
-            
-            {/* ステータス表示 */}
-            <View style={styles.statusContainer}>
-              <View style={styles.statusDot} />
-              <Text style={styles.statusText}>データ取得完了</Text>
-            </View>
+            <View style={styles.spinner} />
+            <Text style={styles.loadingText}>分析スペースを読み込み中...</Text>
           </View>
         </View>
       </SafeAreaView>
     );
   }
 
-  return (
-    <SafeAreaView style={styles.container}>
-      {/* ヘッダー */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>カードネットワーク分析</Text>
-        <Text style={styles.headerSubtitle}>
-          {filteredCards.length}個のカード • {networkRelationships.length}個の関係性
-        </Text>
-      </View>
-
-      {/* 表示モード切り替え */}
-      <View style={styles.controlPanel}>
-        <View style={styles.viewModeSelector}>
-          <TouchableOpacity
-            style={[
-              styles.viewModeButton,
-              config.viewMode === 'circular' && styles.activeViewModeButton
-            ]}
-            onPress={() => handleViewModeChange('circular')}
-          >
-            <Text style={[
-              styles.viewModeButtonText,
-              config.viewMode === 'circular' && styles.activeViewModeButtonText
-            ]}>
-              ノード型
+  // テストページを表示する場合
+  if (showTestPage) {
+    return (
+      <SafeAreaView style={styles.container}>
+        {/* テストページヘッダー */}
+        <View style={styles.testHeader}>
+          <View style={styles.testHeaderContent}>
+            <Text style={styles.testTitle}>🧪 分析スペース V2 テストページ</Text>
+            <Text style={styles.testDescription}>
+              専用のテスト環境で新しい実装をテストできます。
             </Text>
-          </TouchableOpacity>
-          
+          </View>
           <TouchableOpacity
-            style={[
-              styles.viewModeButton,
-              config.viewMode === 'card' && styles.activeViewModeButton
-            ]}
-            onPress={() => handleViewModeChange('card')}
+            style={styles.testToggleButton}
+            onPress={toggleTestPage}
           >
-            <Text style={[
-              styles.viewModeButtonText,
-              config.viewMode === 'card' && styles.activeViewModeButtonText
-            ]}>
-              カード型
-            </Text>
+            <Text style={styles.testToggleText}>従来版に戻す</Text>
           </TouchableOpacity>
         </View>
+        
+        {/* テストページ */}
+        <AnalysisSpaceV2TestPage nestId={nestId} />
+      </SafeAreaView>
+    );
+  }
 
-        {/* フィルター */}
-        <TouchableOpacity
-          style={styles.filterButton}
-          onPress={() => handleFilterChange('showNodeLabels', !config.showNodeLabels)}
-        >
-          <Text style={styles.filterButtonText}>
-            {config.showNodeLabels ? '🏷️' : '🏷️'} ラベル
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* ネットワーク可視化 */}
-      <View style={styles.networkContainer}>
-        <NetworkVisualization
+  // ベータ版を使用する場合
+  if (useBetaVersion) {
+    return (
+      <SafeAreaView style={styles.container}>
+        {/* ベータ版ヘッダー */}
+        <View style={styles.betaHeader}>
+          <View style={styles.betaHeaderContent}>
+            <Text style={styles.betaTitle}>🚀 分析スペース V2 (ベータ版)</Text>
+            <Text style={styles.betaDescription}>
+              新しい最適化された実装です。パフォーマンスが大幅に向上しています。
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.betaToggleButton}
+            onPress={toggleBetaVersion}
+          >
+            <Text style={styles.betaToggleText}>従来版に戻す</Text>
+          </TouchableOpacity>
+        </View>
+        
+        {/* ベータ版の分析スペース */}
+        <AnalysisSpaceV2
           cards={filteredCards}
           relationships={networkRelationships}
-          config={config}
           onNodeSelect={handleNodeSelect}
+          onNodeDoubleClick={handleNodeSelect}
         />
+      </SafeAreaView>
+    );
+  }
+
+  // 従来版の分析スペース
+  return (
+    <SafeAreaView style={styles.container}>
+      {/* 従来版ヘッダー */}
+      <View style={styles.legacyHeader}>
+        <View style={styles.legacyHeaderContent}>
+          <Text style={styles.legacyTitle}>📊 分析スペース</Text>
+          <Text style={styles.legacyDescription}>
+            従来の実装です。新しいベータ版をお試しください。
+          </Text>
+        </View>
+        <View style={styles.legacyHeaderActions}>
+          <TouchableOpacity
+            style={styles.betaToggleButton}
+            onPress={toggleBetaVersion}
+          >
+            <Text style={styles.betaToggleText}>ベータ版を試す</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.testToggleButton}
+            onPress={toggleTestPage}
+          >
+            <Text style={styles.testToggleText}>テストページ</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* 選択されたノードの詳細 */}
-      {selectedNodeId && (
-        <View style={styles.detailPanel}>
-          {(() => {
-            const selectedCard = filteredCards.find((card: BoardItem) => card.id === selectedNodeId);
-            if (!selectedCard) return null;
-            
-            return (
-              <>
-                <Text style={styles.detailTitle}>{selectedCard.title}</Text>
-                <Text style={styles.detailType}>{selectedCard.column_type}</Text>
-                <Text style={styles.detailContent} numberOfLines={3}>
-                  {selectedCard.content}
-                </Text>
-                {selectedCard.tags && selectedCard.tags.length > 0 && (
-                  <View style={styles.tagContainer}>
-                    {selectedCard.tags.map((tag: string, index: number) => (
-                      <Text key={index} style={styles.tag}>
-                        #{tag}
-                      </Text>
-                    ))}
-                  </View>
-                )}
-              </>
-            );
-          })()}
-        </View>
-      )}
+      {/* 従来のネットワーク可視化 */}
+      <NetworkVisualization
+        cards={filteredCards}
+        relationships={networkRelationships}
+        config={config}
+        onNodeSelect={handleNodeSelect}
+        onNodeDoubleClick={handleNodeSelect}
+      />
     </SafeAreaView>
   );
 };
@@ -423,6 +425,114 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     borderWidth: 1,
     borderColor: 'rgba(100, 181, 246, 0.3)',
+  },
+  // ベータ版スタイル
+  betaHeader: {
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333366',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  betaHeaderContent: {
+    flex: 1,
+    marginRight: 10,
+  },
+  betaTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#00ff88',
+    marginBottom: 4,
+  },
+  betaDescription: {
+    fontSize: 12,
+    color: '#a6adc8',
+  },
+  betaToggleButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#1a1a2e',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#333366',
+  },
+  betaToggleText: {
+    fontSize: 12,
+    color: '#a6adc8',
+    fontWeight: '600',
+  },
+  // 従来版スタイル
+  legacyHeader: {
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333366',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  legacyHeaderContent: {
+    flex: 1,
+    marginRight: 10,
+  },
+  legacyTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#00ff88',
+    marginBottom: 4,
+  },
+  legacyDescription: {
+    fontSize: 12,
+    color: '#a6adc8',
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#a6adc8',
+    marginTop: 10,
+  },
+  
+  // テストページスタイル
+  testHeader: {
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333366',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  testHeaderContent: {
+    flex: 1,
+    marginRight: 10,
+  },
+  testTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#fbbf24',
+    marginBottom: 4,
+  },
+  testDescription: {
+    fontSize: 12,
+    color: '#a6adc8',
+  },
+  testToggleButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#1a1a2e',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#333366',
+  },
+  testToggleText: {
+    fontSize: 12,
+    color: '#a6adc8',
+    fontWeight: '600',
+  },
+  
+  // 従来版ヘッダーアクション
+  legacyHeaderActions: {
+    display: 'flex',
+    flexDirection: 'row',
+    gap: 8,
   },
 });
 

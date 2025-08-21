@@ -72,6 +72,17 @@ const initialSpaceData: SpaceData[] = [
     isVisible: true
   },
   {
+    id: 'analysis-beta' as SpaceType,
+    title: '分析（beta）',
+    icon: 'zap',
+    shortcut: 'B',
+    color: '#00ff88',
+    order: 3,
+    isActive: false,
+    badge: 1,
+    isVisible: true
+  },
+  {
     id: SpaceType.USER_PROFILE,
     title: 'プロフィール',
     icon: 'user-profile',

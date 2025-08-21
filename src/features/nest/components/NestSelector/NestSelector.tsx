@@ -17,7 +17,7 @@ const NestSelector: React.FC = () => {
         setShowNestModal(false);
       }
     };
-    window.addEventListener('mousedown', handleClick);
+    window.addEventListener('mousedown', handleClick, { passive: true });
     return () => window.removeEventListener('mousedown', handleClick);
   }, [showNestModal]);
 

@@ -33,7 +33,8 @@ export type IconName =
   | 'user'
   | 'preferences'
   | 'activity'
-  | 'logout';
+  | 'logout'
+  | 'zap';
 
 interface IconProps {
   name: IconName;
@@ -261,6 +262,11 @@ const icons: Record<IconName, (props: { size: number; color: string }) => JSX.El
       <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
       <polyline points="16,17 21,12 16,7"/>
       <line x1="21" y1="12" x2="9" y2="12"/>
+    </svg>
+  ),
+  zap: ({ size, color }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="13,2 3,14 12,14 11,22 21,10 12,10 13,2"/>
     </svg>
   ),
 };

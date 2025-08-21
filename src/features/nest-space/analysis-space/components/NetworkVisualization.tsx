@@ -1222,7 +1222,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         
         // 最大試行回数に達した場合でも境界内に配置
         if (!validPosition) {
-          console.warn(`Node placement collision for ${card.id}, using fallback position`);
+          // Node placement collision - using fallback position
           // フォールバック: 画面端近くに配置
           const edgeMargin = currentNodeSize + 30;
           const side = Math.floor(Math.random() * 4);
@@ -1639,7 +1639,13 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
 
   // ズーム機能
   const handleWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
+    // preventDefaultを安全に呼び出し
+    try {
+      e.preventDefault();
+    } catch (error) {
+      // passiveイベントリスナーの場合は無視
+      console.warn('Wheel event preventDefault failed (passive listener):', error);
+    }
     const delta = e.deltaY > 0 ? 0.9 : 1.1;
     setTransform(prev => ({
       ...prev,
@@ -1756,7 +1762,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     if (showLabels && clusterLabels.length > 0 && Object.keys(nodePositions).length > 0) {
       updateClusterLabelPositions(nodePositions);
     }
-  }, [nodePositions, showLabels, clusterLabels, updateClusterLabelPositions]);
+  }, [nodePositions, showLabels, updateClusterLabelPositions]);
 
   // 🌊 ビューポート中央にノードを配置する関数
   const centerNodesInViewport = useCallback((positions: { [key: string]: { x: number, y: number } }) => {
@@ -4122,7 +4128,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     } finally {
       setIsGeneratingLabels(false);
     }
-  }, [filteredClusters, boardState.boardId, networkData.nodes, nodePositions, showCustomDialog, hideCustomDialog]);
+  }, [boardState.boardId, networkData.nodes, nodePositions, showCustomDialog, hideCustomDialog]);
 
   // ラベルのクリア
   const clearLabels = useCallback(() => {
@@ -4329,7 +4335,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside, { passive: true });
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showSortOptions]);
 
@@ -4630,26 +4636,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
 
 
           {/* Cluster highlights (クラスター境界線描画) */}
-          {(() => {
-            // 境界線描画のためのクラスター配列を決定
-            let clustersToRender: string[][] = [];
-            
-            if (filteredClusters.length > 0) {
-              // フィルタリングされたクラスターが存在する場合
-              clustersToRender = filteredClusters;
-              console.log(`🎨 [境界線描画] フィルタリングされたクラスターを使用: ${clustersToRender.length}個`);
-            } else if (clusterLabels.length > 0) {
-              // クラスターラベルから境界線用のクラスターを生成
-              clustersToRender = clusterLabels.map(label => label.cardIds);
-              console.log(`🎨 [境界線描画] クラスターラベルから境界線生成: ${clustersToRender.length}個`);
-            } else {
-              console.log(`🎨 [境界線描画] 描画対象のクラスターがありません`);
-            }
-            
-            return clustersToRender;
-          })()}
-          
-          {(() => {
+          {useMemo(() => {
             // 境界線描画のためのクラスター配列を決定
             let clustersToRender: string[][] = [];
             
@@ -4660,28 +4647,15 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
             }
             
             return clustersToRender;
-          })().map((cluster, index) => {
+          }, [filteredClusters, clusterLabels]).map((cluster, index) => {
             const clusterNodes = cluster.map(id => networkData.nodes.find(n => n.id === id)).filter(Boolean);
-            console.log(`🎨 [NetworkVisualization] クラスター${index}表示処理:`, {
-              clusterSize: cluster.length,
-              foundNodes: clusterNodes.length,
-              nodeIds: cluster.slice(0, 3), // 最初の3ノードID
-              willRender: clusterNodes.length >= 2,
-              networkNodesCount: networkData.nodes.length,
-              filteredClustersCount: filteredClusters.length,
-              clusterLabelsCount: clusterLabels.length,
-              dataSource: showFilteredClusters && filteredClusters.length > 0 ? 'filteredClusters' : 'clusterLabels'
-            });
+
             if (clusterNodes.length < 2) {
               console.warn(`⚠️ クラスター${index}: ノード数不足 (${clusterNodes.length}個)`);
               return null;
             }
             
-            console.log(`🎨 [境界線] クラスター${index}の位置情報:`, {
-              nodePositionsKeys: Object.keys(nodePositions).length,
-              clusterNodeIds: clusterNodes.map(n => n!.id),
-              hasPositions: clusterNodes.map(n => !!nodePositions[n!.id])
-            });
+
             
             const padding = 45; // 標準より少し小さく
             // 実際のノード位置を使用してクラスター境界を計算
@@ -4691,11 +4665,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
                 x: Math.round(pos.x),
                 y: Math.round(pos.y)
               };
-              console.log(`📍 [境界線] ノード${n!.id}位置:`, { 
-                fromNodePositions: nodePositions[n!.id], 
-                fromNode: { x: n!.x, y: n!.y }, 
-                final: roundedPos 
-              });
+
               return { ...roundedPos, size: getNodeSize(n!.size) };
             });
             
@@ -4709,11 +4679,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
             const radiusX = (maxX - minX) / 2;
             const radiusY = (maxY - minY) / 2;
             
-            console.log(`🔵 [境界線] クラスター${index}楕円描画:`, {
-              centerX, centerY, radiusX, radiusY,
-              minX, maxX, minY, maxY,
-              nodeCount: nodePositionsInCluster.length
-            });
+
             
             return (
               <ellipse
