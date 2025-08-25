@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { THEME_COLORS } from '../../constants/theme';
 import { HypothesisEvidenceModal } from './HypothesisEvidenceModal';
+import { GroundedTheoryService } from '../../services/analysis/GroundedTheoryService';
+import type { HypothesisFormationPath } from '../../services/analysis/GroundedTheoryService';
 
 // 仮説形成パス追跡用の型定義
 interface ConceptContribution {
@@ -18,64 +20,6 @@ interface RelationshipEvidence {
   strength: number;
   mediatingConcepts: string[];
   evidenceChain: string[];
-}
-
-interface HypothesisFormationPath {
-  id: string;
-  hypothesis: string;
-  
-  // パラダイムモデルの構成要素
-  paradigmModel: {
-    coreCategory: string;
-    causalConditions: string[];
-    contextFactors: string[];
-    interveningConditions: string[];
-    actionStrategies: string[];
-    consequences: string[];
-    theoreticalFramework: string;
-  };
-  
-  formationSteps: Array<{
-    step: number;
-    phase: 'concept_extraction' | 'relationship_discovery' | 'pattern_integration' | 'hypothesis_synthesis' | 'paradigm_construction';
-    description: string;
-    inputConcepts: string[];
-    outputPatterns: string[];
-    confidenceScore: number;
-    gtaMethod: 'open_coding' | 'axial_coding' | 'selective_coding';
-  }>;
-  
-  contributingClusters: Array<{
-    clusterId: string;
-    clusterName: string;
-    contributionType: 'primary' | 'secondary' | 'supporting';
-    conceptCount: number;
-    conceptContributions: ConceptContribution[];
-    themeAnalysis?: {
-      primaryDomain: string;
-      keyConcepts: string[];
-      gtaFocus: string[];
-    };
-  }>;
-  
-  relationshipEvidence: RelationshipEvidence[];
-  
-  // 根拠の詳細情報
-  evidenceDetails: {
-    dataSources: string[];
-    analyticalMethods: string[];
-    validationSteps: string[];
-    limitations: string[];
-    alternativeExplanations: string[];
-  };
-  
-  integrationQuality: {
-    coherence: number;
-    evidence_strength: number;
-    concept_diversity: number;
-    logical_consistency: number;
-    paradigm_robustness: number;
-  };
 }
 
 // 結果データ型の定義
@@ -121,14 +65,67 @@ interface GroundedTheoryResultPanelProps {
  */
 export const GroundedTheoryResultPanel: React.FC<GroundedTheoryResultPanelProps> = ({
   result,
-  onClose,
-  onSave
+  onSave,
+  onClose
 }) => {
   const [activeTab, setActiveTab] = useState<'summary' | 'storyline' | 'hypotheses' | 'evidence'>('summary');
+  const [showSaveDialog, setIsShowSaveDialog] = useState(false);
+  const [saveName, setSaveName] = useState('');
+  const [saveDescription, setSaveDescription] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
   const [selectedHypothesis, setSelectedHypothesis] = useState<string | null>(null);
   const [showEvidenceModal, setShowEvidenceModal] = useState(false);
-  const [showSaveDialog, setShowSaveDialog] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // エラーハンドリング
+  const handleError = (error: any) => {
+    console.error('GroundedTheoryResultPanel エラー:', error);
+    setError(error.message || '予期しないエラーが発生しました');
+    setTimeout(() => setError(null), 5000); // 5秒後にエラーをクリア
+  };
+
+  // ローディング状態の管理
+  const setLoading = (loading: boolean) => {
+    setIsLoading(loading);
+    if (loading) {
+      setError(null); // ローディング開始時にエラーをクリア
+    }
+  };
+
+  const handleSaveClick = () => {
+    setIsShowSaveDialog(true);
+  };
+
+  const handleSaveCancel = () => {
+    setIsShowSaveDialog(false);
+    setSaveName('');
+    setSaveDescription('');
+  };
+
+  const handleSaveConfirm = async () => {
+    if (!saveName.trim()) {
+      alert('名前を入力してください');
+      return;
+    }
+
+    if (!onSave) {
+      alert('保存機能が利用できません');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await onSave(saveName, saveDescription);
+      setIsShowSaveDialog(false);
+      setSaveName('');
+      setSaveDescription('');
+    } catch (error) {
+      handleError(error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const styles = {
     overlay: {
@@ -141,42 +138,70 @@ export const GroundedTheoryResultPanel: React.FC<GroundedTheoryResultPanelProps>
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      zIndex: 9999,
+      zIndex: 10000,
       padding: '20px'
     },
     panel: {
       backgroundColor: THEME_COLORS.bgSecondary,
       borderRadius: THEME_COLORS.borderRadius.xxlarge,
       border: `1px solid ${THEME_COLORS.borderPrimary}`,
-      maxWidth: '900px',
+      maxWidth: '1200px',
       width: '100%',
       maxHeight: '90vh',
       overflow: 'hidden',
       display: 'flex',
-      flexDirection: 'column' as const
+      flexDirection: 'column' as const,
+      boxShadow: '0 12px 32px rgba(0, 0, 0, 0.3)'
     },
     header: {
       padding: '20px 24px',
       borderBottom: `1px solid ${THEME_COLORS.borderPrimary}`,
+      backgroundColor: THEME_COLORS.bgTertiary
+    },
+    headerContent: {
       display: 'flex',
       alignItems: 'center',
-      justifyContent: 'space-between'
+      justifyContent: 'space-between',
+      gap: '16px'
+    },
+    headerActions: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '12px'
     },
     title: {
-      fontSize: '20px',
-      fontWeight: '600',
+      margin: 0,
       color: THEME_COLORS.textPrimary,
-      margin: 0
+      fontSize: '24px',
+      fontWeight: '600',
+      fontFamily: 'Space Grotesk, system-ui, sans-serif'
+    },
+    saveButton: {
+      padding: '8px 16px',
+      backgroundColor: THEME_COLORS.primaryGreen,
+      color: THEME_COLORS.textInverse,
+      border: 'none',
+      borderRadius: THEME_COLORS.borderRadius.medium,
+      fontSize: '14px',
+      fontWeight: '500',
+      cursor: 'pointer',
+      transition: 'all 0.2s',
+      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
     },
     closeButton: {
-      background: 'none',
+      width: '32px',
+      height: '32px',
+      backgroundColor: 'transparent',
       border: 'none',
-      fontSize: '24px',
+      borderRadius: '50%',
       cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontSize: '18px',
       color: THEME_COLORS.textMuted,
-      padding: '4px',
-      borderRadius: THEME_COLORS.borderRadius.medium,
-      lineHeight: 1
+      transition: 'all 0.2s',
+      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
     },
     tabContainer: {
       display: 'flex',
@@ -348,7 +373,7 @@ export const GroundedTheoryResultPanel: React.FC<GroundedTheoryResultPanelProps>
     try {
       setIsSaving(true);
       await onSave(name, description);
-      setShowSaveDialog(false);
+      setIsShowSaveDialog(false);
     } catch (error) {
       console.error('保存エラー:', error);
       // エラーハンドリングは親コンポーネントで行う
@@ -357,133 +382,114 @@ export const GroundedTheoryResultPanel: React.FC<GroundedTheoryResultPanelProps>
     }
   };
 
-  // モック関数: 実際の実装では GroundedTheoryService から取得
-  const generateMockFormationPath = (hypothesis: any): HypothesisFormationPath => {
-    return {
-      id: hypothesis.id,
-      hypothesis: hypothesis.statement,
-      paradigmModel: {
-        coreCategory: '地域体験価値創造',
-        causalConditions: ['地域連携の基盤', '教育機関の存在', '体験価値の認識'],
-        contextFactors: ['地域文化', '大学資源', '参加者ニーズ'],
-        interveningConditions: ['行政支援', '民間協力', '技術革新'],
-        actionStrategies: ['体験プログラム開発', '地域連携強化', '価値創造手法'],
-        consequences: ['地域活性化', '教育効果向上', '体験価値向上'],
-        theoreticalFramework: '地域連携型体験価値創造理論'
-      },
-      formationSteps: [
-        {
-          step: 1,
-          phase: 'concept_extraction',
-          description: 'クラスター「宇都宮・宇都宮大学」から地域教育関連概念を抽出',
-          inputConcepts: ['地域', '大学', '学生'],
-          outputPatterns: ['地域連携', '教育機関活用'],
-          confidenceScore: 0.75,
-          gtaMethod: 'open_coding'
-        },
-        {
-          step: 2,
-          phase: 'relationship_discovery',
-          description: 'エンターテーメント体験クラスターとの強い関係性を発見',
-          inputConcepts: ['体験価値', 'エンターテーメント', '参加型'],
-          outputPatterns: ['体験価値創造', '参加者エンゲージメント'],
-          confidenceScore: 0.68,
-          gtaMethod: 'axial_coding'
-        },
-        {
-          step: 3,
-          phase: 'pattern_integration',
-          description: '地域×教育×体験の三位一体パターンを統合',
-          inputConcepts: ['地域連携', '体験価値創造', '参加者エンゲージメント'],
-          outputPatterns: ['複合的価値創造'],
-          confidenceScore: 0.82,
-          gtaMethod: 'axial_coding'
-        },
-        {
-          step: 4,
-          phase: 'hypothesis_synthesis',
-          description: 'エンターテーメント性仮説の統合的構築',
-          inputConcepts: ['複合的価値創造', '参加者体験'],
-          outputPatterns: ['食体験エンターテーメント性理論'],
-          confidenceScore: 0.76,
-          gtaMethod: 'selective_coding'
-        }
-      ],
-      contributingClusters: [
+  // 実データから仮説形成パスを生成
+  const generateFormationPathFromData = (hypothesis: any): HypothesisFormationPath | null => {
+    try {
+      // 実際の分析結果から仮説形成パスを生成
+      // この部分は実際のデータ構造に応じて実装する必要があります
+      if (!result || !result.openCoding || !result.axialCoding || !result.selectiveCoding) {
+        return null;
+      }
+
+      // クラスター情報の抽出
+      const contributingClusters = result.openCoding.clusterCount > 0 ? [
         {
           clusterId: 'cluster_1',
-          clusterName: '宇都宮・宇都宮大学',
-          contributionType: 'primary',
-          conceptCount: 8,
+          clusterName: '分析クラスター',
+          contributionType: 'primary' as const,
+          conceptCount: result.openCoding.conceptCount,
           conceptContributions: [
             {
-              concept: '地域連携',
+              concept: '主要概念',
               clusterId: 'cluster_1',
-              clusterName: '宇都宮・宇都宮大学',
-              relevance: 0.85,
-              evidenceText: ['大学と地域の連携事例', '学生参加の地域イベント']
-            },
-            {
-              concept: '教育価値',
-              clusterId: 'cluster_1', 
-              clusterName: '宇都宮・宇都宮大学',
-              relevance: 0.72,
-              evidenceText: ['実践的学習機会', '地域理解の深化']
+              clusterName: '分析クラスター',
+              relevance: 0.8,
+              evidenceText: [`${result.openCoding.conceptCount}個の概念が抽出されました`]
             }
-          ]
+          ],
+          themeAnalysis: {
+            primaryDomain: 'GTA分析',
+            keyConcepts: ['概念抽出', 'パターン分析'],
+            gtaFocus: ['概念抽出', 'テーマ分析']
+          }
+        }
+      ] : [];
+
+      // 関係性証拠の抽出
+      const relationshipEvidence = result.axialCoding.relationCount > 0 ? [
+        {
+          sourceCluster: 'クラスター1',
+          targetCluster: 'クラスター2',
+          relationType: 'causal' as const,
+          strength: 0.7,
+          mediatingConcepts: ['媒介概念'],
+          evidenceChain: [`${result.axialCoding.relationCount}の関係性が発見されました`]
+        }
+      ] : [];
+
+      // 簡易的な実装（実際のデータ構造に応じて調整が必要）
+      return {
+        id: hypothesis.id,
+        hypothesis: hypothesis.statement,
+        paradigmModel: {
+          coreCategory: result.selectiveCoding.coreCategory || '未分類',
+          causalConditions: result.axialCoding.causalChainCount > 0 ? ['因果関係が発見されました'] : [],
+          contextFactors: result.axialCoding.categoryCount > 0 ? ['カテゴリが分析されました'] : [],
+          interveningConditions: [],
+          actionStrategies: [],
+          consequences: [],
+          theoreticalFramework: `${result.selectiveCoding.coreCategory || '未分類'}理論`
         },
-        {
-          clusterId: 'cluster_2',
-          clusterName: 'エンターテーメント・体験',
-          contributionType: 'primary',
-          conceptCount: 6,
-          conceptContributions: [
-            {
-              concept: '体験価値',
-              clusterId: 'cluster_2',
-              clusterName: 'エンターテーメント・体験',
-              relevance: 0.91,
-              evidenceText: ['参加型体験の価値', '感情的エンゲージメント']
-            },
-            {
-              concept: 'エンターテーメント性',
-              clusterId: 'cluster_2',
-              clusterName: 'エンターテーメント・体験', 
-              relevance: 0.88,
-              evidenceText: ['楽しさの要素', '参加者満足度']
-            }
-          ]
+        formationSteps: [
+          {
+            step: 1,
+            phase: 'concept_extraction' as const,
+            description: `${result.openCoding.clusterCount}クラスターから${result.openCoding.conceptCount}概念を抽出`,
+            inputConcepts: ['クラスター分析結果'],
+            outputPatterns: ['概念抽出完了'],
+            confidenceScore: 0.8,
+            gtaMethod: 'open_coding' as const
+          },
+          {
+            step: 2,
+            phase: 'relationship_discovery' as const,
+            description: `${result.axialCoding.relationCount}の関係性を発見`,
+            inputConcepts: ['概念間関係'],
+            outputPatterns: ['関係性発見完了'],
+            confidenceScore: 0.75,
+            gtaMethod: 'axial_coding' as const
+          },
+          {
+            step: 3,
+            phase: 'pattern_integration' as const,
+            description: 'パターンを統合して仮説を構築',
+            inputConcepts: [result.selectiveCoding.coreCategory || '中核カテゴリ'],
+            outputPatterns: [hypothesis.statement],
+            confidenceScore: hypothesis.confidence || 0.7,
+            gtaMethod: 'selective_coding' as const
+          }
+        ],
+        contributingClusters,
+        relationshipEvidence,
+        evidenceDetails: {
+          dataSources: ['クラスター分析結果', '関係性分析', 'パターン抽出'],
+          analyticalMethods: ['グラウンデッド・セオリー分析'],
+          validationSteps: ['概念整合性チェック', '関係性妥当性検証'],
+          limitations: ['データの制約', '分析手法の制約'],
+          alternativeExplanations: ['他の要因の影響']
+        },
+        integrationQuality: {
+          coherence: hypothesis.confidence || 0.7,
+          evidence_strength: 0.7,
+          concept_diversity: result.openCoding.conceptCount / 100,
+          logical_consistency: hypothesis.confidence || 0.7,
+          paradigm_robustness: hypothesis.confidence || 0.7
         }
-      ],
-      relationshipEvidence: [
-        {
-          sourceCluster: '宇都宮・宇都宮大学',
-          targetCluster: 'エンターテーメント・体験',
-          relationType: 'causal',
-          strength: 0.73,
-          mediatingConcepts: ['参加型体験', '地域交流'],
-          evidenceChain: [
-            '大学生の地域参加',
-            '体験価値の認識',
-            'エンターテーメント効果の発現'
-          ]
-        }
-      ],
-      evidenceDetails: {
-        dataSources: ['クラスター分析結果', '関係性分析', 'パターン抽出'],
-        analyticalMethods: ['グラウンデッド・セオリー分析', 'クラスター分析', '関係性分析'],
-        validationSteps: ['概念整合性チェック', '関係性妥当性検証', 'パターン一貫性確認'],
-        limitations: ['サンプルサイズの制限', '分析手法の制約', '文脈依存性'],
-        alternativeExplanations: ['地域特性による偶然の一致', '他の要因の影響']
-      },
-      integrationQuality: {
-        coherence: 0.81,
-        evidence_strength: 0.75,
-        concept_diversity: 0.68,
-        logical_consistency: 0.79,
-        paradigm_robustness: 0.76
-      }
-    };
+      };
+    } catch (error) {
+      console.error('仮説形成パスの生成エラー:', error);
+      return null;
+    }
   };
 
   const renderSummaryTab = () => (
@@ -826,134 +832,188 @@ export const GroundedTheoryResultPanel: React.FC<GroundedTheoryResultPanelProps>
   return (
     <div style={styles.overlay} onClick={onClose}>
       <div style={styles.panel} onClick={(e) => e.stopPropagation()}>
-        <div style={styles.header}>
-          <h2 style={styles.title}>🧠 グラウンデッド・セオリー分析結果</h2>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {onSave && (
-              <button
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: THEME_COLORS.primaryGreen,
-                  color: THEME_COLORS.textInverse,
-                  border: 'none',
-                  borderRadius: THEME_COLORS.borderRadius.medium,
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  opacity: isSaving ? 0.7 : 1
-                }}
-                onClick={() => setShowSaveDialog(true)}
-                disabled={isSaving}
-                onMouseEnter={(e) => {
-                  if (!isSaving) {
-                    e.currentTarget.style.backgroundColor = '#00cc77';
-                    e.currentTarget.style.transform = 'translateY(-1px)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!isSaving) {
-                    e.currentTarget.style.backgroundColor = THEME_COLORS.primaryGreen;
-                    e.currentTarget.style.transform = 'translateY(0)';
-                  }
-                }}
-              >
-                {isSaving ? '💾 保存中...' : '💾 この分析を保存'}
-              </button>
-            )}
-            <button 
-              style={styles.closeButton}
-              onClick={onClose}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#e2e8f0';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
+        {/* エラー表示 */}
+        {error && (
+          <div style={{
+            padding: '12px 16px',
+            backgroundColor: '#fee2e2',
+            border: '1px solid #f87171',
+            borderRadius: '8px',
+            marginBottom: '16px',
+            color: '#dc2626',
+            fontSize: '14px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <span>⚠️</span>
+            <span>{error}</span>
+            <button
+              onClick={() => setError(null)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#dc2626',
+                cursor: 'pointer',
+                marginLeft: 'auto',
+                fontSize: '16px'
               }}
             >
               ×
             </button>
           </div>
-        </div>
+        )}
 
-        <div style={styles.tabContainer}>
-          {[
-            { key: 'summary', label: '📊 サマリー' },
-            { key: 'storyline', label: '📖 ストーリーライン' },
-            { key: 'hypotheses', label: '💡 仮説' },
-            { key: 'evidence', label: '🔍 根拠' }
-          ].map(tab => (
-            <button
-              key={tab.key}
-              style={{
-                ...styles.tab,
-                ...(activeTab === tab.key ? styles.activeTab : styles.inactiveTab)
-              }}
-              onClick={() => setActiveTab(tab.key as any)}
-                          onMouseEnter={(e) => {
-              if (activeTab !== tab.key) {
-                e.currentTarget.style.color = THEME_COLORS.textPrimary;
-                e.currentTarget.style.backgroundColor = THEME_COLORS.bgTertiary;
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (activeTab !== tab.key) {
-                e.currentTarget.style.color = THEME_COLORS.textSecondary;
-                e.currentTarget.style.backgroundColor = 'transparent';
-              }
-            }}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        <div style={styles.content}>
-          {activeTab === 'summary' && renderSummaryTab()}
-          {activeTab === 'storyline' && renderStorylineTab()}
-          {activeTab === 'hypotheses' && renderHypothesesTab()}
-          {activeTab === 'evidence' && renderEvidenceTab()}
-        </div>
-
-        {/* 仮説根拠詳細モーダル */}
-        <HypothesisEvidenceModal
-          isVisible={showEvidenceModal}
-          onClose={closeEvidenceModal}
-          formationPath={selectedHypothesis ? generateMockFormationPath(
-            result.hypotheses.find(h => h.id === selectedHypothesis)
-          ) : null}
-        />
-
-        {/* 保存ダイアログ */}
-        {showSaveDialog && (
+        {/* ローディング表示 */}
+        {isLoading && (
           <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 10000
+            padding: '20px',
+            textAlign: 'center',
+            color: THEME_COLORS.textSecondary,
+            fontSize: '14px'
           }}>
+            <div style={{ marginBottom: '8px' }}>🔄 データを処理中...</div>
             <div style={{
-              backgroundColor: THEME_COLORS.bgSecondary,
-              borderRadius: THEME_COLORS.borderRadius.xlarge,
-              border: `1px solid ${THEME_COLORS.borderPrimary}`,
-              padding: '24px',
-              width: '90%',
-              maxWidth: '500px',
-              boxShadow: '0 12px 32px rgba(0, 0, 0, 0.3)'
+              width: '100%',
+              height: '2px',
+              backgroundColor: THEME_COLORS.bgTertiary,
+              borderRadius: '1px',
+              overflow: 'hidden'
             }}>
-              <SaveDialog
-                onSave={handleSave}
-                onCancel={() => setShowSaveDialog(false)}
-                isLoading={isSaving}
-              />
+              <div style={{
+                width: '30%',
+                height: '100%',
+                backgroundColor: THEME_COLORS.primaryBlue,
+                animation: 'loading 1.5s ease-in-out infinite'
+              }} />
             </div>
           </div>
+        )}
+
+        {/* メインコンテンツ */}
+        {!isLoading && (
+          <>
+            {/* ヘッダー */}
+            <div style={styles.header}>
+              <div style={styles.headerContent}>
+                <h2 style={styles.title}>🧠 グラウンデッド・セオリー分析結果</h2>
+                <div style={styles.headerActions}>
+                  <button
+                    style={{
+                      ...styles.saveButton,
+                      opacity: isSaving ? 0.7 : 1
+                    }}
+                    onClick={handleSaveClick}
+                    disabled={isSaving}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
+                    }}
+                  >
+                    {isSaving ? '💾 保存中...' : '💾 保存'}
+                  </button>
+                  <button
+                    style={styles.closeButton}
+                    onClick={onClose}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div style={styles.tabContainer}>
+              {[
+                { key: 'summary', label: '📊 サマリー' },
+                { key: 'storyline', label: '📖 ストーリーライン' },
+                { key: 'hypotheses', label: '💡 仮説' },
+                { key: 'evidence', label: '🔍 根拠' }
+              ].map(tab => (
+                <button
+                  key={tab.key}
+                  style={{
+                    ...styles.tab,
+                    ...(activeTab === tab.key ? styles.activeTab : styles.inactiveTab)
+                  }}
+                  onClick={() => setActiveTab(tab.key as any)}
+                          onMouseEnter={(e) => {
+                  if (activeTab !== tab.key) {
+                    e.currentTarget.style.color = THEME_COLORS.textPrimary;
+                    e.currentTarget.style.backgroundColor = THEME_COLORS.bgTertiary;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (activeTab !== tab.key) {
+                    e.currentTarget.style.color = THEME_COLORS.textSecondary;
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }
+                }}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            <div style={styles.content}>
+              {activeTab === 'summary' && renderSummaryTab()}
+              {activeTab === 'storyline' && renderStorylineTab()}
+              {activeTab === 'hypotheses' && renderHypothesesTab()}
+              {activeTab === 'evidence' && renderEvidenceTab()}
+            </div>
+
+            {/* 仮説根拠詳細モーダル */}
+            <HypothesisEvidenceModal
+              isVisible={showEvidenceModal}
+              onClose={closeEvidenceModal}
+              formationPath={selectedHypothesis ? generateFormationPathFromData(
+                result.hypotheses.find(h => h.id === selectedHypothesis)
+              ) : null}
+            />
+
+            {/* 保存ダイアログ */}
+            {showSaveDialog && (
+              <div style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 10000
+              }}>
+                <div style={{
+                  backgroundColor: THEME_COLORS.bgSecondary,
+                  borderRadius: THEME_COLORS.borderRadius.xlarge,
+                  border: `1px solid ${THEME_COLORS.borderPrimary}`,
+                  padding: '24px',
+                  width: '90%',
+                  maxWidth: '500px',
+                  boxShadow: '0 12px 32px rgba(0, 0, 0, 0.3)'
+                }}>
+                  <SaveDialog
+                    onSave={handleSave}
+                    onCancel={handleSaveCancel}
+                    isLoading={isSaving}
+                  />
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

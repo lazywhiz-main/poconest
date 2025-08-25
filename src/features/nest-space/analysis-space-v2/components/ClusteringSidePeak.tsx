@@ -1,10 +1,11 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useAnalysisSpace } from '../contexts/AnalysisSpaceContext';
 import type { NetworkNode, NetworkEdge } from '../types';
 
 interface ClusteringSidePeakProps {
   isOpen: boolean;
   onClose: () => void;
+  onClusteringResult?: (clusters: Cluster[]) => void;
 }
 
 interface Cluster {
@@ -18,8 +19,8 @@ interface Cluster {
   cohesion: number;
 }
 
-const ClusteringSidePeak: React.FC<ClusteringSidePeakProps> = ({ isOpen, onClose }) => {
-  const { state, setSelectedNode } = useAnalysisSpace();
+const ClusteringSidePeak: React.FC<ClusteringSidePeakProps> = ({ isOpen, onClose, onClusteringResult }) => {
+  const { state, setSelectedNode, setClusteringResult } = useAnalysisSpace();
   const { networkData } = state;
   const { selectedNode } = state.network;
   const [clusteringMethod, setClusteringMethod] = useState<'hdbscan' | 'kmeans' | 'community'>('hdbscan');
@@ -59,6 +60,59 @@ const ClusteringSidePeak: React.FC<ClusteringSidePeakProps> = ({ isOpen, onClose
         return [];
     }
   }, [networkData, clusteringMethod, minClusterSize, clusterThreshold]);
+
+  // クラスタリング結果をAnalysisSpaceContextに保存
+  useEffect(() => {
+    if (clusters.length > 0 && onClusteringResult) {
+      onClusteringResult(clusters);
+    }
+    
+    // AnalysisSpaceContextにも保存
+    if (clusters.length > 0) {
+      const transformedClusters = clusters.map(cluster => ({
+        id: cluster.id,
+        name: cluster.name,
+        nodes: cluster.nodes.map(node => node.id),
+        centroid: cluster.center,
+        cohesion: cluster.cohesion,
+        separation: 0,
+        semanticTheme: cluster.name,
+        dominantTags: [],
+        dominantTypes: [],
+        confidence: cluster.cohesion,
+        suggestedLabel: cluster.name,
+        alternativeLabels: [],
+        reasoning: `クラスター ${cluster.id}の分析結果`
+      }));
+
+      const clusteringResult = {
+        clusters: transformedClusters,
+        outliers: [],
+        quality: {
+          silhouetteScore: 0,
+          modularityScore: 0,
+          intraClusterDistance: 0,
+          interClusterDistance: 0,
+          coverageRatio: 1
+        },
+        algorithm: clusteringMethod,
+        parameters: {
+          algorithm: clusteringMethod,
+          minClusterSize,
+          maxClusterSize: 100,
+          similarityThreshold: clusterThreshold,
+          useSemanticAnalysis: false,
+          useTagSimilarity: false,
+          useContentSimilarity: false,
+          weightStrength: 1,
+          weightSemantic: 1,
+          weightTag: 1
+        }
+      };
+
+      setClusteringResult(clusters, clusteringResult);
+    }
+  }, [clusters, onClusteringResult, setClusteringResult, clusteringMethod, minClusterSize, clusterThreshold]);
 
   // クラスタリング統計
   const clusteringStats = useMemo(() => {

@@ -180,6 +180,8 @@ const AnalysisSpaceV2TestPage: React.FC<AnalysisSpaceV2TestPageProps> = ({ nestI
           relationships={sampleData.relationships}
           onNodeSelect={handleNodeSelect}
           onNodeDoubleClick={handleNodeDoubleClick}
+          boardId="test-board-id"
+          nestId="test-nest-id"
         />
       </div>
 

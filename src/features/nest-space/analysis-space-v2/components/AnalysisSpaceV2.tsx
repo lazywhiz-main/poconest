@@ -3,7 +3,12 @@ import { useAnalysisSpace } from '../contexts/AnalysisSpaceContext';
 import NetworkCanvas from './NetworkCanvas';
 import RelationsSidePeak from './RelationsSidePeak';
 import ClusteringSidePeak from './ClusteringSidePeak';
+import { TheoryBuildingSidePeak } from '../../analysis-space/components/TheoryBuildingSidePeak';
 import type { NetworkData } from '../types';
+import type { ClusterLabel } from '../../../../services/AnalysisService';
+import type { ClusteringResult } from '../../../../services/SmartClusteringService';
+import TheoreticalSamplingModal from '../../../../components/ui/TheoreticalSamplingModal';
+import ConstantComparisonModal from '../../../../components/ui/ConstantComparisonModal';
 
 interface AnalysisSpaceV2Props {
   cards: any[]; // 既存のBoardItem型を使用
@@ -15,6 +20,8 @@ interface AnalysisSpaceV2Props {
   }>;
   onNodeSelect?: (nodeId: string) => void;
   onNodeDoubleClick?: (nodeId: string) => void;
+  boardId: string;
+  nestId: string;
 }
 
 // データ変換関数（既存のデータ形式から新しい形式へ）
@@ -48,18 +55,79 @@ const transformData = (cards: any[], relationships: any[]): NetworkData => {
   return { nodes, edges };
 };
 
+// GTA用のデータ変換関数
+const transformToClusterLabels = (clusters: any[]): ClusterLabel[] => {
+  return clusters.map(cluster => ({
+    id: cluster.id,
+    text: cluster.name,
+    position: cluster.center,
+    theme: `クラスター ${cluster.id}`,
+    confidence: cluster.cohesion || 0.5,
+    cardIds: cluster.nodes.map((node: any) => node.id),
+    metadata: {
+      dominantTags: [], // 後で実装
+      dominantTypes: [], // 後で実装
+      cardCount: cluster.nodes.length
+    }
+  }));
+};
+
+const transformToClusteringResult = (clusters: any[]): ClusteringResult => {
+  return {
+    clusters: clusters.map(cluster => ({
+      id: cluster.id,
+      nodes: cluster.nodes.map((node: any) => node.id),
+      centroid: cluster.nodes[0], // 簡易実装
+      cohesion: cluster.cohesion || 0.5,
+      separation: 0, // 後で実装
+      semanticTheme: cluster.name,
+      dominantTags: [], // 後で実装
+      dominantTypes: [], // 後で実装
+      confidence: cluster.cohesion || 0.5,
+      suggestedLabel: cluster.name,
+      alternativeLabels: [],
+      reasoning: `クラスター ${cluster.id}の分析結果`
+    })),
+    outliers: [],
+    quality: {
+      silhouetteScore: 0,
+      modularityScore: 0,
+      intraClusterDistance: 0,
+      interClusterDistance: 0,
+      coverageRatio: 1
+    },
+    algorithm: 'hdbscan',
+    parameters: {
+      algorithm: 'hdbscan',
+      minClusterSize: 3,
+      maxClusterSize: 100,
+      similarityThreshold: 0.5,
+      useSemanticAnalysis: false,
+      useTagSimilarity: false,
+      useContentSimilarity: false,
+      weightStrength: 1,
+      weightSemantic: 1,
+      weightTag: 1
+    }
+  };
+};
+
 // 分析スペースV2のメインコンポーネント
 const AnalysisSpaceV2: React.FC<AnalysisSpaceV2Props> = memo(({
   cards,
   relationships,
   onNodeSelect,
-  onNodeDoubleClick
+  onNodeDoubleClick,
+  boardId,
+  nestId
 }) => {
   const { state, setActiveSidePanel, setNetworkData } = useAnalysisSpace();
   const [renderPhase, setRenderPhase] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
   const [isPending, startTransition] = useTransition();
   const containerRef = useRef<HTMLDivElement>(null);
+  const [showTheoreticalSamplingModal, setShowTheoreticalSamplingModal] = useState(false);
+  const [showConstantComparisonModal, setShowConstantComparisonModal] = useState(false);
 
   // Intersection Observerによる可視性検出
   useEffect(() => {
@@ -93,6 +161,25 @@ const AnalysisSpaceV2: React.FC<AnalysisSpaceV2Props> = memo(({
   const networkData = useMemo(() => {
     return transformData(cards, relationships);
   }, [cards, relationships]);
+
+  // クラスタリング結果の取得と変換
+  const [clusteringResult, setClusteringResult] = useState<any[]>([]);
+  
+  // ClusteringSidePeakからクラスタリング結果を取得する関数
+  const handleClusteringResult = useCallback((clusters: any[]) => {
+    setClusteringResult(clusters);
+  }, []);
+
+  // GTA用のデータ変換
+  const gtaClusters = useMemo(() => {
+    if (clusteringResult.length === 0) return [];
+    return transformToClusterLabels(clusteringResult);
+  }, [clusteringResult]);
+
+  const gtaClusteringResult = useMemo(() => {
+    if (clusteringResult.length === 0) return null;
+    return transformToClusteringResult(clusteringResult);
+  }, [clusteringResult]);
 
   // ネットワークデータをコンテキストに設定
   React.useEffect(() => {
@@ -260,6 +347,7 @@ const AnalysisSpaceV2: React.FC<AnalysisSpaceV2Props> = memo(({
                       <ClusteringSidePeak
                         isOpen={true}
                         onClose={handleCloseSidePanel}
+                        onClusteringResult={handleClusteringResult}
                       />
                     )}
                   </>
@@ -269,8 +357,15 @@ const AnalysisSpaceV2: React.FC<AnalysisSpaceV2Props> = memo(({
               {/* Phase 3: 重いコンテンツ */}
               {renderPhase >= 3 && (
                 <>
-                  {(state.activeSidePanel === 'theory' || 
-                    state.activeSidePanel === 'view' || 
+                  {state.activeSidePanel === 'theory' && (
+                    <TheoryBuildingSidePeak
+                      currentClusters={state.gtaAnalysis.clusters}
+                      currentClusteringResult={state.gtaAnalysis.clusteringResult}
+                      boardId="current-board" // 後で動的に設定
+                      nestId="current-nest" // 後で動的に設定
+                    />
+                  )}
+                  {(state.activeSidePanel === 'view' || 
                     state.activeSidePanel === 'search') && (
                     <div style={styles.placeholderContent}>
                       🚧 {state.activeSidePanel} パネルの実装中...
@@ -282,6 +377,30 @@ const AnalysisSpaceV2: React.FC<AnalysisSpaceV2Props> = memo(({
           </div>
         )}
       </div>
+
+      {/* 理論的サンプリングモーダル */}
+      <TheoreticalSamplingModal
+        isVisible={showTheoreticalSamplingModal}
+        onClose={() => setShowTheoreticalSamplingModal(false)}
+        currentAnalysisData={{
+          clusters: state.gtaAnalysis.clusters,
+          clusteringResult: state.gtaAnalysis.clusteringResult
+        }}
+        boardId={boardId}
+        nestId={nestId}
+      />
+
+      {/* 定数比較法モーダル */}
+      <ConstantComparisonModal
+        isVisible={showConstantComparisonModal}
+        onClose={() => setShowConstantComparisonModal(false)}
+        currentAnalysisData={{
+          clusters: state.gtaAnalysis.clusters,
+          clusteringResult: state.gtaAnalysis.clusteringResult
+        }}
+        boardId={boardId}
+        nestId={nestId}
+      />
     </div>
   );
 });

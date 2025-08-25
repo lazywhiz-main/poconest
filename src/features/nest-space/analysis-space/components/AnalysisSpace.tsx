@@ -8,6 +8,7 @@ import {
   Platform
 } from 'react-native';
 import { useBoardSpace } from '../../board-space/hooks/useBoardSpace';
+import { useBoardContext } from '../../../board-space/contexts/BoardContext';
 import NetworkVisualization from './NetworkVisualization';
 import type { NetworkVisualizationConfig } from '../../../../types/analysis';
 import type { BoardItem } from '../../../../services/SmartClusteringService';
@@ -21,6 +22,7 @@ interface AnalysisSpaceProps {
 
 const AnalysisSpace: React.FC<AnalysisSpaceProps> = ({ nestId }) => {
   const { allCards, boardSpaceState } = useBoardSpace();
+  const { state } = useBoardContext();
   const [useBetaVersion, setUseBetaVersion] = useState(false);
   const [showTestPage, setShowTestPage] = useState(false);
   const [config, setConfig] = useState<NetworkVisualizationConfig>({
@@ -175,6 +177,8 @@ const AnalysisSpace: React.FC<AnalysisSpaceProps> = ({ nestId }) => {
           relationships={networkRelationships}
           onNodeSelect={handleNodeSelect}
           onNodeDoubleClick={handleNodeSelect}
+          boardId={state.boardId || 'default-board-id'}
+          nestId={nestId}
         />
       </SafeAreaView>
     );

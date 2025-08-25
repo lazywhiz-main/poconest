@@ -90,6 +90,14 @@ export interface AnalysisSpaceState {
   searchQuery: string;
   isLoading: boolean;
   error: string | null;
+  // GTA分析用の状態
+  gtaAnalysis: {
+    currentAnalysis: any | null;
+    isAnalyzing: boolean;
+    analysisProgress: number;
+    clusters: any[];
+    clusteringResult: any | null;
+  };
 }
 
 // 保存されたビュー

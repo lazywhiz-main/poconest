@@ -30,6 +30,126 @@ type ThemeAnalysisSummary = any;
 
 export class GroundedTheoryAnalysisService {
   /**
+   * 拡張分析の保存（概念分析・理論的サンプリング対応）
+   */
+  static async saveEnhancedAnalysis(
+    input: CreateGroundedTheoryAnalysisInput
+  ): Promise<GroundedTheoryAnalysisResponse<SavedGroundedTheoryAnalysis>> {
+    try {
+      console.log('🔄 [GroundedTheoryAnalysisService] 拡張分析を保存中...', {
+        name: input.name,
+        type: input.analysisType,
+        conceptCount: input.sourceClusters.length
+      });
+
+      // 入力データをサニタイズ
+      const sanitizedInput = this.sanitizeForJSON(input);
+
+      // データベースレコード形式に変換
+      const record: Partial<GroundedTheoryAnalysisRecord> = {
+        board_id: sanitizedInput.boardId,
+        nest_id: sanitizedInput.nestId,
+        name: sanitizedInput.name,
+        description: sanitizedInput.description || null,
+        analysis_type: sanitizedInput.analysisType,
+        
+        // 分析結果（分析タイプに応じて設定）
+        analysis_result: sanitizedInput.analysisResult || null,
+        concept_analysis_result: sanitizedInput.conceptAnalysisResult || null,
+        theoretical_sampling_analysis: sanitizedInput.theoreticalSamplingAnalysis || null,
+        sampling_criteria: sanitizedInput.samplingCriteria || null,
+        
+        // 入力データ
+        source_clusters: sanitizedInput.sourceClusters,
+        source_clustering_result: sanitizedInput.sourceClusteringResult || null,
+        analysis_parameters: sanitizedInput.analysisParameters || {},
+        quality_metrics: sanitizedInput.qualityMetrics || {},
+        
+        created_by: (await supabase.auth.getUser()).data.user?.id
+      };
+
+      // データベースに挿入
+      const { data, error } = await supabase
+        .from('grounded_theory_analyses')
+        .insert(record)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ [GroundedTheoryAnalysisService] 保存エラー:', error);
+        return {
+          success: false,
+          error: `保存に失敗しました: ${error.message}`
+        };
+      }
+
+      console.log('✅ [GroundedTheoryAnalysisService] 拡張分析保存完了');
+
+      // レスポンス型に変換
+      const savedAnalysis = this.transformRecordToSavedAnalysis(data);
+      
+      return {
+        success: true,
+        data: savedAnalysis
+      };
+
+    } catch (err) {
+      console.error('❌ [GroundedTheoryAnalysisService] 予期しないエラー:', err);
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : '不明なエラーが発生しました'
+      };
+    }
+  }
+
+  /**
+   * 拡張分析の読み込み
+   */
+  static async loadEnhancedAnalysis(
+    id: string
+  ): Promise<GroundedTheoryAnalysisResponse<SavedGroundedTheoryAnalysis>> {
+    try {
+      console.log('🔄 [GroundedTheoryAnalysisService] 拡張分析を読み込み中...', { id });
+
+      const { data, error } = await supabase
+        .from('grounded_theory_analyses')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error) {
+        console.error('❌ [GroundedTheoryAnalysisService] 読み込みエラー:', error);
+        return {
+          success: false,
+          error: `読み込みに失敗しました: ${error.message}`
+        };
+      }
+
+      if (!data) {
+        return {
+          success: false,
+          error: '指定された分析が見つかりません'
+        };
+      }
+
+      console.log('✅ [GroundedTheoryAnalysisService] 拡張分析読み込み完了');
+
+      const savedAnalysis = this.transformRecordToSavedAnalysis(data);
+      
+      return {
+        success: true,
+        data: savedAnalysis
+      };
+
+    } catch (err) {
+      console.error('❌ [GroundedTheoryAnalysisService] 予期しないエラー:', err);
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : '不明なエラーが発生しました'
+      };
+    }
+  }
+  /**
    * 循環参照を除去してシリアライズ可能なオブジェクトに変換
    */
   private static sanitizeForJSON(obj: any): any {
@@ -785,26 +905,47 @@ export class GroundedTheoryAnalysisService {
   }
 
   /**
-   * データベースレコードからフロントエンド型への変換
+   * データベースレコードからフロントエンド型への変換（拡張版）
    */
-  private static convertRecordToAnalysis(record: GroundedTheoryAnalysisRecord): SavedGroundedTheoryAnalysis {
+  private static transformRecordToSavedAnalysis(record: GroundedTheoryAnalysisRecord): SavedGroundedTheoryAnalysis {
     return {
       id: record.id,
       name: record.name,
       description: record.description || undefined,
       boardId: record.board_id,
       nestId: record.nest_id,
-      analysisResult: record.analysis_result,
+      
+      // 分析タイプ
+      analysisType: record.analysis_type as SavedGroundedTheoryAnalysis['analysisType'],
+      
+      // 分析結果（拡張版）
+      analysisResult: record.analysis_result || undefined,
+      conceptAnalysisResult: record.concept_analysis_result || undefined,
+      theoreticalSamplingAnalysis: record.theoretical_sampling_analysis || undefined,
+      samplingCriteria: record.sampling_criteria || undefined,
+      
+      // 入力データ
       sourceClusters: record.source_clusters,
       sourceClusteringResult: record.source_clustering_result || undefined,
       analysisParameters: record.analysis_parameters,
       qualityMetrics: record.quality_metrics,
+      
+      // 統計情報
       hypothesisCount: record.hypothesis_count,
       confidenceAverage: record.confidence_average,
       conceptCount: record.concept_count,
+      
+      // メタデータ
       createdAt: new Date(record.created_at),
       updatedAt: new Date(record.updated_at),
       createdBy: record.created_by
     };
+  }
+
+  /**
+   * データベースレコードからフロントエンド型への変換（互換性のため）
+   */
+  private static convertRecordToAnalysis(record: GroundedTheoryAnalysisRecord): SavedGroundedTheoryAnalysis {
+    return this.transformRecordToSavedAnalysis(record);
   }
 }

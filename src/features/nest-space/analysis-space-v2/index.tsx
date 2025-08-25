@@ -12,6 +12,8 @@ interface AnalysisSpaceV2WrapperProps {
   }>;
   onNodeSelect?: (nodeId: string) => void;
   onNodeDoubleClick?: (nodeId: string) => void;
+  boardId: string;
+  nestId: string;
 }
 
 const AnalysisSpaceV2Wrapper: React.FC<AnalysisSpaceV2WrapperProps> = (props) => {

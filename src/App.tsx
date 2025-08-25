@@ -21,6 +21,8 @@ import ResponsiveChatSpace from './features/chat-space/components/ResponsiveChat
 import BoardSpace from './features/board-space/components/BoardSpace';
 import MeetingSpace from './features/nest-space/meeting-space/components/MeetingSpace';
 import AnalysisSpace from './features/analysis-space/components/AnalysisSpace';
+import { TheoryBuildingSpace } from './features/nest-space/analysis-space-v3';
+import { AnalysisSpaceProvider } from './features/nest-space/analysis-space-v2';
 import UserProfileSpace from './features/user-profile/components/UserProfileSpace';
 import { MeetingProvider } from './features/meeting-space/contexts/MeetingContext';
 import NestHomeSpace from './features/nest-space/home-space/components/NestHomeSpace';
@@ -428,7 +430,7 @@ const AppContent: React.FC = () => {
     }
     const params = new URLSearchParams(window.location.search);
     const space = params.get('space') || 'home';
-    const menuSections = [
+            const menuSections = [
       {
         title: '',
         items: [
@@ -437,7 +439,8 @@ const AppContent: React.FC = () => {
           { id: 'meeting', icon: <Icon name="meeting" size={18} />, text: 'ミーティング', isActive: space === 'meeting' },
           { id: 'board', icon: <Icon name="board" size={18} />, text: 'ボード', isActive: space === 'board' },
           { id: 'analytics', icon: <Icon name="analysis" size={18} />, text: '分析', isActive: space === 'analytics' },
-          { id: 'analytics-beta', icon: <Icon name="zap" size={18} />, text: '分析（beta）', isActive: space === 'analytics-beta', badge: 1 },
+          { id: 'analytics-beta', icon: <Icon name="map" size={18} />, text: 'データマッピング', isActive: space === 'analytics-beta', badge: 1 },
+          { id: 'theory-building', icon: <Icon name="brain" size={18} />, text: '理論構築・管理', isActive: space === 'theory-building', badge: 4 },
           { id: 'settings', icon: <Icon name="settings" size={18} />, text: '設定', isActive: space === 'settings' },
         ],
       },
@@ -492,6 +495,16 @@ const AppContent: React.FC = () => {
         SpaceComponent = (
           <BoardProvider currentNestId={currentNest.id}>
             <AnalysisSpace />
+          </BoardProvider>
+        );
+        break;
+
+      case 'theory-building':
+        SpaceComponent = (
+          <BoardProvider currentNestId={currentNest.id}>
+            <AnalysisSpaceProvider>
+              <TheoryBuildingSpace boardId={currentNest.id} nestId={currentNest.id} />
+            </AnalysisSpaceProvider>
           </BoardProvider>
         );
         break;
@@ -612,7 +625,18 @@ const NestTopScreen: React.FC = () => {
         </BoardProvider>
       );
       break;
-    case 'settings':
+
+
+      case 'theory-building':
+        SpaceComponent = (
+          <BoardProvider currentNestId={nest.id}>
+            <AnalysisSpaceProvider>
+              <TheoryBuildingSpace boardId={nest.id} nestId={nest.id} />
+            </AnalysisSpaceProvider>
+          </BoardProvider>
+        );
+        break;
+      case 'settings':
       SpaceComponent = <NestSettingsScreen nestId={nest.id} />;
       break;
     default:
@@ -638,7 +662,8 @@ const NestTopScreen: React.FC = () => {
         { id: 'meeting', icon: <Icon name="meeting" size={18} />, text: 'ミーティング', isActive: space === 'meeting' },
         { id: 'board', icon: <Icon name="board" size={18} />, text: 'ボード', isActive: space === 'board' },
         { id: 'analytics', icon: <Icon name="analysis" size={18} />, text: '分析', isActive: space === 'analytics' },
-        { id: 'analytics-beta', icon: <Icon name="zap" size={18} />, text: '分析（beta）', isActive: space === 'analytics-beta', badge: 1 },
+                  { id: 'analytics-beta', icon: <Icon name="map" size={18} />, text: 'データマッピング', isActive: space === 'analytics-beta', badge: 1 },
+        { id: 'theory-building', icon: <Icon name="brain" size={18} />, text: '理論構築・管理', isActive: space === 'theory-building', badge: 4 },
         { id: 'settings', icon: <Icon name="settings" size={18} />, text: '設定', isActive: space === 'settings' },
       ],
     },

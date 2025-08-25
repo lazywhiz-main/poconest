@@ -33,6 +33,7 @@ import { RelationsParameterManager } from '../../../../services/RelationsParamet
 import RelationsParameterSettingsModal from '../../../../components/ui/RelationsParameterSettingsModal';
 import { useToast } from '../../../../components/ui/Toast';
 import ClusteringExportModal from '../../../../components/ui/ClusteringExportModal';
+import ClusterDetailModal from '../../../../components/ui/ClusterDetailModal';
 
 // 統合分析結果のインターフェース
 interface UnifiedRelationshipSuggestion extends SuggestedRelationship {
@@ -361,8 +362,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   const [showClusterDetailPanel, setShowClusterDetailPanel] = useState(false);
   
   // クラスターラベル編集の状態管理（詳細パネル内）
-  const [isEditingClusterLabel, setIsEditingClusterLabel] = useState(false);
-  const [editingClusterText, setEditingClusterText] = useState<string>('');
+
 
   // クラスタリング制御の状態
   const [strengthThreshold, setStrengthThreshold] = useState(0.3);
@@ -4284,43 +4284,34 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   const handleCloseClusterDetail = useCallback(() => {
     setSelectedCluster(null);
     setShowClusterDetailPanel(false);
-    // 編集状態もリセット
-    setIsEditingClusterLabel(false);
-    setEditingClusterText('');
+
   }, []);
 
-  // クラスターラベル編集開始（詳細パネル内）
-  const handleStartEditClusterLabel = useCallback((currentText: string) => {
-    setIsEditingClusterLabel(true);
-    setEditingClusterText(currentText);
-  }, []);
-
-  // クラスターラベル編集保存
-  const handleSaveClusterLabel = useCallback(() => {
-    if (!selectedCluster || !editingClusterText.trim()) return;
+  // クラスターラベル更新の関数
+  const handleUpdateClusterLabel = useCallback((clusterId: string, newText: string) => {
+    console.log('✏️ [NetworkVisualization] クラスターラベル更新:', { clusterId, newText });
     
     // clusterLabelsを更新
     setClusterLabels(prev => prev.map(label => 
-      label.id === selectedCluster 
-        ? { ...label, text: editingClusterText.trim() }
+      label.id === clusterId 
+        ? { ...label, text: newText }
         : label
     ));
     
-    // 編集状態を終了
-    setIsEditingClusterLabel(false);
-    setEditingClusterText('');
-    
     console.log('[NetworkVisualization] クラスターラベル編集完了:', { 
-      clusterId: selectedCluster, 
-      newText: editingClusterText.trim() 
+      clusterId, 
+      newText 
     });
-  }, [selectedCluster, editingClusterText]);
-
-  // クラスターラベル編集キャンセル
-  const handleCancelEditClusterLabel = useCallback(() => {
-    setIsEditingClusterLabel(false);
-    setEditingClusterText('');
   }, []);
+
+  // ノード選択ハンドラー
+  const handleNodeSelect = useCallback((nodeId: string) => {
+    console.log('🎯 [NetworkVisualization] ノード選択:', nodeId);
+    setSelectedNode(nodeId);
+    handleCloseClusterDetail();
+  }, []);
+
+
 
   // ソートオプションの外部クリック検知
   useEffect(() => {
@@ -4974,16 +4965,23 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
           🎛️ Clustering
         </button>
 
-        {/* Theory Building Category */}
+                {/* Theory Building Category */}
         <button
           style={{
             ...styles.categoryBtn,
-            background: activeSidePeak === 'theory' ? THEME_COLORS.primaryPurple : THEME_COLORS.bgSecondary,
-            color: activeSidePeak === 'theory' ? THEME_COLORS.textInverse : THEME_COLORS.textSecondary,
-            borderColor: activeSidePeak === 'theory' ? THEME_COLORS.primaryPurple : THEME_COLORS.borderPrimary,
+            background: THEME_COLORS.primaryPurple,
+            color: THEME_COLORS.textInverse,
+            borderColor: THEME_COLORS.primaryPurple,
           }}
-                      onClick={() => setActiveSidePeak(activeSidePeak === 'theory' ? null : 'theory')}
-          title="仮説抽出と理論構築"
+          onClick={() => {
+            // 理論構築・管理スペースに遷移
+            const currentUrl = new URL(window.location.href);
+            const nestId = currentUrl.searchParams.get('nestId');
+            if (nestId) {
+              window.location.href = `/nest-top?nestId=${nestId}&space=analytics-v3`;
+            }
+          }}
+          title="理論構築・管理スペースに移動"
         >
           🧠 Theory Building
         </button>
@@ -8783,437 +8781,17 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         </div>
       )}
 
-      {/* クラスター詳細パネル */}
+            {/* クラスター詳細モーダル */}
       {showClusterDetailPanel && selectedCluster && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.7)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-          backdropFilter: 'blur(4px)',
-        }}>
-          <div style={{
-            background: THEME_COLORS.bgSecondary,
-            border: `1px solid ${THEME_COLORS.borderPrimary}`,
-            borderRadius: THEME_COLORS.borderRadius.xlarge,
-            padding: '24px',
-            width: '90%',
-            maxWidth: '600px',
-            maxHeight: '80vh',
-            overflow: 'auto',
-            boxShadow: '0 12px 32px rgba(0, 0, 0, 0.3)',
-          }}>
-            {/* ヘッダー */}
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '20px',
-            }}>
-              <div style={{
-                color: THEME_COLORS.primaryBlue,
-                fontSize: '18px',
-                fontWeight: '600',
-                fontFamily: 'Space Grotesk, system-ui, sans-serif',
-              }}>
-                🎯 クラスター詳細
-              </div>
-              <button
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: THEME_COLORS.textMuted,
-                  fontSize: '20px',
-                  cursor: 'pointer',
-                  padding: '4px',
-                }}
-                onClick={handleCloseClusterDetail}
-              >
-                ×
-              </button>
-            </div>
-
-            {(() => {
-              // 選択されたクラスターの詳細情報を取得
-              const clusterLabel = clusterLabels.find(label => label.id === selectedCluster);
-              const clusterCards = clusterLabel ? 
-                clusterLabel.cardIds.map(id => networkData.nodes.find(n => n.id === id)).filter(Boolean) : 
-                [];
-
-              if (!clusterLabel) {
-                return (
-                  <div style={{
-                    color: THEME_COLORS.textMuted,
-                    textAlign: 'center',
-                    padding: '40px',
-                  }}>
-                    クラスター情報が見つかりません
-                  </div>
-                );
-              }
-
-              return (
-                <>
-                  {/* クラスター基本情報 */}
-                  <div style={{
-                    background: THEME_COLORS.bgTertiary,
-                    borderRadius: '8px',
-                    padding: '16px',
-                    marginBottom: '20px',
-                  }}>
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      marginBottom: '8px',
-                    }}>
-                      {isEditingClusterLabel ? (
-                        // 編集モード
-                        <>
-                          <input
-                            type="text"
-                            value={editingClusterText}
-                            onChange={(e) => setEditingClusterText(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                handleSaveClusterLabel();
-                              } else if (e.key === 'Escape') {
-                                handleCancelEditClusterLabel();
-                              }
-                            }}
-                            style={{
-                              background: THEME_COLORS.bgPrimary,
-                              border: `2px solid ${THEME_COLORS.primaryBlue}`,
-                              borderRadius: '4px',
-                              color: THEME_COLORS.textPrimary,
-                              fontSize: '16px',
-                              fontWeight: '600',
-                              padding: '4px 8px',
-                              outline: 'none',
-                              flex: 1,
-                              minWidth: '200px',
-                            }}
-                            autoFocus
-                          />
-                          <div style={{ display: 'flex', gap: '4px' }}>
-                            <button
-                              onClick={handleSaveClusterLabel}
-                              style={{
-                                background: THEME_COLORS.primaryGreen,
-                                border: 'none',
-                                borderRadius: '4px',
-                                color: THEME_COLORS.textInverse,
-                                padding: '4px 8px',
-                                cursor: 'pointer',
-                                fontSize: '12px',
-                                fontWeight: '500',
-                              }}
-                            >
-                              ✓ 保存
-                            </button>
-                            <button
-                              onClick={handleCancelEditClusterLabel}
-                              style={{
-                                background: THEME_COLORS.textMuted,
-                                border: 'none',
-                                borderRadius: '4px',
-                                color: THEME_COLORS.textInverse,
-                                padding: '4px 8px',
-                                cursor: 'pointer',
-                                fontSize: '12px',
-                                fontWeight: '500',
-                              }}
-                            >
-                              ✕ キャンセル
-                            </button>
-                          </div>
-                        </>
-                      ) : (
-                        // 表示モード
-                        <>
-                          <div style={{
-                            color: THEME_COLORS.textPrimary,
-                            fontSize: '16px',
-                            fontWeight: '600',
-                            flex: 1,
-                          }}>
-                            {clusterLabel.text}
-                          </div>
-                          <div style={{ display: 'flex', gap: '6px' }}>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleAILabelGeneration(clusterLabel.id);
-                              }}
-                              style={{
-                                background: THEME_COLORS.primaryGreen,
-                                border: 'none',
-                                borderRadius: '4px',
-                                color: THEME_COLORS.textInverse,
-                                padding: '4px 8px',
-                                cursor: 'pointer',
-                                fontSize: '12px',
-                                fontWeight: '500',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                transition: 'all 0.2s ease',
-                              }}
-                              title="AI支援ラベル提案"
-                            >
-                              🤖 AI提案
-                            </button>
-                            <button
-                              onClick={() => handleStartEditClusterLabel(clusterLabel.text)}
-                              style={{
-                                background: 'transparent',
-                                border: `1px solid ${THEME_COLORS.borderSecondary}`,
-                                borderRadius: '4px',
-                                color: THEME_COLORS.textSecondary,
-                                padding: '4px 8px',
-                                cursor: 'pointer',
-                                fontSize: '12px',
-                                fontWeight: '500',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                transition: 'all 0.2s ease',
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.borderColor = THEME_COLORS.primaryBlue;
-                                e.currentTarget.style.color = THEME_COLORS.primaryBlue;
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.borderColor = THEME_COLORS.borderSecondary;
-                                e.currentTarget.style.color = THEME_COLORS.textSecondary;
-                              }}
-                            >
-                              ✏️ 編集
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                    
-                    <div style={{
-                      display: 'flex',
-                      flexWrap: 'wrap',
-                      gap: '12px',
-                      fontSize: '12px',
-                      color: THEME_COLORS.textSecondary,
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <span>📊</span>
-                        <span>{clusterCards.length} カード</span>
-                      </div>
-                      {clusterLabel.confidence && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <span>🎯</span>
-                          <span>信頼度: {Math.round(clusterLabel.confidence * 100)}%</span>
-                        </div>
-                      )}
-                      {clusterLabel.theme && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <span>🏷️</span>
-                          <span>テーマ: {clusterLabel.theme}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* 統計情報 */}
-                    {clusterLabel.metadata && (
-                      <div style={{
-                        marginTop: '12px',
-                        padding: '12px',
-                        background: THEME_COLORS.bgQuaternary,
-                        borderRadius: '6px',
-                        fontSize: '11px',
-                      }}>
-                        {clusterLabel.metadata.dominantTags && (
-                          <div style={{ marginBottom: '6px' }}>
-                            <span style={{ color: THEME_COLORS.textMuted }}>主要タグ: </span>
-                            <span style={{ color: THEME_COLORS.primaryCyan }}>
-                              {clusterLabel.metadata.dominantTags.join(', ')}
-                            </span>
-                          </div>
-                        )}
-                        {clusterLabel.metadata.dominantTypes && (
-                          <div>
-                            <span style={{ color: THEME_COLORS.textMuted }}>主要タイプ: </span>
-                            <span style={{ color: THEME_COLORS.primaryOrange }}>
-                              {clusterLabel.metadata.dominantTypes.join(', ')}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* カード一覧 */}
-                  <div style={{
-                    color: THEME_COLORS.textPrimary,
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    marginBottom: '12px',
-                  }}>
-                    含まれるカード
-                  </div>
-
-                  <div style={{
-                    maxHeight: '400px',
-                    overflowY: 'auto',
-                    border: `1px solid ${THEME_COLORS.borderSecondary}`,
-                    borderRadius: '8px',
-                    background: THEME_COLORS.bgTertiary,
-                  }}>
-                    {clusterCards.map((card, index) => (
-                      <div
-                        key={card!.id}
-                        style={{
-                          padding: '12px 16px',
-                          borderBottom: index < clusterCards.length - 1 ? `1px solid ${THEME_COLORS.borderSecondary}` : 'none',
-                          cursor: 'pointer',
-                          transition: 'background 0.2s ease',
-                        }}
-                        onClick={() => {
-                          // カードクリック時はノード詳細表示に切り替え
-                          setSelectedNode(card!.id);
-                          handleCloseClusterDetail();
-                        }}
-                        onMouseEnter={(e) => {
-                          (e.currentTarget as HTMLElement).style.background = THEME_COLORS.bgQuaternary;
-                        }}
-                        onMouseLeave={(e) => {
-                          (e.currentTarget as HTMLElement).style.background = 'transparent';
-                        }}
-                      >
-                        <div style={{
-                          color: THEME_COLORS.textPrimary,
-                          fontSize: '13px',
-                          fontWeight: '600',
-                          marginBottom: '4px',
-                        }}>
-                          {card!.title}
-                        </div>
-                        
-                        <div style={{
-                          color: THEME_COLORS.textSecondary,
-                          fontSize: '11px',
-                          lineHeight: '1.4',
-                          marginBottom: '6px',
-                        }}>
-                          {card!.content.length > 100 ? 
-                            `${card!.content.substring(0, 100)}...` : 
-                            card!.content
-                          }
-                        </div>
-
-                        <div style={{
-                          display: 'flex',
-                          flexWrap: 'wrap',
-                          gap: '6px',
-                          alignItems: 'center',
-                        }}>
-                          {/* カードタイプ */}
-                          <span style={{
-                            background: NODE_CONFIG[card!.type as keyof typeof NODE_CONFIG]?.color || THEME_COLORS.textMuted,
-                            color: THEME_COLORS.textInverse,
-                            padding: '2px 6px',
-                            borderRadius: '3px',
-                            fontSize: '9px',
-                            fontWeight: '600',
-                          }}>
-                            {card!.type}
-                          </span>
-
-                          {/* 接続数 */}
-                          <span style={{
-                            color: THEME_COLORS.textMuted,
-                            fontSize: '9px',
-                          }}>
-                            {card!.connectionCount} connections
-                          </span>
-
-                          {/* タグ */}
-                          {card!.tags && card!.tags.length > 0 && (
-                            <div style={{
-                              display: 'flex',
-                              gap: '3px',
-                              flexWrap: 'wrap',
-                            }}>
-                              {card!.tags.slice(0, 3).map(tag => (
-                                <span
-                                  key={tag}
-                                  style={{
-                                    background: THEME_COLORS.primaryCyan,
-                                    color: THEME_COLORS.textInverse,
-                                    padding: '1px 4px',
-                                    borderRadius: '2px',
-                                    fontSize: '8px',
-                                    fontWeight: '500',
-                                  }}
-                                >
-                                  #{tag}
-                                </span>
-                              ))}
-                              {card!.tags.length > 3 && (
-                                <span style={{
-                                  color: THEME_COLORS.textMuted,
-                                  fontSize: '8px',
-                                }}>
-                                  +{card!.tags.length - 3}
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* アクションボタン */}
-                  <div style={{
-                    display: 'flex',
-                    gap: '12px',
-                    marginTop: '20px',
-                    justifyContent: 'flex-end',
-                  }}>
-                    <button
-                      style={{
-                        background: THEME_COLORS.bgQuaternary,
-                        color: THEME_COLORS.textSecondary,
-                        border: `1px solid ${THEME_COLORS.borderSecondary}`,
-                        borderRadius: '6px',
-                        padding: '8px 16px',
-                        fontSize: '12px',
-                        fontWeight: '600',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease',
-                      }}
-                      onClick={handleCloseClusterDetail}
-                      onMouseEnter={(e) => {
-                        const target = e.currentTarget as HTMLElement;
-                        target.style.background = THEME_COLORS.bgTertiary;
-                      }}
-                      onMouseLeave={(e) => {
-                        const target = e.currentTarget as HTMLElement;
-                        target.style.background = THEME_COLORS.bgQuaternary;
-                      }}
-                    >
-                      閉じる
-                    </button>
-                  </div>
-                </>
-              );
-            })()}
-          </div>
-        </div>
+        <ClusterDetailModal
+          isVisible={showClusterDetailPanel}
+          onClose={handleCloseClusterDetail}
+          cluster={clusterLabels.find(label => label.id === selectedCluster)!}
+          boardCards={cards}
+          onUpdateClusterLabel={handleUpdateClusterLabel}
+          onAISuggestion={handleAILabelGeneration}
+          onNodeSelect={handleNodeSelect}
+        />
       )}
 
       {/* スピナーアニメーション用のスタイル */}

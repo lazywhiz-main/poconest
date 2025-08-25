@@ -3,18 +3,20 @@
  * 新規分析実行 + 保存済み分析の管理を統合
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { THEME_COLORS } from '../../../../constants/theme';
+import { GroundedTheoryService } from '../../../../services/analysis/GroundedTheoryService';
 import { GroundedTheoryAnalysisService } from '../../../../services/GroundedTheoryAnalysisService';
+import { ClusterLabel } from '../../../../services/AnalysisService';
+import { ClusteringResult } from '../../../../services/SmartClusteringService';
 import { GroundedTheoryResultPanel } from '../../../../components/ui/GroundedTheoryResultPanel';
+import TheoreticalSamplingModal from '../../../../components/ui/TheoreticalSamplingModal';
+import ConstantComparisonModal from '../../../../components/ui/ConstantComparisonModal';
 import type { 
   SavedGroundedTheoryAnalysis, 
   GroundedTheoryAnalysisSummary,
-  AnalysisExecutionParams,
   GroundedTheoryResultData 
 } from '../../../../types/groundedTheoryAnalysis';
-import type { ClusterLabel } from '../../../../services/AnalysisService';
-import type { ClusteringResult } from '../../../../services/SmartClusteringService';
 
 interface GroundedTheoryManagerProps {
   currentClusters: ClusterLabel[];
@@ -25,7 +27,7 @@ interface GroundedTheoryManagerProps {
 }
 
 interface AnalysisCardProps {
-  analysis: GroundedTheoryAnalysisSummary;
+  analysis: SavedGroundedTheoryAnalysis;
   onView: () => void;
   onDelete: () => void;
 }
@@ -95,84 +97,43 @@ const AnalysisCard: React.FC<AnalysisCardProps> = ({ analysis, onView, onDelete 
       color: THEME_COLORS.textInverse
     },
     deleteButton: {
-      backgroundColor: 'transparent',
-      color: THEME_COLORS.textMuted,
-      border: `1px solid ${THEME_COLORS.borderSecondary}`
+      backgroundColor: THEME_COLORS.primaryRed,
+      color: THEME_COLORS.textInverse
     }
   };
 
   return (
-    <div 
-      style={styles.card}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.backgroundColor = THEME_COLORS.bgQuaternary;
-        e.currentTarget.style.transform = 'translateY(-1px)';
-        e.currentTarget.style.borderColor = THEME_COLORS.primaryGreen;
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.backgroundColor = THEME_COLORS.bgTertiary;
-        e.currentTarget.style.transform = 'translateY(0)';
-        e.currentTarget.style.borderColor = THEME_COLORS.borderSecondary;
-      }}
-    >
+    <div style={styles.card}>
       <div style={styles.header}>
-        <h3 style={styles.title}>{analysis.name}</h3>
+        <h4 style={styles.title}>{analysis.name}</h4>
+        <div style={styles.meta}>
+          <span>仮説: {analysis.hypothesisCount}個</span>
+          <span>信頼度: {(analysis.confidenceAverage * 100).toFixed(1)}%</span>
+        </div>
       </div>
       
-      <div style={styles.meta}>
-        <span>📊 {analysis.hypothesisCount}仮説</span>
-        <span>🎯 {Math.round(analysis.confidenceAverage * 100)}%信頼度</span>
-        <span>💭 {analysis.conceptCount}概念</span>
-        <span>📅 {analysis.createdAt.toLocaleDateString()}</span>
-      </div>
-
       {analysis.description && (
-        <div style={styles.description}>
-          {analysis.description}
-        </div>
+        <p style={styles.description}>{analysis.description}</p>
       )}
-
-      <div style={styles.coreCategory}>
-        🎯 {analysis.coreCategory}
-      </div>
-
+      
       <div style={styles.actions}>
         <button
-          style={{...styles.button, ...styles.viewButton}}
+          style={{ ...styles.button, ...styles.viewButton }}
           onClick={onView}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = '#4A90E2';
-            e.currentTarget.style.transform = 'translateY(-1px)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = THEME_COLORS.primaryBlue;
-            e.currentTarget.style.transform = 'translateY(0)';
-          }}
         >
-          📊 表示
+          表示
         </button>
         <button
-          style={{...styles.button, ...styles.deleteButton}}
+          style={{ ...styles.button, ...styles.deleteButton }}
           onClick={onDelete}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = THEME_COLORS.primaryRed;
-            e.currentTarget.style.color = THEME_COLORS.textInverse;
-            e.currentTarget.style.borderColor = THEME_COLORS.primaryRed;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'transparent';
-            e.currentTarget.style.color = THEME_COLORS.textMuted;
-            e.currentTarget.style.borderColor = THEME_COLORS.borderSecondary;
-          }}
         >
-          🗑️ 削除
+          削除
         </button>
       </div>
     </div>
   );
 };
 
-// メインコンポーネント
 export const GroundedTheoryManager: React.FC<GroundedTheoryManagerProps> = ({
   currentClusters,
   currentClusteringResult,
@@ -180,7 +141,7 @@ export const GroundedTheoryManager: React.FC<GroundedTheoryManagerProps> = ({
   nestId,
   onClose
 }) => {
-  const [savedAnalyses, setSavedAnalyses] = useState<GroundedTheoryAnalysisSummary[]>([]);
+  const [savedAnalyses, setSavedAnalyses] = useState<SavedGroundedTheoryAnalysis[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [currentAnalysisResult, setCurrentAnalysisResult] = useState<{
     result: GroundedTheoryResultData;
@@ -188,184 +149,11 @@ export const GroundedTheoryManager: React.FC<GroundedTheoryManagerProps> = ({
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showTheoreticalSamplingModal, setShowTheoreticalSamplingModal] = useState(false);
+  const [showConstantComparisonModal, setShowConstantComparisonModal] = useState(false);
 
-  // 保存済み分析の取得
-  const loadSavedAnalyses = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      const response = await GroundedTheoryAnalysisService.getAnalysisSummaries(boardId);
-      
-      if (response.success && response.data) {
-        setSavedAnalyses(response.data);
-      } else {
-        setError(response.error || '分析結果の取得に失敗しました');
-      }
-    } catch (error) {
-      console.error('分析結果取得エラー:', error);
-      setError('予期しないエラーが発生しました');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadSavedAnalyses();
-  }, [boardId]);
-
-  // 新しい分析を実行
-  const handleNewAnalysis = async () => {
-    try {
-      setIsAnalyzing(true);
-      setError(null);
-      
-      const params: AnalysisExecutionParams = {
-        clusters: currentClusters,
-        clusteringResult: currentClusteringResult || undefined,
-        parameters: {
-          mode: 'standard',
-          confidenceThreshold: 0.6,
-          maxHypotheses: 5,
-          codingDepth: 3
-        }
-      };
-
-      const executionResult = await GroundedTheoryAnalysisService.performAnalysis(params);
-      
-      setCurrentAnalysisResult({
-        result: executionResult.result,
-        isNew: true
-      });
-      
-    } catch (error) {
-      console.error('分析実行エラー:', error);
-      setError(error instanceof Error ? error.message : '分析の実行に失敗しました');
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
-
-  // 保存済み分析を読み込み
-  const handleLoadAnalysis = async (analysisId: string) => {
-    try {
-      setIsLoading(true);
-      const response = await GroundedTheoryAnalysisService.getAnalysis(analysisId);
-      
-      if (response.success && response.data) {
-        setCurrentAnalysisResult({
-          result: response.data.analysisResult,
-          isNew: false
-        });
-      } else {
-        setError(response.error || '分析結果の読み込みに失敗しました');
-      }
-    } catch (error) {
-      console.error('分析読み込みエラー:', error);
-      setError('予期しないエラーが発生しました');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // 分析結果を保存
-  const handleSaveAnalysis = async (name: string, description?: string) => {
-    if (!currentAnalysisResult?.isNew) return;
-
-    try {
-      const response = await GroundedTheoryAnalysisService.saveAnalysis({
-        name,
-        description,
-        boardId,
-        nestId,
-        analysisResult: currentAnalysisResult.result,
-        sourceClusters: currentClusters,
-        sourceClusteringResult: currentClusteringResult || undefined
-      });
-
-      if (response.success) {
-        // 保存成功 → リストを更新して管理画面に戻る
-        await loadSavedAnalyses();
-        setCurrentAnalysisResult(null);
-      } else {
-        setError(response.error || '保存に失敗しました');
-      }
-    } catch (error) {
-      console.error('保存エラー:', error);
-      setError('予期しないエラーが発生しました');
-    }
-  };
-
-  // 分析結果を削除
-  const handleDeleteAnalysis = async (analysisId: string) => {
-    if (!confirm('この分析結果を削除しますか？')) return;
-
-    try {
-      const response = await GroundedTheoryAnalysisService.deleteAnalysis(analysisId);
-      
-      if (response.success) {
-        await loadSavedAnalyses(); // リストを更新
-      } else {
-        setError(response.error || '削除に失敗しました');
-      }
-    } catch (error) {
-      console.error('削除エラー:', error);
-      setError('予期しないエラーが発生しました');
-    }
-  };
-
+  // スタイル定義
   const styles = {
-    overlay: {
-      position: 'fixed' as const,
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.8)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 9999,
-      padding: '20px'
-    },
-    panel: {
-      backgroundColor: THEME_COLORS.bgSecondary,
-      borderRadius: THEME_COLORS.borderRadius.xxlarge,
-      border: `1px solid ${THEME_COLORS.borderPrimary}`,
-      maxWidth: '900px',
-      width: '100%',
-      maxHeight: '90vh',
-      overflow: 'hidden',
-      display: 'flex',
-      flexDirection: 'column' as const
-    },
-    header: {
-      padding: '20px 24px',
-      borderBottom: `1px solid ${THEME_COLORS.borderPrimary}`,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between'
-    },
-    title: {
-      fontSize: '20px',
-      fontWeight: '600',
-      color: THEME_COLORS.textPrimary,
-      margin: 0
-    },
-    closeButton: {
-      background: 'none',
-      border: 'none',
-      fontSize: '24px',
-      cursor: 'pointer',
-      color: THEME_COLORS.textMuted,
-      padding: '4px',
-      borderRadius: THEME_COLORS.borderRadius.medium,
-      lineHeight: 1
-    },
-    content: {
-      flex: 1,
-      padding: '24px',
-      overflow: 'auto'
-    },
     section: {
       marginBottom: '24px'
     },
@@ -425,23 +213,157 @@ export const GroundedTheoryManager: React.FC<GroundedTheoryManagerProps> = ({
     }
   };
 
-  // 分析結果表示モード
+  // 保存済み分析の取得
+  const fetchSavedAnalyses = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const response = await GroundedTheoryAnalysisService.getAnalyses(boardId);
+      if (response.success && response.data) {
+        setSavedAnalyses(response.data);
+      }
+    } catch (err) {
+      setError('保存済み分析の取得に失敗しました');
+      console.error('Failed to fetch saved analyses:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [boardId]);
+
+  // 新規分析の実行
+  const handleNewAnalysis = useCallback(async () => {
+    if (!currentClusters.length || !currentClusteringResult) {
+      setError('クラスターデータが不足しています');
+      return;
+    }
+
+    try {
+      setIsAnalyzing(true);
+      setError(null);
+      
+      // クラスターデータをGroundedTheoryServiceで処理可能な形式に変換
+      const clusterData = currentClusters.map(cluster => ({
+        id: cluster.id,
+        name: cluster.text || 'Unnamed Cluster',
+        nodes: cluster.cardIds,
+        cards: [] // BoardItem[] が必要だが、現在は空配列で対応
+      }));
+
+      // まずオープンコーディングを実行
+      const openCodingResult = await GroundedTheoryService.performOpenCoding(
+        clusterData
+      );
+      
+      // アキシャルコーディングを実行
+      const axialCodingResult = await GroundedTheoryService.performAxialCoding(
+        openCodingResult
+      );
+      
+      // セレクティブコーディングを実行
+      const selectiveCodingResult = await GroundedTheoryService.performSelectiveCoding(
+        axialCodingResult
+      );
+
+      // 結果をGroundedTheoryResultDataの形式に変換
+      const result: GroundedTheoryResultData = {
+        openCoding: {
+          clusterCount: openCodingResult.length,
+          conceptCount: openCodingResult.reduce((sum, r) => sum + r.extractedConcepts.length, 0)
+        },
+        axialCoding: {
+          categoryCount: axialCodingResult.categories?.length || 0,
+          relationCount: axialCodingResult.relations?.length || 0,
+          causalChainCount: axialCodingResult.causalChains?.length || 0
+        },
+        selectiveCoding: {
+          coreCategory: selectiveCodingResult.coreCategory?.name || '未特定',
+          hypothesisCount: selectiveCodingResult.hypotheses?.length || 0,
+          integrationQuality: selectiveCodingResult.integration?.coherence || 0
+        },
+        storyline: selectiveCodingResult.storyline || 'ストーリーラインが生成されませんでした',
+        hypotheses: selectiveCodingResult.hypotheses || []
+      };
+
+      setCurrentAnalysisResult({
+        result,
+        isNew: true
+      });
+
+    } catch (err) {
+      setError('分析の実行に失敗しました');
+      console.error('Failed to execute analysis:', err);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  }, [currentClusters, currentClusteringResult]);
+
+  // 分析結果の保存
+  const handleSaveAnalysis = useCallback(async (result: GroundedTheoryResultData) => {
+    try {
+      const analysis = await GroundedTheoryAnalysisService.saveAnalysis({
+        boardId,
+        nestId,
+        name: `GTA分析_${new Date().toLocaleDateString('ja-JP')}`,
+        description: 'グラウンデッド・セオリー分析の結果',
+        analysisType: 'basic_gta',
+        analysisResult: result,
+        sourceClusters: currentClusters,
+        sourceClusteringResult: currentClusteringResult || undefined
+      });
+
+      await fetchSavedAnalyses(); // リストを再取得
+      setCurrentAnalysisResult(null);
+      
+    } catch (err) {
+      setError('分析結果の保存に失敗しました');
+      console.error('Failed to save analysis:', err);
+    }
+  }, [boardId, nestId, currentClusters, currentClusteringResult]);
+
+  // 保存済み分析の読み込み
+  const handleLoadAnalysis = useCallback((analysisId: string) => {
+    const analysis = savedAnalyses.find(a => a.id === analysisId);
+    if (analysis) {
+      setCurrentAnalysisResult({
+        result: analysis.analysisResult!,
+        isNew: false
+      });
+    }
+  }, [savedAnalyses]);
+
+  // 保存済み分析の削除
+  const handleDeleteAnalysis = useCallback(async (analysisId: string) => {
+    try {
+      await GroundedTheoryAnalysisService.deleteAnalysis(analysisId);
+      await fetchSavedAnalyses(); // リストを再取得
+    } catch (err) {
+      setError('分析の削除に失敗しました');
+      console.error('Failed to delete analysis:', err);
+    }
+  }, []);
+
+  // 初期化
+  useEffect(() => {
+    fetchSavedAnalyses();
+  }, [fetchSavedAnalyses]);
+
+  // 分析結果パネルが表示されている場合
   if (currentAnalysisResult) {
     return (
       <GroundedTheoryResultPanel
         result={currentAnalysisResult.result}
+        onSave={() => handleSaveAnalysis(currentAnalysisResult.result)}
         onClose={() => setCurrentAnalysisResult(null)}
-        onSave={currentAnalysisResult.isNew ? handleSaveAnalysis : undefined}
       />
     );
   }
 
-  // 管理画面モード（サイドピーク用）
+  // メインの管理画面
   return (
     <div style={{
+      height: '100%',
       display: 'flex',
       flexDirection: 'column',
-      height: '100%',
+      backgroundColor: THEME_COLORS.bgSecondary,
       overflow: 'hidden',
     }}>
       {/* ヘッダー（サイドピーク用簡略版） */}
@@ -476,16 +398,21 @@ export const GroundedTheoryManager: React.FC<GroundedTheoryManagerProps> = ({
         overflow: 'auto',
         padding: '16px 20px',
       }}>
-          {error && (
-            <div style={styles.errorText}>
-              ❌ {error}
-            </div>
-          )}
+        {error && (
+          <div style={styles.errorText}>
+            ❌ {error}
+          </div>
+        )}
 
-          {/* 新規分析実行セクション */}
-          <div style={styles.section}>
-            <h3 style={styles.sectionTitle}>🚀 新しい分析を実行</h3>
-            <div style={styles.newAnalysisSection}>
+        {/* 新規分析実行セクション */}
+        <div style={styles.section}>
+          <h3 style={styles.sectionTitle}>🚀 新しい分析を実行</h3>
+          <div style={styles.newAnalysisSection}>
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              flexWrap: 'wrap'
+            }}>
               <button 
                 style={{
                   ...styles.newAnalysisButton,
@@ -510,47 +437,97 @@ export const GroundedTheoryManager: React.FC<GroundedTheoryManagerProps> = ({
                 {isAnalyzing ? '🔬 分析実行中...' : '🚀 新しく分析を実行'}
               </button>
               
-              {!currentClusters.length && (
-                <p style={styles.warningText}>
-                  先にクラスタリングを実行してください
-                </p>
-              )}
-              
-              {currentClusters.length > 0 && (
-                <p style={styles.warningText}>
-                  現在のクラスター: {currentClusters.length}個 ({currentClusters.reduce((sum, c) => sum + c.cardIds.length, 0)}概念)
-                </p>
-              )}
+              <button 
+                style={{
+                  ...styles.newAnalysisButton,
+                  backgroundColor: '#3b82f6',
+                  opacity: (!currentClusters.length || isAnalyzing) ? 0.6 : 1,
+                  cursor: (!currentClusters.length || isAnalyzing) ? 'not-allowed' : 'pointer'
+                }}
+                onClick={() => setShowTheoreticalSamplingModal(true)}
+                disabled={!currentClusters.length || isAnalyzing}
+                onMouseEnter={(e) => {
+                  if (!e.currentTarget.disabled) {
+                    e.currentTarget.style.backgroundColor = '#2563eb';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!e.currentTarget.disabled) {
+                    e.currentTarget.style.backgroundColor = '#3b82f6';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }
+                }}
+              >
+                🔬 新しい分析を実行（ベータ）
+              </button>
             </div>
-          </div>
-
-          {/* 保存済み分析リスト */}
-          <div style={styles.section}>
-            <h3 style={styles.sectionTitle}>📚 保存済み分析結果</h3>
             
-            {isLoading ? (
-              <div style={styles.loadingState}>
-                🔄 読み込み中...
-              </div>
-            ) : savedAnalyses.length === 0 ? (
-              <div style={styles.emptyState}>
-                📭 保存済み分析がありません<br/>
-                新しい分析を実行して結果を保存してください
-              </div>
-            ) : (
-              <div>
-                {savedAnalyses.map(analysis => (
-                  <AnalysisCard
-                    key={analysis.id}
-                    analysis={analysis}
-                    onView={() => handleLoadAnalysis(analysis.id)}
-                    onDelete={() => handleDeleteAnalysis(analysis.id)}
-                  />
-                ))}
-              </div>
+            {!currentClusters.length && (
+              <p style={styles.warningText}>
+                先にクラスタリングを実行してください
+              </p>
+            )}
+            
+            {currentClusters.length > 0 && (
+              <p style={styles.warningText}>
+                現在のクラスター: {currentClusters.length}個 ({currentClusters.reduce((sum, c) => sum + c.cardIds.length, 0)}概念)
+              </p>
             )}
           </div>
         </div>
+
+        {/* 保存済み分析リスト */}
+        <div style={styles.section}>
+          <h3 style={styles.sectionTitle}>📚 保存済み分析結果</h3>
+          
+          {isLoading ? (
+            <div style={styles.loadingState}>
+              🔄 読み込み中...
+            </div>
+          ) : savedAnalyses.length === 0 ? (
+            <div style={styles.emptyState}>
+              📭 保存済み分析がありません<br/>
+              新しい分析を実行して結果を保存してください
+            </div>
+          ) : (
+            <div>
+              {savedAnalyses.map(analysis => (
+                <AnalysisCard
+                  key={analysis.id}
+                  analysis={analysis}
+                  onView={() => handleLoadAnalysis(analysis.id)}
+                  onDelete={() => handleDeleteAnalysis(analysis.id)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
-    );
+
+      {/* 理論的サンプリングモーダル */}
+              <TheoreticalSamplingModal
+          isVisible={showTheoreticalSamplingModal}
+          onClose={() => setShowTheoreticalSamplingModal(false)}
+          currentAnalysisData={{
+            clusters: currentClusters,
+            clusteringResult: currentClusteringResult
+          }}
+          boardId={boardId}
+          nestId={nestId}
+        />
+
+      {/* 定数比較法モーダル */}
+              <ConstantComparisonModal
+          isVisible={showConstantComparisonModal}
+          onClose={() => setShowConstantComparisonModal(false)}
+          currentAnalysisData={{
+            clusters: currentClusters,
+            clusteringResult: currentClusteringResult
+          }}
+          boardId={boardId}
+          nestId={nestId}
+        />
+    </div>
+  );
 };

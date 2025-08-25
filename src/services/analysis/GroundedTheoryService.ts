@@ -110,6 +110,78 @@ export interface SelectiveCodingResult {
   analysisDate: string;
 }
 
+// 仮説形成パスの型定義
+export interface HypothesisFormationPath {
+  id: string;
+  hypothesis: string;
+  
+  // パラダイムモデルの構成要素
+  paradigmModel: {
+    coreCategory: string;
+    causalConditions: string[];
+    contextFactors: string[];
+    interveningConditions: string[];
+    actionStrategies: string[];
+    consequences: string[];
+    theoreticalFramework: string;
+  };
+  
+  formationSteps: Array<{
+    step: number;
+    phase: 'concept_extraction' | 'relationship_discovery' | 'pattern_integration' | 'hypothesis_synthesis' | 'paradigm_construction';
+    description: string;
+    inputConcepts: string[];
+    outputPatterns: string[];
+    confidenceScore: number;
+    gtaMethod: 'open_coding' | 'axial_coding' | 'selective_coding';
+  }>;
+  
+  contributingClusters: Array<{
+    clusterId: string;
+    clusterName: string;
+    contributionType: 'primary' | 'secondary' | 'supporting';
+    conceptCount: number;
+    conceptContributions: Array<{
+      concept: string;
+      clusterId: string;
+      clusterName: string;
+      relevance: number;
+      evidenceText: string[];
+    }>;
+    themeAnalysis?: {
+      primaryDomain: string;
+      keyConcepts: string[];
+      gtaFocus: string[];
+    };
+  }>;
+  
+  relationshipEvidence: Array<{
+    sourceCluster: string;
+    targetCluster: string;
+    relationType: 'causal' | 'correlational' | 'conditional' | 'contextual' | 'sequential';
+    strength: number;
+    mediatingConcepts: string[];
+    evidenceChain: string[];
+  }>;
+  
+  // 根拠の詳細情報
+  evidenceDetails: {
+    dataSources: string[];
+    analyticalMethods: string[];
+    validationSteps: string[];
+    limitations: string[];
+    alternativeExplanations: string[];
+  };
+  
+  integrationQuality: {
+    coherence: number;
+    evidence_strength: number;
+    concept_diversity: number;
+    logical_consistency: number;
+    paradigm_robustness: number;
+  };
+}
+
 export interface GroundedTheoryAnalysis {
   id: string;
   nestId: string;
@@ -1625,13 +1697,14 @@ ${axialResult.causalChains.length}個の因果連鎖が特定され、現象の�
    */
   private static findDuplicateConceptIds(concepts: ConceptItem[]): string[] {
     const idCounts: Record<string, number> = {};
+    
     concepts.forEach(concept => {
       idCounts[concept.id] = (idCounts[concept.id] || 0) + 1;
     });
     
     return Object.entries(idCounts)
-      .filter(([id, count]) => count > 1)
-      .map(([id, count]) => id);
+      .filter(([_, count]) => count > 1)
+      .map(([id, _]) => id);
   }
 
   /**
@@ -1648,5 +1721,121 @@ ${axialResult.causalChains.length}個の因果連鎖が特定され、現象の�
     });
     
     return Object.values(conceptMap);
+  }
+
+  /**
+   * 仮説形成パスを生成
+   */
+  static generateHypothesisFormationPath(
+    hypothesis: Hypothesis,
+    openCodingResult: OpenCodingResult[],
+    axialCodingResult: AxialCodingResult,
+    selectiveCodingResult: SelectiveCodingResult
+  ): HypothesisFormationPath {
+    
+    // パラダイムモデルの構築
+    const paradigmModel = {
+      coreCategory: selectiveCodingResult.coreCategory.name,
+      causalConditions: axialCodingResult.paradigmModel.causalConditions,
+      contextFactors: axialCodingResult.paradigmModel.context,
+      interveningConditions: axialCodingResult.paradigmModel.interveningConditions,
+      actionStrategies: axialCodingResult.paradigmModel.actionStrategies,
+      consequences: axialCodingResult.paradigmModel.consequences,
+      theoreticalFramework: `${selectiveCodingResult.coreCategory.name}理論`
+    };
+
+    // 形成ステップの構築
+    const formationSteps = [
+      {
+        step: 1,
+        phase: 'concept_extraction' as const,
+        description: `クラスターから関連概念を抽出`,
+        inputConcepts: openCodingResult.flatMap(result => 
+          result.extractedConcepts.map(concept => concept.concept)
+        ).slice(0, 5),
+        outputPatterns: ['概念抽出パターン'],
+        confidenceScore: openCodingResult.reduce((sum, result) => sum + result.confidenceScore, 0) / openCodingResult.length,
+        gtaMethod: 'open_coding' as const
+      },
+      {
+        step: 2,
+        phase: 'relationship_discovery' as const,
+        description: `概念間の関係性を発見`,
+        inputConcepts: axialCodingResult.relations.map(relation => 
+          `${relation.sourceConceptId} → ${relation.targetConceptId}`
+        ).slice(0, 3),
+        outputPatterns: ['関係性パターン'],
+        confidenceScore: axialCodingResult.relations.reduce((sum, relation) => sum + relation.strength, 0) / axialCodingResult.relations.length,
+        gtaMethod: 'axial_coding' as const
+      },
+      {
+        step: 3,
+        phase: 'pattern_integration' as const,
+        description: `パターンを統合して仮説を構築`,
+        inputConcepts: [selectiveCodingResult.coreCategory.name],
+        outputPatterns: [hypothesis.statement],
+        confidenceScore: hypothesis.confidence,
+        gtaMethod: 'selective_coding' as const
+      }
+    ];
+
+    // 貢献クラスターの構築
+    const contributingClusters = openCodingResult.map(result => ({
+      clusterId: result.clusterId,
+      clusterName: result.clusterName,
+      contributionType: 'primary' as const,
+      conceptCount: result.extractedConcepts.length,
+      conceptContributions: result.extractedConcepts.slice(0, 2).map(concept => ({
+        concept: concept.concept,
+        clusterId: result.clusterId,
+        clusterName: result.clusterName,
+        relevance: concept.relevance,
+        evidenceText: concept.evidence
+      })),
+      themeAnalysis: {
+        primaryDomain: result.dominantThemes[0] || '未分類',
+        keyConcepts: result.extractedConcepts.slice(0, 3).map(c => c.concept),
+        gtaFocus: ['概念抽出', 'テーマ分析']
+      }
+    }));
+
+    // 関係性証拠の構築
+    const relationshipEvidence = axialCodingResult.relations.slice(0, 2).map(relation => ({
+      sourceCluster: relation.sourceConceptId,
+      targetCluster: relation.targetConceptId,
+      relationType: relation.relationType,
+      strength: relation.strength,
+      mediatingConcepts: [],
+      evidenceChain: relation.evidence
+    }));
+
+    // 根拠の詳細情報
+    const evidenceDetails = {
+      dataSources: ['クラスター分析結果', '関係性分析', 'パターン抽出'],
+      analyticalMethods: ['グラウンデッド・セオリー分析', 'クラスター分析', '関係性分析'],
+      validationSteps: ['概念整合性チェック', '関係性妥当性検証', 'パターン一貫性確認'],
+      limitations: ['サンプルサイズの制限', '分析手法の制約', '文脈依存性'],
+      alternativeExplanations: ['他の要因の影響', '偶然の一致の可能性']
+    };
+
+    // 統合品質の計算
+    const integrationQuality = {
+      coherence: hypothesis.confidence,
+      evidence_strength: axialCodingResult.relations.reduce((sum, r) => sum + r.strength, 0) / axialCodingResult.relations.length,
+      concept_diversity: openCodingResult.length / 10, // 正規化
+      logical_consistency: hypothesis.confidence * 0.9,
+      paradigm_robustness: hypothesis.confidence * 0.85
+    };
+
+    return {
+      id: hypothesis.id,
+      hypothesis: hypothesis.statement,
+      paradigmModel,
+      formationSteps,
+      contributingClusters,
+      relationshipEvidence,
+      evidenceDetails,
+      integrationQuality
+    };
   }
 }

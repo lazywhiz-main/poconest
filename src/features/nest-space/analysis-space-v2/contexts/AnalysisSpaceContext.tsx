@@ -10,6 +10,8 @@ import type {
   NetworkEdge,
   NetworkData
 } from '../types';
+import type { ClusterLabel } from '../../../../services/AnalysisService';
+import type { ClusteringResult } from '../../../../services/SmartClusteringService';
 
 // 初期状態
 const initialState: AnalysisSpaceState = {
@@ -43,7 +45,15 @@ const initialState: AnalysisSpaceState = {
   savedViews: [],
   searchQuery: '',
   isLoading: false,
-  error: null
+  error: null,
+  // GTA分析用の状態を追加
+  gtaAnalysis: {
+    currentAnalysis: null,
+    isAnalyzing: false,
+    analysisProgress: 0,
+    clusters: [],
+    clusteringResult: null
+  }
 };
 
 // アクション型
@@ -60,6 +70,7 @@ type AnalysisSpaceAction =
   | { type: 'SET_SEARCH_QUERY'; payload: string }
   | { type: 'ADD_ANALYSIS_RESULT'; payload: any }
   | { type: 'SET_NETWORK_DATA'; payload: NetworkData | null }
+  | { type: 'SET_CLUSTERING_RESULT'; payload: { clusters: any[]; clusteringResult: any | null } }
   | { type: 'CLEAR_ERROR' }
   | { type: 'RESET_NETWORK_STATE' };
 
@@ -141,6 +152,16 @@ const analysisSpaceReducer = (state: AnalysisSpaceState, action: AnalysisSpaceAc
         analysisResults: [...state.analysisResults, action.payload]
       };
     
+    case 'SET_CLUSTERING_RESULT':
+      return {
+        ...state,
+        gtaAnalysis: {
+          ...state.gtaAnalysis,
+          clusters: action.payload.clusters,
+          clusteringResult: action.payload.clusteringResult
+        }
+      };
+    
     case 'CLEAR_ERROR':
       return {
         ...state,
@@ -174,6 +195,7 @@ interface AnalysisSpaceContextType {
   clearError: () => void;
   resetNetworkState: () => void;
   setNetworkData: (data: NetworkData | null) => void;
+  setClusteringResult: (clusters: any[], clusteringResult: any | null) => void;
 }
 
 const AnalysisSpaceContext = createContext<AnalysisSpaceContextType | undefined>(undefined);
@@ -231,6 +253,10 @@ export const AnalysisSpaceProvider: React.FC<AnalysisSpaceProviderProps> = ({ ch
     dispatch({ type: 'SET_NETWORK_DATA', payload: data });
   }, []);
 
+  const setClusteringResult = useCallback((clusters: any[], clusteringResult: any | null) => {
+    dispatch({ type: 'SET_CLUSTERING_RESULT', payload: { clusters, clusteringResult } });
+  }, []);
+
   const value: AnalysisSpaceContextType = {
     state,
     dispatch,
@@ -244,7 +270,8 @@ export const AnalysisSpaceProvider: React.FC<AnalysisSpaceProviderProps> = ({ ch
     setError,
     clearError,
     resetNetworkState,
-    setNetworkData
+    setNetworkData,
+    setClusteringResult
   };
 
   return (

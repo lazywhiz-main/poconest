@@ -5,6 +5,8 @@
 
 import type { ClusterLabel } from '../services/AnalysisService';
 import type { ClusteringResult } from '../services/SmartClusteringService';
+import type { ConceptAnalysis } from '../services/analysis/ConceptAnalysisService';
+import type { TheoreticalSamplingAnalysis, SamplingCriteria } from '../services/analysis/TheoreticalSamplingService';
 
 // 既存のGroundedTheoryResultDataをインポート（GroundedTheoryResultPanel.tsxから）
 export interface GroundedTheoryResultData {
@@ -38,7 +40,7 @@ export interface GroundedTheoryResultData {
   }>;
 }
 
-// 保存用の分析データ構造
+// 保存用の分析データ構造（拡張版）
 export interface SavedGroundedTheoryAnalysis {
   id: string;
   name: string;
@@ -46,12 +48,20 @@ export interface SavedGroundedTheoryAnalysis {
   boardId: string;
   nestId: string;
   
+  // 分析タイプ
+  analysisType: 'basic_gta' | 'enhanced_gta' | 'concept_analysis' | 'theoretical_sampling';
+  
   // 分析結果（メインコンテンツ）
-  analysisResult: GroundedTheoryResultData;
+  analysisResult?: GroundedTheoryResultData;        // 基本GTA分析結果
+  conceptAnalysisResult?: ConceptAnalysis;          // 概念分析結果
+  theoreticalSamplingAnalysis?: TheoreticalSamplingAnalysis;  // 理論的サンプリング分析結果
+  
+  // 理論的サンプリングの判定基準
+  samplingCriteria?: SamplingCriteria;
   
   // 入力データ（トレーサビリティ・再現性のため）
-  sourceClusters: ClusterLabel[];         // 分析時のクラスター情報
-  sourceClusteringResult?: ClusteringResult;  // 分析時のクラスタリング結果
+  sourceClusters: ClusterLabel[];                   // 分析時のクラスター情報
+  sourceClusteringResult?: ClusteringResult;        // 分析時のクラスタリング結果
   
   // 分析メタデータ
   analysisParameters?: {
@@ -60,6 +70,8 @@ export interface SavedGroundedTheoryAnalysis {
     maxHypotheses?: number;
     codingDepth?: number;
     analysisMode?: 'standard' | 'detailed' | 'exploratory';
+    samplingRounds?: number;                        // 理論的サンプリングのラウンド数
+    conceptAnalysisDepth?: 'basic' | 'detailed' | 'comprehensive';
   };
   
   // 品質指標
@@ -69,6 +81,8 @@ export interface SavedGroundedTheoryAnalysis {
     evidenceStrength: number;        // 根拠強度 (0-1)
     conceptDiversity: number;        // 概念多様性 (0-1)
     logicalConsistency: number;      // 論理的一貫性 (0-1)
+    saturationScore?: number;        // 理論的飽和スコア (0-1)
+    relationshipDensity?: number;    // 関係性密度 (0-1)
   };
   
   // 統計情報（検索・ソート用）
@@ -82,13 +96,20 @@ export interface SavedGroundedTheoryAnalysis {
   createdBy: string;
 }
 
-// 分析作成時の入力データ
+// 分析作成時の入力データ（拡張版）
 export interface CreateGroundedTheoryAnalysisInput {
   name: string;
   description?: string;
   boardId: string;
   nestId: string;
-  analysisResult: GroundedTheoryResultData;
+  analysisType: SavedGroundedTheoryAnalysis['analysisType'];
+  
+  // 分析結果（分析タイプに応じて設定）
+  analysisResult?: GroundedTheoryResultData;
+  conceptAnalysisResult?: ConceptAnalysis;
+  theoreticalSamplingAnalysis?: TheoreticalSamplingAnalysis;
+  samplingCriteria?: SamplingCriteria;
+  
   sourceClusters: ClusterLabel[];
   sourceClusteringResult?: ClusteringResult;
   analysisParameters?: SavedGroundedTheoryAnalysis['analysisParameters'];
@@ -104,20 +125,24 @@ export interface UpdateGroundedTheoryAnalysisInput {
   qualityMetrics?: SavedGroundedTheoryAnalysis['qualityMetrics'];
 }
 
-// データベースレコード型（Supabase用）
+// データベースレコード型（Supabase用・拡張版）
 export interface GroundedTheoryAnalysisRecord {
   id: string;
   board_id: string;
   nest_id: string;
   name: string;
   description: string | null;
+  analysis_type: string;             // 分析タイプ
   
   // JSON列
-  analysis_result: any;              // GroundedTheoryResultData
-  source_clusters: any;              // ClusterLabel[]
-  source_clustering_result: any;     // ClusteringResult | null
-  analysis_parameters: any;          // 分析パラメータ
-  quality_metrics: any;              // 品質指標
+  analysis_result: any;                      // GroundedTheoryResultData | null
+  concept_analysis_result: any;             // ConceptAnalysis | null
+  theoretical_sampling_analysis: any;       // TheoreticalSamplingAnalysis | null
+  sampling_criteria: any;                   // SamplingCriteria | null
+  source_clusters: any;                     // ClusterLabel[]
+  source_clustering_result: any;            // ClusteringResult | null
+  analysis_parameters: any;                 // 分析パラメータ
+  quality_metrics: any;                     // 品質指標
   
   // 統計情報（自動計算）
   hypothesis_count: number;

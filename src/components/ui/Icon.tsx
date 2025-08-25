@@ -34,7 +34,9 @@ export type IconName =
   | 'preferences'
   | 'activity'
   | 'logout'
-  | 'zap';
+  | 'zap'
+  | 'map'
+  | 'brain';
 
 interface IconProps {
   name: IconName;
@@ -267,6 +269,19 @@ const icons: Record<IconName, (props: { size: number; color: string }) => JSX.El
   zap: ({ size, color }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <polygon points="13,2 3,14 12,14 11,22 21,10 12,10 13,2"/>
+    </svg>
+  ),
+  map: ({ size, color }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 10c0 6-4 10-10 10S1 16 1 10c0-2 0-6 0-6h18c0 2 0 6 0 6z"/>
+      <path d="M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16z"/>
+    </svg>
+  ),
+  brain: ({ size, color }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 21a9 9 0 1 1 0-18 9 9 0 0 1 0 18z"/>
+      <path d="M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10z"/>
+      <path d="M12 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/>
     </svg>
   ),
 };
