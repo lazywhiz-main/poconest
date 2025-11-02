@@ -394,21 +394,57 @@ export function NestProvider({ children }: { children: React.ReactNode }) {
       if (!data.name) throw new Error('Nestの名前を入力してください');
       
       // 1. Nestを作成
-      const { data: newNest, error } = await supabase
+      // データを完全にクリーンアップ（すべての制御文字を除去）
+      const cleanString = (str: string) => {
+        if (!str) return '';
+        // すべての制御文字（0x00-0x1F, 0x7F-0x9F）を除去
+        return str.trim().replace(/[\x00-\x1F\x7F-\x9F]/g, '');
+      };
+      
+      const nestData = {
+        name: cleanString(data.name || ''),
+        description: cleanString(data.description || ''),
+        owner_id: user.id,
+        color: (data.color || '#3498db').trim(),
+        is_active: true,
+      };
+      
+      console.log('Creating nest with data:', nestData);
+      console.log('Data types:', {
+        name: typeof nestData.name,
+        description: typeof nestData.description,
+        owner_id: typeof nestData.owner_id,
+        color: typeof nestData.color,
+        is_active: typeof nestData.is_active,
+      });
+      
+      // 1. Nestを作成（.select()なしで試す）
+      const { error: insertError } = await supabase
         .from('nests')
-        .insert({
-          name: data.name,
-          description: data.description || '',
-          owner_id: user.id,
-          color: data.color || '#3498db', // デフォルトカラー
-          is_active: true,
-        })
-        .select()
+        .insert(nestData);
+      
+      if (insertError) {
+        console.error('Nest insert error:', insertError);
+        throw new Error(`NEST作成エラー: ${insertError.message || 'Unknown error'}`);
+      }
+      
+      // 2. 作成したNESTを取得
+      const { data: newNest, error: selectError } = await supabase
+        .from('nests')
+        .select('*')
+        .eq('owner_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
         .single();
       
-      if (error) throw error;
+      if (selectError || !newNest) {
+        console.error('Nest select error:', selectError);
+        throw new Error(`NEST取得エラー: ${selectError?.message || 'Unknown error'}`);
+      }
       
-      // 2. 自分をメンバーとして追加
+      console.log('Nest created successfully:', newNest);
+      
+      // 3. 自分をメンバーとして追加
       const { error: memberError } = await supabase
         .from('nest_members')
         .insert({
@@ -420,21 +456,23 @@ export function NestProvider({ children }: { children: React.ReactNode }) {
       
       if (memberError) throw memberError;
       
-      // 3. デフォルト設定を作成
-      const { error: settingsError } = await supabase
-        .from('nest_settings')
-        .insert({
-          nest_id: newNest.id,
-          privacy_settings: {
-            inviteRestriction: 'owner_only',
-            contentVisibility: 'members_only',
-            memberListVisibility: 'members_only'
-          }
-        });
-      
-      if (settingsError) throw settingsError;
+      // 4. デフォルト設定を作成
+      try {
+        const privacySettings = { inviteRestriction: 'owner_only', contentVisibility: 'members_only', memberListVisibility: 'members_only' };
+        const settingsData = { nest_id: newNest.id, privacy_settings: privacySettings };
+        
+        const { error: settingsError } = await supabase
+          .from('nest_settings')
+          .insert(settingsData);
+        
+        if (settingsError) {
+          console.error('Settings creation error:', settingsError);
+        }
+      } catch (settingsException) {
+        console.error('Settings creation exception:', settingsException);
+      }
 
-      // 4. デフォルトSpace（chat, board, meeting, analysis）を作成
+      // 5. デフォルトSpace（chat, board, meeting, analysis）を作成
       const defaultSpaces = [
         { type: 'chat', name: 'チャット', icon: '💬' },
         { type: 'board', name: 'ボード', icon: '📋' },
@@ -457,24 +495,28 @@ export function NestProvider({ children }: { children: React.ReactNode }) {
         .select();
       if (spacesError) throw spacesError;
 
-      // 5. board空間のspace_idを取得し、boardsに1件INSERT
+      // 6. board空間のspace_idを取得し、boardsに1件INSERT
       const boardSpace = insertedSpaces?.find((s: any) => s.type === 'board');
       if (boardSpace) {
+        const boardData = {
+          nest_id: newNest.id,
+          owner_id: user.id,
+          name: 'メインボード',
+          description: '自動生成されたボード',
+          is_public: false,
+        };
+        
         const { error: boardError } = await supabase
           .from('boards')
-          .insert({
-            nest_id: newNest.id,
-            owner_id: user.id,
-            name: 'メインボード',
-            description: '自動生成されたボード',
-            is_public: false,
-            created_at: now,
-            updated_at: now,
-          });
-        if (boardError) throw boardError;
+          .insert(boardData);
+          
+        if (boardError) {
+          console.error('Board creation error:', boardError);
+          console.warn('Failed to create default board, but nest was created successfully');
+        }
       }
       
-      // 6. データをリフレッシュ
+      // 7. データをリフレッシュ
       await refreshData();
       
       return { error: null, nest: newNest as Nest };

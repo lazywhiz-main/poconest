@@ -15,6 +15,23 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, onClos
   const [notes, setNotes] = useState<UserNote[]>([]);
   const [newNote, setNewNote] = useState('');
   const [addingNote, setAddingNote] = useState(false);
+  const [editingLevel, setEditingLevel] = useState<number | null>(null);
+  const [editText, setEditText] = useState('');
+
+  // マークダウンを簡易HTMLに変換
+  const renderMarkdown = (text: string): string => {
+    return text
+      // h1, h2, h3
+      .replace(/^### (.+)$/gm, '<h3 style="font-size: 16px; font-weight: 600; color: #e2e8f0; margin: 16px 0 8px 0; font-family: Space Grotesk, sans-serif;">$1</h3>')
+      .replace(/^## (.+)$/gm, '<h2 style="font-size: 18px; font-weight: 600; color: #00ff88; margin: 20px 0 12px 0; font-family: Space Grotesk, sans-serif;">$1</h2>')
+      .replace(/^# (.+)$/gm, '<h1 style="font-size: 20px; font-weight: 700; color: #00ff88; margin: 24px 0 16px 0; font-family: Space Grotesk, sans-serif;">$1</h1>')
+      // 太字
+      .replace(/\*\*(.+?)\*\*/g, '<strong style="color: #00ff88; font-weight: 600;">$1</strong>')
+      // リスト
+      .replace(/^- (.+)$/gm, '<li style="margin-left: 20px; margin-bottom: 4px; color: #cdd6f4;">$1</li>')
+      // 改行
+      .replace(/\n/g, '<br />');
+  };
 
   // 個別スコア (0-10点) の色分け
   const getIndividualScoreColor = (score: number): string => {
@@ -272,15 +289,73 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, onClos
                     </button>
                     {investigation && isExpanded && (
                       <div style={styles.investigationContent}>
-                        <div
-                          dangerouslySetInnerHTML={{
-                            __html: investigation.result_text.replace(/\n/g, '<br />'),
-                          }}
-                        />
-                        <div style={styles.investigationMeta}>
-                          実行日時: {new Date(investigation.executed_at).toLocaleString('ja-JP')} 
-                          ({investigation.duration_seconds}秒)
-                        </div>
+                        {editingLevel === level ? (
+                          // 編集モード
+                          <div>
+                            <textarea
+                              value={editText}
+                              onChange={(e) => setEditText(e.target.value)}
+                              style={styles.editTextarea}
+                              rows={15}
+                            />
+                            <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                              <button
+                                onClick={async () => {
+                                  const result = await TrendInvestigationService.updateInvestigation(
+                                    product.id,
+                                    level as 1 | 2 | 3,
+                                    editText
+                                  );
+                                  
+                                  if (result.success) {
+                                    setEditingLevel(null);
+                                    setEditText('');
+                                    await loadInvestigations();
+                                  } else {
+                                    alert(`保存に失敗しました: ${result.error}`);
+                                  }
+                                }}
+                                style={styles.saveButton}
+                              >
+                                💾 保存
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setEditingLevel(null);
+                                  setEditText('');
+                                }}
+                                style={styles.cancelButton}
+                              >
+                                キャンセル
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          // プレビューモード
+                          <div>
+                            <div
+                              style={styles.markdownContent}
+                              dangerouslySetInnerHTML={{
+                                __html: renderMarkdown(investigation.result_text),
+                              }}
+                            />
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px' }}>
+                              <div style={styles.investigationMeta}>
+                                実行日時: {new Date(investigation.executed_at).toLocaleString('ja-JP')} 
+                                ({investigation.duration_seconds}秒)
+                              </div>
+                              <button
+                                onClick={() => {
+                                  setEditingLevel(level);
+                                  setEditText(investigation.result_text);
+                                }}
+                                style={styles.editButton}
+                              >
+                                ✏️ 編集
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -566,12 +641,66 @@ const styles = {
     fontFamily: 'Space Grotesk, sans-serif',
   },
   investigationMeta: {
-    marginTop: '16px',
-    paddingTop: '16px',
-    borderTop: '1px solid #333366',
     fontSize: '11px',
     color: '#6c7086',
     fontFamily: 'JetBrains Mono, monospace',
+  },
+  markdownContent: {
+    color: '#e2e8f0',
+    lineHeight: '1.7',
+    fontFamily: 'Space Grotesk, sans-serif',
+  },
+  editTextarea: {
+    width: '100%',
+    minHeight: '400px',
+    padding: '16px',
+    backgroundColor: '#0f0f23',
+    border: '1px solid #333366',
+    borderRadius: '4px',
+    color: '#e2e8f0',
+    fontSize: '13px',
+    fontFamily: 'JetBrains Mono, monospace',
+    lineHeight: '1.6',
+    resize: 'vertical' as const,
+    outline: 'none',
+  },
+  editButton: {
+    padding: '6px 12px',
+    backgroundColor: '#333366',
+    color: '#a6adc8',
+    border: '1px solid #45475a',
+    borderRadius: '3px',
+    fontSize: '12px',
+    fontWeight: 500,
+    fontFamily: 'Space Grotesk, sans-serif',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+  },
+  saveButton: {
+    padding: '8px 16px',
+    backgroundColor: '#00ff88',
+    color: '#0f0f23',
+    border: 'none',
+    borderRadius: '3px',
+    fontSize: '12px',
+    fontWeight: 600,
+    fontFamily: 'Space Grotesk, sans-serif',
+    cursor: 'pointer',
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.5px',
+    transition: 'all 0.2s ease',
+  },
+  cancelButton: {
+    padding: '8px 16px',
+    backgroundColor: 'transparent',
+    color: '#a6adc8',
+    border: '1px solid #333366',
+    borderRadius: '3px',
+    fontSize: '12px',
+    fontWeight: 500,
+    fontFamily: 'Space Grotesk, sans-serif',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
   },
   // ユーザーメモスタイル
   noteForm: {

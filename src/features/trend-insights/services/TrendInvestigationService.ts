@@ -103,5 +103,41 @@ export const TrendInvestigationService = {
     
     return null; // すべて完了
   },
+
+  /**
+   * 調査結果を更新
+   */
+  async updateInvestigation(
+    productId: string,
+    level: 1 | 2 | 3,
+    resultText: string
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      const { error } = await supabase
+        .from('trend_investigations')
+        .update({
+          result_text: resultText,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('product_id', productId)
+        .eq('level', level);
+
+      if (error) {
+        console.error('Error updating investigation:', error);
+        return {
+          success: false,
+          error: error.message,
+        };
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Exception updating investigation:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  },
 };
 

@@ -35,6 +35,72 @@ interface RSSItem {
   creator?: string;
 }
 
+interface SearchResult {
+  title: string;
+  link: string;
+  snippet: string;
+  source: string;
+  date: string;
+}
+
+// Serper.dev APIを使ってブランドを検索する関数
+async function searchBrandWithSerper(
+  brandName: string,
+  keywords: string[],
+  serperApiKey: string
+): Promise<SearchResult[]> {
+  try {
+    // 具体的な製品発表を示すキーワードを追加
+    const concreteKeywords = [
+      'launch', 'release', 'unveil', 'debut',
+      'prototype', 'concept', 'new product',
+      'exhibition', 'showcase', 'collection'
+    ];
+    
+    // 抽象的な記事を除外するキーワード
+    const excludeKeywords = [
+      '-opinion', '-interview', '-philosophy',
+      '-strategy', '-trend', '-analysis'
+    ];
+    
+    const searchQuery = `${brandName} ${keywords.join(' ')} (${concreteKeywords.join(' OR ')}) design product ${excludeKeywords.join(' ')}`;
+    console.log(`[collect-trend-products] Searching with Serper: "${searchQuery}"`);
+
+    const response = await fetch('https://google.serper.dev/search', {
+      method: 'POST',
+      headers: {
+        'X-API-KEY': serperApiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        q: searchQuery,
+        num: 20, // 最大20件の結果を取得
+      }),
+    });
+
+    if (!response.ok) {
+      console.error(`[collect-trend-products] Serper API error: ${response.status}`);
+      return [];
+    }
+
+    const data = await response.json();
+    const results = data.organic || [];
+
+    console.log(`[collect-trend-products] Found ${results.length} results from Serper for ${brandName}`);
+
+    return results.map((item: any) => ({
+      title: item.title,
+      link: item.link,
+      snippet: item.snippet || '',
+      source: new URL(item.link).hostname,
+      date: item.date || new Date().toISOString(),
+    }));
+  } catch (error) {
+    console.error('[collect-trend-products] Error searching with Serper:', error);
+    return [];
+  }
+}
+
 // RSSフィードをパースする関数（正規表現ベース）
 async function parseRSSFeed(url: string): Promise<RSSItem[]> {
   try {
@@ -168,34 +234,123 @@ async function getOGImage(url: string): Promise<string | null> {
   }
 }
 
-// カテゴリー別プレースホルダー画像を取得
-function getCategoryPlaceholder(category: string | null): string {
-  const categoryLower = (category || '').toLowerCase();
-  
-  // カテゴリーに応じたプレースホルダーを返す
-  // 今回はシンプルなカラーパターンで実装（後で実画像に置き換え可能）
+// カテゴリー別のプレースホルダー画像URL
+function getCategoryPlaceholder(category: string): string {
   const placeholders: Record<string, string> = {
-    'furniture': 'https://via.placeholder.com/400x300/333366/00ff88?text=Furniture',
-    '家具': 'https://via.placeholder.com/400x300/333366/00ff88?text=Furniture',
-    'lighting': 'https://via.placeholder.com/400x300/45475a/ffd93d?text=Lighting',
-    '照明': 'https://via.placeholder.com/400x300/45475a/ffd93d?text=Lighting',
-    'fashion': 'https://via.placeholder.com/400x300/9c27b0/ffffff?text=Fashion',
-    'ファッション': 'https://via.placeholder.com/400x300/9c27b0/ffffff?text=Fashion',
-    'electronics': 'https://via.placeholder.com/400x300/64b5f6/0f0f23?text=Electronics',
-    '電子機器': 'https://via.placeholder.com/400x300/64b5f6/0f0f23?text=Electronics',
-    'architecture': 'https://via.placeholder.com/400x300/ffa500/0f0f23?text=Architecture',
-    '建築': 'https://via.placeholder.com/400x300/ffa500/0f0f23?text=Architecture',
+    '家具': 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&h=300&fit=crop',
+    '電子機器': 'https://images.unsplash.com/photo-1498049794561-7780e7231661?w=400&h=300&fit=crop',
+    'ファッション': 'https://images.unsplash.com/photo-1445205170230-053b83016050?w=400&h=300&fit=crop',
+    '照明': 'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?w=400&h=300&fit=crop',
+    'インテリア': 'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=400&h=300&fit=crop',
+    'キッチン': 'https://images.unsplash.com/photo-1556911220-bff31c812dba?w=400&h=300&fit=crop',
+    'デフォルト': 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=400&h=300&fit=crop',
   };
   
-  // カテゴリーに一致するプレースホルダーを探す
-  for (const [key, value] of Object.entries(placeholders)) {
-    if (categoryLower.includes(key)) {
-      return value;
+  return placeholders[category] || placeholders['デフォルト'];
+}
+
+// AIで製品の具体性をチェックする関数
+async function checkProductConcreteness(
+  title: string,
+  description: string,
+  openaiApiKey: string
+): Promise<{ is_concrete: boolean; reason: string }> {
+  // Step 1: タイトルベースの除外パターン（まとめ記事、リスト記事を除外）
+  const excludePatterns = [
+    /top\s+\d+/i,                    // "Top 5", "Top 10"
+    /best\s+\d+/i,                   // "Best 5", "Best 10"
+    /\d+\s+(products|designs|items|things|ways)/i, // "5 products", "3 designs"
+    /(roundup|round-up|collection|list|compilation)/i, // "roundup", "collection"
+    /this\s+week/i,                  // "This week's..."
+    /\d+\s+(new|latest|recent)/i,    // "5 new products"
+    /(picks|highlights|favorites|favourites)/i, // "Our picks", "Highlights"
+    /emerging\s+trends/i,            // "Emerging trends"
+    /guide\s+to/i,                   // "Guide to..."
+    /how\s+to/i,                     // "How to..."
+    /\d+\s+unexpected/i,             // "Five unexpected themes"
+    /\d+\s+designers?\s+(using|at|in)/i, // "Eleven designers using..."
+  ];
+  
+  for (const pattern of excludePatterns) {
+    if (pattern.test(title)) {
+      return {
+        is_concrete: false,
+        reason: `まとめ記事またはリスト記事のため除外: "${title.match(pattern)?.[0]}"`
+      };
     }
   }
   
-  // デフォルトプレースホルダー
-  return 'https://via.placeholder.com/400x300/1a1a2e/a6adc8?text=Design+Product';
+  const prompt = `以下の記事タイトルと説明を読んで、「単一の具体的な製品・デザイン作品」について書かれているかを厳格に判定してください。
+
+タイトル: ${title}
+説明: ${description}
+
+判定基準:
+✅ 単一の具体的な製品の発表、展示、販売（例: "Nendo unveils minimalist chair"）
+✅ 単一のプロトタイプやコンセプトの公開
+✅ 単一のデザイン作品の完成・展示
+✅ 特定の建築物やインスタレーションの完成
+
+❌ 複数製品のまとめ記事（例: "Top 5 chairs", "3 new releases"）
+❌ リスト形式の記事（例: "Five designers using...", "Ten projects at..."）
+❌ 哲学的な議論、インタビュー記事のみ
+❌ 企業の戦略や意見記事
+❌ 抽象的なトレンド分析
+❌ 人物紹介やキャリア記事
+❌ イベントレポートで複数作品を紹介するもの
+❌ 週次・月次のまとめ記事
+
+**重要**: 複数の製品やデザイナーが言及されている場合は、必ず false を返してください。
+
+JSON形式で返答してください:
+{
+  "is_concrete": true/false,
+  "reason": "判定理由を一言で（日本語）"
+}`;
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: 'あなたはデザイン製品の具体性を判定する専門家です。JSON形式で正確に返答してください。'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.1,
+        response_format: { type: "json_object" }
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('[collect-trend-products] OpenAI API Error (concreteness check):', await response.text());
+      return { is_concrete: true, reason: 'API error, defaulting to true' }; // エラー時はスルー
+    }
+
+    const data = await response.json();
+    const content = data.choices[0].message.content;
+    const parsed = JSON.parse(content);
+    
+    console.log(`[collect-trend-products] Concreteness check: ${parsed.is_concrete ? '✅' : '❌'} - ${parsed.reason}`);
+    
+    return {
+      is_concrete: parsed.is_concrete,
+      reason: parsed.reason
+    };
+  } catch (error) {
+    console.error('[collect-trend-products] Error checking concreteness:', error);
+    return { is_concrete: true, reason: 'Error, defaulting to true' }; // エラー時はスルー
+  }
 }
 
 // AIでスコアリングとメタデータ抽出
@@ -217,6 +372,7 @@ async function scoreProduct(item: RSSItem, openaiApiKey: string): Promise<any> {
 
 出力形式（必ずこのJSON形式で返してください）:
 {
+  "title_ja": "タイトルを自然な日本語に翻訳（製品名や固有名詞は適切に残す）",
   "score_concept_shift": 0-10の数値,
   "score_category_disruption": 0-10の数値,
   "score_philosophical_pricing": 0-10の数値,
@@ -275,62 +431,6 @@ async function scoreProduct(item: RSSItem, openaiApiKey: string): Promise<any> {
   }
 }
 
-// OG画像を取得する関数
-async function getOGImage(url: string): Promise<string | null> {
-  try {
-    console.log(`[collect-trend-products] Fetching OG image from: ${url}`);
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; TrendInsights/1.0)',
-      },
-    });
-
-    if (!response.ok) {
-      console.error(`[collect-trend-products] Failed to fetch page: ${response.status}`);
-      return null;
-    }
-
-    const html = await response.text();
-    
-    // OG画像を抽出（優先順位順）
-    const ogImageRegex = /<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i;
-    const twitterImageRegex = /<meta\s+name=["']twitter:image["']\s+content=["']([^"']+)["']/i;
-    
-    const ogMatch = html.match(ogImageRegex);
-    if (ogMatch) {
-      console.log(`[collect-trend-products] Found OG image: ${ogMatch[1]}`);
-      return ogMatch[1];
-    }
-    
-    const twitterMatch = html.match(twitterImageRegex);
-    if (twitterMatch) {
-      console.log(`[collect-trend-products] Found Twitter image: ${twitterMatch[1]}`);
-      return twitterMatch[1];
-    }
-    
-    console.log(`[collect-trend-products] No OG image found for: ${url}`);
-    return null;
-  } catch (error) {
-    console.error(`[collect-trend-products] Error fetching OG image:`, error);
-    return null;
-  }
-}
-
-// カテゴリー別のプレースホルダー画像URL
-function getCategoryPlaceholder(category: string): string {
-  const placeholders: Record<string, string> = {
-    '家具': 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&h=300&fit=crop',
-    '電子機器': 'https://images.unsplash.com/photo-1498049794561-7780e7231661?w=400&h=300&fit=crop',
-    'ファッション': 'https://images.unsplash.com/photo-1445205170230-053b83016050?w=400&h=300&fit=crop',
-    '照明': 'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?w=400&h=300&fit=crop',
-    'インテリア': 'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=400&h=300&fit=crop',
-    'キッチン': 'https://images.unsplash.com/photo-1556911220-bff31c812dba?w=400&h=300&fit=crop',
-    'デフォルト': 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=400&h=300&fit=crop',
-  };
-  
-  return placeholders[category] || placeholders['デフォルト'];
-}
-
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -340,7 +440,7 @@ serve(async (req) => {
   try {
     console.log('[collect-trend-products] Starting RSS collection');
 
-    const { nest_id, source_names } = await req.json();
+    const { nest_id } = await req.json();
     
     if (!nest_id) {
       throw new Error('nest_id is required');
@@ -360,24 +460,74 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // フィルター対象のRSSソースを決定
-    const targetSources = source_names && source_names.length > 0
-      ? RSS_SOURCES.filter(s => source_names.includes(s.name))
-      : RSS_SOURCES;
+    // nest_idの収集設定を取得
+    console.log(`[collect-trend-products] Fetching settings for nest_id: ${nest_id}`);
+    const { data: settings, error: settingsError } = await supabase
+      .from('trend_collection_settings')
+      .select('*')
+      .eq('nest_id', nest_id)
+      .single();
 
-    console.log(`[collect-trend-products] Processing ${targetSources.length} RSS sources`);
+    if (settingsError) {
+      console.error('[collect-trend-products] Error fetching settings:', settingsError);
+      console.warn('[collect-trend-products] Using default RSS_SOURCES');
+    } else if (!settings) {
+      console.warn('[collect-trend-products] No settings found, using default Dezeen feed');
+    } else {
+      console.log(`[collect-trend-products] Settings found:`, JSON.stringify(settings, null, 2));
+    }
+
+    // 有効なRSSフィードを取得
+    const rssFeeds = settings?.rss_feeds || [];
+    console.log(`[collect-trend-products] RSS feeds from settings: ${rssFeeds.length} total`);
+    
+    const enabledFeeds = rssFeeds.filter((feed: any) => feed.enabled);
+    console.log(`[collect-trend-products] Enabled feeds: ${enabledFeeds.length}`);
+    if (enabledFeeds.length > 0) {
+      console.log(`[collect-trend-products] Enabled feed names:`, enabledFeeds.map((f: any) => f.name).join(', '));
+    }
+
+    // 有効なフィードがない場合はRSS収集をスキップ
+    const targetSources = enabledFeeds.length > 0
+      ? enabledFeeds.map((feed: any) => ({
+          name: feed.name,
+          url: feed.url,
+          category: feed.category || 'design',
+        }))
+      : [];
+
+    if (targetSources.length === 0) {
+      console.log(`[collect-trend-products] No enabled RSS feeds found. Skipping RSS collection.`);
+    } else {
+      console.log(`[collect-trend-products] Processing ${targetSources.length} RSS sources:`, targetSources.map(s => s.name).join(', '));
+    }
+
+    // 重複検出設定
+    const duplicateDetection = settings?.duplicate_detection || {
+      enabled: true,
+      url_check: true,
+      title_similarity_threshold: 0.85,
+    };
+
+    // 最小スコア閾値
+    const minScoreThreshold = settings?.min_score_threshold || 20;
 
     let totalProcessed = 0;
     let totalInserted = 0;
     let totalSkipped = 0;
+    const MAX_ITEMS_PER_SOURCE = 10; // 1ソースあたり最大10件まで処理
 
     // 各RSSソースから製品を収集
     for (const source of targetSources) {
       console.log(`[collect-trend-products] Processing source: ${source.name}`);
       
       const items = await parseRSSFeed(source.url);
+      console.log(`[collect-trend-products] Found ${items.length} items from ${source.name}, processing first ${MAX_ITEMS_PER_SOURCE}`);
       
-      for (const item of items) {
+      // 最初のN件のみ処理してタイムアウトを防ぐ
+      const itemsToProcess = items.slice(0, MAX_ITEMS_PER_SOURCE);
+      
+      for (const item of itemsToProcess) {
         totalProcessed++;
         
         console.log(`[collect-trend-products] Processing item ${totalProcessed}: ${item.title.substring(0, 50)}...`);
@@ -400,9 +550,20 @@ serve(async (req) => {
           continue;
         }
 
-        console.log(`[collect-trend-products] New product found, scoring with AI...`);
+        console.log(`[collect-trend-products] New product found, checking concreteness...`);
 
-        // AIでスコアリング
+        // Step 1: AIで製品の具体性をチェック
+        const concreteCheck = await checkProductConcreteness(item.title, item.description, openaiApiKey);
+        
+        if (!concreteCheck.is_concrete) {
+          console.log(`[collect-trend-products] ❌ Skipping non-concrete item: ${item.title} (${concreteCheck.reason})`);
+          totalSkipped++;
+          continue;
+        }
+
+        console.log(`[collect-trend-products] ✅ Concrete product confirmed, scoring with AI...`);
+
+        // Step 2: AIでスコアリング
         const scores = await scoreProduct(item, openaiApiKey);
         
         if (!scores) {
@@ -412,6 +573,16 @@ serve(async (req) => {
         }
 
         console.log(`[collect-trend-products] Scored product: ${item.title} - Total: ${scores.score_concept_shift + scores.score_category_disruption + scores.score_philosophical_pricing + scores.score_experience_change}`);
+
+        // 総合スコアを計算
+        const totalScore = scores.score_concept_shift + scores.score_category_disruption + scores.score_philosophical_pricing + scores.score_experience_change;
+
+        // 最小スコア閾値チェック
+        if (totalScore < minScoreThreshold) {
+          console.log(`[collect-trend-products] Skipping low score product (${totalScore} < ${minScoreThreshold}): ${item.title}`);
+          totalSkipped++;
+          continue;
+        }
 
         // サムネイル画像を取得
         console.log(`[collect-trend-products] Fetching thumbnail for: ${item.title}`);
@@ -429,7 +600,7 @@ serve(async (req) => {
           .insert({
             nest_id: nest_id,
             title_original: item.title,
-            title_ja: item.title, // TODO: 翻訳APIを使う場合はここで実装
+            title_ja: scores.title_ja || item.title,
             url: item.link,
             summary_ja: scores.summary_ja,
             score_concept_shift: scores.score_concept_shift,
@@ -438,9 +609,11 @@ serve(async (req) => {
             score_experience_change: scores.score_experience_change,
             category: scores.category,
             brand_designer: scores.brand_designer,
-            status: 'New',
+            status: '新着',
             reason_text: scores.reason_text,
-            discovered_at: new Date(item.pubDate || Date.now()).toISOString(),
+            discovered_at: item.pubDate && !isNaN(new Date(item.pubDate).getTime()) 
+              ? new Date(item.pubDate).toISOString() 
+              : new Date().toISOString(),
             thumbnail_url: thumbnailUrl,
           });
 
@@ -457,6 +630,137 @@ serve(async (req) => {
       }
     }
 
+    console.log(`[collect-trend-products] RSS collection completed. Starting brand watch processing...`);
+    
+    // ブランドウォッチの処理
+    const brandWatches = settings?.brand_watches || [];
+    console.log(`[collect-trend-products] Total brand watches in settings: ${brandWatches.length}`);
+    console.log(`[collect-trend-products] Brand watches data:`, JSON.stringify(brandWatches, null, 2));
+    
+    const enabledBrands = brandWatches.filter((brand: any) => brand.enabled);
+    console.log(`[collect-trend-products] Enabled brand watches: ${enabledBrands.length}`);
+    
+    console.log(`[collect-trend-products] Processing ${enabledBrands.length} brand watches`);
+
+    const serperApiKey = Deno.env.get('SERPER_API_KEY');
+    
+    const MAX_BRAND_RESULTS = 5; // 1ブランドあたり最大5件まで処理
+    
+    if (enabledBrands.length > 0 && serperApiKey) {
+      for (const brand of enabledBrands) {
+        console.log(`[collect-trend-products] Searching for brand: ${brand.name}`);
+        
+        const searchResults = await searchBrandWithSerper(
+          brand.name,
+          brand.keywords || [],
+          serperApiKey
+        );
+        
+        console.log(`[collect-trend-products] Found ${searchResults.length} results for ${brand.name}, processing first ${MAX_BRAND_RESULTS}`);
+        const resultsToProcess = searchResults.slice(0, MAX_BRAND_RESULTS);
+
+        for (const result of resultsToProcess) {
+          totalProcessed++;
+          
+          console.log(`[collect-trend-products] Processing brand search result ${totalProcessed}: ${result.title.substring(0, 50)}...`);
+
+          // 既に存在する製品かチェック
+          const { data: existing } = await supabase
+            .from('trend_products')
+            .select('id')
+            .eq('nest_id', nest_id)
+            .eq('url', result.link)
+            .maybeSingle();
+
+          if (existing) {
+            console.log(`[collect-trend-products] Skipping existing product from brand search: ${result.title}`);
+            totalSkipped++;
+            continue;
+          }
+
+          // Step 1: AIで製品の具体性をチェック
+          const concreteCheck = await checkProductConcreteness(result.title, result.snippet, openaiApiKey);
+          
+          if (!concreteCheck.is_concrete) {
+            console.log(`[collect-trend-products] ❌ Skipping non-concrete brand result: ${result.title} (${concreteCheck.reason})`);
+            totalSkipped++;
+            continue;
+          }
+
+          console.log(`[collect-trend-products] ✅ Concrete brand product confirmed, scoring...`);
+
+          // 検索結果をRSSItem形式に変換してスコアリング
+          const searchItem = {
+            title: result.title,
+            link: result.link,
+            description: result.snippet,
+            pubDate: result.date,
+            category: brand.category,
+            creator: brand.name,
+          };
+
+          // Step 2: AIでスコアリング
+          const scores = await scoreProduct(searchItem, openaiApiKey);
+          
+          if (!scores) {
+            console.warn(`[collect-trend-products] Failed to score brand search result: ${result.title}`);
+            totalSkipped++;
+            continue;
+          }
+
+          const totalScore = scores.score_concept_shift + scores.score_category_disruption + scores.score_philosophical_pricing + scores.score_experience_change;
+
+          if (totalScore < minScoreThreshold) {
+            console.log(`[collect-trend-products] Skipping low score brand result (${totalScore} < ${minScoreThreshold}): ${result.title}`);
+            totalSkipped++;
+            continue;
+          }
+
+          // サムネイル画像を取得
+          let thumbnailUrl = await getOGImage(result.link);
+          if (!thumbnailUrl) {
+            thumbnailUrl = getCategoryPlaceholder(scores.category || 'デフォルト');
+          }
+
+          // データベースに保存
+          const { error: insertError } = await supabase
+            .from('trend_products')
+            .insert({
+              nest_id: nest_id,
+              title_original: result.title,
+              title_ja: scores.title_ja || result.title,
+              url: result.link,
+              summary_ja: scores.summary_ja,
+              score_concept_shift: scores.score_concept_shift,
+              score_category_disruption: scores.score_category_disruption,
+              score_philosophical_pricing: scores.score_philosophical_pricing,
+              score_experience_change: scores.score_experience_change,
+              category: scores.category,
+              brand_designer: brand.name,
+              status: '新着',
+              reason_text: scores.reason_text,
+              discovered_at: result.date && !isNaN(new Date(result.date).getTime()) 
+                ? new Date(result.date).toISOString() 
+                : new Date().toISOString(),
+              thumbnail_url: thumbnailUrl,
+            });
+
+          if (insertError) {
+            console.error(`[collect-trend-products] Error inserting brand product:`, insertError);
+            totalSkipped++;
+          } else {
+            console.log(`[collect-trend-products] ✅ Successfully inserted brand product: ${result.title}`);
+            totalInserted++;
+          }
+
+          // API レート制限を考慮して待機
+          await new Promise(resolve => setTimeout(resolve, 1500));
+        }
+      }
+    } else if (enabledBrands.length > 0 && !serperApiKey) {
+      console.warn('[collect-trend-products] Brand watches configured but SERPER_API_KEY not set');
+    }
+
     console.log(`[collect-trend-products] Collection complete - Processed: ${totalProcessed}, Inserted: ${totalInserted}, Skipped: ${totalSkipped}`);
 
     return new Response(
@@ -466,7 +770,8 @@ serve(async (req) => {
           processed: totalProcessed,
           inserted: totalInserted,
           skipped: totalSkipped,
-          sources: targetSources.map(s => s.name)
+          sources: targetSources.map(s => s.name),
+          brands: enabledBrands.map((b: any) => b.name)
         }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

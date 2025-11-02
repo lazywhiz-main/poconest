@@ -3,6 +3,7 @@ import { TrendProductService, TrendProduct } from '../services/TrendProductServi
 import { TrendCollectionService } from '../services/TrendCollectionService';
 import ProductDetailModal from './ProductDetailModal';
 import TrendPatternsView from './TrendPatternsView';
+import CollectionSettingsModal from './CollectionSettingsModal';
 
 interface TrendInsightsSpaceProps {
   nestId: string;
@@ -10,6 +11,7 @@ interface TrendInsightsSpaceProps {
 
 type FilterCategory = 'all' | 'high-score' | 'investigating' | 'completed' | 'this-week' | 'this-month';
 type ViewMode = 'products' | 'patterns';
+type DisplayMode = 'card' | 'list';
 
 const TrendInsightsSpace: React.FC<TrendInsightsSpaceProps> = ({ nestId }) => {
   const [loading, setLoading] = useState(true);
@@ -24,6 +26,10 @@ const TrendInsightsSpace: React.FC<TrendInsightsSpaceProps> = ({ nestId }) => {
   const [collectionMessage, setCollectionMessage] = useState<string>('');
   const [selectedProduct, setSelectedProduct] = useState<TrendProduct | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('products');
+  const [displayMode, setDisplayMode] = useState<DisplayMode>('card');
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // データ取得
   useEffect(() => {
@@ -150,6 +156,53 @@ const TrendInsightsSpace: React.FC<TrendInsightsSpaceProps> = ({ nestId }) => {
     }
   };
 
+  // チェックボックス操作
+  const toggleSelectProduct = (productId: string) => {
+    const newSelected = new Set(selectedProductIds);
+    if (newSelected.has(productId)) {
+      newSelected.delete(productId);
+    } else {
+      newSelected.add(productId);
+    }
+    setSelectedProductIds(newSelected);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedProductIds.size === products.length) {
+      setSelectedProductIds(new Set());
+    } else {
+      setSelectedProductIds(new Set(products.map(p => p.id)));
+    }
+  };
+
+  // 一括削除
+  const handleBulkDelete = async () => {
+    if (selectedProductIds.size === 0) return;
+    
+    if (!confirm(`${selectedProductIds.size}件の製品を削除しますか？この操作は取り消せません。`)) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const deletePromises = Array.from(selectedProductIds).map(id =>
+        TrendProductService.deleteProduct(id)
+      );
+      
+      await Promise.all(deletePromises);
+      
+      // 削除成功後、リロード
+      setSelectedProductIds(new Set());
+      await loadProducts();
+      await loadStats();
+    } catch (error) {
+      console.error('[TrendInsightsSpace] Error deleting products:', error);
+      alert('削除に失敗しました');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const categories = [
     { id: 'all' as const, name: 'すべて' },
     { id: 'high-score' as const, name: '高スコア' },
@@ -271,6 +324,72 @@ const TrendInsightsSpace: React.FC<TrendInsightsSpaceProps> = ({ nestId }) => {
         )}
         
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          {/* 表示モード切り替え（製品一覧モードのみ） */}
+          {viewMode === 'products' && (
+            <div style={styles.displayModeSwitcher}>
+              <button
+                onClick={() => setDisplayMode('card')}
+                style={{
+                  ...styles.displayModeButton,
+                  ...(displayMode === 'card' ? styles.displayModeButtonActive : {}),
+                }}
+                title="カードビュー"
+              >
+                <svg style={{ width: '16px', height: '16px' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="3" width="7" height="7" rx="1"/>
+                  <rect x="14" y="3" width="7" height="7" rx="1"/>
+                  <rect x="3" y="14" width="7" height="7" rx="1"/>
+                  <rect x="14" y="14" width="7" height="7" rx="1"/>
+                </svg>
+              </button>
+              <button
+                onClick={() => setDisplayMode('list')}
+                style={{
+                  ...styles.displayModeButton,
+                  ...(displayMode === 'list' ? styles.displayModeButtonActive : {}),
+                }}
+                title="リストビュー"
+              >
+                <svg style={{ width: '16px', height: '16px' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="8" y1="6" x2="21" y2="6"/>
+                  <line x1="8" y1="12" x2="21" y2="12"/>
+                  <line x1="8" y1="18" x2="21" y2="18"/>
+                  <line x1="3" y1="6" x2="3.01" y2="6"/>
+                  <line x1="3" y1="12" x2="3.01" y2="12"/>
+                  <line x1="3" y1="18" x2="3.01" y2="18"/>
+                </svg>
+              </button>
+            </div>
+          )}
+          
+          {/* 選択中の製品数と削除ボタン */}
+          {viewMode === 'products' && selectedProductIds.size > 0 && (
+            <>
+              <div style={styles.selectionInfo}>
+                {selectedProductIds.size}件選択中
+              </div>
+              <button
+                onClick={handleBulkDelete}
+                disabled={isDeleting}
+                style={styles.deleteButton}
+              >
+                {isDeleting ? '削除中...' : '削除'}
+              </button>
+            </>
+          )}
+          
+          {/* 設定ボタン */}
+          <button
+            onClick={() => setShowSettingsModal(true)}
+            style={styles.settingsButton}
+            title="データ収集設定"
+          >
+            <svg style={{ width: '18px', height: '18px' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M12 1v6M12 17v6M4.22 4.22l4.24 4.24M15.54 15.54l4.24 4.24M1 12h6M17 12h6M4.22 19.78l4.24-4.24M15.54 8.46l4.24-4.24"/>
+            </svg>
+          </button>
+          
           {/* 収集ボタン */}
           <button
             onClick={handleCollectProducts}
@@ -311,7 +430,7 @@ const TrendInsightsSpace: React.FC<TrendInsightsSpaceProps> = ({ nestId }) => {
       {viewMode === 'patterns' ? (
         <TrendPatternsView nestId={nestId} />
       ) : (
-        <div style={styles.cardGrid}>
+        <div style={displayMode === 'list' ? styles.listViewContainer : styles.cardGrid}>
           {loading ? (
           <div style={styles.loadingState}>
             <div style={styles.spinner} />
@@ -335,8 +454,9 @@ const TrendInsightsSpace: React.FC<TrendInsightsSpaceProps> = ({ nestId }) => {
               RSS収集を開始すると、ここに製品が表示されます
             </div>
           </div>
-        ) : (
-          products.map((product) => (
+        ) : displayMode === 'card' ? (
+          <>
+          {products.map((product) => (
             <div
               key={product.id}
               style={styles.productCard}
@@ -352,6 +472,22 @@ const TrendInsightsSpace: React.FC<TrendInsightsSpaceProps> = ({ nestId }) => {
                 e.currentTarget.style.boxShadow = 'none';
               }}
             >
+              {/* チェックボックス */}
+              <div
+                style={styles.checkbox}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleSelectProduct(product.id);
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedProductIds.has(product.id)}
+                  onChange={() => {}}
+                  style={styles.checkboxInput}
+                />
+              </div>
+              
               {/* サムネイル */}
               {product.thumbnail_url && (
                 <div style={styles.thumbnail}>
@@ -395,7 +531,12 @@ const TrendInsightsSpace: React.FC<TrendInsightsSpaceProps> = ({ nestId }) => {
               </div>
 
               {/* タイトル */}
-              <div style={styles.productTitle}>{product.title_ja}</div>
+              <div style={styles.titleContainer}>
+                <div style={styles.productTitle}>{product.title_original}</div>
+                {product.title_ja && product.title_ja !== product.title_original && (
+                  <div style={styles.productTitleJa}>{product.title_ja}</div>
+                )}
+              </div>
 
               {/* バッジエリア: ブランド + カテゴリー */}
               <div style={styles.badgeArea}>
@@ -542,7 +683,97 @@ const TrendInsightsSpace: React.FC<TrendInsightsSpaceProps> = ({ nestId }) => {
                 </div>
               </div>
             </div>
-          ))
+          ))}
+          </>
+        ) : (
+          // リストビュー
+          <div style={styles.listContainer}>
+            {/* リストヘッダー */}
+            <div style={styles.listHeader}>
+              <div style={styles.listHeaderCell} onClick={toggleSelectAll}>
+                <input
+                  type="checkbox"
+                  checked={selectedProductIds.size === products.length && products.length > 0}
+                  onChange={() => {}}
+                  style={styles.checkboxInput}
+                />
+              </div>
+              <div style={{...styles.listHeaderCell, flex: 2}}>製品名</div>
+              <div style={{...styles.listHeaderCell, width: '100px', textAlign: 'center'}}>スコア</div>
+              <div style={{...styles.listHeaderCell, width: '120px'}}>ステータス</div>
+              <div style={{...styles.listHeaderCell, width: '150px'}}>ブランド</div>
+              <div style={{...styles.listHeaderCell, width: '120px'}}>カテゴリー</div>
+              <div style={{...styles.listHeaderCell, width: '120px'}}>発見日</div>
+            </div>
+            
+            {/* リスト行 */}
+            {products.map((product) => (
+              <div
+                key={product.id}
+                style={styles.listRow}
+                onClick={() => setSelectedProduct(product)}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#1e1e2e';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+              >
+                <div
+                  style={styles.listCell}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleSelectProduct(product.id);
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedProductIds.has(product.id)}
+                    onChange={() => {}}
+                    style={styles.checkboxInput}
+                  />
+                </div>
+                <div style={{...styles.listCell, flex: 2}}>
+                  <div style={styles.listTitle}>{product.title_original}</div>
+                  {product.title_ja && product.title_ja !== product.title_original && (
+                    <div style={styles.listTitleJa}>{product.title_ja}</div>
+                  )}
+                </div>
+                <div style={{...styles.listCell, width: '100px', textAlign: 'center'}}>
+                  <span style={{
+                    color: getTotalScoreColor(product.score_total),
+                    fontWeight: 600,
+                    fontFamily: 'JetBrains Mono, monospace',
+                  }}>
+                    {product.score_total.toFixed(1)}
+                  </span>
+                </div>
+                <div style={{...styles.listCell, width: '120px'}}>
+                  <span style={getStatusBadgeStyle(product.status)}>
+                    <span style={{ fontSize: '10px' }}>{getStatusIcon(product.status)}</span>
+                    {product.status}
+                  </span>
+                </div>
+                <div style={{...styles.listCell, width: '150px'}}>
+                  {product.brand_designer && (
+                    <span style={{...badgeBase, background: 'rgba(139,92,246,0.2)', color: '#8b5cf6', borderColor: '#8b5cf6'}}>
+                      {product.brand_designer}
+                    </span>
+                  )}
+                </div>
+                <div style={{...styles.listCell, width: '120px'}}>
+                  {product.category && (
+                    <span style={{...badgeBase, background: 'rgba(59,130,246,0.2)', color: '#3b82f6', borderColor: '#3b82f6'}}>
+                      {product.category}
+                    </span>
+                  )}
+                </div>
+                <div style={{...styles.listCell, width: '120px', fontSize: '12px', color: '#6c7086'}}>
+                  {new Date(product.discovered_at).toLocaleDateString('ja-JP', {month: 'short', day: 'numeric'})}
+                </div>
+              </div>
+            ))}
+          </div>
         )}
         </div>
       )}
@@ -552,6 +783,14 @@ const TrendInsightsSpace: React.FC<TrendInsightsSpaceProps> = ({ nestId }) => {
         <ProductDetailModal
           product={selectedProduct}
           onClose={() => setSelectedProduct(null)}
+        />
+      )}
+
+      {/* 設定モーダル */}
+      {showSettingsModal && (
+        <CollectionSettingsModal
+          nestId={nestId}
+          onClose={() => setShowSettingsModal(false)}
         />
       )}
     </div>
@@ -713,13 +952,23 @@ const styles = {
     fontFamily: 'JetBrains Mono, monospace',
     lineHeight: 1,
   },
+  titleContainer: {
+    marginBottom: '8px',
+  },
   productTitle: {
     fontSize: '14px',
     fontWeight: 600,
     color: '#e2e8f0',
     fontFamily: 'Space Grotesk, sans-serif',
-    marginBottom: '8px',
+    marginBottom: '4px',
     lineHeight: 1.4,
+  },
+  productTitleJa: {
+    fontSize: '12px',
+    fontWeight: 400,
+    color: '#a6adc8',
+    fontFamily: 'Noto Sans JP, sans-serif',
+    lineHeight: 1.5,
   },
   badgeArea: {
     display: 'flex',
@@ -827,6 +1076,19 @@ const styles = {
     textTransform: 'uppercase' as const,
     letterSpacing: '0.5px',
   },
+  settingsButton: {
+    padding: '8px 12px',
+    backgroundColor: '#333366',
+    color: '#00ff88',
+    border: '1px solid #45475a',
+    borderRadius: '4px',
+    fontSize: '16px',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   collectButton: {
     padding: '8px 16px',
     backgroundColor: '#00ff88',
@@ -903,6 +1165,126 @@ const styles = {
     fontSize: '13px',
     color: '#a6adc8',
     fontFamily: 'Space Grotesk, sans-serif',
+  },
+  // 表示モード切り替え
+  displayModeSwitcher: {
+    display: 'flex',
+    gap: '4px',
+    padding: '4px',
+    backgroundColor: '#1e1e2e',
+    borderRadius: '4px',
+    border: '1px solid #333366',
+  },
+  displayModeButton: {
+    padding: '6px 10px',
+    backgroundColor: 'transparent',
+    color: '#6c7086',
+    border: 'none',
+    borderRadius: '2px',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  displayModeButtonActive: {
+    backgroundColor: '#333366',
+    color: '#00ff88',
+  },
+  // 選択情報と削除ボタン
+  selectionInfo: {
+    fontSize: '13px',
+    color: '#a6adc8',
+    fontFamily: 'JetBrains Mono, monospace',
+  },
+  deleteButton: {
+    padding: '8px 16px',
+    backgroundColor: '#f38ba8',
+    color: '#1e1e2e',
+    border: 'none',
+    borderRadius: '4px',
+    fontSize: '13px',
+    fontWeight: 600,
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    fontFamily: 'Space Grotesk, sans-serif',
+  },
+  // チェックボックス
+  checkbox: {
+    position: 'absolute' as const,
+    top: '8px',
+    left: '8px',
+    zIndex: 10,
+    padding: '4px',
+    cursor: 'pointer',
+  },
+  checkboxInput: {
+    width: '16px',
+    height: '16px',
+    cursor: 'pointer',
+    accentColor: '#00ff88',
+  },
+  // リストビュー
+  listViewContainer: {
+    width: '100%',
+    display: 'flex',
+    flexDirection: 'column' as const,
+  },
+  listContainer: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '0',
+    width: '100%',
+    backgroundColor: '#1e1e2e',
+    borderRadius: '8px',
+    border: '1px solid #333366',
+    overflow: 'hidden',
+  },
+  listHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
+    padding: '12px 16px',
+    backgroundColor: '#181825',
+    borderBottom: '1px solid #333366',
+    fontSize: '11px',
+    fontWeight: 600,
+    color: '#6c7086',
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.5px',
+    fontFamily: 'JetBrains Mono, monospace',
+  },
+  listHeaderCell: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+    cursor: 'pointer',
+  },
+  listRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
+    padding: '12px 16px',
+    borderBottom: '1px solid #333366',
+    cursor: 'pointer',
+    transition: 'background-color 0.2s ease',
+  },
+  listCell: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
+  listTitle: {
+    fontSize: '13px',
+    fontWeight: 500,
+    color: '#cdd6f4',
+    fontFamily: 'Space Grotesk, sans-serif',
+  },
+  listTitleJa: {
+    fontSize: '11px',
+    color: '#6c7086',
+    fontFamily: 'Noto Sans JP, sans-serif',
+    marginTop: '2px',
   },
 };
 
