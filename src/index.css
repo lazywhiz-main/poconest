@@ -58,6 +58,15 @@ body, html, #root {
   }
 }
 
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
 /* --- 追加: .bg-secondaryクラス --- */
 .bg-secondary {
   background: var(--bg-secondary) !important;

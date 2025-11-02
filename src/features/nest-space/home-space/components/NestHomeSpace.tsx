@@ -550,7 +550,7 @@ const NestHomeSpace: React.FC<NestHomeSpaceProps> = ({ nestId }) => {
             }}
           >
             <Icon name="board" size={16} color="#ffffff" />
-            ボードを作成
+            カードを作成
           </button>
         </div>
       </div>

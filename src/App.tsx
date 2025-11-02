@@ -24,6 +24,7 @@ import AnalysisSpace from './features/analysis-space/components/AnalysisSpace';
 import { TheoryBuildingSpace } from './features/nest-space/analysis-space-v3';
 import { AnalysisSpaceProvider } from './features/nest-space/analysis-space-v2';
 import UserProfileSpace from './features/user-profile/components/UserProfileSpace';
+import TrendInsightsSpace from '@features/trend-insights/components/TrendInsightsSpace';
 import { MeetingProvider } from './features/meeting-space/contexts/MeetingContext';
 import NestHomeSpace from './features/nest-space/home-space/components/NestHomeSpace';
 import { NestListScreen } from './screens/NestListScreen';
@@ -430,7 +431,7 @@ const AppContent: React.FC = () => {
     }
     const params = new URLSearchParams(window.location.search);
     const space = params.get('space') || 'home';
-            const menuSections = [
+    const menuSections = [
       {
         title: '',
         items: [
@@ -441,6 +442,7 @@ const AppContent: React.FC = () => {
           { id: 'analytics', icon: <Icon name="analysis" size={18} />, text: '分析', isActive: space === 'analytics' },
           { id: 'analytics-beta', icon: <Icon name="map" size={18} />, text: 'データマッピング', isActive: space === 'analytics-beta', badge: 1 },
           { id: 'theory-building', icon: <Icon name="brain" size={18} />, text: '理論構築・管理', isActive: space === 'theory-building', badge: 4 },
+          { id: 'trend-insights', icon: <Icon name="trending-up" size={18} />, text: 'トレンドインサイト', isActive: space === 'trend-insights' },
           { id: 'settings', icon: <Icon name="settings" size={18} />, text: '設定', isActive: space === 'settings' },
         ],
       },
@@ -505,6 +507,13 @@ const AppContent: React.FC = () => {
             <AnalysisSpaceProvider>
               <TheoryBuildingSpace boardId={currentNest.id} nestId={currentNest.id} />
             </AnalysisSpaceProvider>
+          </BoardProvider>
+        );
+        break;
+      case 'trend-insights':
+        SpaceComponent = (
+          <BoardProvider currentNestId={currentNest.id}>
+            <TrendInsightsSpace nestId={currentNest.id} />
           </BoardProvider>
         );
         break;
@@ -636,6 +645,13 @@ const NestTopScreen: React.FC = () => {
           </BoardProvider>
         );
         break;
+      case 'trend-insights':
+        SpaceComponent = (
+          <BoardProvider currentNestId={nest.id}>
+            <TrendInsightsSpace nestId={nest.id} />
+          </BoardProvider>
+        );
+        break;
       case 'settings':
       SpaceComponent = <NestSettingsScreen nestId={nest.id} />;
       break;
@@ -664,6 +680,7 @@ const NestTopScreen: React.FC = () => {
         { id: 'analytics', icon: <Icon name="analysis" size={18} />, text: '分析', isActive: space === 'analytics' },
                   { id: 'analytics-beta', icon: <Icon name="map" size={18} />, text: 'データマッピング', isActive: space === 'analytics-beta', badge: 1 },
         { id: 'theory-building', icon: <Icon name="brain" size={18} />, text: '理論構築・管理', isActive: space === 'theory-building', badge: 4 },
+        { id: 'trend-insights', icon: <Icon name="trending-up" size={18} />, text: 'トレンドインサイト', isActive: space === 'trend-insights' },
         { id: 'settings', icon: <Icon name="settings" size={18} />, text: '設定', isActive: space === 'settings' },
       ],
     },

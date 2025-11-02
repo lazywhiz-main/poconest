@@ -36,7 +36,8 @@ export type IconName =
   | 'logout'
   | 'zap'
   | 'map'
-  | 'brain';
+  | 'brain'
+  | 'trending-up';
 
 interface IconProps {
   name: IconName;
@@ -282,6 +283,12 @@ const icons: Record<IconName, (props: { size: number; color: string }) => JSX.El
       <path d="M12 21a9 9 0 1 1 0-18 9 9 0 0 1 0 18z"/>
       <path d="M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10z"/>
       <path d="M12 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/>
+    </svg>
+  ),
+  'trending-up': ({ size, color }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="23,6 13.5,15.5 8.5,10.5 1,18" />
+      <polyline points="17,6 23,6 23,12" />
     </svg>
   ),
 };
