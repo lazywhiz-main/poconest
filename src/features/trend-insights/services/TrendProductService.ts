@@ -19,7 +19,7 @@ export interface TrendProduct {
   status: string;
   reason_text: string | null;
   discovered_at: string;
-  // thumbnail_url: string | null; // 後で追加
+  thumbnail_url: string | null;
   updated_at: string;
   created_by: string | null;
 }

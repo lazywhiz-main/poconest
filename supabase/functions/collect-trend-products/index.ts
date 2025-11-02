@@ -275,6 +275,62 @@ async function scoreProduct(item: RSSItem, openaiApiKey: string): Promise<any> {
   }
 }
 
+// OG画像を取得する関数
+async function getOGImage(url: string): Promise<string | null> {
+  try {
+    console.log(`[collect-trend-products] Fetching OG image from: ${url}`);
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; TrendInsights/1.0)',
+      },
+    });
+
+    if (!response.ok) {
+      console.error(`[collect-trend-products] Failed to fetch page: ${response.status}`);
+      return null;
+    }
+
+    const html = await response.text();
+    
+    // OG画像を抽出（優先順位順）
+    const ogImageRegex = /<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i;
+    const twitterImageRegex = /<meta\s+name=["']twitter:image["']\s+content=["']([^"']+)["']/i;
+    
+    const ogMatch = html.match(ogImageRegex);
+    if (ogMatch) {
+      console.log(`[collect-trend-products] Found OG image: ${ogMatch[1]}`);
+      return ogMatch[1];
+    }
+    
+    const twitterMatch = html.match(twitterImageRegex);
+    if (twitterMatch) {
+      console.log(`[collect-trend-products] Found Twitter image: ${twitterMatch[1]}`);
+      return twitterMatch[1];
+    }
+    
+    console.log(`[collect-trend-products] No OG image found for: ${url}`);
+    return null;
+  } catch (error) {
+    console.error(`[collect-trend-products] Error fetching OG image:`, error);
+    return null;
+  }
+}
+
+// カテゴリー別のプレースホルダー画像URL
+function getCategoryPlaceholder(category: string): string {
+  const placeholders: Record<string, string> = {
+    '家具': 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&h=300&fit=crop',
+    '電子機器': 'https://images.unsplash.com/photo-1498049794561-7780e7231661?w=400&h=300&fit=crop',
+    'ファッション': 'https://images.unsplash.com/photo-1445205170230-053b83016050?w=400&h=300&fit=crop',
+    '照明': 'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?w=400&h=300&fit=crop',
+    'インテリア': 'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=400&h=300&fit=crop',
+    'キッチン': 'https://images.unsplash.com/photo-1556911220-bff31c812dba?w=400&h=300&fit=crop',
+    'デフォルト': 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=400&h=300&fit=crop',
+  };
+  
+  return placeholders[category] || placeholders['デフォルト'];
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -357,6 +413,16 @@ serve(async (req) => {
 
         console.log(`[collect-trend-products] Scored product: ${item.title} - Total: ${scores.score_concept_shift + scores.score_category_disruption + scores.score_philosophical_pricing + scores.score_experience_change}`);
 
+        // サムネイル画像を取得
+        console.log(`[collect-trend-products] Fetching thumbnail for: ${item.title}`);
+        let thumbnailUrl = await getOGImage(item.link);
+        
+        if (!thumbnailUrl) {
+          // OG画像が取得できない場合、カテゴリー別プレースホルダーを使用
+          thumbnailUrl = getCategoryPlaceholder(scores.category || 'デフォルト');
+          console.log(`[collect-trend-products] Using placeholder image for category: ${scores.category}`);
+        }
+
         // データベースに保存
         const { error: insertError } = await supabase
           .from('trend_products')
@@ -375,7 +441,7 @@ serve(async (req) => {
             status: 'New',
             reason_text: scores.reason_text,
             discovered_at: new Date(item.pubDate || Date.now()).toISOString(),
-            // thumbnail_url: thumbnailUrl, // 後で追加
+            thumbnail_url: thumbnailUrl,
           });
 
         if (insertError) {

@@ -352,6 +352,21 @@ const TrendInsightsSpace: React.FC<TrendInsightsSpaceProps> = ({ nestId }) => {
                 e.currentTarget.style.boxShadow = 'none';
               }}
             >
+              {/* サムネイル */}
+              {product.thumbnail_url && (
+                <div style={styles.thumbnail}>
+                  <img
+                    src={product.thumbnail_url}
+                    alt={product.title_ja}
+                    style={styles.thumbnailImage}
+                    onError={(e) => {
+                      // 画像読み込みエラー時はプレースホルダーを表示
+                      e.currentTarget.src = 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=400&h=300&fit=crop';
+                    }}
+                  />
+                </div>
+              )}
+
               {/* スコアとステータス */}
               <div style={styles.cardHeader}>
                 <div
@@ -672,12 +687,14 @@ const styles = {
   },
   thumbnail: {
     width: '100%',
-    height: '140px',
+    height: '180px',
     backgroundColor: '#0f0f23',
     overflow: 'hidden' as const,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: '16px',
+    borderRadius: '2px',
   },
   thumbnailImage: {
     width: '100%',
