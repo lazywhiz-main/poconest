@@ -1,5 +1,5 @@
 import React from 'react';
-import { LandingButton } from '../common/LandingButton';
+import { Link } from 'react-router-dom';
 
 interface CTASectionProps {
   content: {
@@ -10,150 +10,75 @@ interface CTASectionProps {
 }
 
 export const CTASection: React.FC<CTASectionProps> = ({ content }) => {
-  const handleCTAClick = () => {
-    // 後でサインアップページに遷移
-    console.log('CTA clicked');
+  const styles = {
+    cta: {
+      padding: '100px 40px',
+      maxWidth: '1200px',
+      margin: '0 auto',
+      textAlign: 'center' as const,
+    },
+    title: {
+      fontSize: '48px',
+      fontWeight: 600,
+      marginBottom: '24px',
+      color: '#e2e8f0',
+    },
+    description: {
+      fontSize: '18px',
+      color: '#a6adc8',
+      marginBottom: '40px',
+      maxWidth: '600px',
+      marginLeft: 'auto',
+      marginRight: 'auto',
+    },
+    buttons: {
+      display: 'flex',
+      gap: '16px',
+      justifyContent: 'center',
+    },
+    btnPrimary: {
+      background: '#00ff88',
+      color: '#0f0f23',
+      padding: '16px 40px',
+      border: 'none',
+      borderRadius: '2px',
+      fontSize: '16px',
+      fontWeight: 600,
+      cursor: 'pointer',
+      transition: 'all 0.2s ease',
+      textTransform: 'uppercase' as const,
+      letterSpacing: '1px',
+      textDecoration: 'none',
+      display: 'inline-block',
+    },
+    btnSecondary: {
+      background: 'transparent',
+      color: '#00ff88',
+      padding: '16px 40px',
+      border: '1px solid #00ff88',
+      borderRadius: '2px',
+      fontSize: '16px',
+      fontWeight: 600,
+      cursor: 'pointer',
+      transition: 'all 0.2s ease',
+      textTransform: 'uppercase' as const,
+      letterSpacing: '1px',
+      textDecoration: 'none',
+      display: 'inline-block',
+    },
   };
 
   return (
-    <section style={{
-      padding: '100px 20px',
-      backgroundColor: 'var(--bg-secondary)',
-      position: 'relative',
-      overflow: 'hidden'
-    }}>
-      {/* 背景装飾 */}
-      <div style={{
-        position: 'absolute',
-        top: '10%',
-        left: '10%',
-        width: '200px',
-        height: '200px',
-        background: 'radial-gradient(circle, var(--primary-green)20 0%, transparent 70%)',
-        borderRadius: '50%',
-        filter: 'blur(80px)'
-      }} />
-      <div style={{
-        position: 'absolute',
-        bottom: '10%',
-        right: '10%',
-        width: '300px',
-        height: '300px',
-        background: 'radial-gradient(circle, var(--primary-blue)20 0%, transparent 70%)',
-        borderRadius: '50%',
-        filter: 'blur(100px)'
-      }} />
-      
-      <div style={{
-        maxWidth: '800px',
-        margin: '0 auto',
-        textAlign: 'center',
-        position: 'relative',
-        zIndex: 1
-      }}>
-        <h2 style={{
-          fontSize: '2.5rem',
-          fontWeight: '700',
-          marginBottom: '24px',
-          color: 'var(--text-primary)',
-          lineHeight: '1.2'
-        }}>
-          今すぐ始めて、洞察の力を実感してください
-        </h2>
-        
-        <p style={{
-          fontSize: '1.25rem',
-          lineHeight: '1.6',
-          marginBottom: '40px',
-          color: 'var(--text-secondary)',
-          maxWidth: '600px',
-          margin: '0 auto 40px'
-        }}>
-          14日間の無料トライアルで、Poconestがもたらす変化を体験。
-          クレジットカード不要、いつでもキャンセル可能。
-        </p>
-        
-        <div style={{
-          display: 'flex',
-          gap: '16px',
-          justifyContent: 'center',
-          flexWrap: 'wrap'
-        }}>
-          <LandingButton
-            title={content.ctaText}
-            onPress={handleCTAClick}
-            variant="primary"
-            size="lg"
-          />
-          
-          <LandingButton
-            title="デモを見る"
-            onPress={() => console.log('Demo clicked')}
-            variant="outline"
-            size="lg"
-          />
-        </div>
-        
-        {/* 信頼性指標 */}
-        <div style={{
-          marginTop: '60px',
-          display: 'flex',
-          justifyContent: 'center',
-          gap: '40px',
-          flexWrap: 'wrap'
-        }}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{
-              fontSize: '2rem',
-              fontWeight: '700',
-              color: 'var(--primary-green)',
-              marginBottom: '8px'
-            }}>
-              500+
-            </div>
-            <div style={{
-              fontSize: '0.9rem',
-              color: 'var(--text-secondary)'
-            }}>
-              利用チーム
-            </div>
-          </div>
-          
-          <div style={{ textAlign: 'center' }}>
-            <div style={{
-              fontSize: '2rem',
-              fontWeight: '700',
-              color: 'var(--primary-green)',
-              marginBottom: '8px'
-            }}>
-              99.9%
-            </div>
-            <div style={{
-              fontSize: '0.9rem',
-              color: 'var(--text-secondary)'
-            }}>
-              稼働率
-            </div>
-          </div>
-          
-          <div style={{ textAlign: 'center' }}>
-            <div style={{
-              fontSize: '2rem',
-              fontWeight: '700',
-              color: 'var(--primary-green)',
-              marginBottom: '8px'
-            }}>
-              4.8★
-            </div>
-            <div style={{
-              fontSize: '0.9rem',
-              color: 'var(--text-secondary)'
-            }}>
-              満足度
-            </div>
-          </div>
-        </div>
+    <section style={styles.cta}>
+      <h2 style={styles.title}>思考を、次のステージへ</h2>
+      <p style={styles.description}>
+        Poconestは無料で始められます。<br/>
+        今すぐ、あなたの知的生産を加速させましょう。
+      </p>
+      <div style={styles.buttons}>
+        <Link to="/login" style={styles.btnPrimary}>無料で始める</Link>
+        <a href="#features" style={styles.btnSecondary}>製品デモを見る</a>
       </div>
     </section>
   );
-}; 
+};

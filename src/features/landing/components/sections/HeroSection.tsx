@@ -13,182 +13,203 @@ interface HeroSectionProps {
 }
 
 export const HeroSection: React.FC<HeroSectionProps> = ({ content, targetType }) => {
+  const styles = {
+    hero: {
+      padding: '140px 40px 100px',
+      maxWidth: '1400px',
+      margin: '0 auto',
+      position: 'relative' as const,
+    },
+    heroGrid: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: '80px',
+      alignItems: 'center',
+    },
+    heroContent: {
+      // Left column
+    },
+    title: {
+      fontSize: '56px',
+      fontWeight: 700,
+      lineHeight: 1.1,
+      marginBottom: '24px',
+      color: '#e2e8f0',
+    },
+    highlight: {
+      color: '#00ff88',
+      position: 'relative' as const,
+      display: 'inline-block',
+    },
+    tagline: {
+      fontSize: '20px',
+      color: '#a6adc8',
+      marginBottom: '40px',
+      lineHeight: 1.6,
+    },
+    heroCta: {
+      display: 'flex',
+      gap: '16px',
+      alignItems: 'center',
+    },
+    btnPrimary: {
+      background: '#00ff88',
+      color: '#0f0f23',
+      padding: '10px 24px',
+      border: 'none',
+      borderRadius: '2px',
+      fontSize: '13px',
+      fontWeight: 600,
+      cursor: 'pointer',
+      transition: 'all 0.2s ease',
+      textTransform: 'uppercase' as const,
+      letterSpacing: '1px',
+      textDecoration: 'none',
+      display: 'inline-block',
+    },
+    btnSecondary: {
+      background: 'transparent',
+      color: '#00ff88',
+      padding: '10px 24px',
+      border: '1px solid #00ff88',
+      borderRadius: '2px',
+      fontSize: '13px',
+      fontWeight: 600,
+      cursor: 'pointer',
+      transition: 'all 0.2s ease',
+      textTransform: 'uppercase' as const,
+      letterSpacing: '1px',
+      textDecoration: 'none',
+      display: 'inline-block',
+    },
+    heroVisual: {
+      position: 'relative' as const,
+      height: '500px',
+    },
+    visualCard: {
+      position: 'absolute' as const,
+      background: '#1a1a2e',
+      border: '1px solid #333366',
+      borderRadius: '4px',
+      padding: '20px',
+      transition: 'all 0.3s ease',
+      cursor: 'pointer',
+    },
+    cardTag: {
+      fontSize: '10px',
+      color: '#6c7086',
+      textTransform: 'uppercase' as const,
+      letterSpacing: '1px',
+      marginBottom: '8px',
+      fontFamily: 'JetBrains Mono, monospace',
+    },
+    cardTitle: {
+      fontSize: '14px',
+      fontWeight: 500,
+      color: '#e2e8f0',
+      marginBottom: '8px',
+    },
+    cardDescription: {
+      fontSize: '12px',
+      color: '#a6adc8',
+      lineHeight: 1.5,
+    },
+    cardStatus: {
+      display: 'inline-block',
+      padding: '2px 6px',
+      background: '#00ff88',
+      color: '#0f0f23',
+      fontSize: '10px',
+      fontWeight: 600,
+      borderRadius: '2px',
+      marginTop: '8px',
+    },
+  };
+
+  const handleCardHover = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.currentTarget.style.transform = 'translateY(-4px)';
+    e.currentTarget.style.borderColor = '#00ff88';
+  };
+
+  const handleCardLeave = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.currentTarget.style.transform = 'translateY(0)';
+    e.currentTarget.style.borderColor = '#333366';
+  };
+
   return (
     <>
-      <section style={{ 
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        position: 'relative',
-        overflow: 'hidden',
-        background: 'linear-gradient(135deg, var(--background) 0%, #1a1a3a 50%, var(--background) 100%)',
-        paddingTop: '80px',
-        paddingBottom: '40px'
-      }}>
-        {/* Background decoration */}
-        <div style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: `
-            radial-gradient(circle at 20% 80%, rgba(0, 255, 136, 0.15) 0%, transparent 50%),
-            radial-gradient(circle at 80% 20%, rgba(99, 102, 241, 0.1) 0%, transparent 50%)
-          `
-        }} />
-
-        <div style={{ 
-          maxWidth: '720px',
-          margin: '0 auto',
-          padding: '0 20px',
-          textAlign: 'center',
-          position: 'relative',
-          zIndex: 2
-        }}>
-          <div style={{ 
-            background: 'rgba(0, 255, 136, 0.12)',
-            border: '1px solid rgba(0, 255, 136, 0.3)',
-            color: 'var(--primary)',
-            padding: '8px 16px',
-            borderRadius: '50px',
-            fontSize: '12px',
-            fontWeight: '600',
-            display: 'inline-block',
-            marginBottom: '24px',
-            animation: 'heroFadeInUp 0.6s ease-out',
-            letterSpacing: '0.02em'
-          }}>
-            🚀 1,200+チームが生産性を31%向上
-          </div>
-
-          <div style={{ animation: 'heroFadeInUp 0.8s ease-out 0.2s both' }}>
-            <h1 style={{
-              fontSize: '32px',
-              fontWeight: '700',
-              lineHeight: '1.2',
-              marginBottom: '16px',
-              background: `linear-gradient(135deg, var(--text) 0%, var(--primary) 100%)`,
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-              fontFamily: 'var(--font-family-text)',
-              letterSpacing: '-0.02em'
-            }}>
-              散らばった情報から、<br />戦略的洞察を
+      <section style={styles.hero}>
+        <div style={styles.heroGrid}>
+          <div style={styles.heroContent}>
+            <h1 style={styles.title}>
+              思考が進化する、<br/>
+              <span style={styles.highlight}>知的生産空間</span>
             </h1>
-          </div>
-
-          <p style={{
-            fontSize: '16px',
-            color: 'var(--text-muted)',
-            marginBottom: '32px',
-            lineHeight: '1.5',
-            maxWidth: '540px',
-            marginLeft: 'auto',
-            marginRight: 'auto',
-            animation: 'heroFadeInUp 1s ease-out 0.4s both',
-            letterSpacing: '0.01em'
-          }}>
-            AIが24時間365日、チームの会話や資料を分析。<br />
-            見落としていた重要な関係性を発見し、次の一手を提案します。
-          </p>
-
-          <div style={{
-            display: 'flex',
-            gap: '12px',
-            justifyContent: 'center',
-            marginBottom: '48px',
-            animation: 'heroFadeInUp 1.2s ease-out 0.6s both',
-            flexWrap: 'wrap'
-          }}>
-            <LandingButton 
-              title="14日間無料で体験する"
-              variant="primary"
-              size="md"
-              as={Link}
-              to="/signup"
-              style={{
-                padding: '12px 24px',
-                fontSize: '14px',
-                minWidth: '160px'
-              }}
-            />
-            <LandingButton 
-              title="実際のデモを見る"
-              variant="secondary" 
-              size="md"
-              as="a"
-              href="#demo"
-              style={{
-                padding: '12px 24px',
-                fontSize: '14px',
-                minWidth: '140px'
-              }}
-            />
-          </div>
-
-          <div style={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            gap: '32px',
-            animation: 'heroFadeInUp 1.4s ease-out 0.8s both',
-            flexWrap: 'wrap'
-          }}>
-            <div style={{ textAlign: 'center' }}>
-              <span style={{
-                fontSize: '24px',
-                fontWeight: '700',
-                color: 'var(--primary)',
-                fontFamily: 'var(--font-family-mono)',
-                display: 'block',
-                marginBottom: '4px',
-                lineHeight: '1'
-              }}>90%</span>
-              <span style={{
-                fontSize: '11px',
-                color: 'var(--text-faded)',
-                textTransform: 'uppercase',
-                letterSpacing: '1px',
-                lineHeight: '1.2'
-              }}>分析時間削減</span>
+            <p style={styles.tagline}>
+              対話、整理、収集、分析。<br/>
+              あらゆる知的活動が繋がり、進化する。<br/>
+              Poconestは、あなたの思考のエコシステムです。
+            </p>
+            <div style={styles.heroCta}>
+              <Link to="/login" style={styles.btnPrimary}>無料で始める</Link>
+              <a href="#features" style={styles.btnSecondary}>詳しく見る</a>
             </div>
-            <div style={{ textAlign: 'center' }}>
-              <span style={{
-                fontSize: '24px',
-                fontWeight: '700',
-                color: 'var(--primary)',
-                fontFamily: 'var(--font-family-mono)',
-                display: 'block',
-                marginBottom: '4px',
-                lineHeight: '1'
-              }}>3倍</span>
-              <span style={{
-                fontSize: '11px',
-                color: 'var(--text-faded)',
-                textTransform: 'uppercase',
-                letterSpacing: '1px',
-                lineHeight: '1.2'
-              }}>洞察発見速度</span>
+          </div>
+          
+          <div style={styles.heroVisual}>
+            {/* 背景の大きなRipple Effectロゴ */}
+            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', opacity: 0.15, zIndex: 0 }}>
+              <svg width="400" height="400" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="60" cy="60" r="8" fill="#00ff88"/>
+                <circle cx="60" cy="60" r="20" stroke="#00ff88" strokeWidth="2" opacity="0.8"/>
+                <circle cx="60" cy="60" r="35" stroke="#00ff88" strokeWidth="1.5" opacity="0.5"/>
+                <circle cx="60" cy="60" r="50" stroke="#00ff88" strokeWidth="1" opacity="0.3"/>
+                <line x1="60" y1="10" x2="60" y2="25" stroke="#00ff88" strokeWidth="2" strokeLinecap="round"/>
+                <line x1="110" y1="60" x2="95" y2="60" stroke="#00ff88" strokeWidth="2" strokeLinecap="round"/>
+                <line x1="60" y1="110" x2="60" y2="95" stroke="#00ff88" strokeWidth="2" strokeLinecap="round"/>
+                <line x1="10" y1="60" x2="25" y2="60" stroke="#00ff88" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
             </div>
-            <div style={{ textAlign: 'center' }}>
-              <span style={{
-                fontSize: '24px',
-                fontWeight: '700',
-                color: 'var(--primary)',
-                fontFamily: 'var(--font-family-mono)',
-                display: 'block',
-                marginBottom: '4px',
-                lineHeight: '1'
-              }}>24h</span>
-              <span style={{
-                fontSize: '11px',
-                color: 'var(--text-faded)',
-                textTransform: 'uppercase',
-                letterSpacing: '1px',
-                lineHeight: '1.2'
-              }}>自動監視</span>
+            
+            <div
+              style={{...styles.visualCard, top: 0, left: 0, width: '240px', zIndex: 1}}
+              onMouseEnter={handleCardHover}
+              onMouseLeave={handleCardLeave}
+            >
+              <div style={styles.cardTag}>Meeting → Board</div>
+              <div style={styles.cardTitle}>チームブレスト議事録</div>
+              <div style={styles.cardDescription}>音声から自動でカード生成され、アイデアが構造化される</div>
+              <span style={styles.cardStatus}>Auto-synced</span>
+            </div>
+            
+            <div
+              style={{...styles.visualCard, top: '80px', right: '40px', width: '200px', zIndex: 1}}
+              onMouseEnter={handleCardHover}
+              onMouseLeave={handleCardLeave}
+            >
+              <div style={styles.cardTag}>Trend Insight</div>
+              <div style={styles.cardTitle}>革新性スコア: 8.5</div>
+              <div style={styles.cardDescription}>世界のデザイントレンドを自動収集・分析</div>
+            </div>
+            
+            <div
+              style={{...styles.visualCard, bottom: '100px', left: '60px', width: '220px', zIndex: 1}}
+              onMouseEnter={handleCardHover}
+              onMouseLeave={handleCardLeave}
+            >
+              <div style={styles.cardTag}>Analysis</div>
+              <div style={styles.cardTitle}>ユーザーインサイト抽出</div>
+              <div style={styles.cardDescription}>質的データから理論を自動生成</div>
+            </div>
+            
+            <div
+              style={{...styles.visualCard, bottom: '20px', right: 0, width: '180px', zIndex: 1}}
+              onMouseEnter={handleCardHover}
+              onMouseLeave={handleCardLeave}
+            >
+              <div style={styles.cardTag}>Network Map</div>
+              <div style={styles.cardTitle}>知識の繋がり</div>
+              <div style={styles.cardDescription}>アイデアが自動で関連付けされる</div>
             </div>
           </div>
         </div>

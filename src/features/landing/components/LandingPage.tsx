@@ -5,12 +5,10 @@ import { useTargeting } from '../hooks/useTargeting';
 import { LandingHeader } from './navigation/LandingHeader';
 import { HeroSection } from './sections/HeroSection';
 import { ProblemsSection } from './sections/ProblemsSection';
-import { SolutionsSection } from './sections/SolutionsSection';
 import { FeaturesSection } from './sections/FeaturesSection';
-import { HowItWorksSection } from './sections/HowItWorksSection';
-import { FeatureShowcaseSection } from './sections/FeatureShowcaseSection';
-import { SocialProofSection } from './sections/SocialProofSection';
-import { PricingSection } from './sections/PricingSection';
+import { EcosystemSection } from './sections/EcosystemSection';
+import { PersonasSection } from './sections/PersonasSection';
+import { ValueSection } from './sections/ValueSection';
 import { CTASection } from './sections/CTASection';
 import { FooterSection } from './sections/FooterSection';
 
@@ -38,8 +36,8 @@ export const LandingPage: React.FC = () => {
   if (loading) {
     return (
       <div style={{
-        backgroundColor: 'var(--bg-primary)',
-        color: 'var(--text-primary)',
+        backgroundColor: '#0f0f23',
+        color: '#e2e8f0',
         minHeight: '100vh',
         display: 'flex',
         alignItems: 'center',
@@ -52,28 +50,26 @@ export const LandingPage: React.FC = () => {
 
   return (
     <div className="landing-page" style={{ 
-      backgroundColor: 'var(--bg-primary)',
-      color: 'var(--text-primary)',
-      fontFamily: 'var(--font-primary)',
+      backgroundColor: '#0f0f23',
+      color: '#e2e8f0',
+      fontFamily: 'Space Grotesk, Noto Sans JP, sans-serif',
       minHeight: '100vh'
     }}>
       <LandingHeader onLoginClick={handleLoginClick} onSignupClick={handleSignupClick} />
       
       <div style={{ paddingTop: '80px' }}> {/* ヘッダー分のスペース */}
         <HeroSection content={content.hero} targetType={targetType} />
+        <ProblemsSection content={{ problems: content.problems }} targetType={targetType} />
         <div id="features">
           <FeaturesSection features={content.features} />
         </div>
-        <ProblemsSection content={{ problems: content.problems }} targetType={targetType} />
-        <SolutionsSection solutions={content.solutions} />
-        <HowItWorksSection targetType={targetType} />
-        <FeatureShowcaseSection />
-        <div id="testimonials">
-          <SocialProofSection testimonials={content.socialProof} />
+        <div id="ecosystem">
+          <EcosystemSection />
         </div>
-        <div id="pricing">
-          <PricingSection pricing={content.pricing} />
+        <div id="personas">
+          <PersonasSection />
         </div>
+        <ValueSection />
         <CTASection content={content.hero} />
         <FooterSection />
       </div>
